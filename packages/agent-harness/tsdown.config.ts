@@ -6,8 +6,10 @@ const readJson = (path: string) => JSON.parse(readFileSync(new URL(path, import.
 const { name } = readJson('./plugin.json') as { name: string }
 const { version } = readJson('./package.json') as { version: string }
 
-// Dependencies stay external: `createReferenceCommand` must compose into the host CLI's own
-// `clibuilder` instance, not a private inlined copy that breaks command-registry identity.
+// The library build inlines `yaml` and keeps `clibuilder` and `@clibuilder/axi` external:
+// `createReferenceCommand` must compose into the host CLI's own `clibuilder` instance, not a
+// private inlined copy that breaks command-registry identity. Those two are optional peers, so a
+// consumer of `.` or `./worktrees` installs no runtime dependency. The bin build inlines all three.
 // tsdown 0.23 defaults to `.mjs`/`.d.mts` on the node platform; `fixedExtension: false`
 // keeps the `.js`/`.d.ts` names the package.json `exports` map points at.
 const shared = {
@@ -27,12 +29,17 @@ export default defineConfig([
 		},
 		dts: true,
 		clean: true,
+		deps: { alwaysBundle: ['yaml'], onlyBundle: false },
 	},
 	{
 		// The bin's entry; nothing imports it, so it ships no declarations.
 		...shared,
 		entry: { cli: 'src/cli.ts' },
 		dts: false,
+		// `bin` installs with no `clibuilder` beside it, so the CLI carries its own copy.
+		deps: { alwaysBundle: [/.*/], onlyBundle: false },
+		alias: { 'jsonc-parser': 'jsonc-parser/lib/esm/main.js' },
+		outputOptions: { codeSplitting: false, keepNames: true },
 	},
 	{
 		// The `reference` skill's launcher. An installed plugin has no `node_modules`, so every
