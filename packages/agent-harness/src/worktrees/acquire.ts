@@ -165,6 +165,14 @@ export interface CreateWorktreeRequest {
  */
 export type WorktreeCreator = (request: CreateWorktreeRequest) => Promise<void>
 
+/**
+ * Undoes what a `WorktreeCreator` did besides the checkout itself, such as a herdr workspace bound to
+ * the path. `acquire` calls it when the slot it just created lost its lease claim: the checkout may
+ * now belong to whoever won the claim (E-GIT-L5), so this must leave the worktree and its directory
+ * alone. Failures are swallowed so the retry still runs.
+ */
+export type WorktreeCreatorUndo = (request: CreateWorktreeRequest) => Promise<void>
+
 /** The default `WorktreeCreator`: `git worktree add`. */
 export function gitWorktreeCreator(exec: Exec = nodeExec): WorktreeCreator {
 	return async ({ primaryRoot, path, base, branch }) => {
@@ -185,6 +193,8 @@ export interface AcquireOptions extends ExplainOptions {
 	max?: number | undefined
 	/** Defaults to `gitWorktreeCreator(exec)`. */
 	create?: WorktreeCreator | undefined
+	/** Called when a slot `create` made lost its lease claim; see `WorktreeCreatorUndo`. */
+	undoCreate?: WorktreeCreatorUndo | undefined
 	/** The lease store's file operations; see `LeaseFs`. */
 	fs?: LeaseFs | undefined
 	/** Makes lease ids; defaults to a random UUID. */
@@ -321,18 +331,35 @@ async function createSlot(
 	while (used.has(n) || (await exists(slotPath(primary, n)))) n++
 	const path = slotPath(primary, n)
 	const create = options.create ?? gitWorktreeCreator(exec)
+	const request = { primaryRoot: primary, path, base, branch: options.branch }
 	try {
-		await create({ primaryRoot: primary, path, base, branch: options.branch })
+		await create(request)
 	} catch (error) {
 		// Another caller took the slot first; the next attempt picks another.
 		if (await exists(path)) return undefined
 		throw error
 	}
-	return claimLease(await normalizeWorktreePath(path), options.holder, {
-		exec,
-		fs: options.fs,
-		leaseId: options.newLeaseId?.(),
-	})
+	let lease: Lease | undefined
+	try {
+		lease = await claimLease(await normalizeWorktreePath(path), options.holder, {
+			exec,
+			fs: options.fs,
+			leaseId: options.newLeaseId?.(),
+		})
+	} catch (error) {
+		await undo(options.undoCreate, request)
+		throw error
+	}
+	if (!lease) await undo(options.undoCreate, request)
+	return lease
+}
+
+async function undo(undoCreate: WorktreeCreatorUndo | undefined, request: CreateWorktreeRequest) {
+	try {
+		await undoCreate?.(request)
+	} catch {
+		// Best effort: a failed undo must not turn a retryable loss into a failure.
+	}
 }
 
 async function branchExists(exec: Exec, primary: string, branch: string) {
