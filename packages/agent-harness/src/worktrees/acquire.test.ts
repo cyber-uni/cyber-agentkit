@@ -89,6 +89,7 @@ describe('acquire', () => {
 			worktree: slot(1),
 			leaseId: 'lease-1',
 			holder: 'pod-a',
+			commonDir: join(primary, '.git'),
 			reused: false,
 			verified: true,
 			lingering: [],
@@ -267,6 +268,46 @@ describe('acquire', () => {
 		expect((await explain(await options()))[1]).toMatchObject({ skip: 'foreign', worktree: { locked: 'user lock' } })
 	})
 
+	it('undoes the creator side effects when the created slot loses its claim, and retries', async () => {
+		const made: string[] = []
+		const undone: string[] = []
+		const create: WorktreeCreator = async (request) => {
+			made.push(request.path)
+			git(primary, 'worktree', 'add', '-q', '--detach', request.path, request.base)
+		}
+		let raced = false
+		const racing: LeaseFs = {
+			...nodeLeaseFs,
+			async createExclusive(path, text) {
+				if (!raced) {
+					raced = true
+					await writeFile(path, 'user lock')
+				}
+				return nodeLeaseFs.createExclusive(path, text)
+			},
+		}
+		const result = await acquire(
+			await options({
+				create,
+				fs: racing,
+				undoCreate: async (request) => {
+					undone.push(request.path)
+				},
+			}),
+		)
+		expect(undone).toEqual([slot(1)])
+		expect(made).toEqual([slot(1), slot(2)])
+		expect(result.worktree).toBe(slot(2))
+		// The checkout itself is left to whoever holds the lock.
+		expect(git(slot(1), 'rev-parse', 'HEAD')).toBeTruthy()
+	})
+
+	it('does not undo a creator whose claim held', async () => {
+		const undone: string[] = []
+		await acquire(await options({ undoCreate: async (request) => void undone.push(request.path) }))
+		expect(undone).toEqual([])
+	})
+
 	it('fails when there is no base to reset to', async () => {
 		const error = await acquire(await options({ base: 'nope' })).catch((e: unknown) => e)
 		expect(error).toMatchObject({ code: 'no-base' })
@@ -285,6 +326,14 @@ describe('release', () => {
 		const lease = await acquire(await options())
 		git(primary, 'worktree', 'unlock', slot(1))
 		expect(await release(lease, { exec })).toEqual({ released: false, reason: 'lost' })
+	})
+
+	it('clears the lock of a leased worktree whose directory is gone, so prune can take it', async () => {
+		const lease = await acquire(await options())
+		await rm(slot(1), { recursive: true, force: true })
+		expect(await release(lease, { exec })).toEqual({ released: true })
+		git(primary, 'worktree', 'prune')
+		expect(git(primary, 'worktree', 'list', '--porcelain')).not.toContain(slot(1))
 	})
 
 	it('does not recycle', async () => {

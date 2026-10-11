@@ -6,6 +6,7 @@ export type {
 	ExplainOptions,
 	SkipReason,
 	WorktreeCreator,
+	WorktreeCreatorUndo,
 	WorktreeVerdict,
 } from './acquire.js'
 export { AcquireError, acquire, explain, gitWorktreeCreator } from './acquire.js'
