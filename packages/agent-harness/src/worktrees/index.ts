@@ -37,6 +37,8 @@ export type { ProcessInfo, ProcessSource } from './process-source.js'
 export { procfsProcessSource } from './process-source.js'
 export type { PruneOutcome, PruneReport, PruneSkipReason, PruneWorktreesOptions } from './prune-worktrees.js'
 export { pruneWorktrees } from './prune-worktrees.js'
+export type { RemoveWorktreeOptions } from './remove-worktree.js'
+export { removeWorktree } from './remove-worktree.js'
 export type {
 	SeedFs,
 	SeedInventory,
