@@ -267,6 +267,7 @@ mapping is ignored with a warning.
 | `referenceLayers(options)` | Builds the ordered layers, to resolve several names against |
 | `resolveReference(name, layers)` | Resolves a parsed name (`parseReferenceName`) against layers |
 | `listReferences(layers)`, `referenceNames(layers)` | Every name the layers hold, with the status of each copy |
+| `listReferences(layers, { pattern })` | Every reference by exact name pattern, with tier, plugin, and ambiguity status |
 | `searchReferences(query, layers)` | Names matching a query by name, description, heading, or body |
 | `whereReference(name, layers, options)` | The project and user files an override can be written to |
 | `managedReferencesDir()`, `projectReferencesDir()`, `projectReferenceLayers()` | Single folders and layers |
@@ -280,6 +281,7 @@ The package ships a `reference` command with `show`, `list`, `search`, `where`, 
 ```sh
 npx -y @cyberuni/agent-harness reference show <name>... --root <repository root>
 npx -y @cyberuni/agent-harness reference list
+npx -y @cyberuni/agent-harness reference list 'project-tracker.capabilities.*'
 npx -y @cyberuni/agent-harness reference create <name> --scope project
 npx -y @cyberuni/agent-harness reference delete <name> --scope project --dry-run
 ```

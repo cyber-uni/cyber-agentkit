@@ -228,14 +228,26 @@ const listFormatOption = defineFormatOption({
 function listCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'list',
-		description: 'List every layer, and every reference at every layer that holds it, marked used or shadowed.',
+		description:
+			'List every layer, and every reference at every layer that holds it, marked used or shadowed. A pattern keeps only the names it matches exactly.',
+		arguments: [
+			{
+				name: 'pattern',
+				description:
+					'Exact name pattern, where `*` stands for any run of characters, such as `project-tracker.capabilities.*`.',
+				type: z.optional(z.string()),
+			},
+		],
 		options: { root: rootOption, format: listFormatOption },
-		async run(args: CommonArgs) {
+		async run(args: CommonArgs & { pattern?: string | undefined }) {
 			try {
 				const output = createOutput(args.format)
 				const home = homedir()
 				const layers = await layersFor(args, home)
-				const { rows, warnings } = listReferences(layers, { display: (path) => collapseHome(home, path) })
+				const { rows, warnings } = listReferences(layers, {
+					display: (path) => collapseHome(home, path),
+					...(args.pattern ? { pattern: args.pattern } : {}),
+				})
 				const report: ReferenceListReport = {
 					layers: layers.map(({ tier, plugins, dir, status }) => ({
 						tier,
@@ -245,7 +257,9 @@ function listCommand(layersFor: LayersFor): cli.Command {
 					})),
 					references: rows.length
 						? rows.map((row) => ({ ...row, path: collapseHome(home, row.path) }))
-						: '0 references — no layer holds one',
+						: args.pattern
+							? `0 references match "${args.pattern}"`
+							: '0 references — no layer holds one',
 				}
 				if (warnings.length) report.warnings = warnings
 				output.result(report)

@@ -47,7 +47,13 @@ export type { PluginStorage, PluginStorageKind, PluginStorageLocation } from './
 export { pluginStorage } from './plugins/plugin-storage.js'
 export type { LoadReferenceOptions } from './references/load-reference.js'
 export { loadReference } from './references/load-reference.js'
-export type { MatchKind, ReferenceListing, ReferenceRow, SearchMatch } from './references/reference-catalog.js'
+export type {
+	ListOptions,
+	MatchKind,
+	ReferenceListing,
+	ReferenceRow,
+	SearchMatch,
+} from './references/reference-catalog.js'
 export { listReferences, searchReferences } from './references/reference-catalog.js'
 export type { MergeMode } from './references/reference-document.js'
 export type {
