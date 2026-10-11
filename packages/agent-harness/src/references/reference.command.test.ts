@@ -95,7 +95,7 @@ const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
 
 type ShowArgs = { root?: string; format?: string; trace?: boolean }
-type ListArgs = { root?: string; format?: string }
+type ListArgs = { root?: string; format?: string; pattern?: string }
 type SearchArgs = { root?: string; format?: string }
 type WhereArgs = { root?: string; caller?: string; format?: string }
 type DeleteArgs = { root?: string; scope?: string; 'dry-run'?: boolean; format?: string }
@@ -956,6 +956,20 @@ describe('show output', () => {
 // ── list ──
 
 describe('list', () => {
+	it('keeps only the names a pattern matches, and says so when none do', async () => {
+		const root = repo()
+		write(root, '.agents/references/tracker.capabilities.github.md', '# github\n')
+		write(root, '.agents/references/other.md', '# other\n')
+
+		expect(await list({ root, pattern: 'tracker.capabilities.*' })).toBe(0)
+		const report = JSON.parse(written()) as ReferenceListReport
+		expect((report.references as { name: string }[]).map(({ name }) => name)).toEqual(['tracker.capabilities.github'])
+
+		stdout.mockClear()
+		expect(await list({ root, pattern: 'nothing.*' })).toBe(0)
+		expect((JSON.parse(written()) as ReferenceListReport).references).toBe('0 references match "nothing.*"')
+	})
+
 	it('lists every layer in precedence order, with the legacy layers marked', async () => {
 		const root = repo()
 		write(root, '.agents/references/name.md', '# project\n')

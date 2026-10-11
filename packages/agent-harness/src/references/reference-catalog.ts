@@ -18,11 +18,26 @@ export type ReferenceRow = {
 
 export type ReferenceListing = { rows: ReferenceRow[]; warnings: string[] }
 
-/** One row per name per layer holding it, with the status resolution gave that layer. */
-export function listReferences(layers: readonly ReferenceLayer[], options: ResolveOptions = {}): ReferenceListing {
+export type ListOptions = ResolveOptions & {
+	/** Keep only names matching this pattern: `*` stands for any run of characters, everything else is literal and case-sensitive. */
+	pattern?: string
+}
+
+function patternMatcher(pattern: string): RegExp {
+	const source = pattern.split('*').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+	return new RegExp(`^${source.join('.*')}$`, 's')
+}
+
+/**
+ * One row per name per layer holding it, with the status resolution gave that layer. A `pattern`
+ * keeps only the names it matches exactly: no fuzziness, no ranking.
+ */
+export function listReferences(layers: readonly ReferenceLayer[], options: ListOptions = {}): ReferenceListing {
 	const rows: ReferenceRow[] = []
 	const warnings = new Set<string>()
+	const matcher = options.pattern === undefined ? undefined : patternMatcher(options.pattern)
 	for (const name of referenceNames(layers)) {
+		if (matcher && !matcher.test(name)) continue
 		const resolved = resolveReference(parseReferenceName(name), layers, options)
 		for (const warning of resolved.warnings) warnings.add(warning)
 		for (const entry of resolved.trace) {

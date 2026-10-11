@@ -21,6 +21,38 @@ function layer(tier: ReferenceLayer['tier'], dir: string, plugins: string[] = []
 }
 
 describe('listReferences', () => {
+	it('keeps only the names a pattern matches exactly, with their tier, plugin, and status', () => {
+		const dirA = tempDir()
+		const dirB = tempDir()
+		write(dirA, 'tracker.capabilities.github.md', '# github\n')
+		write(dirA, 'tracker.capabilities.linear.md', '# linear\n')
+		write(dirA, 'tracker.capabilitiesx.md', '# near miss\n')
+		write(dirA, 'tracker-capabilities-asana.md', '# dot is literal\n')
+		write(dirB, 'tracker.capabilities.linear.md', '# linear again\n')
+
+		const { rows } = listReferences([layer('plugin', dirA, ['dep-a']), layer('plugin', dirB, ['dep-b'])], {
+			pattern: 'tracker.capabilities.*',
+		})
+
+		expect(rows.map(({ name, plugin }) => [name, plugin])).toEqual([
+			['tracker.capabilities.github', 'dep-a'],
+			['tracker.capabilities.linear', 'dep-a'],
+			['tracker.capabilities.linear', 'dep-b'],
+		])
+		expect(rows[0]?.tier).toBe('plugin')
+		expect(rows[1]?.status).toContain('ambiguous')
+	})
+
+	it('treats a pattern without a star as an exact name', () => {
+		const dir = tempDir()
+		write(dir, 'alpha.md', '# a\n')
+		write(dir, 'alpha-two.md', '# b\n')
+
+		expect(listReferences([layer('project', dir)], { pattern: 'alpha' }).rows.map(({ name }) => name)).toEqual([
+			'alpha',
+		])
+	})
+
 	it('reports an ambiguous name with the plugins it names, not the bare "ambiguous" outcome', () => {
 		const dirA = tempDir()
 		const dirB = tempDir()

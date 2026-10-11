@@ -61,6 +61,7 @@ Load `references/create.md` from this skill's folder and follow it.
 
 - For a topic, run `search <query>`. If nothing matches, say that nothing matched. Do not guess a name.
 - For every reference, and which copy of each is used, run `list`.
+- For every name matching a pattern, such as every provider of a shared prefix, run `list '<pattern>'`. `*` stands for any run of characters and the rest is literal, so it returns only exact matches, unlike `search`.
 
 ## Inspect
 

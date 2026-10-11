@@ -28,7 +28,7 @@ npx -y @cyberuni/agent-harness reference show agent-readiness-weights
 | Subcommand | Does |
 | --- | --- |
 | `show <name>...` | Prints each reference; `--trace` says why the name resolved to the copy it did |
-| `list` | Every layer, and every reference at each layer that holds it, marked used or shadowed |
+| `list [pattern]` | Every layer, and every reference at each layer that holds it, marked used or shadowed; a pattern such as `project-tracker.capabilities.*` keeps only the names it matches exactly |
 | `search <query>` | References matching a query by name, description, tags, heading, or body |
 | `where <name>` | The project and user files an override can be written to |
 | `create <name>` | Starts a reference in the project or user tier, marked `merge-sections` when it overrides a copy below |
