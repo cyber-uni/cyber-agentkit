@@ -208,20 +208,16 @@ importers:
         version: 6.0.3
 
   packages/agent-harness:
-    dependencies:
+    devDependencies:
       '@clibuilder/axi':
         specifier: ^0.2.0
         version: 0.2.0(clibuilder@11.3.2(typescript@7.0.2))
-      clibuilder:
-        specifier: ^11.3.0
-        version: 11.3.2(typescript@7.0.2)
-      yaml:
-        specifier: ^2.9.0
-        version: 2.9.1
-    devDependencies:
       '@types/node':
         specifier: ^24.10.1
         version: 24.13.6
+      clibuilder:
+        specifier: ^11.3.0
+        version: 11.3.2(typescript@7.0.2)
       tsdown:
         specifier: ^0.23.0
         version: 0.23.0(@volar/typescript@2.4.28(typescript@7.0.2))(tsx@4.23.15)(typescript@7.0.2)
@@ -234,6 +230,9 @@ importers:
       vitest:
         specifier: ^5.0.0
         version: 5.0.2(@types/node@24.13.6)(vite@8.3.1(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.6.1)(tsx@4.23.15)(yaml@2.9.1))
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.1
 
 packages:
 

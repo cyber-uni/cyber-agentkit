@@ -55,17 +55,27 @@
 		"typecheck": "tsc --noEmit",
 		"verify": "pnpm typecheck && pnpm lint && pnpm test"
 	},
-	"dependencies": {
+	"peerDependencies": {
 		"@clibuilder/axi": "^0.2.0",
-		"clibuilder": "^11.3.0",
-		"yaml": "^2.9.0"
+		"clibuilder": "^11.3.0"
+	},
+	"peerDependenciesMeta": {
+		"@clibuilder/axi": {
+			"optional": true
+		},
+		"clibuilder": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
+		"@clibuilder/axi": "^0.2.0",
+		"clibuilder": "^11.3.0",
 		"@types/node": "^24.10.1",
 		"tsdown": "^0.23.0",
 		"tsx": "^4.22.3",
 		"typescript": "^7.0.0",
-		"vitest": "^5.0.0"
+		"vitest": "^5.0.0",
+		"yaml": "^2.9.0"
 	},
 	"engines": {
 		"node": ">=22"
