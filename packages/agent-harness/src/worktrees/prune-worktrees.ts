@@ -23,6 +23,7 @@ import type { ProcessSource } from './process-source.js'
  * - `dirty-unknown`: git could not say whether it is clean.
  * - `unmerged`: its branch has not landed on the default branch.
  * - `merge-unknown`: whether it landed cannot be told (detached HEAD, or no default branch).
+ * - `unlisted`: only `removeWorktree` reports it: the named path is no worktree of this repository.
  */
 export type PruneSkipReason =
 	| 'primary'
@@ -35,6 +36,7 @@ export type PruneSkipReason =
 	| 'dirty-unknown'
 	| 'unmerged'
 	| 'merge-unknown'
+	| 'unlisted'
 
 export interface PruneOutcome {
 	root: string
@@ -131,7 +133,7 @@ export async function pruneWorktrees(options: PruneWorktreesOptions): Promise<Pr
 		if (!occupancy.verified && !strict) outcome.unverified = true
 		const reason = skipReason(entry, owner, occupancy)
 		if (reason) outcome.reason = reason
-		else outcome.status = apply ? await remove(exec, primary, entry, options.ignore) : 'candidate'
+		else outcome.status = apply ? await removeEntry(exec, primary, entry, options.ignore) : 'candidate'
 		worktrees.push(outcome)
 	}
 
@@ -140,13 +142,19 @@ export async function pruneWorktrees(options: PruneWorktreesOptions): Promise<Pr
 	return { applied: true, worktrees, pruned }
 }
 
-function skipReason(
+/**
+ * The first check a worktree fails, or `undefined` when it may go. `force` is `removeWorktree`'s
+ * explicit override: it waives every check except `primary` and `leased`, which nothing waives.
+ */
+export function skipReason(
 	entry: WorktreeEntry,
 	owner: WorktreeOwnerKind,
 	occupancy: { busy: boolean; verified: boolean },
+	force = false,
 ): PruneSkipReason | undefined {
 	if (!entry.linked) return 'primary'
 	if (parseLeaseReason(entry.locked)) return 'leased'
+	if (force) return undefined
 	// `self` without our lease is an unlocked slot; any other lock is someone else's hold.
 	if (owner !== 'self') return 'foreign'
 	if (entry.prunable) return 'prunable'
@@ -158,12 +166,18 @@ function skipReason(
 	return undefined
 }
 
-async function remove(
+export async function removeEntry(
 	exec: Exec,
 	primary: string,
 	entry: WorktreeEntry,
 	ignore: readonly string[] | undefined,
+	forced = false,
 ): Promise<'removed' | 'failed'> {
+	if (forced) {
+		// A single `--force` still refuses a locked worktree (E-GIT-L3), so a lease or foreign lock holds.
+		const out = await exec('git', ['-C', primary, 'worktree', 'remove', '--force', entry.root])
+		return out === null ? 'failed' : 'removed'
+	}
 	// Re-check right before the destructive step: work may have landed in the tree since the listing.
 	if ((await readDirty(entry.root, { exec, ignore })) !== false) return 'failed'
 	// Plain `remove` refuses untracked files the ignore list exempted, so only then is `--force`
