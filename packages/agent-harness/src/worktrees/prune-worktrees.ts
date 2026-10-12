@@ -144,17 +144,21 @@ export async function pruneWorktrees(options: PruneWorktreesOptions): Promise<Pr
 
 /**
  * The first check a worktree fails, or `undefined` when it may go. `force` is `removeWorktree`'s
- * explicit override: it waives every check except `primary` and `leased`, which nothing waives.
+ * explicit override. `true` waives every check except `primary`, `leased`, and `busy` or `unverified`;
+ * `'in-use'` waives those two as well. Nothing waives `primary` and `leased`.
  */
 export function skipReason(
 	entry: WorktreeEntry,
 	owner: WorktreeOwnerKind,
 	occupancy: { busy: boolean; verified: boolean },
-	force = false,
+	force: boolean | 'in-use' = false,
 ): PruneSkipReason | undefined {
 	if (!entry.linked) return 'primary'
 	if (parseLeaseReason(entry.locked)) return 'leased'
-	if (force) return undefined
+	if (force) {
+		if (force !== 'in-use' && occupancy.busy) return occupancy.verified ? 'busy' : 'unverified'
+		return undefined
+	}
 	// `self` without our lease is an unlocked slot; any other lock is someone else's hold.
 	if (owner !== 'self') return 'foreign'
 	if (entry.prunable) return 'prunable'

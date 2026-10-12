@@ -88,7 +88,7 @@ describe('removeWorktree', () => {
 	})
 
 	it('never removes the primary checkout, force or not', async () => {
-		for (const force of [false, true]) {
+		for (const force of [false, true, 'in-use'] as const) {
 			expect(await run(primary, { force })).toMatchObject({ status: 'skipped', reason: 'primary' })
 		}
 		expect(existsSync(primary)).toBe(true)
@@ -135,31 +135,46 @@ describe('removeWorktree', () => {
 		const wt = addWorktree(slot(1), 'feat-1')
 		await lock(wt, JSON.stringify({ library: LEASE_LIBRARY, leaseId: 'l1', holder: 'h' }))
 
-		for (const force of [false, true]) {
+		for (const force of [false, true, 'in-use'] as const) {
 			expect(await run(wt, { force })).toMatchObject({ owner: 'self', status: 'skipped', reason: 'leased' })
 		}
 		expect(existsSync(wt)).toBe(true)
 	})
 
-	it('skips a busy worktree, and force removes it, reporting the session without killing it', async () => {
+	it('skips a busy worktree under force: true, and force: in-use removes it, reporting the session without killing it', async () => {
 		const wt = addWorktree(slot(1), 'feat-1')
 		const source = fixed([claude(100, wt)])
 
-		const skipped = await run(wt, { source })
-		expect(skipped).toMatchObject({ status: 'skipped', reason: 'busy' })
-		expect(skipped.occupants).toHaveLength(1)
+		for (const force of [undefined, true] as const) {
+			const skipped = await run(wt, { source, force })
+			expect(skipped).toMatchObject({ status: 'skipped', reason: 'busy' })
+			expect(skipped.occupants).toHaveLength(1)
+		}
+		expect(existsSync(wt)).toBe(true)
 
-		const forced = await run(wt, { source, force: true })
+		const forced = await run(wt, { source, force: 'in-use' })
 		expect(forced).toMatchObject({ status: 'removed' })
 		expect(forced.occupants).toHaveLength(1)
+		expect(existsSync(wt)).toBe(false)
 	})
 
-	it('skips as unverified when the probe cannot read, unless force', async () => {
+	it('skips as unverified when the probe cannot read, under force: true too, unless force: in-use', async () => {
 		const wt = addWorktree(slot(1), 'feat-1')
 		const unreadable: ProcessSource = async () => null
 
-		expect(await run(wt, { source: unreadable })).toMatchObject({ status: 'skipped', reason: 'unverified' })
-		expect(await run(wt, { source: unreadable, force: true })).toMatchObject({ status: 'removed' })
+		for (const force of [undefined, true] as const) {
+			expect(await run(wt, { source: unreadable, force })).toMatchObject({ status: 'skipped', reason: 'unverified' })
+		}
+		expect(await run(wt, { source: unreadable, force: 'in-use' })).toMatchObject({ status: 'removed' })
+	})
+
+	it('force: in-use removes a dirty busy worktree that force: true skips', async () => {
+		const wt = addWorktree(slot(1), 'feat-1')
+		await writeFile(join(wt, 'x.txt'), 'x')
+		const source = fixed([claude(100, wt)])
+
+		expect(await run(wt, { source, force: true })).toMatchObject({ status: 'skipped', reason: 'busy' })
+		expect(await run(wt, { source, force: 'in-use' })).toMatchObject({ status: 'removed' })
 	})
 
 	it('skips a prunable worktree, and force removes its entry', async () => {
