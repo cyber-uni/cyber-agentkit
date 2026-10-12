@@ -5,8 +5,10 @@
 		"includes": [
 			"!!**/bin",
 			"!!**/dist",
-			// The skill script, bundled by `pnpm build`.
+			// The skill script, compiled by `universal-plugin plugin build`.
 			"!!**/skills/*/scripts/*.mjs",
+			// Copied unchanged from the repobuddy min-release-age skill.
+			"!!.github/scripts/min-release-age.mjs",
 			"!!**/node_modules",
 			"!!.turbo",
 			"!!**/.astro",

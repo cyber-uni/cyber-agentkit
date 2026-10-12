@@ -292,9 +292,11 @@ plugin's copy, once a project override of it is gone. It refuses a plugin-shippe
 
 Output is [TOON](https://github.com/toon-format/toon) by default, for an agent to parse; pass
 `--format json` or `--format text` (`show`, `create`, and `delete` default to `text`). The formats
-follow [`@clibuilder/axi`](https://www.npmjs.com/package/@clibuilder/axi), and any other value is a
-usage error (exit code 2). A CLI built on [`clibuilder`](https://www.npmjs.com/package/clibuilder)
-can host the same command under its own plugin name, imported from the `./commands` subpath:
+follow [`clibuilder`](https://www.npmjs.com/package/clibuilder) 12, and any other value is a
+usage error (exit code 2). A CLI built on clibuilder 12
+can host the same command under its own plugin name, imported from the `./commands` subpath. `--format`
+is the host's global option, so the host's `cli({ format })` sets the default for every subcommand;
+the `text` default of `show`, `create`, and `delete` belongs to the `agent-harness` CLI:
 
 ```ts
 import { createReferenceCommand } from '@cyberuni/agent-harness/commands'

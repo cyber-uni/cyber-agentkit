@@ -2,6 +2,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { type cli, exitCodes } from 'clibuilder'
+import { isCliError, printAnswer } from 'clibuilder/axi'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
 	createReferenceCommand,
@@ -101,50 +103,48 @@ type WhereArgs = { root?: string; caller?: string; format?: string }
 type DeleteArgs = { root?: string; scope?: string; 'dry-run'?: boolean; format?: string }
 type CreateArgs = { root?: string; template?: string; scope?: string; 'dry-run'?: boolean; format?: string }
 
+/**
+ * Runs a command the way the cli does: with the resolved `format` on `this`, printing what `run()`
+ * returns on stdout and mapping a thrown `CliError` to its exit code.
+ */
+async function exec(command: cli.Command, args: Record<string, unknown> & { format?: string }): Promise<number> {
+	const { format = 'toon', ...rest } = args
+	try {
+		const answer = await (command as unknown as { run(this: object, value: object): Promise<unknown> }).run.call(
+			{ format },
+			rest,
+		)
+		const text = printAnswer(answer, format as 'toon' | 'json' | 'text')
+		if (text !== undefined) process.stdout.write(text)
+		return exitCodes.success
+	} catch (error) {
+		if (isCliError(error)) return error.exitCode
+		throw error
+	}
+}
+
 function show(names: string[], args: ShowArgs = {}): Promise<number> {
-	return (referenceShowCommand as unknown as { run(value: ShowArgs & { names: string[] }): Promise<number> }).run({
-		format: 'text',
-		names,
-		...args,
-	})
+	return exec(referenceShowCommand, { format: 'text', names, ...args })
 }
 
 function list(args: ListArgs = {}): Promise<number> {
-	return (referenceListCommand as unknown as { run(value: ListArgs): Promise<number> }).run({ format: 'json', ...args })
+	return exec(referenceListCommand, { format: 'json', ...args })
 }
 
 function search(query: string, args: SearchArgs = {}): Promise<number> {
-	return (referenceSearchCommand as unknown as { run(value: SearchArgs & { query: string }): Promise<number> }).run({
-		format: 'json',
-		query,
-		...args,
-	})
+	return exec(referenceSearchCommand, { format: 'json', query, ...args })
 }
 
 function where(name: string, args: WhereArgs = {}): Promise<number> {
-	return (referenceWhereCommand as unknown as { run(value: WhereArgs & { name: string }): Promise<number> }).run({
-		format: 'json',
-		name,
-		...args,
-	})
+	return exec(referenceWhereCommand, { format: 'json', name, ...args })
 }
 
 function create(name: string, args: CreateArgs = {}): Promise<number> {
-	return (referenceCreateCommand as unknown as { run(value: CreateArgs & { name: string }): Promise<number> }).run({
-		format: 'text',
-		scope: 'project',
-		name,
-		...args,
-	})
+	return exec(referenceCreateCommand, { format: 'text', scope: 'project', name, ...args })
 }
 
 function remove(name: string, args: DeleteArgs = {}): Promise<number> {
-	return (referenceDeleteCommand as unknown as { run(value: DeleteArgs & { name: string }): Promise<number> }).run({
-		format: 'text',
-		scope: 'project',
-		name,
-		...args,
-	})
+	return exec(referenceDeleteCommand, { format: 'text', scope: 'project', name, ...args })
 }
 
 /** Everything the last run put on stdout, concatenated. */
@@ -1773,9 +1773,7 @@ describe('createReferenceCommand', () => {
 		const { list: listAlone } = createReferenceCommands()
 		const root = repo()
 
-		expect(
-			await (listAlone as unknown as { run(value: ListArgs): Promise<number> }).run({ root, format: 'json' }),
-		).toBe(0)
+		expect(await exec(listAlone, { root, format: 'json' })).toBe(0)
 		const report = JSON.parse(written()) as ReferenceListReport
 		expect(report.layers.some(({ plugin }) => plugin === '@cyberuni/agent-harness')).toBe(false)
 	})

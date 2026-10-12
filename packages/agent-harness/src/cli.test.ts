@@ -82,7 +82,9 @@ describe('run', () => {
 	])('rejects an unsupported --format on %s as a usage error, before the command runs', async (...subcommand) => {
 		const argv = ['node', 'agent-harness', 'reference', ...subcommand, '--format', 'yaml', '--root', tempRoot()]
 		expect(await run(argv)).toBe(2)
-		expect(stdout).not.toHaveBeenCalled()
+		// clibuilder 12 reports a usage error once, coded, on stdout.
+		expect(stdout).toHaveBeenCalledTimes(1)
+		expect(String(stdout.mock.calls[0]?.[0])).toContain('code: invalid-value')
 	})
 
 	it('reports a failure the parser throws on stderr, as a usage error', async () => {
