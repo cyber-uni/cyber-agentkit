@@ -188,8 +188,8 @@ importers:
         specifier: ^2.9.16
         version: 2.11.4
       universal-plugin:
-        specifier: ^0.12.0
-        version: 0.12.0
+        specifier: ^0.14.0
+        version: 0.14.0(typescript@7.0.2)
 
   apps/web:
     dependencies:
@@ -575,6 +575,13 @@ packages:
     resolution: {integrity: sha512-dlT1m5e/0yUL0kRNcQn7yGLVThkgbB0Ga/1AmfDDC/8ik6AIiSf2QLQO2zPYvefsHP0aFgxO93cVLCCfDp7kzQ==}
     engines: {node: '>= 20.12.0'}
 
+  '@clibuilder/axi@0.1.0':
+    resolution: {integrity: sha512-axduLxgCRP33iEPv8AGeFY9xDo0z6LH5JwhqpF/JqNmKo99UNI5rmSLduEjCfgIBc7TRwM1jiV0mBFNPKuLabA==}
+    engines: {node: '>= 20.19'}
+    deprecated: Folded into clibuilder 12. Import the value helpers from "clibuilder/axi" and use the output, error and format support built into clibuilder. See https://clibuilder.github.io/clibuilder/guides/upgrade-to-12/
+    peerDependencies:
+      clibuilder: ^11.0.0
+
   '@clibuilder/axi@0.2.0':
     resolution: {integrity: sha512-OdQGC+WX7nJKV3Mu78RX7ZeLFi6OKCcokancO63HznGLEvT4Rh7YonmLya92rtXdsVHsJ9Z8AfOZC5LpM33f8A==}
     engines: {node: '>= 20.19'}
@@ -670,9 +677,10 @@ packages:
     resolution: {integrity: sha512-Vh5uy9Y1JBMId6J1f68TMXnZrTCvNdo9Fu2k0d1YnJngR+sM5kWTKl441c/3TFs+cG0NWOjRWgQ/iaWhbYx+7A==}
     engines: {node: '>=14'}
 
-  '@cyberuni/agent-harness@0.3.0':
-    resolution: {integrity: sha512-o1q19ZWll8IMpIdUwOZy0ETxryOQvCI3R56lAPOxrBKx/iabxrmZkhRdooDAlnYcny243GR/mkfrqm5e4DrpRg==}
+  '@cyberuni/agent-harness@0.6.0':
+    resolution: {integrity: sha512-ELy0pcHiRb9vjaVymBIvCQTDaQTOyliVKEx3MdpiDLeaGAYkhBwgCfoIa/ov/hPFxed4gQdYLBv6O3UTNgr78A==}
     engines: {node: '>=22'}
+    hasBin: true
 
   '@emmetio/abbreviation@2.3.3':
     resolution: {integrity: sha512-mgv58UrU3rh4YgbE/TzgLQwJ3pFsHHhCLqY20aJq+9comytTXUDNGG/SMtSeMJdkpxgXSXunBGLD8Boka3JyVA==}
@@ -3151,8 +3159,8 @@ packages:
   unist-util-visit@5.1.0:
     resolution: {integrity: sha512-m+vIdyeCOpdr/QeQCu2EzxX/ohgS8KbnPDgFni4dQsfSCtpz8UqDyY5GjRru8PDKuYn7Fq19j1CQ+nJSsGKOzg==}
 
-  universal-plugin@0.12.0:
-    resolution: {integrity: sha512-wOkRhfVBF5QKLE3gdNUgxmixpfhgbZKp84z+4XTefI9RNsUUAFZ+YmhzV7yjnAevYn07d6TtT2RdGReJhi9k0Q==}
+  universal-plugin@0.14.0:
+    resolution: {integrity: sha512-+2kSU4mpWFyiFdNTz7TYX1Nj+Y9mOZzxpwSxPNX0QFblRKw6VmAUCx3RNSzfxe+tj8t9o74rc8RDLWx4nDS2+g==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3926,6 +3934,11 @@ snapshots:
       fast-wrap-ansi: 0.2.2
       sisteransi: 1.0.5
 
+  '@clibuilder/axi@0.1.0(clibuilder@11.3.2(typescript@7.0.2))':
+    dependencies:
+      '@toon-format/toon': 4.1.1
+      clibuilder: 11.3.2(typescript@7.0.2)
+
   '@clibuilder/axi@0.2.0(clibuilder@11.3.2(typescript@7.0.2))':
     dependencies:
       '@toon-format/toon': 4.1.1
@@ -4052,7 +4065,13 @@ snapshots:
 
   '@ctrl/tinycolor@4.2.1': {}
 
-  '@cyberuni/agent-harness@0.3.0': {}
+  '@cyberuni/agent-harness@0.6.0(typescript@7.0.2)':
+    dependencies:
+      '@clibuilder/axi': 0.1.0(clibuilder@11.3.2(typescript@7.0.2))
+      clibuilder: 11.3.2(typescript@7.0.2)
+      yaml: 2.9.1
+    transitivePeerDependencies:
+      - typescript
 
   '@emmetio/abbreviation@2.3.3':
     dependencies:
@@ -6928,13 +6947,16 @@ snapshots:
       unist-util-is: 6.0.1
       unist-util-visit-parents: 6.0.2
 
-  universal-plugin@0.12.0:
+  universal-plugin@0.14.0(typescript@7.0.2):
     dependencies:
-      '@cyberuni/agent-harness': 0.3.0
+      '@cyberuni/agent-harness': 0.6.0(typescript@7.0.2)
       '@repobuddy/upx': 0.2.0
       '@toon-format/toon': 4.1.1
       commander: 15.0.0
+      rolldown: 1.2.11
       semver: 7.8.5
+    transitivePeerDependencies:
+      - typescript
 
   unpartial@1.0.8: {}
 
