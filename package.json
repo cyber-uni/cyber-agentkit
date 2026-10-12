@@ -12,7 +12,7 @@
 		"test": "turbo test",
 		"test:scripts": "node --test \"scripts/**/*.test.mjs\"",
 		"typecheck": "turbo typecheck",
-		"plugin:sync": "universal-plugin publish sync-version --root packages/agent-harness && node packages/agent-harness/scripts/sync-skill-pin.mjs && universal-plugin plugin build --root packages/agent-harness && biome format --write packages/agent-harness",
+		"plugin:sync": "universal-plugin publish sync-version --root packages/agent-harness && node packages/agent-harness/scripts/sync-skill-pin.mjs && pnpm --filter @cyberuni/agent-harness build && universal-plugin plugin build --root packages/agent-harness && biome format --write packages/agent-harness",
 		"up": "pnpm --filter ./packages/agent-harness",
 		"verify": "turbo verify",
 		"version": "changeset version && pnpm plugin:sync",
@@ -26,7 +26,7 @@
 		"@repobuddy/biome": "^2.3.1",
 		"husky": "^9.1.7",
 		"turbo": "^2.9.16",
-		"universal-plugin": "^0.12.0"
+		"universal-plugin": "^0.14.0"
 	},
 	"packageManager": "pnpm@12.11.2+sha512.25a51652a196785af5f28bda6dfe8dc582ebefa4ac1d180221ce1390231c5fb76637822ea4b6e4633ce74acdcb0a77f725af11bad38177fdeddaee818a955cb9",
 	"engines": {

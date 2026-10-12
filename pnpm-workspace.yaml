@@ -26,3 +26,5 @@ minimumReleaseAgeStrict: true
 minimumReleaseAgeExclude:
   # Renovate security update: astro@7.2.8
   - astro@7.2.8
+  # Brief requires universal-plugin>=0.14.0 (skill script build). Published 2026-10-12; removable once it is 1 day old.
+  - universal-plugin@0.14.0

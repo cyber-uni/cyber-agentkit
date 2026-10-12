@@ -44,7 +44,7 @@ export default defineConfig([
 	{
 		// The `reference` skill's launcher. An installed plugin has no `node_modules`, so every
 		// dependency is inlined into this one file, and it is written straight into the skill folder.
-		// The folder's `.mjs` is gitignored; it ships through the npm package's `files`.
+		// The built file is committed, so a git-sourced install carries it; `pnpm build` rebuilds it.
 		format: 'esm',
 		platform: 'node',
 		outDir: 'skills/reference/scripts',

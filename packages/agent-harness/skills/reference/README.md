@@ -1,6 +1,6 @@
 # Reference
 
-Loads, creates, updates, deletes, and finds [references](https://cyberuni.github.io/agent-harness/concepts/reference-documents/): Markdown documents an agent reads on demand by name. It routes each request to the `reference` command, run from a launcher bundled in `scripts/`, and writes or deletes a reference only after the user approves it. Type `/reference` (`/cyber-agent-harness:reference` in Claude Code) to run it yourself.
+Loads, creates, updates, deletes, and finds [references](https://cyberuni.github.io/agent-harness/concepts/reference-documents/): Markdown documents an agent reads on demand by name. It routes each request to the `reference` command, run from a launcher bundled in `scripts/`, and writes or deletes a reference only after the user approves it. Type `/reference` (`/cyber-agent-harness:reference` (pnpm install: `pnpm-@cyberuni+agent-harness-reference`) in Claude Code) to run it yourself.
 
 | Mode | When |
 | --- | --- |
@@ -29,12 +29,12 @@ Load `skill-design` and `agent-tool-output` with the `reference` skill in the `c
 
 Name the plugin as well as the skill: an agent that does not have the skill can then tell the user what to install. Write the skill's name in words, as above. Every harness reads the words, but each types the skill differently, and where the typed form does not name the plugin, two plugins' skills of the same name collide.
 
-A skill written for one harness only may add that harness's typed form after the skill's name, for example "with the `reference` skill (`/cyber-agent-harness:reference`) in the `cyber-agent-harness` plugin" in Claude Code. Each harness names it this way:
+A skill written for one harness only may add that harness's typed form after the skill's name, for example "with the `reference` skill (`/cyber-agent-harness:reference` (pnpm install: `pnpm-@cyberuni+agent-harness-reference`)) in the `cyber-agent-harness` plugin" in Claude Code. Each harness names it this way:
 
 <!-- generated: harness invocations -->
 | Harness | Typed form | Names the plugin |
 | --- | --- | --- |
-| `claude-code` | `/cyber-agent-harness:reference` | yes |
+| `claude-code` | `/cyber-agent-harness:reference` (pnpm install: `pnpm-@cyberuni+agent-harness-reference`) | yes |
 | `cursor` | `/reference` | no |
 | `codex` | `$reference` | no |
 | `copilot-cli` | `/reference` | no |
@@ -42,7 +42,7 @@ A skill written for one harness only may add that harness's typed form after the
 | `kilo` | `/reference` | no |
 | `gemini-cli` | no typed form recorded | — |
 | `qwen-code` | no typed form recorded | — |
-| `vscode-copilot` | `/cyber-agent-harness:reference` | yes |
+| `vscode-copilot` | `/cyber-agent-harness:reference` (pnpm install: `pnpm-@cyberuni+agent-harness-reference`) | yes |
 | `cline` | `/reference` | no |
 | `crush` | no typed form recorded | — |
 | `openhands` | no typed form recorded | — |
@@ -51,4 +51,4 @@ A skill written for one harness only may add that harness's typed form after the
 
 A calling skill may ship its own copy of a reference at `references/<name>.md`. The skill reads it when no tier holds the name, or when the command cannot run.
 
-`scripts/reference.mjs` is the package's `reference` command bundled into this folder. It ships through the npm package and runs with no `node_modules`. Loading never falls back to `npx` or the network; the other modes fall back to a pinned `npx @cyberuni/agent-harness` when the launcher is missing.
+`scripts/reference.mjs` is the package's `reference` command bundled into this folder. It ships through the npm package and runs with no `node_modules`. Loading never falls back to `npx` or the network; the other modes fall back to `pnpm exec agent-harness`, or to `npx` pinned to this release's exact version, when the launcher is missing.

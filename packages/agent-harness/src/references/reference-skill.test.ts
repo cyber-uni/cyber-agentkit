@@ -19,9 +19,9 @@ describe('the reference skill', () => {
 		expect(skillFile('SKILL.md')).not.toMatch(/^user-invocable: false$/m)
 	})
 
-	it("falls back to this package's version, kept in step by scripts/sync-skill-pin.mjs", () => {
+	it("pins the npx fallback to this package's exact version, kept in step by scripts/sync-skill-pin.mjs", () => {
 		const pins = [...skillFile('SKILL.md').matchAll(/npx -y (\S+) reference/g)].map(([, pin]) => pin)
-		expect(pins).toEqual([`${manifest.name}@^${manifest.version}`])
+		expect(pins).toEqual([`${manifest.name}@${manifest.version}`])
 	})
 
 	it("lists each harness's typed form as skillInvocation names it", () => {
@@ -32,6 +32,8 @@ describe('the reference skill', () => {
 				: `| \`${harness}\` | no typed form recorded | — |`
 		})
 		const table = /<!-- generated: harness invocations -->\n([\s\S]*?)<!-- \/generated -->/.exec(skillFile('README.md'))
-		expect(table?.[1]?.trim().split('\n').slice(2)).toEqual(rows)
+		// `plugin build` adds the pnpm install name beside each typed form; it is not part of skillInvocation.
+		const built = table?.[1]?.replace(/ \(pnpm install: `[^`]*`\)/g, '')
+		expect(built?.trim().split('\n').slice(2)).toEqual(rows)
 	})
 })
