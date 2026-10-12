@@ -18,6 +18,9 @@
 				"cursor": {},
 				"codex": {},
 				"copilot-cli": {}
+			},
+			"scripts": {
+				"skills/reference/scripts/reference.mjs": "src/references/reference.skill-script.ts"
 			}
 		}
 	}

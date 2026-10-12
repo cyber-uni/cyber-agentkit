@@ -12,7 +12,7 @@
 		"test": "turbo test",
 		"test:scripts": "node --test \"scripts/**/*.test.mjs\"",
 		"typecheck": "turbo typecheck",
-		"plugin:sync": "universal-plugin publish sync-version --root packages/agent-harness && node packages/agent-harness/scripts/sync-skill-pin.mjs && pnpm --filter @cyberuni/agent-harness build && universal-plugin plugin build --root packages/agent-harness && biome format --write packages/agent-harness",
+		"plugin:sync": "universal-plugin publish sync-version --root packages/agent-harness && node packages/agent-harness/scripts/sync-skill-pin.mjs && universal-plugin plugin build --root packages/agent-harness && biome format --write packages/agent-harness",
 		"up": "pnpm --filter ./packages/agent-harness",
 		"verify": "turbo verify",
 		"version": "changeset version && pnpm plugin:sync",
