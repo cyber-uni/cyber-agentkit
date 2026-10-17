@@ -5,6 +5,7 @@ export type {
 	ReferenceCreateReport,
 	ReferenceDeleteNext,
 	ReferenceDeleteReport,
+	ReferenceImplementationsReport,
 	ReferenceListReport,
 	ReferenceSearchReport,
 	ReferenceShowEntry,

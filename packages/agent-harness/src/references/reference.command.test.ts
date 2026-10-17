@@ -11,6 +11,7 @@ import {
 	type ReferenceCheckReport,
 	type ReferenceCreateReport,
 	type ReferenceDeleteReport,
+	type ReferenceImplementationsReport,
 	type ReferenceListReport,
 	type ReferenceSearchReport,
 	type ReferenceShowEntry,
@@ -92,6 +93,7 @@ const {
 	create: referenceCreateCommand,
 	delete: referenceDeleteCommand,
 	check: referenceCheckCommand,
+	implementations: referenceImplementationsCommand,
 } = createReferenceCommands({
 	plugin: { name: '@cyberuni/agent-harness', root: dirname(dirname(dirname(fileURLToPath(import.meta.url)))) },
 })
@@ -144,6 +146,10 @@ function where(name: string, args: WhereArgs = {}): Promise<number> {
 
 function check(names: string[] | undefined, args: { root?: string; format?: string } = {}): Promise<number> {
 	return exec(referenceCheckCommand, { format: 'json', names, ...args })
+}
+
+function implementations(id: string, args: { root?: string; format?: string; accept?: string } = {}): Promise<number> {
+	return exec(referenceImplementationsCommand, { format: 'json', id, ...args })
 }
 
 function create(name: string, args: CreateArgs = {}): Promise<number> {
@@ -1780,6 +1786,7 @@ describe('createReferenceCommand', () => {
 			'where',
 			'create',
 			'delete',
+			'implementations',
 			'check',
 		])
 	})
@@ -1897,5 +1904,43 @@ describe('cross-plugin overrides', () => {
 		stdout.mockClear()
 		expect(await show(['repobuddy/project-tracker.capabilities.github'], { root })).toBe(0)
 		expect(written()).toContain('The house way to file an issue.')
+	})
+})
+
+describe('implementations', () => {
+	function report(): ReferenceImplementationsReport {
+		return JSON.parse(written()) as ReferenceImplementationsReport
+	}
+
+	it('lists the compatible implementations and the excluded ones', async () => {
+		const root = repo()
+		write(root, '.agents/references/scaffold.recipe.typescript-lib.md', typescriptRecipe)
+		write(root, '.agents/references/scaffold.recipe.next.md', typescriptRecipe.replace('@1', '@2'))
+		declareDependency(root, 'repobuddy')
+		installDependency(root, 'repobuddy', { 'scaffold.recipe.interface': recipeInterface })
+
+		expect(await implementations('scaffold.recipe', { root })).toBe(0)
+		expect(report()).toMatchObject({
+			interface: 'scaffold.recipe',
+			accept: [1],
+			implementations: [{ pin: 'scaffold.recipe.typescript-lib', tier: 'project' }],
+			excluded: [{ name: 'scaffold.recipe.next', reasons: ['unknown version 2'] }],
+		})
+
+		stdout.mockClear()
+		expect(await implementations('scaffold.recipe', { root, accept: '1, 2' })).toBe(0)
+		expect(report().implementations.map(({ name }) => name)).toEqual([
+			'scaffold.recipe.next',
+			'scaffold.recipe.typescript-lib',
+		])
+	})
+
+	it('fails on a malformed --accept or a missing interface', async () => {
+		const root = repo()
+
+		expect(await implementations('scaffold.recipe', { root, accept: '1,x' })).toBe(1)
+		expect(stderrLines()).toContain('error: --accept is a comma-separated list of versions, such as 1,2; got "1,x".\n')
+		expect(await implementations('scaffold.recipe', { root })).toBe(1)
+		expect(stderrLines()).toContain('error: no interface document scaffold.recipe.interface\n')
 	})
 })

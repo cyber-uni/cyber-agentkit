@@ -8,6 +8,7 @@ import { collapseHome } from '../command-output/collapse-home.js'
 import { readTemplate, templateWarnings, withMergeSections } from './create-reference.js'
 import { listReferences, type ReferenceRow, type SearchMatch, searchReferences } from './reference-catalog.js'
 import { checkReferences, checkResolved, interfaceLookup, type ReferenceCheckEntry } from './reference-check.js'
+import { type ReferenceImplementations, referenceImplementations } from './reference-implementations.js'
 import {
 	projectReferencesDir,
 	type ReferenceLayer,
@@ -81,6 +82,8 @@ export type ReferenceDeleteReport = {
 }
 
 export type ReferenceSearchReport = { query: string; references: SearchMatch[] | string }
+
+export type ReferenceImplementationsReport = ReferenceImplementations
 
 export type ReferenceCheckReport = {
 	/** Emitted even when empty, so a healthy run states its zero explicitly. */
@@ -364,6 +367,51 @@ function whereCommand(layersFor: LayersFor): cli.Command {
 	})
 }
 
+function parseAccept(value: string | undefined): number[] | undefined {
+	if (value === undefined) return undefined
+	const versions = value.split(',').map((part) => part.trim())
+	if (!versions.length || versions.some((part) => !/^[1-9]\d*$/.test(part))) {
+		throw new Error(`--accept is a comma-separated list of versions, such as 1,2; got "${value}".`)
+	}
+	return versions.map(Number)
+}
+
+function implementationsCommand(layersFor: LayersFor): cli.Command {
+	return command({
+		name: 'implementations',
+		description:
+			'List the implementations of an interface a consumer can load, each with its pin, tier, description, and unsupported sections, and the ones left out with why.',
+		arguments: [
+			{
+				name: 'id',
+				description: 'Interface id, the name of its `<id>.interface` document without the suffix.',
+				type: t.string(),
+			},
+		],
+		options: {
+			root: rootOption,
+			accept: {
+				description:
+					"Versions the consumer knows, comma-separated, such as 1,2. Defaults to the interface's `versions`.",
+				type: t.string().optional(),
+			},
+		},
+		async run(args: CommonArgs & { id: string; accept: string | undefined }) {
+			try {
+				const accept = parseAccept(args.accept)
+				const home = homedir()
+				const report: ReferenceImplementationsReport = referenceImplementations(args.id, await layersFor(args, home), {
+					accept,
+					display: (path) => collapseHome(home, path),
+				})
+				return result(report)
+			} catch (error) {
+				return fail(error, 'Implementation lookup failed.')
+			}
+		},
+	})
+}
+
 function checkCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'check',
@@ -612,6 +660,7 @@ export type ReferenceCommands = {
 	create: cli.Command
 	delete: cli.Command
 	check: cli.Command
+	implementations: cli.Command
 }
 
 /** A factory, so each host CLI names itself as the plugin whose own references come first. */
@@ -625,15 +674,16 @@ export function createReferenceCommands({ plugin }: ReferenceCommandOptions = {}
 		create: createCommand(layersFor),
 		delete: deleteCommand(layersFor),
 		check: checkCommand(layersFor),
+		implementations: implementationsCommand(layersFor),
 	}
 }
 
 export function createReferenceCommand(options: ReferenceCommandOptions = {}): cli.Command {
-	const { show, list, search, where, create, delete: remove, check } = createReferenceCommands(options)
+	const { show, list, search, where, create, delete: remove, check, implementations } = createReferenceCommands(options)
 	return command({
 		name: 'reference',
 		description:
 			'Read on-demand reference documents by name, layered across the managed, project, user, and plugin tiers, and start or delete one in the project or user tier.',
-		commands: [show, list, search, where, create, remove, check],
+		commands: [show, list, search, where, create, remove, implementations, check],
 	})
 }

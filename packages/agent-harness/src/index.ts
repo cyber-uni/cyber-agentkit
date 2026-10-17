@@ -59,6 +59,13 @@ export type { CheckOptions, ReferenceCheckEntry, ReferenceCheckKind } from './re
 export { checkReferences } from './references/reference-check.js'
 export type { MergeMode } from './references/reference-document.js'
 export type {
+	ExcludedImplementation,
+	ImplementationsOptions,
+	ReferenceImplementation,
+	ReferenceImplementations,
+} from './references/reference-implementations.js'
+export { referenceImplementations } from './references/reference-implementations.js'
+export type {
 	ImplementsEntry,
 	InterfaceCardinality,
 	InterfaceCheck,
