@@ -33,6 +33,8 @@ npx -y @cyberuni/agent-harness reference show agent-readiness-weights
 | `where <name>` | The project and user files an override can be written to |
 | `create <name>` | Starts a reference in the project or user tier, marked `merge-sections` when it overrides a copy below |
 | `delete <name>` | Deletes the project or user copy, and reports which copy answers the name afterwards |
+| `implementations <id>` | The implementations of an [interface](/agent-harness/concepts/reference-interfaces/), and the ones left out with why |
+| `check [name]...` | Checks references against their [interface](/agent-harness/concepts/reference-interfaces/); exits 1 on any failure |
 
 `create` and `delete` take `--scope project` (the default, `.agents/references/`) or `--scope user`
 (`~/.agents/references/`), and `--dry-run` to print what they would do. Neither ever writes to a
@@ -80,7 +82,9 @@ Within a folder, `<name>.md` answers first, then `<name>/README.md`, `<name>/ind
 `<name>/SKILL.md`.
 
 Plugins are alternatives, not a stack. When two plugins hold the same name and resolution reaches
-the plugin tier, the result is `ambiguous`; ask for `<plugin>/<name>` instead.
+the plugin tier, the result is `ambiguous`; ask for `<plugin>/<name>` instead. A plugin's copy can
+declare that it sits above another plugin's with `overrides`; see
+[Overriding another plugin](/agent-harness/concepts/reference-interfaces/#overriding-another-plugin).
 
 A plugin layer is read only for a plugin the harness has enabled, or a package the project
 declares. Installing a plugin never adds a layer, because a reference is instruction text an agent
@@ -111,5 +115,6 @@ Give each topic its own `##` section: a single `#` title would hold every sectio
 ## Frontmatter
 
 Frontmatter is read as YAML. The resolver reads `merge`, `description` (shown by `list` and
-`search`), and `tags` (matched by `search`). `resolved.metadata` holds every key, the higher layer
+`search`), `tags` (matched by `search`), and `overrides`. `check` and `implementations` read
+`interface` and `implements`. `resolved.metadata` holds every key, the higher layer
 winning. Frontmatter that is not a YAML mapping is ignored with a warning.

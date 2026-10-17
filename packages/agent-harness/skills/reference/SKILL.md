@@ -5,17 +5,21 @@ description: Use this skill when loading, creating, updating, deleting, finding,
 
 # Reference
 
-Route the request to one mode, then follow that mode. A **reference** is a Markdown document fetched by name; a **tier** is where a copy of it lives. Which copy answers a name is the `reference` command's decision. Never decide it by reading tier folders yourself.
+Route the request to one mode, then follow that mode. A **reference** is a Markdown document fetched by name; a **tier** is where a copy of it lives. An **interface** is a contract, declared in a `<id>.interface` reference, that other references implement. Which copy answers a name is the `reference` command's decision. Never decide it by reading tier folders yourself.
 
 ## Route
 
 | The request | Mode |
 | --- | --- |
 | a skill's instructions name references to load with this skill | [Load](#load) |
+| a skill's instructions name an interface whose implementations to load with this skill | [Load](#load) |
 | write a new reference, for a project, for the user, or for a plugin to ship | [Create](#create) |
+| write a reference that implements an interface | [Create](#create) |
 | change what an existing reference says, the user's own or a plugin's | [Update](#update) |
 | remove a project or user copy of a reference, or drop an override | [Delete](#delete) |
 | find a reference for a topic, or see which ones exist | [Find](#find) |
+| find the implementations of an interface | [Find](#find) |
+| check that references have the shape their interface requires | [Inspect](#inspect) |
 | see a reference, or learn why a name resolved to the copy it did | [Inspect](#inspect) |
 | learn where the agent looks for a reference, or where to put a copy that overrides it | [Inspect](#inspect) |
 | make a skill load a reference | [Wire a skill](#wire-a-skill) |
@@ -62,11 +66,13 @@ Load `references/create.md` from this skill's folder and follow it.
 - For a topic, run `search <query>`. If nothing matches, say that nothing matched. Do not guess a name.
 - For every reference, and which copy of each is used, run `list`.
 - For every name matching a pattern, such as every provider of a shared prefix, run `list '<pattern>'`. `*` stands for any run of characters and the rest is literal, so it returns only exact matches, unlike `search`.
+- For the implementations of an interface, run `implementations <id>`. It lists each one a consumer can load, with its pin, and each one it left out, with why.
 
 ## Inspect
 
 - To read a reference, run `show <name>`.
 - To learn why a name resolved to one copy, run `show <name> --trace`. Report the layer that was `used`, and each layer that was `shadowed` or `not read`, with its reason.
+- To check a reference against its interface, run `check <name>...`; with no name, it checks every interface document and implementation. Report each failure with its check. Exit 1 means at least one failed.
 - To learn where to put a copy that overrides it, run `where <name>`; when a skill loads the name, add `--caller <that skill's folder>`. Report the slots in order and which are `used`, then the project and user files the user can write, each with its scope, and the merge note. A plugin or `caller` slot is a copy an override covers; never offer it as a place to write. If the user then wants the override written, go to [Update](#update).
 
 ## Wire a skill
@@ -89,4 +95,5 @@ Before reporting a Create, Update, or Delete done:
 - After Create or Update, `show <name> --trace` reports the written file as `used`.
 - After Delete, `show <name> --trace` no longer finds the deleted file, and the copy `delete --dry-run` named is `used`.
 - A created reference holds no heading with a single `#`.
+- A created reference that declares `implements` passes `check <name>`.
 - Every `##` heading of a `merge-sections` override matches a heading path in the copy below it. `show <name> --trace` warns when one does not.
