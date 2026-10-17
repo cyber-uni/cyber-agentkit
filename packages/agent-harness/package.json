@@ -26,6 +26,11 @@
 	"license": "MIT",
 	"author": "unional <homawong@gmail.com>",
 	"type": "module",
+	"sideEffects": [
+		"./bin/*.mjs",
+		"./dist/cli.js",
+		"./skills/*/scripts/*.mjs"
+	],
 	"exports": {
 		".": "./dist/index.js",
 		"./commands": "./dist/commands.js",
