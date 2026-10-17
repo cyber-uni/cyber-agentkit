@@ -4,12 +4,14 @@ on:
     types: [opened, synchronize]
   merge_group:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   code:
-    uses: cyberuni/.github/.github/workflows/pnpm-verify.yml@main
+    uses: cyberuni-agent/.github/.github/workflows/pnpm-verify.yml@v1
+    permissions:
+      contents: read
+      id-token: write
     with:
       os: '["ubuntu-latest"]'
-      skip-playwright: true
+      playwright-browsers: ''
