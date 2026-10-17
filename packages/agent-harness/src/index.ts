@@ -55,7 +55,17 @@ export type {
 	SearchMatch,
 } from './references/reference-catalog.js'
 export { listReferences, searchReferences } from './references/reference-catalog.js'
+export type { CheckOptions, ReferenceCheckEntry, ReferenceCheckKind } from './references/reference-check.js'
+export { checkReferences } from './references/reference-check.js'
 export type { MergeMode } from './references/reference-document.js'
+export type {
+	ImplementsEntry,
+	InterfaceCardinality,
+	InterfaceCheck,
+	InterfaceCheckFailure,
+	InterfaceSection,
+	ReferenceInterface,
+} from './references/reference-interface.js'
 export type {
 	ReferenceLayer,
 	ReferenceLayerOptions,

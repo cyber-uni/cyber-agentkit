@@ -7,6 +7,7 @@ import { type Answer, CliError, document, encode, type Format, isCliError, print
 import { collapseHome } from '../command-output/collapse-home.js'
 import { readTemplate, templateWarnings, withMergeSections } from './create-reference.js'
 import { listReferences, type ReferenceRow, type SearchMatch, searchReferences } from './reference-catalog.js'
+import { checkReferences, checkResolved, interfaceLookup, type ReferenceCheckEntry } from './reference-check.js'
 import {
 	projectReferencesDir,
 	type ReferenceLayer,
@@ -80,6 +81,12 @@ export type ReferenceDeleteReport = {
 }
 
 export type ReferenceSearchReport = { query: string; references: SearchMatch[] | string }
+
+export type ReferenceCheckReport = {
+	/** Emitted even when empty, so a healthy run states its zero explicitly. */
+	references: ReferenceCheckEntry[] | string
+	failed: number
+}
 
 type CommonArgs = { root: string | undefined }
 
@@ -214,8 +221,12 @@ function showCommand(layersFor: LayersFor): cli.Command {
 				const home = homedir()
 				const layers = await layersFor(args, home)
 				const display = (path: string) => collapseHome(home, path)
+				const lookup = interfaceLookup(layers, { display })
 				const entries = names.map((name) => {
 					const resolved = resolveReference(name, layers, { display })
+					for (const failure of checkResolved(resolved, lookup)) {
+						resolved.warnings.push(`${resolved.name} fails its interface check (${failure.check}): ${failure.message}`)
+					}
 					const suggestions =
 						resolved.status === 'missing'
 							? searchReferences(name.name, layers, { display })
@@ -348,6 +359,44 @@ function whereCommand(layersFor: LayersFor): cli.Command {
 				return answerThenFail(answer, format)
 			} catch (error) {
 				return fail(error, 'Reference placement lookup failed.')
+			}
+		},
+	})
+}
+
+function checkCommand(layersFor: LayersFor): cli.Command {
+	return command({
+		name: 'check',
+		description:
+			'Check interface documents and their implementations, each resolved with every override merged. With no names, checks every one found. Exits 1 on any failure.',
+		arguments: [
+			{
+				name: 'names',
+				description: 'Reference names, without the `.md` extension; `<plugin>/<name>` picks one plugin.',
+				type: t.array(t.string()).optional(),
+			},
+		],
+		options: { root: rootOption },
+		async run(args: CommonArgs & { names?: string[] | undefined }) {
+			const format = this.format
+			try {
+				const names = (args.names ?? []).map((name) => parseReferenceName(name).raw)
+				const home = homedir()
+				const entries = checkReferences(await layersFor(args, home), {
+					names,
+					display: (path) => collapseHome(home, path),
+				})
+				const failed = entries.filter((entry) => entry.status !== 'passed').length
+				const report: ReferenceCheckReport = {
+					references: entries.length ? entries : '0 references — no interface document or implementation found',
+					failed,
+				}
+				const answer = result(report)
+				if (!failed) return answer
+				process.stderr.write(`error: ${failed} of ${entries.length} references fail their interface check.\n`)
+				return answerThenFail(answer, format)
+			} catch (error) {
+				return fail(error, 'Reference check failed.')
 			}
 		},
 	})
@@ -562,6 +611,7 @@ export type ReferenceCommands = {
 	where: cli.Command
 	create: cli.Command
 	delete: cli.Command
+	check: cli.Command
 }
 
 /** A factory, so each host CLI names itself as the plugin whose own references come first. */
@@ -574,15 +624,16 @@ export function createReferenceCommands({ plugin }: ReferenceCommandOptions = {}
 		where: whereCommand(layersFor),
 		create: createCommand(layersFor),
 		delete: deleteCommand(layersFor),
+		check: checkCommand(layersFor),
 	}
 }
 
 export function createReferenceCommand(options: ReferenceCommandOptions = {}): cli.Command {
-	const { show, list, search, where, create, delete: remove } = createReferenceCommands(options)
+	const { show, list, search, where, create, delete: remove, check } = createReferenceCommands(options)
 	return command({
 		name: 'reference',
 		description:
 			'Read on-demand reference documents by name, layered across the managed, project, user, and plugin tiers, and start or delete one in the project or user tier.',
-		commands: [show, list, search, where, create, remove],
+		commands: [show, list, search, where, create, remove, check],
 	})
 }

@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
 	createReferenceCommand,
 	createReferenceCommands,
+	type ReferenceCheckReport,
 	type ReferenceCreateReport,
 	type ReferenceDeleteReport,
 	type ReferenceListReport,
@@ -15,6 +16,7 @@ import {
 	type ReferenceShowEntry,
 	type ReferenceWhereReport,
 } from './reference.command.js'
+import { githubCapabilities, recipeInterface, typescriptRecipe } from './reference-interface.fixtures.js'
 import { deprecatedManagedGovernancesDir, managedGovernancesDir, managedReferencesDir } from './reference-layers.js'
 
 /** The command reads the home directory itself; a fixture per test needs its own fake one. */
@@ -89,6 +91,7 @@ const {
 	where: referenceWhereCommand,
 	create: referenceCreateCommand,
 	delete: referenceDeleteCommand,
+	check: referenceCheckCommand,
 } = createReferenceCommands({
 	plugin: { name: '@cyberuni/agent-harness', root: dirname(dirname(dirname(fileURLToPath(import.meta.url)))) },
 })
@@ -137,6 +140,10 @@ function search(query: string, args: SearchArgs = {}): Promise<number> {
 
 function where(name: string, args: WhereArgs = {}): Promise<number> {
 	return exec(referenceWhereCommand, { format: 'json', name, ...args })
+}
+
+function check(names: string[] | undefined, args: { root?: string; format?: string } = {}): Promise<number> {
+	return exec(referenceCheckCommand, { format: 'json', names, ...args })
 }
 
 function create(name: string, args: CreateArgs = {}): Promise<number> {
@@ -1766,7 +1773,15 @@ describe('createReferenceCommand', () => {
 		const group = createReferenceCommand() as unknown as { name: string; commands: { name: string }[] }
 
 		expect(group.name).toBe('reference')
-		expect(group.commands.map(({ name }) => name)).toEqual(['show', 'list', 'search', 'where', 'create', 'delete'])
+		expect(group.commands.map(({ name }) => name)).toEqual([
+			'show',
+			'list',
+			'search',
+			'where',
+			'create',
+			'delete',
+			'check',
+		])
 	})
 
 	it('reads no plugin layer of its own when no plugin runs it', async () => {
@@ -1776,5 +1791,79 @@ describe('createReferenceCommand', () => {
 		expect(await exec(listAlone, { root, format: 'json' })).toBe(0)
 		const report = JSON.parse(written()) as ReferenceListReport
 		expect(report.layers.some(({ plugin }) => plugin === '@cyberuni/agent-harness')).toBe(false)
+	})
+})
+
+describe('check', () => {
+	function report(): ReferenceCheckReport {
+		return JSON.parse(written()) as ReferenceCheckReport
+	}
+
+	it('checks every interface document and implementation, and exits 0 when all pass', async () => {
+		const root = repo()
+		write(root, '.agents/references/scaffold.recipe.typescript-lib.md', typescriptRecipe)
+		declareDependency(root, 'repobuddy')
+		installDependency(root, 'repobuddy', { 'scaffold.recipe.interface': recipeInterface })
+
+		expect(await check(undefined, { root })).toBe(0)
+		expect(report()).toEqual({
+			references: [
+				{ name: 'scaffold.recipe.interface', kind: 'interface', status: 'passed', tier: 'plugin', failures: [] },
+				{
+					name: 'scaffold.recipe.typescript-lib',
+					kind: 'implementation',
+					status: 'passed',
+					tier: 'project',
+					failures: [],
+				},
+			],
+			failed: 0,
+		})
+	})
+
+	it('states the zero when nothing declares an interface', async () => {
+		expect(await check([], { root: repo() })).toBe(0)
+		expect(report()).toEqual({
+			references: '0 references — no interface document or implementation found',
+			failed: 0,
+		})
+	})
+
+	it('prints the report and exits 1 when a named reference fails', async () => {
+		const root = repo()
+		write(root, '.agents/references/scaffold.recipe.a.md', '---\nimplements: scaffold.recipe@1\n---\n\n## Files\n')
+
+		expect(await check(['scaffold.recipe.a'], { root })).toBe(1)
+		expect(report().failed).toBe(1)
+		expect(stderrLines()).toContain('error: 1 of 1 references fail their interface check.\n')
+	})
+
+	it('rejects a name that is a path', async () => {
+		expect(await check(['../x.md'], { root: repo() })).toBe(1)
+	})
+})
+
+describe('show and interfaces', () => {
+	it('warns when the resolved document fails its interface check, and still prints it', async () => {
+		const root = repo()
+		write(
+			root,
+			'.agents/references/project-tracker.capabilities.github.md',
+			githubCapabilities.replace(
+				'implements: project-tracker.capabilities@1',
+				'implements: project-tracker.capabilities@2',
+			),
+		)
+		write(
+			root,
+			'.agents/references/project-tracker.capabilities.interface.md',
+			'---\ninterface:\n  cardinality: many\n  version: 1\n  sections: [Tracker, Detect, Kinds, Search, Create, Link, Retype, Close, Url]\n---\n',
+		)
+
+		expect(await show(['project-tracker.capabilities.github'], { root, format: 'json' })).toBe(0)
+		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
+		expect(entry?.warnings).toEqual([
+			'project-tracker.capabilities.github fails its interface check (version): unknown version 2',
+		])
 	})
 })

@@ -1,4 +1,5 @@
 export type {
+	ReferenceCheckReport,
 	ReferenceCommandOptions,
 	ReferenceCommands,
 	ReferenceCreateReport,

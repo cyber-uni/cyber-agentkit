@@ -9,6 +9,7 @@ import {
 	renderSections,
 	stripMergeComments,
 } from './reference-document.js'
+import { interfaceIdOf } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceTier } from './reference-layers.js'
 
 export type ReferenceName = { name: string; plugin: string | undefined; raw: string }
@@ -164,6 +165,8 @@ export function resolveReference(
 
 	const result: ResolvedReference = { name: ref.raw, status: 'missing', layers: [], warnings, plugins: [], trace }
 
+	if (interfaceIdOf(ref.name) !== undefined) return resolveInterfaceDocument(ref, found, result, display)
+
 	const stop = found.findIndex(({ merge }) => merge === 'first-wins')
 	const chain = stop === -1 ? found : found.slice(0, stop + 1)
 	const shadowed = stop === -1 ? [] : found.slice(stop + 1)
@@ -184,6 +187,15 @@ export function resolveReference(
 	if (!base) return result
 
 	for (const { entry } of chain) entry.outcome = 'used'
+	return foundResult(result, chain, display)
+}
+
+function foundResult(
+	result: ResolvedReference,
+	chain: readonly FoundDocument[],
+	display: (path: string) => string,
+): ResolvedReference {
+	const warnings = result.warnings
 	const top = chain[0] as FoundDocument
 	return {
 		...result,
@@ -202,6 +214,35 @@ export function resolveReference(
 			merge,
 		})),
 	}
+}
+
+const ignoredInterface = 'ignored (an interface document is not overridable)'
+
+/**
+ * An interface document answers from its lowest layer, the owner's: a higher copy would change the
+ * contract under every consumer without telling it, so it is ignored with a warning.
+ */
+function resolveInterfaceDocument(
+	ref: ReferenceName,
+	found: readonly FoundDocument[],
+	result: ResolvedReference,
+	display: (path: string) => string,
+): ResolvedReference {
+	const holders = [...new Set(found.filter(({ layer }) => layer.tier === 'plugin').map(({ entry }) => entry.plugin))]
+	if (ref.plugin === undefined && holders.length > 1) {
+		for (const { entry } of found) entry.outcome = 'ambiguous'
+		return { ...result, status: 'ambiguous', plugins: holders.map((plugin) => `${plugin}/${ref.name}`) }
+	}
+	const base = found.at(-1)
+	if (!base) return result
+	for (const document of found.slice(0, -1)) {
+		document.entry.outcome = ignoredInterface
+		result.warnings.push(
+			`${display(document.entry.path)} is ignored: an interface document is not overridable; define a new interface id instead`,
+		)
+	}
+	base.entry.outcome = 'used'
+	return foundResult(result, [{ ...base, merge: 'first-wins' }], display)
 }
 
 type Part = { labels: string[]; body: string }
