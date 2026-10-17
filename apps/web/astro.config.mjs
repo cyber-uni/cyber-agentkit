@@ -7,7 +7,7 @@ export default defineConfig({
 	base: '/uni-agent-kit',
 	integrations: [
 		starlight({
-			title: 'agent-harness',
+			title: 'uni-agent-kit',
 			description:
 				'Detect which AI agent harness is running, such as Claude Code, Cursor, Codex, or Copilot CLI, and query what it holds.',
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/cyberuni-agent/uni-agent-kit' }],

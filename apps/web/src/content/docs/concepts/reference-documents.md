@@ -1,6 +1,6 @@
 ---
 title: Reference documents
-description: How agent-harness resolves a named reference document across the managed, project, user, and plugin tiers, and how an override merges with the layers below.
+description: How uni-agent-kit resolves a named reference document across the managed, project, user, and plugin tiers, and how an override merges with the layers below.
 ---
 
 A reference is a named Markdown document an agent reads on demand, such as a checklist or a set of

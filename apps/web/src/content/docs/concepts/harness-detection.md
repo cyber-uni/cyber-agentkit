@@ -1,6 +1,6 @@
 ---
 title: Harness detection
-description: How agent-harness identifies which AI agent harness is running, and when it answers unknown.
+description: How uni-agent-kit identifies which AI agent harness is running, and when it answers unknown.
 ---
 
 `detectHarness()` reads environment variables that each harness sets on the processes it spawns.
