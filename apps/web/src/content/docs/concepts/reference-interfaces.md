@@ -3,7 +3,7 @@ title: Reference interfaces
 description: How a reference declares an interface, how other references implement it, how a skill loads the implementations, and how one plugin's reference overrides another plugin's.
 ---
 
-An interface is a named contract. A skill consumes it, and a [reference](/agent-harness/concepts/reference-documents/)
+An interface is a named contract. A skill consumes it, and a [reference](/uni-agent-kit/concepts/reference-documents/)
 in any tier implements it. The resolver lists the implementations of an interface, checks that
 each has the shape the interface requires, and lets one plugin's reference override another
 plugin's.
