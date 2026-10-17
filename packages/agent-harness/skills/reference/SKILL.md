@@ -30,7 +30,7 @@ node <this skill's folder>/scripts/reference.mjs <subcommand> ... --root <reposi
 
 `scripts/reference.mjs` is the package's `reference` command bundled into one file; it needs no `node_modules`. Pass `--root` every time, so the repository's own `.agents/references/` is read.
 
-Outside Load, when it is missing or cannot run, use `pnpm exec agent-harness reference` when the package is a direct dependency, else `npx -y @cyberuni/agent-harness@0.7.0 reference`, with the same arguments. Load never falls back to a package runner.
+Outside Load, when it is missing or cannot run, use `pnpm exec agent-harness reference` when the package is a direct dependency, else `npx -y @cyberuni/agent-harness@0.7.1 reference`, with the same arguments. Load never falls back to a package runner.
 
 ## Load
 

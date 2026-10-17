@@ -1,5 +1,11 @@
 # @cyberuni/agent-harness
 
+## 0.7.1
+
+### Patch Changes
+
+- a64c02d: Declare `sideEffects` in `package.json` so bundlers can drop unused modules, including the bundled `yaml` parser. Only the `bin` launcher, the CLI bundle, and the skill scripts are marked as having side effects.
+
 ## 0.7.0
 
 ### Minor Changes
