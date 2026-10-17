@@ -22,6 +22,7 @@ To change a reference that already exists, use Update instead.
 - Use lowercase words joined by `-`. A name is a file name, never a path.
 - **A plugin prefixes every name it ships** with its own name and a dot: `cyber-asana.work-hierarchy.md`, not `work-hierarchy.md`. Callers load it as `cyber-asana.work-hierarchy`. Without the prefix, a project's `work-hierarchy.md` silently replaces the document of every plugin that ships `work-hierarchy`.
 - A repository's or user's own reference needs no prefix.
+- **An implementation of an interface takes the interface's id as its namespace**, not the plugin's: `<id>` when the interface's cardinality is `one`, `<id>.<key>` when it is `many`, such as `scaffold.recipe.typescript-lib`. Read the interface with `show <id>.interface`.
 - Run `show <name>`. If the name already resolves, pick another name, or switch to Update.
 - Do not rename a reference that a plugin has already shipped. Its callers load it by the old name. Rename one only in a release that also updates every caller.
 
@@ -53,7 +54,11 @@ For the project or the user, run `create`; never write the file by hand:
 
 If `create` refuses, report its reason and write nothing. An existing file means Update.
 
+To implement an interface, run `create <name> --implements <id> --dry-run` instead of passing a template. It writes the interface's sections as `##` headings, stubs each optional one `**Unsupported.**`, and sets `implements: <id>@<version>`. Replace each stub with the section, or keep `**Unsupported.**` followed by one sentence on why. A required section can be neither absent nor unsupported. Then run `check <name>`; it must pass.
+
 For a plugin, `create` does not write into the plugin. Show the file and its path, then write it by hand on approval, under the same shape.
+
+A plugin that changes how another plugin's implementation reads, such as a house style, ships the same name with `overrides: [<other plugin>]` and `merge: merge-sections` in its frontmatter, holding only the sections it changes.
 
 ## 5. Connect it to a caller
 
@@ -64,4 +69,4 @@ Nothing loads a reference by itself. Tell the user where to name it:
 
 ## 6. Verify
 
-Run `show <name> --trace`, unless `create`'s own trace already showed it. The new file must be the layer that is `used`. For a plugin reference, run the command where the plugin is installed. Otherwise, report that the plugin tier was not checked.
+Run `show <name> --trace`, unless `create`'s own trace already showed it. The new file must be the layer that is `used`. For an implementation, `check <name>` must also pass. For a plugin reference, run the command where the plugin is installed. Otherwise, report that the plugin tier was not checked.

@@ -9,6 +9,7 @@ import {
 	renderSections,
 	stripMergeComments,
 } from './reference-document.js'
+import { interfaceIdOf } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceTier } from './reference-layers.js'
 
 export type ReferenceName = { name: string; plugin: string | undefined; raw: string }
@@ -81,6 +82,8 @@ type FoundDocument = {
 	metadata: Record<string, unknown>
 	body: string
 	merge: MergeMode
+	/** The plugins this copy sits above, from a plugin copy's `overrides`. */
+	overrides: string[]
 }
 
 export type ResolveOptions = {
@@ -106,14 +109,140 @@ function layerName(layer: ReferenceLayer): string {
 	return layer.tier === 'plugin' ? `plugin ${pluginLabel(layer)}` : layer.tier
 }
 
-/** The layers a name is resolved through, in the order `resolveReference` traces them. */
-export function layersFor(ref: ReferenceName, layers: readonly ReferenceLayer[]): ReferenceLayer[] {
+type Hit = { candidate: string; raw: string }
+
+/** Every candidate file a layer holds for a name, in the order they answer. */
+function layerHits(layer: ReferenceLayer, name: string, without: string | undefined): Hit[] {
+	return candidateFiles(name).flatMap((candidate) => {
+		const path = join(layer.dir, candidate)
+		const raw = path === without ? undefined : tryRead(path)
+		return raw === undefined ? [] : [{ candidate, raw }]
+	})
+}
+
+function readOverrides(metadata: Record<string, unknown>, warn: (message: string) => void): string[] {
+	const value = metadata['overrides']
+	if (value === undefined) return []
+	const list: unknown = typeof value === 'string' ? [value] : value
+	if (Array.isArray(list) && list.every((item) => typeof item === 'string')) return list
+	warn('`overrides` is not a list of plugin names; it is ignored')
+	return []
+}
+
+/** Whether a plugin layer's copy of a name declares it overrides one of `plugins`. */
+function overridesAny(layer: ReferenceLayer, name: string, plugins: ReadonlySet<string>, without?: string): boolean {
+	const [hit] = layerHits(layer, name, without)
+	if (!hit) return false
+	const { metadata } = parseDocument(hit.raw, () => {})
+	return readOverrides(metadata, () => {}).some((plugin) => plugins.has(plugin))
+}
+
+/**
+ * The layers a name is resolved through, in the order `resolveReference` traces them. A qualified
+ * name reads that plugin's layers, and each other plugin layer whose copy overrides it.
+ */
+export function layersFor(
+	ref: ReferenceName,
+	layers: readonly ReferenceLayer[],
+	without?: string | undefined,
+): ReferenceLayer[] {
 	const plugin = ref.plugin
 	if (plugin === undefined) return [...layers]
-	const named = layers.filter((layer) => layer.tier !== 'plugin' || layer.plugins.includes(plugin))
-	if (named.some((layer) => layer.tier === 'plugin')) return named
-	// A placeholder so the trace says the plugin asked for is not there, rather than saying nothing.
-	return [...named, { tier: 'plugin', dir: `(no dependency named ${plugin})`, plugins: [plugin], status: '' }]
+	const pinned = layers.filter((layer) => layer.tier === 'plugin' && layer.plugins.includes(plugin))
+	if (!pinned.length) {
+		// A placeholder so the trace says the plugin asked for is not there, rather than saying nothing.
+		return [
+			...layers.filter((layer) => layer.tier !== 'plugin'),
+			{ tier: 'plugin', dir: `(no dependency named ${plugin})`, plugins: [plugin], status: '' },
+		]
+	}
+	const aliases = new Set(pinned.flatMap((layer) => layer.plugins))
+	return layers.filter(
+		(layer) =>
+			layer.tier !== 'plugin' ||
+			pinned.includes(layer) ||
+			(interfaceIdOf(ref.name) === undefined && !layer.skipped && overridesAny(layer, ref.name, aliases, without)),
+	)
+}
+
+/** One plugin's copies of a name, and the plugins they say they sit above. */
+type Holder = { label: string; aliases: Set<string>; overrides: string[]; documents: FoundDocument[] }
+
+function holdersOf(documents: readonly FoundDocument[]): Holder[] {
+	const holders = new Map<string, Holder>()
+	for (const document of documents) {
+		const label = document.entry.plugin
+		const holder = holders.get(label) ?? { label, aliases: new Set(), overrides: [], documents: [] }
+		for (const alias of document.layer.plugins) holder.aliases.add(alias)
+		holder.overrides.push(...document.overrides)
+		holder.documents.push(document)
+		holders.set(label, holder)
+	}
+	return [...holders.values()]
+}
+
+/** The names in `a`'s `overrides` that are `b`. */
+function namesOf(a: Holder, b: Holder): string[] {
+	return [...new Set(a.overrides.filter((plugin) => b.aliases.has(plugin)))]
+}
+
+function sitsAbove(a: Holder, b: Holder): boolean {
+	return namesOf(a, b).length > 0 && namesOf(b, a).length === 0
+}
+
+/**
+ * Highest first, when each holder overrides every holder below it and none overrides one above it;
+ * `undefined` when two of them do not order, such as a pair overriding each other or a holder no one names.
+ */
+function stack(holders: readonly Holder[]): Holder[] | undefined {
+	const remaining = [...holders]
+	const order: Holder[] = []
+	while (remaining.length > 1) {
+		const top = remaining.find((holder) => remaining.every((other) => other === holder || sitsAbove(holder, other)))
+		if (!top) return undefined
+		order.push(top)
+		remaining.splice(remaining.indexOf(top), 1)
+	}
+	return [...order, ...remaining]
+}
+
+/** The holders to choose between: those overriding no other holder, or every holder when none is. */
+function choicesOf(holders: readonly Holder[]): Holder[] {
+	const bases = holders.filter((holder) => holders.every((other) => other === holder || !namesOf(holder, other).length))
+	return bases.length ? bases : [...holders]
+}
+
+/**
+ * Orders the plugin tier's copies. Unqualified, the holders must stack by `overrides`, or the name
+ * is ambiguous. Qualified, the plugin asked for is the base, and each copy that overrides it sits above.
+ */
+function orderPlugins(
+	ref: ReferenceName,
+	documents: readonly FoundDocument[],
+	warn: (message: string) => void,
+): { order: Holder[]; choices?: Holder[] } {
+	const holders = holdersOf(documents)
+	if (ref.plugin === undefined) {
+		if (holders.length < 2) return { order: holders }
+		const order = stack(holders)
+		return order ? { order } : { order: holders, choices: choicesOf(holders) }
+	}
+	const plugin = ref.plugin
+	const pinned = holders.find((holder) => holder.aliases.has(plugin))
+	const overlays = pinned ? holders.filter((holder) => holder !== pinned && sitsAbove(holder, pinned)) : []
+	for (const holder of holders) {
+		if (holder === pinned || overlays.includes(holder)) continue
+		for (const { entry } of holder.documents) {
+			entry.outcome = pinned ? `not read — it and ${plugin} override each other` : `not read — ${plugin} holds no copy`
+		}
+	}
+	if (!pinned) return { order: [] }
+	const order = stack([...overlays, pinned])
+	if (order) return { order }
+	warn(
+		`${ref.raw}: ${overlays.map(({ label }) => label).join(', ')} each override ${plugin} but not one another; they apply in plugin order`,
+	)
+	return { order: [...overlays, pinned] }
 }
 
 export function resolveReference(
@@ -125,7 +254,7 @@ export function resolveReference(
 	const trace: TraceEntry[] = []
 	const found: FoundDocument[] = []
 
-	for (const layer of layersFor(ref, layers)) {
+	for (const layer of layersFor(ref, layers, without)) {
 		const entry: TraceEntry = {
 			tier: layer.tier,
 			plugin: pluginLabel(layer),
@@ -141,12 +270,7 @@ export function resolveReference(
 			entry.outcome = layer.skipped
 			continue
 		}
-		const hits = candidateFiles(ref.name).flatMap((candidate) => {
-			const path = join(layer.dir, candidate)
-			const raw = path === without ? undefined : tryRead(path)
-			return raw === undefined ? [] : [{ candidate, raw }]
-		})
-		const [hit, ...ignored] = hits
+		const [hit, ...ignored] = layerHits(layer, ref.name, without)
 		if (!hit) continue
 		for (const other of ignored) {
 			warnings.push(
@@ -157,25 +281,43 @@ export function resolveReference(
 		const warn = (message: string) => warnings.push(`${display(path)}: ${message}`)
 		const { metadata, body } = parseDocument(hit.raw, warn)
 		const merge = readMergeMode(metadata, warn)
+		let overrides = readOverrides(metadata, warn)
+		if (overrides.length && layer.tier !== 'plugin') {
+			warn("`overrides` applies only to a plugin's copy; it is ignored")
+			overrides = []
+		} else if (overrides.length && interfaceIdOf(ref.name) !== undefined) {
+			warn('`overrides` is ignored: an interface document is not overridable')
+			overrides = []
+		}
 		const description = typeof metadata['description'] === 'string' ? metadata['description'] : ''
 		Object.assign(entry, { path, found: true, candidate: hit.candidate, merge, outcome: '', description })
-		found.push({ layer, entry, metadata, body, merge })
+		found.push({ layer, entry, metadata, body, merge, overrides })
 	}
 
 	const result: ResolvedReference = { name: ref.raw, status: 'missing', layers: [], warnings, plugins: [], trace }
 
-	const stop = found.findIndex(({ merge }) => merge === 'first-wins')
-	const chain = stop === -1 ? found : found.slice(0, stop + 1)
-	const shadowed = stop === -1 ? [] : found.slice(stop + 1)
+	if (interfaceIdOf(ref.name) !== undefined) return resolveInterfaceDocument(ref, found, result, display)
+
+	// Plugins are alternatives, not a stack, unless their copies say which sits above which: once
+	// resolution reaches the plugin tier, two plugins that do not order leave nothing to choose between.
+	const { order, choices } = orderPlugins(
+		ref,
+		found.filter(({ layer }) => layer.tier === 'plugin'),
+		(message) => warnings.push(message),
+	)
+	const ordered = [
+		...found.filter(({ layer }) => layer.tier !== 'plugin'),
+		...order.flatMap(({ documents }) => documents),
+	]
+	const stop = ordered.findIndex(({ merge }) => merge === 'first-wins')
+	const chain = stop === -1 ? ordered : ordered.slice(0, stop + 1)
+	const shadowed = stop === -1 ? [] : ordered.slice(stop + 1)
 	const base = chain.at(-1)
 
-	// Plugins are alternatives, not a stack: once resolution reaches the plugin tier, two plugins
-	// holding the name leave nothing to choose between them.
-	const holders = [...new Set(found.filter(({ layer }) => layer.tier === 'plugin').map(({ entry }) => entry.plugin))]
-	if (ref.plugin === undefined && holders.length > 1 && chain.some(({ layer }) => layer.tier === 'plugin')) {
+	if (choices && chain.some(({ layer }) => layer.tier === 'plugin')) {
 		for (const { entry } of found) entry.outcome = 'ambiguous'
 		result.status = 'ambiguous'
-		result.plugins = holders.map((plugin) => `${plugin}/${ref.name}`)
+		result.plugins = choices.map(({ label }) => `${label}/${ref.name}`)
 		return result
 	}
 	for (const document of shadowed) {
@@ -184,6 +326,23 @@ export function resolveReference(
 	if (!base) return result
 
 	for (const { entry } of chain) entry.outcome = 'used'
+	for (const [index, holder] of order.entries()) {
+		const below = order.slice(index + 1)
+		const named = [...new Set(holder.overrides.filter((plugin) => below.some(({ aliases }) => aliases.has(plugin))))]
+		if (!named.length) continue
+		for (const { entry } of holder.documents.filter((document) => chain.includes(document))) {
+			entry.outcome = `used (overrides ${named.join(', ')})`
+		}
+	}
+	return foundResult(result, chain, display)
+}
+
+function foundResult(
+	result: ResolvedReference,
+	chain: readonly FoundDocument[],
+	display: (path: string) => string,
+): ResolvedReference {
+	const warnings = result.warnings
 	const top = chain[0] as FoundDocument
 	return {
 		...result,
@@ -202,6 +361,35 @@ export function resolveReference(
 			merge,
 		})),
 	}
+}
+
+const ignoredInterface = 'ignored (an interface document is not overridable)'
+
+/**
+ * An interface document answers from its lowest layer, the owner's: a higher copy would change the
+ * contract under every consumer without telling it, so it is ignored with a warning.
+ */
+function resolveInterfaceDocument(
+	ref: ReferenceName,
+	found: readonly FoundDocument[],
+	result: ResolvedReference,
+	display: (path: string) => string,
+): ResolvedReference {
+	const holders = [...new Set(found.filter(({ layer }) => layer.tier === 'plugin').map(({ entry }) => entry.plugin))]
+	if (ref.plugin === undefined && holders.length > 1) {
+		for (const { entry } of found) entry.outcome = 'ambiguous'
+		return { ...result, status: 'ambiguous', plugins: holders.map((plugin) => `${plugin}/${ref.name}`) }
+	}
+	const base = found.at(-1)
+	if (!base) return result
+	for (const document of found.slice(0, -1)) {
+		document.entry.outcome = ignoredInterface
+		result.warnings.push(
+			`${display(document.entry.path)} is ignored: an interface document is not overridable; define a new interface id instead`,
+		)
+	}
+	base.entry.outcome = 'used'
+	return foundResult(result, [{ ...base, merge: 'first-wins' }], display)
 }
 
 type Part = { labels: string[]; body: string }

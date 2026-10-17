@@ -2,6 +2,8 @@
 
 Load the references a calling skill names, and hand them back as part of its instructions. The **caller** is the skill whose instructions sent you here; its **folder** is the directory its `SKILL.md` is in.
 
+When the caller names an interface ("Load the implementations of the `<id>` interface"), follow [Implementations of an interface](#implementations-of-an-interface) for it. Load any names it also lists with steps 1 to 4.
+
 ## 1. Run the command once
 
 Collect every name the caller listed, in its order. Run one command for all of them, from anywhere:
@@ -49,11 +51,25 @@ Say nothing about the load when every name came from the command.
 
 Then return to the caller. Follow each loaded document as part of the caller's instructions. Carry on without a name that was not loaded.
 
+## Implementations of an interface
+
+1. Run, from anywhere:
+
+   ```sh
+   node <this skill's folder>/scripts/reference.mjs implementations <id> --format json --root <repository root>
+   ```
+
+   Add `--accept <versions>`, such as `--accept 1,2`, when the caller names the interface versions it knows. The same rules as step 1 apply: no package runner, no download, and no reading tier folders yourself.
+2. Exit 0 prints one JSON object. `implementations` lists each implementation the caller can load: its `pin`, `tier`, `description`, and the `unsupported` sections it does not honor. `excluded` lists each one left out, with its `reasons`. Exit 1 prints an `error:` line on stderr, such as `no interface document <id>.interface`; then the interface is **not loaded**.
+3. Hand the list to the caller. The caller picks the implementations it needs; load each by its `pin` with steps 1 to 4.
+4. Tell the user, briefly, about each excluded implementation and its reasons, and about an interface not loaded and its error. The caller has no copy to fall back to; it carries on without the implementations.
+
 ## Validate
 
 Before returning to the caller:
 
 - Every name the caller listed is either loaded, from the command or the caller's copy, or named in the report as not loaded, ambiguous, or rejected.
+- Every interface the caller named is either listed with `implementations`, or named in the report as not loaded.
 - No `npx`, `pnpm dlx`, `upx`, or download was run.
 - No file under a tier folder, and no rejected path, was read by you.
 - The report is empty when every name came from the command.

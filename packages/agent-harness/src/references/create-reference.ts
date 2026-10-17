@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { frontmatterPattern, parseDocument, titleHeadings } from './reference-document.js'
+import type { ReferenceInterface } from './reference-interface.js'
 
 /** No `#` title: `merge-sections` matches by heading path, so a title would hold every section under it. */
 export const defaultTemplate: string = `---
@@ -11,6 +12,19 @@ tags: [topic]
 
 Write the guidance here. Give each topic its own top-level \`##\` section.
 `
+
+/** The interface's sections as `##` headings, in order, each optional one stubbed `**Unsupported.**`. */
+export function implementationTemplate(iface: ReferenceInterface): Template {
+	const sections = iface.sections.map(({ name, required }) =>
+		required
+			? `## ${name}\n\nWrite this section. The ${iface.id} interface requires it.\n`
+			: `## ${name}\n\n**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.\n`,
+	)
+	return parseTemplate(
+		`---\ndescription: What this ${iface.id} implementation covers, and when an agent should read it.\nimplements: ${iface.id}@${iface.version}\n---\n\n${sections.join('\n')}`,
+		`the ${iface.id} interface`,
+	)
+}
 
 export type Template = { content: string; metadata: Record<string, unknown>; body: string }
 

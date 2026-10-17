@@ -4,12 +4,12 @@ Loads, creates, updates, deletes, and finds [references](https://cyberuni.github
 
 | Mode | When |
 | --- | --- |
-| Load | a skill's instructions name references to load with this skill |
-| Create | writing a new reference; a plugin's is named `<plugin name>.<reference>.md` |
+| Load | a skill's instructions name references, or an interface whose implementations, to load with this skill |
+| Create | writing a new reference; a plugin's is named `<plugin name>.<reference>.md`, and an implementation of an interface `<id>.<key>.md` |
 | Update | changing a reference: the user's own in place, a plugin's by an override |
 | Delete | removing a project or user copy, saying first which copy answers the name afterwards |
-| Find | `search` for a topic, or `list` every reference |
-| Inspect | `show`; `show --trace` for why a name resolved to one copy; `where` for the project and user files an override can be written to |
+| Find | `search` for a topic, `list` every reference, or `implementations` of an interface |
+| Inspect | `show`; `show --trace` for why a name resolved to one copy; `where` for the project and user files an override can be written to; `check` against an interface |
 | Wire a skill | giving a skill the line below |
 
 It ships in the `cyber-agent-harness` plugin:
@@ -48,6 +48,14 @@ A skill written for one harness only may add that harness's typed form after the
 | `openhands` | no typed form recorded | — |
 | `augment` | no typed form recorded | — |
 <!-- /generated -->
+
+A skill that consumes an [interface](https://cyberuni.github.io/agent-harness/concepts/reference-interfaces/) names the interface instead:
+
+```text
+Load the implementations of the `scaffold.recipe` interface with the `reference` skill in the `cyber-agent-harness` plugin.
+```
+
+The skill runs `implementations <id>` and hands back each implementation's pin, which the calling skill loads by name.
 
 A calling skill may ship its own copy of a reference at `references/<name>.md`. The skill reads it when no tier holds the name, or when the command cannot run.
 

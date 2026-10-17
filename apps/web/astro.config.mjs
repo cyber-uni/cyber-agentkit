@@ -17,6 +17,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Harness detection', slug: 'concepts/harness-detection' },
 						{ label: 'Reference documents', slug: 'concepts/reference-documents' },
+						{ label: 'Reference interfaces', slug: 'concepts/reference-interfaces' },
 					],
 				},
 			],
