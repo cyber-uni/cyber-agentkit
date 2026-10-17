@@ -5,10 +5,11 @@ import type { cli } from 'clibuilder'
 import { command, exitCodes, t } from 'clibuilder'
 import { type Answer, CliError, document, encode, type Format, isCliError, printAnswer, result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
-import { readTemplate, templateWarnings, withMergeSections } from './create-reference.js'
+import { implementationTemplate, readTemplate, templateWarnings, withMergeSections } from './create-reference.js'
 import { listReferences, type ReferenceRow, type SearchMatch, searchReferences } from './reference-catalog.js'
 import { checkReferences, checkResolved, interfaceLookup, type ReferenceCheckEntry } from './reference-check.js'
 import { type ReferenceImplementations, referenceImplementations } from './reference-implementations.js'
+import { fitsName, type ReferenceInterface } from './reference-interface.js'
 import {
 	projectReferencesDir,
 	type ReferenceLayer,
@@ -460,21 +461,49 @@ function parseScope(value: string | undefined): CreateScope {
 type CreateArgs = CommonArgs & {
 	name: string
 	template: string | undefined
+	implements: string | undefined
 	scope: string | undefined
 	'dry-run': boolean | undefined
+}
+
+/** The interface `create --implements` starts an implementation of, once the new name and tier fit it. */
+function interfaceFor(
+	id: string,
+	name: string,
+	scope: CreateScope,
+	layers: readonly ReferenceLayer[],
+	display: (path: string) => string,
+): ReferenceInterface {
+	parseReferenceName(id)
+	const iface = interfaceLookup(layers, { display })(id)
+	if (!iface.value) throw new Error(iface.failure?.message ?? `no interface ${id}`)
+	if (!fitsName(iface.value, name)) {
+		throw new Error(
+			`an implementation of ${id} is named ${iface.value.cardinality === 'one' ? id : `${id}.<key>`}, not "${name}".`,
+		)
+	}
+	if (iface.value.tiers && !iface.value.tiers.includes(scope)) {
+		throw new Error(`the ${scope} tier may not implement ${id} (tiers: ${iface.value.tiers.join(', ')}).`)
+	}
+	return iface.value
 }
 
 function createCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'create',
 		description:
-			'Start a new reference in the project or user tier from a template, marked merge-sections when it overrides a copy below. Never overwrites.',
+			'Start a new reference in the project or user tier from a template, marked merge-sections when it overrides a copy below, or an implementation of an interface. Never overwrites.',
 		arguments: [{ name: 'name', description: 'Reference name, without the `.md` extension.', type: t.string() }],
 		options: {
 			root: rootOption,
 			template: {
 				description:
 					'File whose text is written as it is, frontmatter included. Defaults to a built-in template of top-level `##` sections with no `#` title.',
+				type: t.string().optional(),
+			},
+			implements: {
+				description:
+					"Interface id to implement: the interface's sections become the `##` headings, each optional one stubbed `**Unsupported.**`, and `implements` is set. Not with --template.",
 				type: t.string().optional(),
 			},
 			scope: {
@@ -498,12 +527,18 @@ function createCommand(layersFor: LayersFor): cli.Command {
 					)
 				}
 				const scope = parseScope(args.scope)
-				const template = readTemplate(args.template === undefined ? undefined : resolve(args.template))
+				if (args.implements !== undefined && args.template !== undefined) {
+					throw new Error('pass --template or --implements, not both.')
+				}
 				const home = homedir()
 				const dir = scopeDir(scope, args.root, home)
 				const target = join(dir, `${name.name}.md`)
 				const display = (path: string) => collapseHome(home, path)
 				const layers = await layersFor(args, home)
+				const template =
+					args.implements === undefined
+						? readTemplate(args.template === undefined ? undefined : resolve(args.template))
+						: implementationTemplate(interfaceFor(args.implements, name.name, scope, layers, display))
 				const { trace } = resolveReference(name, layers, { display })
 				const at = layers.findIndex((layer) => layer.dir === dir)
 				if (trace[at]?.found) {
@@ -517,10 +552,18 @@ function createCommand(layersFor: LayersFor): cli.Command {
 						`the ${shadow.tier} copy ${display(shadow.path)} is first-wins, so nothing would read a new ${scope} file; change that copy instead.`,
 					)
 				}
-				const overrides = trace.slice(at + 1).some((step) => step.found)
+				const below = trace.slice(at + 1).find((step) => step.found)
+				// A whole implementation replaces the copy below: merged, its stubs would mark that copy's sections unsupported.
 				const content =
-					overrides && template.metadata['merge'] === undefined ? withMergeSections(template.content) : template.content
+					below && args.implements === undefined && template.metadata['merge'] === undefined
+						? withMergeSections(template.content)
+						: template.content
 				const warnings = templateWarnings(template)
+				if (below && args.implements !== undefined) {
+					warnings.push(
+						`the new file replaces the ${below.tier} copy ${display(below.path)} whole; to change only some of its sections, write an override with the reference skill's Update mode.`,
+					)
+				}
 				const report: ReferenceCreateReport = {
 					name: name.name,
 					scope,

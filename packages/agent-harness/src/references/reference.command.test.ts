@@ -17,7 +17,12 @@ import {
 	type ReferenceShowEntry,
 	type ReferenceWhereReport,
 } from './reference.command.js'
-import { githubCapabilities, recipeInterface, typescriptRecipe } from './reference-interface.fixtures.js'
+import {
+	githubCapabilities,
+	recipeInterface,
+	routingInterface,
+	typescriptRecipe,
+} from './reference-interface.fixtures.js'
 import { deprecatedManagedGovernancesDir, managedGovernancesDir, managedReferencesDir } from './reference-layers.js'
 
 /** The command reads the home directory itself; a fixture per test needs its own fake one. */
@@ -106,7 +111,14 @@ type ListArgs = { root?: string; format?: string; pattern?: string }
 type SearchArgs = { root?: string; format?: string }
 type WhereArgs = { root?: string; caller?: string; format?: string }
 type DeleteArgs = { root?: string; scope?: string; 'dry-run'?: boolean; format?: string }
-type CreateArgs = { root?: string; template?: string; scope?: string; 'dry-run'?: boolean; format?: string }
+type CreateArgs = {
+	root?: string
+	template?: string
+	implements?: string
+	scope?: string
+	'dry-run'?: boolean
+	format?: string
+}
 
 /**
  * Runs a command the way the cli does: with the resolved `format` on `this`, printing what `run()`
@@ -1942,5 +1954,107 @@ describe('implementations', () => {
 		expect(stderrLines()).toContain('error: --accept is a comma-separated list of versions, such as 1,2; got "1,x".\n')
 		expect(await implementations('scaffold.recipe', { root })).toBe(1)
 		expect(stderrLines()).toContain('error: no interface document scaffold.recipe.interface\n')
+	})
+})
+
+describe('create --implements', () => {
+	function report(): ReferenceCreateReport {
+		return JSON.parse(written()) as ReferenceCreateReport
+	}
+
+	function withInterfaces(): string {
+		const root = repo()
+		declareDependency(root, 'repobuddy')
+		installDependency(root, 'repobuddy', {
+			'scaffold.recipe.interface': recipeInterface,
+			'project-tracker.routing.interface': routingInterface,
+		})
+		return root
+	}
+
+	it("starts an implementation from the interface's sections, optional ones stubbed unsupported", async () => {
+		const root = withInterfaces()
+
+		expect(
+			await create('scaffold.recipe.typescript-lib', { root, implements: 'scaffold.recipe', format: 'json' }),
+		).toBe(0)
+		expect(report().warnings).toEqual([])
+		expect(report().content).toBe(`---
+description: What this scaffold.recipe implementation covers, and when an agent should read it.
+implements: scaffold.recipe@1
+---
+
+## Recipe
+
+Write this section. The scaffold.recipe interface requires it.
+
+## Inputs
+
+**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.
+
+## Files
+
+**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.
+
+## Config
+
+**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.
+
+## Verify
+
+**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.
+
+## Post
+
+**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.
+`)
+
+		stdout.mockClear()
+		expect(await check(['scaffold.recipe.typescript-lib'], { root })).toBe(0)
+	})
+
+	it('replaces a copy below whole, with a warning, rather than merging stubs over it', async () => {
+		const root = withInterfaces()
+		installDependency(root, 'repobuddy', {
+			'scaffold.recipe.interface': recipeInterface,
+			'scaffold.recipe.typescript-lib': typescriptRecipe,
+		})
+
+		expect(
+			await create('scaffold.recipe.typescript-lib', {
+				root,
+				implements: 'scaffold.recipe',
+				format: 'json',
+				'dry-run': true,
+			}),
+		).toBe(0)
+		expect(report().content).not.toContain('merge:')
+		expect(report().warnings).toEqual([
+			expect.stringMatching(/^the new file replaces the plugin copy .* whole; to change only some of its sections/),
+		])
+	})
+
+	it('refuses a name or a tier the interface does not allow, a missing interface, and --template with it', async () => {
+		const root = withInterfaces()
+
+		expect(await create('scaffold.recipe', { root, implements: 'scaffold.recipe' })).toBe(1)
+		expect(stderrLines()).toContain(
+			'error: an implementation of scaffold.recipe is named scaffold.recipe.<key>, not "scaffold.recipe".\n',
+		)
+		expect(
+			await create('project-tracker.routing', { root, implements: 'project-tracker.routing', scope: 'user' }),
+		).toBe(1)
+		expect(stderrLines()).toContain(
+			'error: the user tier may not implement project-tracker.routing (tiers: project).\n',
+		)
+		expect(await create('project-tracker.routing.x', { root, implements: 'project-tracker.routing' })).toBe(1)
+		expect(stderrLines()).toContain(
+			'error: an implementation of project-tracker.routing is named project-tracker.routing, not "project-tracker.routing.x".\n',
+		)
+		expect(await create('nothing.a', { root, implements: 'nothing' })).toBe(1)
+		expect(stderrLines()).toContain('error: no interface document nothing.interface\n')
+		expect(await create('scaffold.recipe.a', { root, implements: 'scaffold.recipe', template: 'x.md' })).toBe(1)
+		expect(stderrLines()).toContain('error: pass --template or --implements, not both.\n')
+		expect(existsSync(join(root, '.agents/references/project-tracker.routing.md'))).toBe(false)
 	})
 })
