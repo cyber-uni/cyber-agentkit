@@ -18,9 +18,13 @@
 		"openhands",
 		"auggie"
 	],
+	"homepage": "https://cyberuni-agent.github.io/uni-agent-kit/",
+	"bugs": {
+		"url": "https://github.com/cyberuni-agent/uni-agent-kit/issues"
+	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/cyberuni/agent-harness.git",
+		"url": "git+https://github.com/cyberuni-agent/uni-agent-kit.git",
 		"directory": "packages/agent-harness"
 	},
 	"license": "MIT",

@@ -6,8 +6,8 @@
 	"author": {
 		"name": "unional"
 	},
-	"homepage": "https://github.com/cyberuni/agent-harness",
-	"repository": "https://github.com/cyberuni/agent-harness",
+	"homepage": "https://github.com/cyberuni-agent/uni-agent-kit",
+	"repository": "https://github.com/cyberuni-agent/uni-agent-kit",
 	"license": "MIT",
 	"keywords": ["agent-harness", "claude-code", "cursor", "codex", "copilot-cli"],
 	"extensions": {

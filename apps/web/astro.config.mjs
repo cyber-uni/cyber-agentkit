@@ -3,14 +3,14 @@ import starlight from '@astrojs/starlight'
 import { defineConfig } from 'astro/config'
 
 export default defineConfig({
-	site: 'https://cyberuni.github.io',
-	base: '/agent-harness',
+	site: 'https://cyberuni-agent.github.io',
+	base: '/uni-agent-kit',
 	integrations: [
 		starlight({
 			title: 'agent-harness',
 			description:
 				'Detect which AI agent harness is running, such as Claude Code, Cursor, Codex, or Copilot CLI, and query what it holds.',
-			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/cyberuni/agent-harness' }],
+			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/cyberuni-agent/uni-agent-kit' }],
 			sidebar: [
 				{
 					label: 'Concepts',
