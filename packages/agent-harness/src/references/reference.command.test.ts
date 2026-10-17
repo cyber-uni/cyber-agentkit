@@ -1867,3 +1867,35 @@ describe('show and interfaces', () => {
 		])
 	})
 })
+
+describe('cross-plugin overrides', () => {
+	it('stacks a house plugin above the plugin it overrides, and traces it', async () => {
+		const root = repo()
+		write(
+			root,
+			'package.json',
+			JSON.stringify({ dependencies: { '@repobuddy/buddy': '1.0.0', 'house-skills': '1.0.0' } }),
+		)
+		installDependency(root, '@repobuddy/buddy', {
+			'project-tracker.capabilities.github': githubCapabilities,
+		})
+		write(root, 'node_modules/@repobuddy/buddy/plugin.json', JSON.stringify({ name: 'repobuddy' }))
+		installDependency(root, 'house-skills', {
+			'project-tracker.capabilities.github':
+				'---\noverrides: [repobuddy]\nmerge: merge-sections\n---\n\n## Create\n\nThe house way to file an issue.\n',
+		})
+
+		expect(await show(['project-tracker.capabilities.github'], { root, format: 'json', trace: true })).toBe(0)
+		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
+		expect(entry?.content).toContain('The house way to file an issue.')
+		expect(entry?.content).toContain('## Retype')
+		expect(entry?.trace?.filter(({ found }) => found).map(({ plugin, outcome }) => `${plugin} ${outcome}`)).toEqual([
+			'@repobuddy/buddy used',
+			'house-skills used (overrides repobuddy)',
+		])
+
+		stdout.mockClear()
+		expect(await show(['repobuddy/project-tracker.capabilities.github'], { root })).toBe(0)
+		expect(written()).toContain('The house way to file an issue.')
+	})
+})
