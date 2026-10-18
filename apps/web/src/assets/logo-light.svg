@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="uni-agent-kit">
+  <g fill="none" stroke="#10111a" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17 63V17h46"/>
+    <path d="M111 65v46H65"/>
+  </g>
+  <g fill="#10111a">
+    <rect x="32" y="32" width="32" height="8" rx="4"/>
+    <rect x="32" y="48" width="24" height="8" rx="4"/>
+    <rect x="32" y="64" width="16" height="8" rx="4"/>
+  </g>
+  <g fill="none" stroke="#10111a" stroke-width="8" stroke-linecap="round">
+    <circle cx="72" cy="66" r="14"/>
+    <path d="M82 76l12 12"/>
+  </g>
+</svg>
