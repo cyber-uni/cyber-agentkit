@@ -25,7 +25,7 @@ wrong or surplus. Each test is pass or fail. Report the line that fails.
 | --- | --- | --- |
 | C7 | Consistent, one home | No criterion contradicts another, a sibling spec, or a convention. No fact is stated in two places; one is the home and the rest link. Two things that look alike but change for different reasons are not duplication. |
 | C8 | Nothing hidden | Every unresolved question is under Open questions. No `TBD`, no guessed default, and nothing the criteria need is deferred. |
-| C9 | Proportionate | The size matches the risk: a small change gets a few criteria, not a document. The spec states only what the code, the conventions, or a linked home do not. |
+| C9 | Proportionate | The size matches the risk: a small change gets a few criteria, not a document. The spec states only what the code, the conventions, or a linked home do not. A task that reads the spec (changing one behavior, deriving its tests, checking a consumer contract) needs most of what it loads; otherwise it is several specs. |
 
 ## Failure modes to look for
 

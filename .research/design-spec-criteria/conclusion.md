@@ -2,7 +2,7 @@
 
 ## Last updated
 
-October 2026 (reviewed by the owner; decisions D8 to D12 added)
+October 2026 (reviewed by the owner; decisions D8 to D15 added)
 
 ## Question
 
@@ -37,6 +37,32 @@ These settle the open choices below and override the recommendations where they 
   main spec stays small. It serves C6 to C8: every leaf has an outcome and a criterion, an undecided question is a
   marked node, and a forbidden combination is a guard. A decision table or a state list may replace the graph where
   the behavior is a combination of conditions or a set of states.
+- D13 The What opens with the problem (who has it, what goes wrong without the capability), then the intent. A
+  definition goes in Key terms. Reason: a reader opens the What to learn why the capability exists. In the reference
+  spec the problem sat in the last sentence of the first paragraph, and its strongest reason (a plugin ships a
+  document a repository overrides without forking it) at the end of the second.
+- D14 A spec is sized by the tasks that read it, and split by capability when most tasks need less than half of it.
+  C9 carries this as a cost. Reason: an agent loads a spec whole. The reference spec (330 lines, about 5.5k tokens,
+  plus a 1.2k graph) was read for these tasks:
+
+  | Task | Needs | Loaded |
+  | --- | --- | --- |
+  | Change one behavior (fix `create`) | head, UC5, R24 to R32, Q5 | all, the slice spread over three places |
+  | Derive tests for one area | that, plus its graph edges | all, the graph mixing every area |
+  | Check scope | outcome, What, non-goals | the short head, if the reader stops |
+  | A consumer checks the JSON contract | UC8, R38, R39 | all |
+  | Implement issue #110 | UC1, UC7, UC9, R2 to R8, main graph | all |
+  | Review the spec | all, one section at a time | all |
+
+  Only the review needs the whole file. Splitting by section type (a separate criteria file) does not help, since
+  each task needs a slice of every section. Splitting by capability does, and it coincides with C1: that spec's What
+  listed four activities around one decision ("lets people see, find, write and remove, and check").
+- D15 The spec is settled one section at a time with the user, in section order, each section committed when agreed.
+  A backfill is settled the same way. Reason: each section is derived from the one before, so an error in the outcome
+  or the actors reaches every criterion, and a review of the finished spec finds it after the later sections are
+  built on it. Code-derived text records what the code does, not what it should do: the reference backfill left eight
+  questions (Q1 to Q8) the code could not answer. With no user, every section is drafted and each question goes to
+  Open questions.
 
 ## Reference material
 

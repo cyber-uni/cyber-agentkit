@@ -28,7 +28,8 @@ Put one capability in one folder: `README.md` holds the spec, `graph.md` holds t
 behavior branches. Write these sections of `README.md`, in order. Keep each as short as it can be.
 
 1. **Title and outcome.** One sentence naming the single outcome.
-2. **What.** The problem, who has it, and the intent. Legible to a non-engineer.
+2. **What.** Open with the problem: who has it, and what goes wrong without this capability. Then the intent: what the
+   capability does about it. Legible to a non-engineer. A definition belongs in Key terms, not here.
 3. **Non-goals.** Plausible goals this capability excludes. "Must not crash" is not a non-goal.
 4. **Key terms.** Each term a criterion leans on, defined once.
 5. **Actors and goals.** Every actor, then the result each wants. Include people affected by the outcome who never
@@ -39,6 +40,26 @@ behavior branches. Write these sections of `README.md`, in order. Keep each as s
    use case and, where a graph exists, to an edge in it.
 8. **Open questions.** What is unresolved, marked. Empty before the spec is ready.
 9. **References.** Links to rationale, sibling specs, and the home of any shared fact.
+
+**Settle one section at a time.** Grill the spec with the user, one section at a time, in the order above. Each
+section is derived from the ones before it, so a wrong outcome or a missed actor carries into every criterion. For
+each section:
+
+1. Draft it. In a backfill the code supplies the draft, and it still goes through these steps: code shows what the
+   capability does, not what it should do.
+2. Judge the draft against the criteria that apply to it: C1 on the outcome, C2 on the non-goals, C3 on the actors and
+   use cases, C4 to C6 on the criteria, C8 on the open questions.
+3. Show the user that section and the questions it raises, and nothing beyond it.
+4. When the user agrees, commit the section, then go to the next.
+
+A change to an earlier section reopens every section after it. With no user to ask (a headless run), draft every
+section and put each question under Open questions; the spec is not ready until they are answered.
+
+**Size the spec by the tasks that read it.** When the actors and use cases are settled, list the tasks that will read
+the spec: changing one behavior, deriving its tests, checking scope, a consumer checking its contract. If most of them
+need less than half of it, split the capability into child specs along the line those tasks share, each with its own
+outcome; the parent keeps the shared terms and links each child. Do not split by section type, such as a separate
+criteria file: every task needs a slice of every section.
 
 Leave out implementation design, task lists, stack choices, and alternatives analysis. Link rationale (an ADR, an
 issue, a research topic) and do not copy it in.

@@ -5,3 +5,6 @@
 - 2026-10-18. Owner decisions D8 to D12 added to the conclusion: rationale outside the spec, a specific design spec
   with the functional spec beneath it, a standing spec, no notation in the design spec, and the decision graph in
   its own file. The criteria are unchanged. Triggered by the owner's review in the session, not by a new source.
+- 2026-10-18. Owner decisions D13 to D15 added: the What opens with the problem, a spec is sized by the tasks that read
+  it (C9 extended to that cost), and a spec is settled one section at a time with the user. Triggered by the owner's
+  review of the reference spec, not by a new source.
