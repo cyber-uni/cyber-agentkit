@@ -2,7 +2,7 @@
 spec-type: behavioral
 ---
 
-# reference — an agent gets the right Markdown document for a name, from whichever tier holds it
+# reference — an agent loads exactly the instructions a skill names, composed from tiers that hold them
 
 ## What
 
