@@ -1,3 +1,5 @@
 .astro/
 dist/
 node_modules/
+src/content/docs/packages/*/skills/
+src/content/docs/packages/*/cli/

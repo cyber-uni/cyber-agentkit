@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="uni-agent-kit">
+  <!-- Family frame: the cyber-* command reticle. Identical in every cyber-* package. -->
+  <path class="s" d="M17 63V17h46"/>
+  <path class="s" d="M111 65v46H65"/>
+  <!-- Glyph slot (32..96): a magnifier over a document, detecting what a harness holds. -->
+  <rect class="f" x="32" y="32" width="32" height="8" rx="4"/>
+  <rect class="f" x="32" y="48" width="24" height="8" rx="4"/>
+  <rect class="f" x="32" y="64" width="16" height="8" rx="4"/>
+  <circle class="s2" cx="72" cy="66" r="14"/>
+  <path class="s2" d="M82 76l12 12"/>
+  <style>.f{fill:#000}.s{fill:none;stroke:#000;stroke-width:10;stroke-linecap:round;stroke-linejoin:round}.s2{fill:none;stroke:#000;stroke-width:8;stroke-linecap:round}@media (prefers-color-scheme:dark){.f{fill:#fff}.s,.s2{stroke:#fff}}</style>
+</svg>
