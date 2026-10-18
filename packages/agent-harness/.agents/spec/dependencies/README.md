@@ -38,27 +38,27 @@ example while under development), a bare name is `unknown`, never guessed.
 
 ## Use Cases
 
-**Actors.** A1 a user on any harness. A4 `universal-plugin`, the tool that builds and validates plugins. Affected
+**Actors.** A1 a user on any harness. A2 `universal-plugin`, the tool that builds and validates plugins. Affected
 without invoking it: the plugin author, who wants the list they wrote read the same way everywhere. The agent that a
 plugin's text sends to the how-to reference is served by the [reference node](../plugin-dependencies-reference/README.md).
 Sibling tools (`repobuddy`, `buddy-agent-harness`, `cyber-mux`) that gate a feature on a plugin being present call the
-same functions as A4; they need no use case beyond UC2. A4's goal comes from the owner (issue #110 discussion):
+same functions as A2; they need no use case beyond UC2. A2's goal comes from the owner (issue #110 discussion):
 `universal-plugin` does at the agent level what `depcheck` and `knip` do for packages.
 
 | Actor | Goal |
 | --- | --- |
 | A1 user | Learn what a plugin is missing and exactly what to run, on any harness, without the tool changing anything |
-| A4 `universal-plugin` | Read a plugin's declared list, and judge declared against installed, with the same meaning as every other tool |
+| A2 `universal-plugin` | Read a plugin's declared list, and judge declared against installed, with the same meaning as every other tool |
 
 ### UC1 — Check a plugin's dependencies (A1)
 
-- **Entry points:** the doctor skill, which runs `agent-harness dependencies check [--plugin <root>]`; backed by
+- **Entry points:** the command `agent-harness dependencies check [--plugin <root>]` (a doctor skill will wrap it, as its own node later); backed by
   `checkPluginDependencies(harness, { pluginRoot })`.
 - **Inputs:** `--plugin`, the plugin root (default the current directory, which always exists), and the detected harness. A bare name's declaring marketplace is
   derived from the installed plugin whose install folder is the plugin root; a `declaringMarketplace` passed to the
   function wins over the derived value.
 - **Outcome:** each declared dependency with its state, then ordered steps for the user to run, on stdout. Exit codes
-  follow AXI: 0 when every dependency is `enabled` or `installed`; 1 when the intent "this plugin is ready" cannot be
+  follow AXI, the agent-friendly CLI convention: 0 when every dependency is `enabled` or `installed`; 1 when the intent "this plugin is ready" cannot be
   satisfied; 2 for a usage error. Every problem found carries its own stable `code` (`dependency-missing`,
   `dependency-disabled`, `dependency-unknown`, `manifest-unparsable`); several problems are all listed.
 - **Extensions:**
@@ -75,12 +75,15 @@ same functions as A4; they need no use case beyond UC2. A4's goal comes from the
     marketplace is unknown) also gets the cross-marketplace step: the root marketplace must list it in
     `allowCrossMarketplaceDependenciesOn`, or the user must already have it enabled.
   - An unknown flag, or a `--plugin` path that does not exist: usage error, exit 2.
+  - On Claude Code, an `unknown` bare dependency (declaring marketplace not known) gets one step that says so and asks the
+    user to install the plugin from a marketplace or declare `name@marketplace`; no install command is guessed.
   - Disabled and unknown dependencies on a harness without dependency support get a manual step; a missing one also gets
     the marketplace question.
   - Steps come in this order: install or enable, the marketplace question, the cross-marketplace step, then
-    `Run /reload-plugins.` (Claude Code only). A bare name is installed as `name@<declaring marketplace>` when known.
+    `Run /reload-plugins.` (Claude Code only, and only when an install or enable step exists). On any other harness the first
+    step says nothing is resolved for the user. A bare name is installed as `name@<declaring marketplace>` when known.
 
-### UC2 — Read and judge a declared list (A4)
+### UC2 — Read and judge a declared list (A2)
 
 - **Entry points:** `declaredPluginDependencies(manifest)`, `readPluginDependencies(pluginRoot)`, and
   `checkPluginDependencies(harness, { dependencies, declaringMarketplace })`.
@@ -143,22 +146,31 @@ flowchart TD
   sup -->|yes, Claude Code| cc{E12 state?}
   cc -->|missing| inst1[install step]
   cc -->|disabled| en1[enable step]
+  cc -->|unknown bare name| unk1[E12 explain: declaring marketplace not known]
+  cc -->|enabled, installed| nostep[E12 no step]
+  nostep --> done
   sup -->|no| manual{E13 state?}
-  manual -->|missing, disabled, or unknown| man1[manual step, nothing resolved]
+  manual -->|missing, disabled, or unknown| man1[E18 nothing-resolved step first, then manual steps]
+  manual -->|enabled, installed| nostep2[E13 no step]
+  nostep2 --> done
   inst1 --> ismiss
   en1 --> ismiss
   man1 --> ismiss{E14 missing and names a marketplace?}
   ismiss -->|yes| ask[E15 ask user to check marketplace added]
-  ismiss -->|no| done([report])
+  ismiss -->|no| rel
   ask --> xm{E21 Claude Code, and marketplace differs from the declaring one or the declaring one is unknown?}
   xm -->|yes| cross[E22 cross-marketplace step]
-  xm -->|no| done
-  cross --> done
+  xm -->|no| rel
+  cross --> rel
+  unk1 --> done
+  rel{E17 Claude Code and an install or enable step exists?} -->|yes| reload[reload step]
+  rel -->|no| done
+  reload --> done
   enabled --> done
   installed --> done
   none --> done
   err --> done
-  done --> out{E16 problem found?}
+  done([report]) --> out{E16 problem found?}
   out -->|yes| exit1([exit 1 + codes])
   out -->|no| exit0([exit 0])
   done -.->|never| write[E20 write a plugin or settings file]
@@ -188,7 +200,10 @@ flowchart TD
 | --- | --- | --- |
 | E12 | Claude Code, missing | `Claude Code gets an install step and a reload step for a missing dependency` |
 | E12 | Claude Code, disabled | `Claude Code gets an enable step for a disabled dependency` |
-| E12 | Claude Code, all enabled or installed | `nothing missing or disabled gives no steps` |
+| E12 | Claude Code, enabled and installed | `nothing missing or disabled gives no steps` |
+| E12 | Claude Code, unknown bare name | `Claude Code explains an unknown bare dependency instead of guessing a marketplace` |
+| E17 | Codex, missing | `a harness without dependency support gets no reload step` |
+| E18 | Codex, missing | `a harness without dependency support starts with the nothing-resolved step` |
 | E13 | Codex, record exists, dependency missing | `a harness without dependency support gets a manual step for a missing dependency` |
 | E13 | Codex, record exists, dependency disabled | `a harness without dependency support gets a manual step for a disabled dependency` |
 | E13 | Codex, record exists, dependency enabled | `a harness without dependency support gets no step for an enabled dependency` |

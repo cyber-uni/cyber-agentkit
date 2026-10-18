@@ -10,3 +10,7 @@
 - **reference** — a Markdown document an agent reads by name, layered across tiers.
 - **declaring marketplace** — the marketplace the declaring plugin was installed from. A dependency with no marketplace
   resolves only there, as in Claude Code.
+- **AXI** — Agent Experience Interface, a convention for CLIs that agents call: structured output on stdout, exit 0 for
+  success, 1 for an error, 2 for a usage error (kunchenguid/axi).
+- **cross-marketplace dependency** — a dependency in a different marketplace from the declaring plugin's. Claude Code
+  installs it only if the root marketplace lists it in `allowCrossMarketplaceDependenciesOn`.

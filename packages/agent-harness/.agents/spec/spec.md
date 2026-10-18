@@ -35,13 +35,6 @@ a third folder level. Chosen because `src/` is already one folder per domain con
 Nodes so far: [`dependencies/`](./dependencies/README.md), the plugin dependency check; and
 [`plugin-dependencies-reference/`](./plugin-dependencies-reference/README.md), the how-to document it generates.
 
-<!-- BEGIN generated: by-concept (project-spec/concept-index) -->
-
-## By concept
-
-> Generated from `concept:` frontmatter by `project-spec/concept-index` — do not edit by hand.
-
-<!-- END generated: by-concept (project-spec/concept-index) -->
 
 <!-- BEGIN generated: by-concept (project-spec/concept-index) -->
 

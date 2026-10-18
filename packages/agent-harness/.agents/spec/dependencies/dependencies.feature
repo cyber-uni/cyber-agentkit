@@ -134,7 +134,7 @@ Feature: Check a plugin's declared dependencies against the running harness
     And the plugin root is installed from the marketplace "forge"
     And "tracer@acme" is installed
     And its enabledPlugins entry is true
-    When the dependency "tracer" with no marketplace is checked with the declaring marketplace "acme" passed
+    When the dependency "tracer" with no marketplace is checked for that plugin root with the declaring marketplace "acme" passed
     Then its state is "enabled"
 
   Scenario: a bare name with no known declaring marketplace is unknown
@@ -163,7 +163,8 @@ Feature: Check a plugin's declared dependencies against the running harness
 
   Scenario: nothing missing or disabled gives no steps
     Given the harness is Claude Code
-    And every declared dependency is enabled or installed
+    And the dependency "tracer@acme" is enabled
+    And the dependency "lintbot@forge" is installed with no setting
     When the steps are produced
     Then the steps are empty
 
@@ -174,6 +175,28 @@ Feature: Check a plugin's declared dependencies against the running harness
     When the steps are produced
     Then a step names "tracer" and "acme" as a plugin to install and enable yourself
     And no step contains the text "plugin install"
+
+  Scenario: a harness without dependency support gets no reload step
+    Given the harness is Codex
+    And the plugin lists "tracer@acme"
+    And the installed plugins are exactly "lintbot@forge"
+    When the steps are produced
+    Then no step contains the text "/reload-plugins"
+
+  Scenario: a harness without dependency support starts with the nothing-resolved step
+    Given the harness is Codex
+    And the plugin lists "tracer@acme"
+    And the installed plugins are exactly "lintbot@forge"
+    When the steps are produced
+    Then the first step says nothing is resolved for the user
+
+  Scenario: Claude Code explains an unknown bare dependency instead of guessing a marketplace
+    Given the harness is Claude Code
+    And the declaring marketplace is not known
+    And the dependency "tracer" with no marketplace is unknown
+    When the steps are produced
+    Then a step says the declaring marketplace is not known and asks the user to install the plugin from a marketplace or to declare "tracer@" with one
+    And no step contains the text "plugin install tracer"
 
   Scenario: a harness without dependency support gets no step for an enabled dependency
     Given the harness is Codex
