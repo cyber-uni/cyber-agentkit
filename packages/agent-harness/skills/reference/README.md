@@ -1,6 +1,6 @@
 # Reference
 
-Loads, creates, updates, deletes, and finds [references](https://cyberuni-agent.github.io/uni-agent-kit/concepts/reference-documents/): Markdown documents an agent reads on demand by name. It routes each request to the `reference` command, run from a launcher bundled in `scripts/`, and writes or deletes a reference only after the user approves it. Type `/reference` (`/cyber-agent-harness:reference` (pnpm install: `pnpm-@cyberuni+agent-harness-reference`) in Claude Code) to run it yourself.
+Loads, creates, updates, deletes, and finds [references](https://spikyuni.github.io/uni-agent-kit/concepts/reference-documents/): Markdown documents an agent reads on demand by name. It routes each request to the `reference` command, run from a launcher bundled in `scripts/`, and writes or deletes a reference only after the user approves it. Type `/reference` (`/cyber-agent-harness:reference` (pnpm install: `pnpm-@cyberuni+agent-harness-reference`) in Claude Code) to run it yourself.
 
 | Mode | When |
 | --- | --- |
@@ -49,7 +49,7 @@ A skill written for one harness only may add that harness's typed form after the
 | `augment` | no typed form recorded | — |
 <!-- /generated -->
 
-A skill that consumes an [interface](https://cyberuni-agent.github.io/uni-agent-kit/concepts/reference-interfaces/) names the interface instead:
+A skill that consumes an [interface](https://spikyuni.github.io/uni-agent-kit/concepts/reference-interfaces/) names the interface instead:
 
 ```text
 Load the implementations of the `scaffold.recipe` interface with the `reference` skill in the `cyber-agent-harness` plugin.

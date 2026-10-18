@@ -1,7 +1,7 @@
 # agent-harness
 
 [![npm](https://img.shields.io/npm/v/@cyberuni/agent-harness.svg)](https://www.npmjs.com/package/@cyberuni/agent-harness)
-[![release](https://github.com/cyberuni-agent/uni-agent-kit/actions/workflows/release.yml/badge.svg)](https://github.com/cyberuni-agent/uni-agent-kit/actions/workflows/release.yml)
+[![release](https://github.com/spikyuni/uni-agent-kit/actions/workflows/release.yml/badge.svg)](https://github.com/spikyuni/uni-agent-kit/actions/workflows/release.yml)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 
 **Status: pre-release.** `@cyberuni/agent-harness` is published on npm, and its API may still change

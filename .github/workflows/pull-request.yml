@@ -8,7 +8,7 @@ permissions: {}
 
 jobs:
   code:
-    uses: cyberuni-agent/.github/.github/workflows/pnpm-verify.yml@v1
+    uses: spikyuni/.github/.github/workflows/pnpm-verify.yml@v1
     permissions:
       contents: read
       id-token: write
