@@ -41,22 +41,39 @@ const nonEmpty = (value: unknown) => (typeof value === 'string' && value !== '' 
 
 export interface PluginDependenciesRead {
 	readonly dependencies: readonly PluginDependency[]
-	/** The manifest that was read. */
+	/** The manifest the list came from; the last one tried when none declares any. */
 	readonly path: string
 	/** Set when the manifest exists but could not be parsed. */
 	readonly error?: string
 }
 
-/** Read what the plugin at `pluginRoot` declares, from `.claude-plugin/plugin.json` (E-DEP-1, E-DEP-4). */
+/**
+ * Read what the plugin at `pluginRoot` declares: `extensions["org.cyberuni.universal-plugin"].dependencies` in the
+ * root `plugin.json`, else `dependencies` in `.claude-plugin/plugin.json` (E-DEP-1, E-DEP-6).
+ */
 export async function readPluginDependencies(pluginRoot: string): Promise<PluginDependenciesRead> {
-	const path = join(pluginRoot, '.claude-plugin', 'plugin.json')
-	try {
-		const text = await readText(path)
-		if (text === undefined) return { dependencies: [], path }
-		return { dependencies: declaredPluginDependencies(JSON.parse(stripJsonComments(text))), path }
-	} catch (error) {
-		return { dependencies: [], path, error: String(error) }
+	const sources: { path: string; pick: (manifest: unknown) => unknown }[] = [
+		{
+			path: join(pluginRoot, 'plugin.json'),
+			pick: (manifest) => {
+				const extensions = isRecord(manifest) ? manifest.extensions : undefined
+				return isRecord(extensions) ? extensions['org.cyberuni.universal-plugin'] : undefined
+			},
+		},
+		{ path: join(pluginRoot, '.claude-plugin', 'plugin.json'), pick: (manifest) => manifest },
+	]
+	let error: string | undefined
+	for (const { path, pick } of sources) {
+		try {
+			const text = await readText(path)
+			if (text === undefined) continue
+			const dependencies = declaredPluginDependencies(pick(JSON.parse(stripJsonComments(text))))
+			if (dependencies.length > 0) return { dependencies, path }
+		} catch (cause) {
+			error ??= `${path}: ${String(cause)}`
+		}
 	}
+	return { dependencies: [], path: sources[1]?.path ?? pluginRoot, ...(error && { error }) }
 }
 
 export type DependencyState = 'enabled' | 'disabled' | 'installed' | 'missing' | 'unknown'
@@ -132,7 +149,7 @@ export async function checkPluginDependencies(
 		dependencies,
 		steps: supported ? claudeCodeSteps(dependencies) : manualSteps(harness, read.dependencies),
 		...(read.error && { error: read.error }),
-		research: ['E-DEP-1', 'E-DEP-2', 'E-DEP-3', 'E-DEP-4', 'E-DEP-5', 'E-CC-X1'],
+		research: ['E-DEP-1', 'E-DEP-2', 'E-DEP-3', 'E-DEP-4', 'E-DEP-5', 'E-DEP-6', 'E-CC-X1'],
 	}
 }
 

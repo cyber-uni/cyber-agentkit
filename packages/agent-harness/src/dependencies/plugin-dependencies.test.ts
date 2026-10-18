@@ -76,6 +76,17 @@ describe('readPluginDependencies', () => {
 		expect(read.dependencies).toEqual([{ name: 'a', marketplace: 'm' }])
 	})
 
+	it('prefers the universal-plugin extension in the root plugin.json', async () => {
+		await put(
+			join(root, 'p/plugin.json'),
+			JSON.stringify({ extensions: { 'org.cyberuni.universal-plugin': { dependencies: ['x'] } } }),
+		)
+		await put(join(root, 'p/.claude-plugin/plugin.json'), JSON.stringify({ dependencies: ['y'] }))
+		const read = await readPluginDependencies(join(root, 'p'))
+		expect(read.dependencies).toEqual([{ name: 'x' }])
+		expect(read.path).toBe(join(root, 'p/plugin.json'))
+	})
+
 	it('declares none for a missing manifest and reports an unparsable one', async () => {
 		expect((await readPluginDependencies(join(root, 'none'))).dependencies).toEqual([])
 		await put(join(root, 'bad/.claude-plugin/plugin.json'), '{')

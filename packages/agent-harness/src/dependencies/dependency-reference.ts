@@ -16,7 +16,7 @@ tags: [plugin, dependencies, install]
 
 ## What a plugin declares
 
-Only Claude Code's manifest declares dependencies: a \`dependencies\` array in \`.claude-plugin/plugin.json\` whose entries are \`"name"\`, \`"name@marketplace"\`, or \`{ "name", "marketplace", "version" }\` (E-DEP-1). A bare name resolves in the declaring plugin's own marketplace. Read the list from that file, whichever harness you run on.
+Only Claude Code's manifest declares dependencies: a \`dependencies\` array in \`.claude-plugin/plugin.json\` whose entries are \`"name"\`, \`"name@marketplace"\`, or \`{ "name", "marketplace", "version" }\` (E-DEP-1). A bare name resolves in the declaring plugin's own marketplace. A plugin built with universal-plugin authors the same list once, at \`extensions["org.cyberuni.universal-plugin"].dependencies\` in its root \`plugin.json\` (E-DEP-6). Read it from there first, then from \`.claude-plugin/plugin.json\`, whichever harness you run on.
 
 ## Check what is missing
 
@@ -36,8 +36,9 @@ A dependency in another marketplace is not installed unless the root marketplace
 
 ${others.map((harness) => `\`${harness}\``).join(', ')} have no dependency field (E-DEP-4, E-DEP-5, E-CC-X1). Nothing is resolved for you, and no install command is given because none has been verified.
 
-1. Read the dependencies from the plugin's \`.claude-plugin/plugin.json\`.
-2. Install each one through the harness's own plugin install flow, from its marketplace when one is named.
-3. Enable each one.
+1. Read the dependencies as above.
+2. Tell the user which marketplace each one needs. You cannot tell whether the harness has that marketplace added, so ask the user to check, and to add it if it is not.
+3. Install each one through the harness's own plugin install flow, from its marketplace when one is named.
+4. Enable each one.
 `
 }

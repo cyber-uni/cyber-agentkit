@@ -42,14 +42,17 @@ The doctor answers two questions, and the library covers only the first so far:
 
 1. **What is missing?** Each declared dependency is `enabled`, `installed`, `disabled`, `missing`, or `unknown`.
    Built.
-2. **What is the remedy?** The cause decides it, so the diagnosis walks the causes in order. Not built; each needs a
-   verified fact first.
-   - **R1. The plugin lists no dependencies.** True of every harness but Claude Code, and of a plugin that never
-     declared them. The check then has nothing to compare. The doctor reads `.claude-plugin/plugin.json` first
-     (E-DEP-1). The root open-standard `plugin.json` is the second source, but its schema is closed (E-DEP-4), so a
-     listing there would have to sit under `extensions`; no such key is verified, so it is not read yet.
-   - **R2. The dependency's marketplace is not added.** The remedy is to add the marketplace, then install. Needs a
-     query for the marketplaces a harness knows, which does not exist yet.
+2. **What is the remedy?** The cause decides it, so the diagnosis walks the causes in order. R1 is built; R2 to R5 are
+   reported to the user as advice, and only R5 and R4 follow from facts the library already has.
+   - **R1. The harness's own manifest lists no dependencies.** True of every harness but Claude Code. The listing
+     is read from the plugin's authored source instead, in order: `extensions["org.cyberuni.universal-plugin"].dependencies`
+     in the root open-standard `plugin.json`, then `dependencies` in `.claude-plugin/plugin.json`. Both use Claude Code's
+     entry shapes (E-DEP-6). The standard's own schema is closed, so `extensions` is the only place it can sit (E-DEP-4).
+     `buddy-agent-harness` declares `["cyber-agent-harness"]` this way. `cyberfleet` declares none, which the doctor
+     reports as "declares no dependencies", not as a pass.
+   - **R2. The dependency's marketplace may not be added.** This package cannot read which marketplaces a harness has
+     (no verified query), so it does not guess. The doctor reports it to the user: it names the marketplace the
+     dependency needs and says the user must check that it is added and, if not, add it. It does not run anything.
    - **R3. The marketplace is added but does not list the plugin.** The remedy is to tell the plugin's author; the user
      cannot fix it.
    - **R4. Cross-marketplace and not allowed.** Claude Code skips it unless the root marketplace lists the target in
@@ -63,9 +66,10 @@ The doctor answers two questions, and the library covers only the first so far:
   `{ name, marketplace?, version? }` per entry. For an object entry, `marketplace` wins over an `@marketplace` in `name`.
   An entry of any other shape is skipped.
 - **D2.** A manifest with no `dependencies`, or one that is not an array, declares none.
-- **D3.** `readPluginDependencies(pluginRoot)` reads `<pluginRoot>/.claude-plugin/plugin.json` and applies D1. A
-  missing or unparsable file declares none and reports the problem in `error`. Only Claude Code's manifest has the
-  field (E-DEP-1, E-DEP-4), so no other manifest is read.
+- **D3.** `readPluginDependencies(pluginRoot)` applies D1 to the first source that declares any: the root
+  `plugin.json`'s `extensions["org.cyberuni.universal-plugin"]`, then `.claude-plugin/plugin.json` (E-DEP-1, E-DEP-6).
+  It reports the source in `path`. A missing file declares none; an unparsable one is reported in `error`. No other
+  vendor manifest has the field (E-DEP-4), so none is read.
 
 ## Checking them
 
