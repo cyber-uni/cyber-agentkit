@@ -121,7 +121,7 @@ function argCell(a) {
 }
 
 /** Runs an example in the fixture project with an empty home, and hides the machine's paths. */
-function runExample(bin, fixture, home, args, pkg, lines) {
+function runExample(bin, fixture, home, args, root, lines) {
 	const result = (() => {
 		try {
 			return {
@@ -137,16 +137,36 @@ function runExample(bin, fixture, home, args, pkg, lines) {
 			return { out: `${error.stdout ?? ''}${error.stderr ?? ''}`, code: error.status ?? 1 }
 		}
 	})()
-	const clean = result.out
-		.replaceAll(fixture, '<project>')
-		.replaceAll(home, '~')
-		.replaceAll(join(repo, 'packages', pkg), '<plugin>')
+	const clean = result.out.replaceAll(fixture, '<project>').replaceAll(home, '~').replaceAll(root, '<plugin>')
 	const kept = clean.trimEnd().split('\n')
 	return { ...result, out: lines && kept.length > lines ? `${kept.slice(0, lines).join('\n')}\n…` : kept.join('\n') }
 }
 
+const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+
+/**
+ * Copies what the CLI needs to run into a scratch folder and walks it from there. The package's
+ * own `test` task rebuilds `dist/` with `clean: true` while this script may run beside it, so
+ * reading `dist/` in place fails whenever the two overlap. A copy that was caught mid-rebuild is
+ * thrown away and taken again.
+ */
+function snapshotCli(pkg, binName, scratch) {
+	const source = join(repo, 'packages', pkg)
+	for (let attempt = 0; ; attempt++) {
+		const copy = join(scratch, `cli-${attempt}`, pkg)
+		try {
+			for (const entry of ['bin', 'dist', 'plugin.json', 'package.json'])
+				cpSync(join(source, entry), join(copy, entry), { recursive: true })
+			const bin = join(copy, 'bin', binName)
+			return { bin, root: copy, all: walk(bin) }
+		} catch (error) {
+			if (attempt >= 20) throw error
+			sleep(1500)
+		}
+	}
+}
+
 function cliPages(pkg, binName, data) {
-	const bin = join(repo, 'packages', pkg, 'bin', binName)
 	// A copy under a fresh folder with a `.git` marker, so the project tier stops at it instead of
 	// walking up through this repository's own folders.
 	const scratch = mkdtempSync(join(tmpdir(), 'docs-'))
@@ -155,7 +175,7 @@ function cliPages(pkg, binName, data) {
 	mkdirSync(home)
 	cpSync(join(web, 'fixtures', pkg), fixture, { recursive: true })
 	mkdirSync(join(fixture, '.git'))
-	const all = walk(bin)
+	const { bin, root, all } = snapshotCli(pkg, binName, scratch)
 	const globalOptions = all[0].node.globalOptions ?? []
 	const rows = []
 	for (const { path, node } of all) {
@@ -197,7 +217,7 @@ function cliPages(pkg, binName, data) {
 			out.push('## Examples', '')
 			for (const example of examples) {
 				const args = [...path.slice(0, -1), ...example.args]
-				const { out: output, code } = runExample(bin, fixture, home, args, pkg, example.lines)
+				const { out: output, code } = runExample(bin, fixture, home, args, root, example.lines)
 				out.push(example.title, '', '```sh', `${binName.replace(/\.mjs$/, '')} ${args.join(' ')}`, '```', '')
 				out.push(
 					`${example.explain ?? ''}${code === 0 ? '' : ` Exits with code ${code}.`}`.trim(),
