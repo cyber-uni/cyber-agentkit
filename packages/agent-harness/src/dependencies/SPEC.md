@@ -115,6 +115,14 @@ render, and `pnpm run generate:references` rewrites it. It loads through the `re
 
 The package page's "Requires" section links it.
 
+## Open question: the extension key
+
+D3 reads `extensions["org.cyberuni.universal-plugin"]`, the only key in use (E-DEP-6). The direction is a standard that
+grows with the reference feature, which suggests one normalized key such as `org.spikyuni.uni-agent-kit` for
+dependencies and for the alias, default marker, and pin of #110's overrides bullet. It is not decided, so nothing reads
+it. When it is, `readPluginDependencies` tries the new key first and falls back to the old one, and
+`universal-plugin`'s ADR 0013 needs a successor. Tracked in #110.
+
 ## Out of scope
 
 Reference-keyed overrides, `website.*` references, and `extends`/`include`/`exclude` (other items of #110).
