@@ -49,7 +49,7 @@ Research comes before code: every harness fact the library encodes rests on
 | `packages/agent-harness/src` | Library source, one folder per domain concept |
 | `packages/agent-harness/AGENTS.md` | Architecture rules for the library source |
 | `.research/<topic-slug>` | Vendor findings, one folder per topic |
-| `apps/web` | The documentation site. Each package gets `src/content/docs/packages/<package>/` with `index.md`, `install.md`, and `library.md` written by hand. `skills/` and `cli/` are generated (gitignored) by `apps/web/scripts/generate-package-docs.mjs` from `plugin.json`, `skills/`, and the built CLI's help; editorial examples live in `apps/web/docs-data/<package>.json`. Internal links in Markdown carry the `/uni-agent-kit` base. |
+| `apps/web` | The documentation site. Each package gets `src/content/docs/packages/<package>/` with `index.md`, `install.md`, and `library.md` written by hand. `skills/`, `cli/`, and `requires.md` (only when `.claude-plugin/plugin.json` declares `dependencies`) are generated (gitignored) by `apps/web/scripts/generate-package-docs.mjs` from `plugin.json`, `skills/`, and the built CLI's help; editorial examples live in `apps/web/docs-data/<package>.json`. Internal links in Markdown carry the `/uni-agent-kit` base. |
 
 ## Research structure
 
