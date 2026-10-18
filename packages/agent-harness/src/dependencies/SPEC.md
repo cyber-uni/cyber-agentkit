@@ -46,7 +46,7 @@ The doctor answers two questions, and the library covers only the first so far:
    reported to the user as advice, and only R5 and R4 follow from facts the library already has.
    - **R1. The harness's own manifest lists no dependencies.** True of every harness but Claude Code. The listing
      is read from the plugin's authored source instead, in order: `extensions["org.cyberuni.universal-plugin"].dependencies`
-     in the root open-standard `plugin.json`, then `dependencies` in `.claude-plugin/plugin.json`. Both use Claude Code's
+     in the root open-standard `plugin.json` (new key `org.spikyuni.plugin-manager`, E-DEP-7), then `dependencies` in `.claude-plugin/plugin.json`. Both use Claude Code's
      entry shapes (E-DEP-6). The standard's own schema is closed, so `extensions` is the only place it can sit (E-DEP-4).
      `buddy-agent-harness` declares `["cyber-agent-harness"]` this way. `cyberfleet` declares none, which the doctor
      reports as "declares no dependencies", not as a pass.
@@ -115,16 +115,14 @@ render, and `pnpm run generate:references` rewrites it. It loads through the `re
 
 The package page's "Requires" section links it.
 
-## Open question: the extension key
+## The extension key
 
-D3 reads `extensions["org.cyberuni.universal-plugin"]`, the only key in use (E-DEP-6). The direction is a standard that
-grows with the reference feature, which suggests one normalized key such as `org.spikyuni.uni-agent-kit` for
-dependencies and for the alias, default marker, and pin of #110's overrides bullet. It is not decided, so nothing reads
-it. Agent Plugins 1.0.0 §8 says client data MUST sit under a reverse-domain namespace in `extensions`, that a client
-SHOULD base it on a domain it controls and keep it stable, and that the key also names the client's top-level
-directory (§8.2). A bare `plugin-manager` or `open-plugin-spec` is therefore not conforming; `org.spikyuni.<name>` is.
-The spec reserves no names. When it is, `readPluginDependencies` tries the new key first and falls back to the old one, and
-`universal-plugin`'s ADR 0013 needs a successor. Tracked in #110.
+Agent Plugins 1.0.0 §8 says client data MUST sit under a reverse-domain namespace in `extensions`, that a client SHOULD
+base it on a domain it controls and keep it stable, and that the key also names the client's top-level directory
+(§8.2). The spec reserves no names. Decided (E-DEP-7): the key is `org.spikyuni.plugin-manager`, for dependencies and,
+later, the alias, default marker, and pin of #110's overrides bullet. `org.cyberuni.universal-plugin` stays read as a
+fallback, because `buddy-agent-harness` authors it today; `universal-plugin`'s ADR 0013 needs a successor and those
+plugins a migration. Tracked in #110.
 
 ## Out of scope
 

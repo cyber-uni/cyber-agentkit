@@ -5,7 +5,7 @@ tags: [plugin, dependencies, install]
 
 ## What a plugin declares
 
-Only Claude Code's manifest declares dependencies: a `dependencies` array in `.claude-plugin/plugin.json` whose entries are `"name"`, `"name@marketplace"`, or `{ "name", "marketplace", "version" }` (E-DEP-1). A bare name resolves in the declaring plugin's own marketplace. A plugin built with universal-plugin authors the same list once, at `extensions["org.cyberuni.universal-plugin"].dependencies` in its root `plugin.json` (E-DEP-6). Read it from there first, then from `.claude-plugin/plugin.json`, whichever harness you run on.
+Only Claude Code's manifest declares dependencies: a `dependencies` array in `.claude-plugin/plugin.json` whose entries are `"name"`, `"name@marketplace"`, or `{ "name", "marketplace", "version" }` (E-DEP-1). A bare name resolves in the declaring plugin's own marketplace. A plugin can author the same list once in its root `plugin.json`, at `extensions["org.spikyuni.plugin-manager"].dependencies` or, in plugins built before that key, `extensions["org.cyberuni.universal-plugin"].dependencies` (E-DEP-6, E-DEP-7). Read it from there first, then from `.claude-plugin/plugin.json`, whichever harness you run on.
 
 ## Check what is missing
 
