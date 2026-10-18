@@ -102,6 +102,40 @@ function skillsIndex(pkg, rows) {
 	write(join(docs, pkg, 'skills', 'index.md'), `${out.join('\n')}\n`)
 }
 
+// ---- requires -------------------------------------------------------------------------------
+
+/**
+ * Only Claude Code's manifest declares plugin dependencies: a `dependencies` array of `"name"`,
+ * `"name@marketplace"`, or `{ name, marketplace, version }` entries (`.research/harness-detection`,
+ * claim E-CC-X1). The other harnesses' manifests have no such field, so only
+ * `.claude-plugin/plugin.json` is read, and no page is written when it declares none.
+ */
+function requiresPage(pkg, plugin) {
+	const path = join(repo, 'packages', pkg, '.claude-plugin', 'plugin.json')
+	const dependencies = existsSync(path) ? readJson(path).dependencies : undefined
+	if (!Array.isArray(dependencies) || dependencies.length === 0) return
+	const out = [
+		'---',
+		'title: Requires',
+		`description: ${yaml(`Plugins that ${plugin.name} needs enabled.`)}`,
+		'sidebar:',
+		'  order: 2',
+		'---',
+		'',
+	]
+	out.push(
+		`These plugins must be enabled for \`${plugin.name}\` to work. Claude Code is the only harness whose manifest declares plugin dependencies, so this list comes from \`.claude-plugin/plugin.json\`.`,
+		'',
+	)
+	out.push('| Plugin | Marketplace | Version |', '| --- | --- | --- |')
+	for (const dep of dependencies) {
+		const entry = typeof dep === 'string' ? { name: dep } : dep
+		const [name, inline] = String(entry.name).split('@')
+		out.push(`| \`${name}\` | ${entry.marketplace ?? inline ?? "this plugin's own"} | ${entry.version ?? 'any'} |`)
+	}
+	write(join(docs, pkg, 'requires.md'), `${out.join('\n')}\n`)
+}
+
 // ---- CLI ------------------------------------------------------------------------------------
 
 function help(bin, args) {
@@ -281,6 +315,8 @@ for (const pkg of readdirSync(join(repo, 'packages'))) {
 	const data = existsSync(dataPath) ? readJson(dataPath) : undefined
 	rmSync(join(docs, pkg, 'skills'), { recursive: true, force: true })
 	rmSync(join(docs, pkg, 'cli'), { recursive: true, force: true })
+	rmSync(join(docs, pkg, 'requires.md'), { force: true })
+	requiresPage(pkg, plugin)
 
 	const skillsRoot = join(repo, 'packages', pkg, 'skills')
 	if (existsSync(skillsRoot)) {
