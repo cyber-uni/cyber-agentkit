@@ -6,7 +6,8 @@ A toolkit for working with AI agent harnesses. Detect which one is running — C
 Codex, GitHub Copilot CLI, OpenCode, Kilo Code, Gemini CLI, Qwen Code, GitHub Copilot in VS Code,
 Cline, Crush, OpenHands, or the Auggie CLI — query what it holds (its managed-policy locations,
 plugin storage, enabled plugins, how it names plugin skills, and how to run it headless), and
-resolve the reference documents an agent reads on demand.
+check which plugins another plugin depends on, resolve the reference documents an agent reads on
+demand, and lease git worktrees to concurrent agent sessions.
 
 It depends on no other agent tool, so any of them can build on it.
 
@@ -158,18 +159,50 @@ const folders = installed.plugins.filter((p) => enabled.has(p.id)).map((p) => p.
 folder Codex picks depends on its sort. Copilot CLI loads plugins from a marketplace added by local
 path in place, without an install record, so they appear in `unread` instead.
 
-## Skill naming and plugin dependencies
+## Skill naming
 
 ```ts
-import { skillInvocation, supportsPluginDependencies } from '@cyberuni/agent-harness'
+import { skillInvocation } from '@cyberuni/agent-harness'
 
 skillInvocation('claude-code', { plugin: 'my-plugin', skill: 'review' })?.text // '/my-plugin:review'
 skillInvocation('copilot-cli', { plugin: 'my-plugin', skill: 'review' })?.text // '/review'
 skillInvocation('codex', { plugin: 'my-plugin', skill: 'review' })?.text // '$review'
 skillInvocation('gemini-cli', { plugin: 'my-plugin', skill: 'review' }) // undefined: the model loads skills itself
+```
+
+## Plugin dependencies
+
+Only Claude Code's manifest declares dependencies, and only Claude Code installs the missing ones.
+Every other harness ignores the field, so the plugin installs and fails later with nothing to say
+why. This reads what a plugin declares, checks it against what the running harness has installed and
+enabled, and returns the steps that settle the rest. It installs nothing and compares no versions.
+
+```ts
+import { checkPluginDependencies, supportsPluginDependencies } from '@cyberuni/agent-harness'
 
 supportsPluginDependencies('claude-code') // true; false for the others
+
+const check = await checkPluginDependencies('codex', { pluginRoot })
+// {
+//   harness: 'codex',
+//   supported: false,
+//   autoResolved: false,
+//   dependencies: [{ name: 'my-dep', marketplace: 'my-marketplace', state: 'missing' }],
+//   steps: ['…'],
+//   research: ['E-DEP-2', …],
+// }
 ```
+
+`state` is `enabled`, `installed` (no explicit setting), `disabled`, `missing`, or `unknown` (the
+harness keeps no readable install record). A dependency with no marketplace resolves only in the
+declaring plugin's own marketplace, as Claude Code does, and is `unknown` when that marketplace
+cannot be found.
+
+`readPluginDependencies(pluginRoot)` reads the list from `extensions["org.spikyuni.plugin-manager"]`
+(or the older `extensions["org.cyberuni.universal-plugin"]`) in the root `plugin.json`, then from
+`.claude-plugin/plugin.json`. `declaredPluginDependencies(manifest)` parses a manifest you already
+hold. The how-to for a person or agent, `plugin-dependencies`, ships as a
+[reference](#reference-documents).
 
 ## Skill directories
 
@@ -272,19 +305,27 @@ mapping is ignored with a warning.
 | `whereReference(name, layers, options)` | The project and user files an override can be written to |
 | `managedReferencesDir()`, `projectReferencesDir()`, `projectReferenceLayers()` | Single folders and layers |
 | `declaredDependencies()`, `packageDir()` | A manifest's declared packages, and where each is installed |
+| `referenceImplementations(id, layers)` | The implementations of an interface a consumer can load, and those left out with why |
+| `checkReferences(layers, options)` | Checks interface documents and their implementations, each with every override merged |
 
 ### The reference command
 
-The package ships a `reference` command with `show`, `list`, `search`, `where`, `create`, and
-`delete` subcommands:
+The package ships a `reference` command with `show`, `list`, `search`, `where`, `implementations`,
+`check`, `create`, and `delete` subcommands:
 
 ```sh
 npx -y @cyberuni/agent-harness reference show <name>... --root <repository root>
 npx -y @cyberuni/agent-harness reference list
 npx -y @cyberuni/agent-harness reference list 'project-tracker.capabilities.*'
+npx -y @cyberuni/agent-harness reference implementations <interface id> --accept 1,2
+npx -y @cyberuni/agent-harness reference check
 npx -y @cyberuni/agent-harness reference create <name> --scope project
 npx -y @cyberuni/agent-harness reference delete <name> --scope project --dry-run
 ```
+
+`implementations` lists what a consumer can load for an interface (a `<id>.interface` document) with
+each one's pin, tier, and unsupported sections. `check` verifies interface documents and their
+implementations, and exits 1 on any failure.
 
 `delete` removes only the copy in `.agents/references/` (`--scope project`) or
 `~/.agents/references/` (`--scope user`), and reports which copy answers the name afterwards: the
@@ -324,6 +365,29 @@ shows:
 ```text
 Load `skill-design` with the `reference` skill in the `cyber-agent-harness` plugin.
 ```
+
+## Worktrees
+
+The `./worktrees` subpath leases git worktrees to concurrent agent sessions, so two agents never
+share a checkout. It does not fetch and never kills a process.
+
+```ts
+import { acquire, pruneWorktrees, release } from '@cyberuni/agent-harness/worktrees'
+```
+
+| Function | Does |
+| --- | --- |
+| `acquire(options)` | Leases a worktree: recycles an idle one of its own, else creates one at the next free slot under `max` |
+| `explain(options)` | Every worktree of the repository with the reason it cannot be reused, or none |
+| `release()`, `claimLease()`, `holdsLease()` | The lease a holder takes on a worktree |
+| `pruneWorktrees(options)` | Removes unleased, idle, clean, landed worktrees it owns. A dry run unless `apply` is set |
+| `removeWorktree(options)` | Removes the one worktree you name, under the same safety checks |
+| `seedWorktree(options)` | Copies the gitignored files a `.worktreeinclude` names into a new or recycled worktree |
+| `listWorktrees()`, `occupants()`, `classifyOwner()` | The worktrees of a repository, the sessions working in each, and who owns each |
+
+A worktree is skipped, with the reason in its verdict, when it is the primary checkout, owned by
+another tool or person, leased, prunable, busy, dirty, or not yet landed on the default branch. The
+checks fail closed: when git or the process probe cannot say, the worktree is left alone.
 
 ## Why this exists
 
