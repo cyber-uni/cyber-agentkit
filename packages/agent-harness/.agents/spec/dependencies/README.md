@@ -54,7 +54,9 @@ same functions as A4; they need no use case beyond UC2. A4's goal comes from the
 
 - **Entry points:** the doctor skill, which runs `agent-harness dependencies check [--plugin <root>]`; backed by
   `checkPluginDependencies(harness, { pluginRoot })`.
-- **Inputs:** `--plugin`, the plugin root (default the current directory), and the detected harness.
+- **Inputs:** `--plugin`, the plugin root (default the current directory, which always exists), and the detected harness. A bare name's declaring marketplace is
+  derived from the installed plugin whose install folder is the plugin root; a `declaringMarketplace` passed to the
+  function wins over the derived value.
 - **Outcome:** each declared dependency with its state, then ordered steps for the user to run, on stdout. Exit codes
   follow AXI: 0 when every dependency is `enabled` or `installed`; 1 when the intent "this plugin is ready" cannot be
   satisfied; 2 for a usage error. Every problem found carries its own stable `code` (`dependency-missing`,
@@ -73,6 +75,10 @@ same functions as A4; they need no use case beyond UC2. A4's goal comes from the
     marketplace is unknown) also gets the cross-marketplace step: the root marketplace must list it in
     `allowCrossMarketplaceDependenciesOn`, or the user must already have it enabled.
   - An unknown flag, or a `--plugin` path that does not exist: usage error, exit 2.
+  - Disabled and unknown dependencies on a harness without dependency support get a manual step; a missing one also gets
+    the marketplace question.
+  - Steps come in this order: install or enable, the marketplace question, the cross-marketplace step, then
+    `Run /reload-plugins.` (Claude Code only). A bare name is installed as `name@<declaring marketplace>` when known.
 
 ### UC2 — Read and judge a declared list (A4)
 
@@ -86,13 +92,14 @@ same functions as A4; they need no use case beyond UC2. A4's goal comes from the
   - An entry is not a name or a named object: it is skipped and the valid ones are kept.
   - A `dependencies` list passed with a `pluginRoot`: the list is used and the manifest is not read.
   - Neither given: an empty list, no error.
+  - No source lists any, or a manifest cannot be parsed: the same empty list and reported error as UC1 describes.
 
 **Surface trace.** `checkPluginDependencies` (UC1, UC2), `readPluginDependencies` (UC1, UC2),
-`declaredPluginDependencies` (UC2), the subcommand `dependencies check` and its `--plugin` option (UC1). On the
-function, `pluginRoot` and `dependencies` may not be combined: `dependencies` wins and `pluginRoot` is ignored (UC2).
+`declaredPluginDependencies` (UC2), the subcommand `dependencies check` and its `--plugin` option (UC1). When both
+`pluginRoot` and `dependencies` are passed to the function, `dependencies` wins and `pluginRoot` is not read (UC2).
 `declaringMarketplace` serves bare-name resolution (UC1, UC2). The result fields `dependencies[].state`,
-`dependencies[].id`, `steps`, and `error` serve UC1 and UC2; `supported` and `research` are informational and carry no
-contract. No other element is unaccounted for.
+`dependencies[].id`, `steps`, and `error` serve UC1 and UC2; `harness`, `supported`, `autoResolved`, `research`, and the read result's `path` are
+informational and carry no contract. No other element is unaccounted for.
 
 ## Control Flow
 
@@ -101,11 +108,14 @@ flowchart TD
   cmd([command run]) --> flags{E23 flags valid?}
   flags -->|no| exit2([exit 2])
   flags -->|yes| root{E24 plugin root exists?}
-  root -->|no, or no --plugin and cwd has none| exit2
+  root -->|no| exit2
   root -->|yes| given
   fn([function call]) --> given{E26 dependencies list given?}
   given -->|yes: manifest not read| entry
-  given -->|no| read{E1 which source lists any?}
+  given -->|no| rootq{E27 plugin root given?}
+  rootq -->|no| empty[E27 empty list, no error]
+  empty --> done
+  rootq -->|yes| read{E1 which source lists any?}
   read -->|plugin-manager key| list[declared list]
   read -->|older key| list
   read -->|.claude-plugin| list
@@ -118,11 +128,11 @@ flowchart TD
   skip --> entry
   entry -->|yes| name{E5 name has a marketplace?}
   name -->|named: that marketplace only| find
-  name -->|bare| dm{E5b declaring marketplace known?}
+  name -->|bare| dm{E5b declaring marketplace known? passed value wins, else derived from the install at the plugin root}
   dm -->|yes: that marketplace only| find
   dm -->|no| unknown
-  find{E6 harness keeps an install record?} -->|no| unknown[E6u unknown]
-  find -->|yes| inst{E7 install matches?}
+  find{E6 harness keeps an install record?} -->|no| unknown[E6 unknown]
+  find -->|yes| inst{E7a install matches?}
   inst -->|no| missing[E7 missing]
   inst -->|installed, explicit true| enabled[E8 enabled]
   inst -->|installed, explicit false| disabled[E9 disabled]
@@ -130,13 +140,17 @@ flowchart TD
   missing --> sup{E11 harness supports dependencies?}
   disabled --> sup
   unknown --> sup
-  sup -->|yes, Claude Code| cc[E12 Claude Code steps]
-  sup -->|no| manual[E13 manual steps, nothing resolved]
-  cc --> ismiss{E14 missing and names a marketplace?}
-  manual --> ismiss
+  sup -->|yes, Claude Code| cc{E12 state?}
+  cc -->|missing| inst1[install step]
+  cc -->|disabled| en1[enable step]
+  sup -->|no| manual{E13 state?}
+  manual -->|missing, disabled, or unknown| man1[manual step, nothing resolved]
+  inst1 --> ismiss
+  en1 --> ismiss
+  man1 --> ismiss{E14 missing and names a marketplace?}
   ismiss -->|yes| ask[E15 ask user to check marketplace added]
   ismiss -->|no| done([report])
-  ask --> xm{E21 Claude Code and marketplace differs from declaring?}
+  ask --> xm{E21 Claude Code, and marketplace differs from the declaring one or the declaring one is unknown?}
   xm -->|yes| cross[E22 cross-marketplace step]
   xm -->|no| done
   cross --> done
@@ -152,21 +166,6 @@ flowchart TD
 
 ## Scenario map
 
-### UC2 — read a declared list
-
-| Edge | Path (Given) | Scenario |
-| --- | --- | --- |
-| E1 | plugin-manager key lists some | `the plugin-manager key wins over every other source` |
-| E1 | only the older key lists some | `the older universal-plugin key is read when the plugin-manager key lists none` |
-| E1 | only .claude-plugin lists some | `the Claude Code manifest is read when no extension key lists any` |
-| E1 | string and object entries | `string and object entries keep their marketplace and version` |
-| E2 | no source lists any | `a plugin that lists nothing reports no dependencies and no error` |
-| E3 | unparsable manifest, no other source | `an unparsable manifest yields no dependencies and a reported error` |
-| E3b | unparsable manifest, a later source lists some | `an unparsable manifest does not hide a later source but is still reported` |
-| E4 | a malformed entry beside a valid one | `a malformed entry is skipped and its valid sibling kept` |
-| E26 | list given with a plugin root | `a given dependencies list is used and the plugin root is not read` |
-| E26 | neither list nor root | `neither a list nor a plugin root gives an empty list and no error` |
-
 ### UC1 — check states
 
 | Edge | Path (Given) | Scenario |
@@ -180,6 +179,7 @@ flowchart TD
 | E5 | bare name, same name installed from another marketplace | `a bare name is not satisfied by an install from another marketplace` |
 | E5 | named marketplace, install from another | `a named marketplace does not match an install from a different one` |
 | E5b | bare name, declaring marketplace known | `a bare name resolves in the declaring marketplace` |
+| E5b | passed and derived declaring marketplaces differ | `a passed declaring marketplace wins over the derived one` |
 | E5b | bare name, declaring marketplace unknown | `a bare name with no known declaring marketplace is unknown` |
 
 ### UC1 — steps
@@ -190,12 +190,17 @@ flowchart TD
 | E12 | Claude Code, disabled | `Claude Code gets an enable step for a disabled dependency` |
 | E12 | Claude Code, all enabled or installed | `nothing missing or disabled gives no steps` |
 | E13 | Codex, record exists, dependency missing | `a harness without dependency support gets a manual step for a missing dependency` |
+| E13 | Codex, record exists, dependency disabled | `a harness without dependency support gets a manual step for a disabled dependency` |
 | E13 | Codex, record exists, dependency enabled | `a harness without dependency support gets no step for an enabled dependency` |
 | E13 | Cursor, no install record | `a harness without dependency support or a record says nothing is resolved and lists manual steps` |
 | E14 | Claude Code, missing, names a marketplace | `a missing dependency that names a marketplace asks the user to check it is added` |
+| E14 | Codex, missing, names a marketplace | `a harness without dependency support asks the user to check the marketplace of a missing dependency` |
 | E14 | Claude Code, disabled, names a marketplace | `a disabled dependency that names a marketplace gets no marketplace question` |
 | E14 | Claude Code, missing, bare name | `a missing dependency with no marketplace gets no marketplace question` |
 | E22 | Claude Code, missing, marketplace differs from declaring | `Claude Code adds the cross-marketplace step for a missing dependency in another marketplace` |
+| E22 | Claude Code, missing, declaring marketplace unknown | `a missing dependency with an unknown declaring marketplace gets the cross-marketplace step` |
+| E12 | Claude Code, missing bare name, declaring marketplace known | `a missing bare dependency is installed from the declaring marketplace` |
+| E15 | Claude Code, missing, different marketplace | `the steps come in the order install, marketplace question, cross-marketplace, reload` |
 | E21 | Claude Code, missing, marketplace equals declaring | `a missing dependency in the declaring marketplace gets no cross-marketplace step` |
 | E21 | Codex, missing, names a marketplace | `a harness without dependency support never gets the cross-marketplace step` |
 
@@ -214,8 +219,25 @@ flowchart TD
 | E2 | command run, plugin lists nothing | `the check command says a plugin declares no dependencies and exits 0` |
 | E23 | unknown flag | `the check command exits 2 for an unknown flag` |
 | E24 | --plugin path does not exist | `the check command exits 2 when the plugin root does not exist` |
+| E5b | command run, plugin installed from the declaring marketplace | `the check command resolves a bare name in the marketplace the plugin was installed from` |
+| E5b | command run, plugin folder not installed | `the check command reports a bare name as unknown when the plugin is not installed` |
 | E24 | no --plugin, cwd holds a plugin | `the check command reads the current directory when --plugin is omitted` |
 | E20 | any (barred edge) | `the check command changes no plugin or settings file` |
+
+### UC2 — read a declared list
+
+| Edge | Path (Given) | Scenario |
+| --- | --- | --- |
+| E1 | plugin-manager key lists some | `the plugin-manager key wins over every other source` |
+| E1 | only the older key lists some | `the older universal-plugin key is read when the plugin-manager key lists none` |
+| E1 | only .claude-plugin lists some | `the Claude Code manifest is read when no extension key lists any` |
+| E1 | string and object entries | `string and object entries keep their marketplace and version` |
+| E2 | no source lists any | `a plugin that lists nothing reports no dependencies and no error` |
+| E3 | unparsable manifest, no other source | `an unparsable manifest yields no dependencies and a reported error` |
+| E3b | unparsable manifest, a later source lists some | `an unparsable manifest does not hide a later source but is still reported` |
+| E4 | a malformed entry beside a valid one | `a malformed entry is skipped and its valid sibling kept` |
+| E26 | list given with a plugin root | `a given dependencies list is used and the plugin root is not read` |
+| E27 | neither list nor root | `neither a list nor a plugin root gives an empty list and no error` |
 
 ## References
 

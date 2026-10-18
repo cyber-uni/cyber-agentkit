@@ -28,6 +28,7 @@ a third folder level. Chosen because `src/` is already one folder per domain con
 | --- | --- |
 | a `src/<domain>/` library surface | `<domain>/` (one behavioral node) |
 | a rule, model, or the why | `design/` (decisions in `design/decisions/`) |
+| a shipped document generated from a domain's facts | its own `reference`-type node, named for the document |
 | a flow across several domains | `workflows/` |
 | a term used by more than one node | `glossary.md` |
 
@@ -41,3 +42,15 @@ Nodes so far: [`dependencies/`](./dependencies/README.md), the plugin dependency
 > Generated from `concept:` frontmatter by `project-spec/concept-index` — do not edit by hand.
 
 <!-- END generated: by-concept (project-spec/concept-index) -->
+
+<!-- BEGIN generated: by-concept (project-spec/concept-index) -->
+
+## By concept
+
+> Generated from `concept:` frontmatter by `project-spec/concept-index` — do not edit by hand.
+
+| Concept | Facets |
+|---|---|
+| `plugin-dependencies` | `dependencies/` (behavior) · `plugin-dependencies-reference/` (reference) |
+
+<!-- END generated: by-concept -->

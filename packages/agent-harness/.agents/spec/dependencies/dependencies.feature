@@ -29,7 +29,7 @@ Feature: Check a plugin's declared dependencies against the running harness
     And "lintbot" carries the marketplace "forge" and the version "2.1"
 
   Scenario: a plugin that lists nothing reports no dependencies and no error
-    Given a plugin directory that holds no plugin.json and no .claude-plugin folder
+    Given an empty plugin directory
     When the declared dependencies are read
     Then the list is empty
     And no error is reported
@@ -75,7 +75,8 @@ Feature: Check a plugin's declared dependencies against the running harness
 
   Scenario: a requested version never changes the state
     Given the harness is Claude Code
-    And "tracer@acme" version "1.0.0" is installed and its enabledPlugins entry is true
+    And "tracer@acme" version "1.0.0" is installed
+    And its enabledPlugins entry is true
     When the dependency "tracer@acme" requesting version "9.0.0" is checked
     Then its state is "enabled"
     And the result carries the requested version "9.0.0"
@@ -90,13 +91,13 @@ Feature: Check a plugin's declared dependencies against the running harness
   Scenario: an installed dependency with no setting is installed
     Given the harness is Claude Code
     And "tracer@acme" is installed
-    And enabledPlugins has no entry for it
+    And enabledPlugins lists only "lintbot@forge"
     When the dependency "tracer@acme" is checked
     Then its state is "installed"
 
   Scenario: a dependency that is not installed is missing
     Given the harness is Claude Code
-    And nothing named "tracer" is installed
+    And the installed plugins are exactly "lintbot@forge"
     When the dependency "tracer@acme" is checked
     Then its state is "missing"
 
@@ -107,27 +108,39 @@ Feature: Check a plugin's declared dependencies against the running harness
 
   Scenario: a bare name is not satisfied by an install from another marketplace
     Given the harness is Claude Code
-    And "tracer@other" is installed and its enabledPlugins entry is true
+    And "tracer@other" is installed
+    And its enabledPlugins entry is true
     And the declaring marketplace is "acme"
     When the dependency "tracer" with no marketplace is checked
     Then its state is "missing"
 
   Scenario: a named marketplace does not match an install from a different one
     Given the harness is Claude Code
-    And "tracer@other" is installed and its enabledPlugins entry is true
+    And "tracer@other" is installed
+    And its enabledPlugins entry is true
     When the dependency "tracer@acme" is checked
     Then its state is "missing"
 
   Scenario: a bare name resolves in the declaring marketplace
     Given the harness is Claude Code
-    And "tracer@acme" is installed and its enabledPlugins entry is true
+    And "tracer@acme" is installed
+    And its enabledPlugins entry is true
     And the declaring marketplace is "acme"
     When the dependency "tracer" with no marketplace is checked
     Then its state is "enabled"
 
+  Scenario: a passed declaring marketplace wins over the derived one
+    Given the harness is Claude Code
+    And the plugin root is installed from the marketplace "forge"
+    And "tracer@acme" is installed
+    And its enabledPlugins entry is true
+    When the dependency "tracer" with no marketplace is checked with the declaring marketplace "acme" passed
+    Then its state is "enabled"
+
   Scenario: a bare name with no known declaring marketplace is unknown
     Given the harness is Claude Code
-    And "tracer@acme" is installed and its enabledPlugins entry is true
+    And "tracer@acme" is installed
+    And its enabledPlugins entry is true
     And the declaring marketplace is not known
     When the dependency "tracer" with no marketplace is checked
     Then its state is "unknown"
@@ -145,7 +158,8 @@ Feature: Check a plugin's declared dependencies against the running harness
     Given the harness is Claude Code
     And the dependency "tracer@acme" is disabled
     When the steps are produced
-    Then they include an enable step naming "tracer@acme"
+    Then a step sets "tracer@acme" to true in enabledPlugins
+    And no step contains the text "plugin install"
 
   Scenario: nothing missing or disabled gives no steps
     Given the harness is Claude Code
@@ -156,7 +170,7 @@ Feature: Check a plugin's declared dependencies against the running harness
   Scenario: a harness without dependency support gets a manual step for a missing dependency
     Given the harness is Codex
     And the plugin lists "tracer@acme"
-    And "tracer@acme" is not installed
+    And the installed plugins are exactly "lintbot@forge"
     When the steps are produced
     Then a step names "tracer" and "acme" as a plugin to install and enable yourself
     And no step contains the text "plugin install"
@@ -164,7 +178,8 @@ Feature: Check a plugin's declared dependencies against the running harness
   Scenario: a harness without dependency support gets no step for an enabled dependency
     Given the harness is Codex
     And the plugin lists "tracer@acme"
-    And "tracer@acme" is installed and its enabledPlugins entry is true
+    And "tracer@acme" is installed on the harness
+    And the harness reports "tracer@acme" as enabled
     When the steps are produced
     Then the steps are empty
 
@@ -212,16 +227,53 @@ Feature: Check a plugin's declared dependencies against the running harness
   Scenario: a harness without dependency support never gets the cross-marketplace step
     Given the harness is Codex
     And the plugin lists "tracer@acme"
-    And "tracer@acme" is not installed
+    And the installed plugins are exactly "lintbot@forge"
     When the steps are produced
     Then no step mentions allowCrossMarketplaceDependenciesOn
+
+  Scenario: a harness without dependency support gets a manual step for a disabled dependency
+    Given the harness is Codex
+    And the plugin lists "tracer@acme"
+    And "tracer@acme" is installed on the harness
+    And the harness reports "tracer@acme" as disabled
+    When the steps are produced
+    Then a step names "tracer" as a plugin to enable yourself
+    And no step contains the text "plugin install"
+
+  Scenario: a harness without dependency support asks the user to check the marketplace of a missing dependency
+    Given the harness is Codex
+    And the plugin lists "tracer@acme"
+    And the installed plugins are exactly "lintbot@forge"
+    When the steps are produced
+    Then a step names "acme" and asks the user to check that it is added
+
+  Scenario: a missing dependency with an unknown declaring marketplace gets the cross-marketplace step
+    Given the harness is Claude Code
+    And the declaring marketplace is not known
+    And the dependency "tracer@acme" is missing
+    When the steps are produced
+    Then a step says the root marketplace must list "acme" in allowCrossMarketplaceDependenciesOn
+
+  Scenario: a missing bare dependency is installed from the declaring marketplace
+    Given the harness is Claude Code
+    And the declaring marketplace is "acme"
+    And the dependency "tracer" with no marketplace is missing
+    When the steps are produced
+    Then they include "claude plugin install tracer@acme"
+
+  Scenario: the steps come in the order install, marketplace question, cross-marketplace, reload
+    Given the harness is Claude Code
+    And the declaring marketplace is "forge"
+    And the dependency "tracer@acme" is missing
+    When the steps are produced
+    Then the steps in order are the install step, the marketplace question, the cross-marketplace step, and "Run /reload-plugins."
 
   # ── The doctor command ──
 
   Scenario: the check command exits 1 when a dependency is missing
     Given the harness is Claude Code
     And a plugin listing "tracer@acme"
-    And "tracer@acme" is not installed
+    And the installed plugins are exactly "lintbot@forge"
     When "agent-harness dependencies check --plugin <root>" runs
     Then its exit code is 1
     And its output names "tracer@acme" with the state "missing" and the code "dependency-missing"
@@ -229,7 +281,8 @@ Feature: Check a plugin's declared dependencies against the running harness
   Scenario: the check command exits 1 when a dependency is disabled
     Given the harness is Claude Code
     And a plugin listing "tracer@acme"
-    And "tracer@acme" is installed and its enabledPlugins entry is false
+    And "tracer@acme" is installed
+    And its enabledPlugins entry is false
     When "agent-harness dependencies check --plugin <root>" runs
     Then its exit code is 1
     And its output carries the code "dependency-disabled"
@@ -237,14 +290,16 @@ Feature: Check a plugin's declared dependencies against the running harness
   Scenario: the check command exits 0 when a dependency is installed with no setting
     Given the harness is Claude Code
     And a plugin listing "tracer@acme"
-    And "tracer@acme" is installed and enabledPlugins has no entry for it
+    And "tracer@acme" is installed
+    And enabledPlugins lists only "lintbot@forge"
     When "agent-harness dependencies check --plugin <root>" runs
     Then its exit code is 0
 
   Scenario: the check command exits 0 when every dependency is enabled
     Given the harness is Claude Code
     And a plugin listing "tracer@acme"
-    And "tracer@acme" is installed and its enabledPlugins entry is true
+    And "tracer@acme" is installed
+    And its enabledPlugins entry is true
     When "agent-harness dependencies check --plugin <root>" runs
     Then its exit code is 0
 
@@ -259,7 +314,7 @@ Feature: Check a plugin's declared dependencies against the running harness
     Given the harness is Claude Code
     And a plugin whose root plugin.json is not valid JSON
     And its .claude-plugin/plugin.json lists "tracer@acme"
-    And "tracer@acme" is not installed
+    And the installed plugins are exactly "lintbot@forge"
     When "agent-harness dependencies check --plugin <root>" runs
     Then its exit code is 1
     And its output carries the code "manifest-unparsable"
@@ -276,16 +331,34 @@ Feature: Check a plugin's declared dependencies against the running harness
     Given the harness is Claude Code
     And a plugin whose root plugin.json is not valid JSON
     And its .claude-plugin/plugin.json lists "tracer@acme"
-    And "tracer@acme" is installed and its enabledPlugins entry is true
+    And "tracer@acme" is installed
+    And its enabledPlugins entry is true
     When "agent-harness dependencies check --plugin <root>" runs
     Then its exit code is 1
     And its output carries the code "manifest-unparsable"
 
   Scenario: the check command says a plugin declares no dependencies and exits 0
-    Given a plugin directory that holds no plugin.json and no .claude-plugin folder
+    Given an empty plugin directory
     When "agent-harness dependencies check --plugin <root>" runs
     Then its output says the plugin declares no dependencies
     And its exit code is 0
+
+  Scenario: the check command resolves a bare name in the marketplace the plugin was installed from
+    Given the harness is Claude Code
+    And the plugin root is installed from the marketplace "acme"
+    And its .claude-plugin/plugin.json lists "tracer" with no marketplace
+    And "tracer@acme" is installed
+    And its enabledPlugins entry is true
+    When "agent-harness dependencies check --plugin <root>" runs
+    Then its exit code is 0
+
+  Scenario: the check command reports a bare name as unknown when the plugin is not installed
+    Given the harness is Claude Code
+    And the plugin root is a folder under development that is not in the installed plugins
+    And its .claude-plugin/plugin.json lists "tracer" with no marketplace
+    When "agent-harness dependencies check --plugin <root>" runs
+    Then its exit code is 1
+    And its output carries the code "dependency-unknown"
 
   Scenario: the check command exits 2 for an unknown flag
     When "agent-harness dependencies check --nonsense" runs
@@ -298,13 +371,14 @@ Feature: Check a plugin's declared dependencies against the running harness
   Scenario: the check command reads the current directory when --plugin is omitted
     Given the current directory is a plugin whose .claude-plugin/plugin.json lists "tracer@acme"
     And the harness is Claude Code
-    And "tracer@acme" is not installed
+    And the installed plugins are exactly "lintbot@forge"
     When "agent-harness dependencies check" runs
     Then its output names "tracer@acme" with the state "missing"
 
   Scenario: the check command changes no plugin or settings file
     Given the harness is Claude Code
-    And a plugin listing "tracer@acme" that is not installed
+    And a plugin listing "tracer@acme"
+    And the installed plugins are exactly "lintbot@forge"
     And a snapshot of the harness's installed-plugins file and settings files
     When "agent-harness dependencies check --plugin <root>" runs
     Then the snapshot is byte-identical afterwards
