@@ -53,7 +53,7 @@ the managed, project (`.agents/references/`), user (`~/.agents/references/`), an
 `loadReference()` resolves one, and the `agent-harness reference` command shows, lists, searches,
 and creates them.
 
-The [package readme](packages/agent-harness/readme.md) documents each function, the signal behind
+The [package readme](packages/agent-kit/readme.md) documents each function, the signal behind
 each harness, and the cases that report `unknown`.
 
 ## Research first
@@ -69,7 +69,7 @@ and Warp are left out because none has a verified signal. See
 
 | Path | Contents |
 | --- | --- |
-| `packages/agent-harness` | The published library |
+| `packages/agent-kit` | The published library |
 | `.research/` | Vendor findings, each claim recorded with a source URL |
 | `apps/web` | The documentation site |
 

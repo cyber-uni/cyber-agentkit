@@ -26,8 +26,8 @@
 		"//#test:scripts": {
 			"inputs": [
 				"scripts/**",
-				"packages/agent-harness/src/harness/**",
-				"packages/agent-harness/src/skills/**",
+				"packages/agent-kit/src/harness/**",
+				"packages/agent-kit/src/skills/**",
 				".research/harness-detection/evidence.md"
 			],
 			"outputs": []

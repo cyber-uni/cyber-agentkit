@@ -1,11 +1,11 @@
 # Evidence — Reference overrides and plugin dependencies
 
-Local runs used `packages/agent-harness/bin/agent-harness.mjs` (0.7.1) against a fixture of three npm-style
+Local runs used `packages/agent-kit/bin/agent-harness.mjs` (0.7.1) against a fixture of three npm-style
 plugins (`repobuddy`, `house`, `uak`) each holding `references/website.init.md`, with an empty home.
 
 | ID | Claim | Source | Checked | Status | Confidence |
 | --- | --- | --- | --- | --- | --- |
-| E-OVR-1 | Tier order is managed, project, user, plugin; a project copy with `merge-sections` was `used` above two plugin copies, and a project copy with no `merge` shadowed both | `packages/agent-harness/src/references/reference-layers.ts` (`ReferenceTier`); local run D, E | 2026-10-18 | verified | High |
+| E-OVR-1 | Tier order is managed, project, user, plugin; a project copy with `merge-sections` was `used` above two plugin copies, and a project copy with no `merge` shadowed both | `packages/agent-kit/src/references/reference-layers.ts` (`ReferenceTier`); local run D, E | 2026-10-18 | verified | High |
 | E-OVR-2 | `merge` defaults to `first-wins`; trace shows `first-wins` for a copy with no frontmatter | `reference-document.ts` `readMergeMode`; local run C | 2026-10-18 | verified | High |
 | E-OVR-3 | A plugin copy with `overrides: [repobuddy]` and `merge-sections` is `used (overrides repobuddy)` and its `## Init` replaced repobuddy's while `## Deploy` was kept | `resolve-reference.ts`; local run B, D | 2026-10-18 | verified | High |
 | E-OVR-4 | Two plugin copies that do not order (two overriders of `repobuddy`, or one with no `overrides`) fail: `"website.init" is held by more than one plugin` | `resolve-reference.ts` `orderPlugins`; local run A, C | 2026-10-18 | verified | High |

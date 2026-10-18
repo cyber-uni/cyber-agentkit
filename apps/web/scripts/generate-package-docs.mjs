@@ -128,7 +128,7 @@ function requiresPage(pkg, plugin) {
 		'',
 	)
 	out.push(
-		`To install them, load the [\`plugin-dependencies\` reference](https://github.com/spikyuni/uni-agent-kit/blob/main/packages/agent-harness/references/plugin-dependencies.md) through the \`reference\` skill of \`uni-agent-kit\`. On a harness other than Claude Code nothing is installed for you.`,
+		`To install them, load the [\`plugin-dependencies\` reference](https://github.com/spikyuni/uni-agent-kit/blob/main/packages/agent-kit/references/plugin-dependencies.md) through the \`reference\` skill of \`uni-agent-kit\`. On a harness other than Claude Code nothing is installed for you.`,
 		'',
 	)
 	out.push('| Plugin | Marketplace | Version |', '| --- | --- | --- |')

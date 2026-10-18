@@ -37,8 +37,8 @@ const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..')
 const defaultBaselinePath = join(here, 'harness-baseline.json')
 const defaultVendorBaselinePath = join(here, 'vendor-baseline.json')
-const harnessIdPath = join(root, 'packages', 'agent-harness', 'src', 'harness', 'harness-id.ts')
-const skillsDirectoriesPath = join(root, 'packages', 'agent-harness', 'src', 'skills', 'skills-directories.ts')
+const harnessIdPath = join(root, 'packages', 'agent-kit', 'src', 'harness', 'harness-id.ts')
+const skillsDirectoriesPath = join(root, 'packages', 'agent-kit', 'src', 'skills', 'skills-directories.ts')
 
 export const UPSTREAM = 'https://raw.githubusercontent.com/vercel-labs/skills/main/src/agents.ts'
 

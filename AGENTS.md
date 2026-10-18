@@ -36,7 +36,7 @@ plugin tiers. It depends on no other agent-layer package; ordinary npm libraries
 so `universal-plugin`, `buddy-agent-harness`, `repobuddy`, and `cyberlegion/cyber-mux` share one
 implementation instead of each re-detecting harnesses on their own.
 
-The library is published to npm from `packages/agent-harness` as `@cyberuni/agent-harness`. It will
+The library is published to npm from `packages/agent-kit` as `@cyberuni/agent-harness`. It will
 also ship as an agent plugin, like `universal-plugin` does for itself.
 
 Research comes before code: every harness fact the library encodes rests on
@@ -46,8 +46,8 @@ Research comes before code: every harness fact the library encodes rests on
 
 | Path | Holds |
 | --- | --- |
-| `packages/agent-harness/src` | Library source, one folder per domain concept |
-| `packages/agent-harness/AGENTS.md` | Architecture rules for the library source |
+| `packages/agent-kit/src` | Library source, one folder per domain concept |
+| `packages/agent-kit/AGENTS.md` | Architecture rules for the library source |
 | `.research/<topic-slug>` | Vendor findings, one folder per topic |
 | `apps/web` | The documentation site. Each package gets `src/content/docs/packages/<package>/` with `index.md`, `install.md`, and `library.md` written by hand. `skills/`, `cli/`, and `requires.md` (only when `.claude-plugin/plugin.json` declares `dependencies`) are generated (gitignored) by `apps/web/scripts/generate-package-docs.mjs` from `plugin.json`, `skills/`, and the built CLI's help; editorial examples live in `apps/web/docs-data/<package>.json`. Internal links in Markdown carry the `/uni-agent-kit` base. |
 

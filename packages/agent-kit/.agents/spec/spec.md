@@ -1,13 +1,13 @@
 ---
 status: draft
 name: agent-harness
-project-path: packages/agent-harness
+project-path: packages/agent-kit
 ---
 
 # agent-harness — detect an AI-agent harness, query what it holds, resolve layered references
 
 > Root project spec, the **descriptive** top index for `@cyberuni/agent-harness` (the library at
-> `packages/agent-harness`). Behaviors live in the node folders below. This spec starts as a backfill: only the
+> `packages/agent-kit`). Behaviors live in the node folders below. This spec starts as a backfill: only the
 > `dependencies/` node is being specified; the other `src/` domains get a node when someone changes them.
 
 ## What this is

@@ -7,7 +7,7 @@ plugin docs fetched 2026-10-18, Cursor, Agent Plugins 1.0, and Copilot CLI manif
 2026-10-18. Design issue: [#107](https://github.com/spikyuni/uni-agent-kit/issues/107), epic
 [#106](https://github.com/spikyuni/uni-agent-kit/issues/106).
 
-> The dependency design now lives in the project spec, `packages/agent-harness/.agents/spec/dependencies/`. This topic keeps the
+> The dependency design now lives in the project spec, `packages/agent-kit/.agents/spec/dependencies/`. This topic keeps the
 > research and evidence behind it.
 
 ## Q1. Is `extends: []` in v1?
@@ -77,7 +77,7 @@ Re-verified 2026-10-18 against vendor documentation and schemas (E-DEP-1 to E-DE
 On Claude Code, `claude plugin install` installs missing dependencies; an unresolved one leaves the plugin
 unloaded (E-DEP-2). A bare name resolves in the declaring plugin's marketplace; another marketplace needs
 `name@marketplace` and `allowCrossMarketplaceDependenciesOn` in the root marketplace (E-DEP-3).
-`packages/agent-harness` already answers the support question with `supportsPluginDependencies` and the web
+`packages/agent-kit` already answers the support question with `supportsPluginDependencies` and the web
 generator already reads `dependencies` (#108).
 
 ## Q4. Where the dependency-docs reference lives

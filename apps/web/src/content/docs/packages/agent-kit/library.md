@@ -34,11 +34,11 @@ if (harness !== 'unknown') skillsDirectories(harness)
 ## Reference documents
 
 `loadReference()` resolves a named document across the managed, project, user, and plugin tiers.
-`createReferenceCommand()` and `createReferenceCommands()` build the [`reference` command](/uni-agent-kit/packages/agent-harness/cli/)
+`createReferenceCommand()` and `createReferenceCommands()` build the [`reference` command](/uni-agent-kit/packages/agent-kit/cli/)
 for a host CLI. The concepts behind them are in [reference documents](/uni-agent-kit/concepts/reference-documents/)
 and [reference interfaces](/uni-agent-kit/concepts/reference-interfaces/).
 
 ## Full signatures
 
-The [package readme](https://github.com/spikyuni/uni-agent-kit/tree/main/packages/agent-harness#readme)
+The [package readme](https://github.com/spikyuni/uni-agent-kit/tree/main/packages/agent-kit#readme)
 documents each function with its options, return shape, and the research claim behind each answer.
