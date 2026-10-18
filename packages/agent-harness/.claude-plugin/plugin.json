@@ -5,8 +5,8 @@
 	"author": {
 		"name": "unional"
 	},
-	"homepage": "https://github.com/cyberuni-agent/uni-agent-kit",
-	"repository": "https://github.com/cyberuni-agent/uni-agent-kit",
+	"homepage": "https://github.com/spikyuni/uni-agent-kit",
+	"repository": "https://github.com/spikyuni/uni-agent-kit",
 	"license": "MIT",
 	"keywords": [
 		"agent-harness",

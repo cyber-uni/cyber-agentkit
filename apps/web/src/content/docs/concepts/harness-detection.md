@@ -5,7 +5,7 @@ description: How uni-agent-kit identifies which AI agent harness is running, and
 
 `detectHarness()` reads environment variables that each harness sets on the processes it spawns.
 Every rule rests on a vendor source recorded in
-[`.research/harness-detection`](https://github.com/cyberuni-agent/uni-agent-kit/tree/main/.research/harness-detection),
+[`.research/harness-detection`](https://github.com/spikyuni/uni-agent-kit/tree/main/.research/harness-detection),
 and every piece of evidence it returns names the research claim behind it.
 
 ## What each harness sets

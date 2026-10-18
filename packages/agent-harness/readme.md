@@ -1,6 +1,6 @@
 # @cyberuni/agent-harness
 
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/cyberuni-agent/uni-agent-kit/blob/main/LICENSE)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/spikyuni/uni-agent-kit/blob/main/LICENSE)
 
 A toolkit for working with AI agent harnesses. Detect which one is running — Claude Code, Cursor,
 Codex, GitHub Copilot CLI, OpenCode, Kilo Code, Gemini CLI, Qwen Code, GitHub Copilot in VS Code,
@@ -11,7 +11,7 @@ resolve the reference documents an agent reads on demand.
 It depends on no other agent tool, so any of them can build on it.
 
 **Status: pre-release.** Every fact this library encodes rests on
-[`.research/harness-detection`](https://github.com/cyberuni-agent/uni-agent-kit/tree/main/.research/harness-detection).
+[`.research/harness-detection`](https://github.com/spikyuni/uni-agent-kit/tree/main/.research/harness-detection).
 
 ## Detect the harness
 
@@ -318,7 +318,7 @@ you approve it. It runs the command from its bundled `scripts/reference.mjs`, wh
 ```
 
 A skill that needs a reference names it in one line, as the skill's
-[`README.md`](https://github.com/cyberuni-agent/uni-agent-kit/blob/main/packages/agent-harness/skills/reference/README.md)
+[`README.md`](https://github.com/spikyuni/uni-agent-kit/blob/main/packages/agent-harness/skills/reference/README.md)
 shows:
 
 ```text
@@ -333,4 +333,4 @@ This package exists so they share one implementation instead.
 
 ## License
 
-[MIT](https://github.com/cyberuni-agent/uni-agent-kit/blob/main/LICENSE)
+[MIT](https://github.com/spikyuni/uni-agent-kit/blob/main/LICENSE)
