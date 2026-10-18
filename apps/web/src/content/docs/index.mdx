@@ -9,9 +9,12 @@ hero:
     # sidebar `slug:` entries. A relative link here resolves against the current URL, so it
     # breaks whenever the home page is reached without its trailing slash. Keep these
     # absolute, and keep the prefix in step with `base` in astro.config.mjs.
+    - text: Install the plugin
+      link: /uni-agent-kit/packages/agent-harness/install/
+      icon: right-arrow
     - text: Harness detection
       link: /uni-agent-kit/concepts/harness-detection/
-      icon: right-arrow
+      variant: secondary
     - text: Reference documents
       link: /uni-agent-kit/concepts/reference-documents/
       variant: minimal
@@ -32,7 +35,9 @@ const { harness } = detectHarness() // 'claude-code', 'codex', …, or 'unknown'
 if (harness !== 'unknown') skillsDirectories(harness)
 ```
 
-The package depends on no other agent tool, so any of them can build on it.
+The package depends on no other agent tool, so any of them can build on it. It also ships as the
+`cyber-agent-harness` agent plugin and as the `agent-harness` command; see the
+[package overview](/uni-agent-kit/packages/agent-harness/).
 
 ## What it answers
 
