@@ -7,6 +7,9 @@ plugin docs fetched 2026-10-18, Cursor, Agent Plugins 1.0, and Copilot CLI manif
 2026-10-18. Design issue: [#107](https://github.com/spikyuni/uni-agent-kit/issues/107), epic
 [#106](https://github.com/spikyuni/uni-agent-kit/issues/106).
 
+> The dependency design now lives in the project spec, `packages/agent-harness/.agents/spec/dependencies/`. This topic keeps the
+> research and evidence behind it.
+
 ## Q1. Is `extends: []` in v1?
 
 **No, and the `overrides: [<plugin>]` mechanism is dropped from the design.** The Council keyed overrides on

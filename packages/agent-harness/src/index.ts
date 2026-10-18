@@ -1,4 +1,17 @@
 export type {
+	CheckedDependency,
+	CheckPluginDependenciesOptions,
+	DependencyState,
+	PluginDependenciesRead,
+	PluginDependency,
+	PluginDependencyCheck,
+} from './dependencies/plugin-dependencies.js'
+export {
+	checkPluginDependencies,
+	declaredPluginDependencies,
+	readPluginDependencies,
+} from './dependencies/plugin-dependencies.js'
+export type {
 	DetectHarnessOptions,
 	HarnessDetectionResult,
 	HarnessEvidence,

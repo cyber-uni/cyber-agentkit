@@ -127,6 +127,10 @@ function requiresPage(pkg, plugin) {
 		`These plugins must be enabled for \`${plugin.name}\` to work. Claude Code is the only harness whose manifest declares plugin dependencies, so this list comes from \`.claude-plugin/plugin.json\`.`,
 		'',
 	)
+	out.push(
+		`To install them, load the [\`plugin-dependencies\` reference](https://github.com/spikyuni/uni-agent-kit/blob/main/packages/agent-harness/references/plugin-dependencies.md) through the \`reference\` skill of \`uni-agent-kit\`. On a harness other than Claude Code nothing is installed for you.`,
+		'',
+	)
 	out.push('| Plugin | Marketplace | Version |', '| --- | --- | --- |')
 	for (const dep of dependencies) {
 		const entry = typeof dep === 'string' ? { name: dep } : dep
