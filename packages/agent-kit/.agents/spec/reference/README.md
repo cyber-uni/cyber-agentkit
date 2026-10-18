@@ -6,19 +6,19 @@ spec-type: behavioral
 
 ## What
 
-A **reference** is a Markdown document an agent reads by name, such as `project-tracker.capabilities.github`. Copies of
-one name can sit in several places: a machine-wide policy folder, the repository, the user's home, and each plugin.
-Without one shared rule, every skill that loads a reference decides for itself which copy wins, and two skills answer
-differently.
+A skill often needs instructions it does not carry itself: how this repository tracks issues, or which house style to
+follow. Today it has three ways to get them, and each costs context or control. It can inline them, so every run loads
+all of them and no one can change them without forking the plugin. It can ship them as skills only the agent invokes,
+so each one's name and description load into every session, needed or not. Or it can search for them by frontmatter or
+by grepping text, which loads documents the task does not need and leaves each skill to decide for itself which copy
+to follow.
 
-This capability is that rule. Given a name, it picks the copy that answers (or combines the copies their authors asked
-to combine), and when no single copy answers it says so and names what the caller can ask for instead. Around that
-decision it lets people see why a name resolved as it did, find what exists, write and remove their own copies, and
-check that a document has the shape a published contract (an **interface**) requires. It is how a plugin ships a
-document that a repository can override without forking the plugin.
-
-Status marks: **built** is how 0.7.1 behaves, backfilled here. **not built** is decided but absent from the code; each
-has an issue or an answer recorded in Open questions.
+This capability lets a skill ask for instructions by name, such as `project-tracker.capabilities.github`, and get
+exactly that. The skill depends on the name, not on a file. Whoever holds a copy of the name decides what it says: a
+plugin ships one, and a repository, a user, or a machine-wide policy can each place their own. Each copy declares
+whether it replaces the copies below it or extends them, and one rule, the same for every skill, puts the copies in
+order. A team can then customize a plugin's instructions without forking it, and two skills asking for one name read
+the same thing.
 
 **Non-goals:**
 
@@ -186,7 +186,8 @@ trace's keys beyond those in R9.
 
 ## Criteria
 
-Edge IDs are in [graph.md](./graph.md). "(not built)" marks a decided criterion the code does not meet yet.
+Edge IDs are in [graph.md](./graph.md). An unmarked criterion is how 0.7.1 behaves. "(not built)" marks a decided
+criterion the code does not meet yet; each has an issue or an answer recorded in Open questions.
 
 **Names**
 
