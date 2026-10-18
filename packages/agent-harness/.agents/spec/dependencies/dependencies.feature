@@ -383,6 +383,19 @@ Feature: Check a plugin's declared dependencies against the running harness
     Then its exit code is 1
     And its output carries the code "dependency-unknown"
 
+  Scenario: the check command exits 1 with harness-not-detected when no harness is detected
+    Given the process runs in a plain shell that no harness has started
+    When "agent-harness dependencies check --plugin <root>" runs without --harness
+    Then its exit code is 1
+    And its output carries the code "harness-not-detected"
+    And a step tells the user to pass --harness
+
+  Scenario: the check command uses an explicit --harness
+    Given the process runs in a plain shell that no harness has started
+    And a plugin listing "tracer@acme"
+    When "agent-harness dependencies check --plugin <root> --harness cursor" runs
+    Then its output names "tracer@acme" with the state "unknown"
+
   Scenario: the check command exits 2 for an unknown flag
     When "agent-harness dependencies check --nonsense" runs
     Then its exit code is 2

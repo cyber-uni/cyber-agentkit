@@ -74,6 +74,8 @@ same functions as A2; they need no use case beyond UC2. A2's goal comes from the
   - On Claude Code, a missing dependency whose marketplace differs from the declaring one (or whose declaring
     marketplace is unknown) also gets the cross-marketplace step: the root marketplace must list it in
     `allowCrossMarketplaceDependenciesOn`, or the user must already have it enabled.
+  - No single harness is detected (plain shell, or nested harnesses) and no `--harness <id>` is given: exit 1 with the
+    code `harness-not-detected` and a step telling the user to pass `--harness`. An explicit id is used as given.
   - An unknown flag, or a `--plugin` path that does not exist: usage error, exit 2.
   - On Claude Code, an `unknown` bare dependency (declaring marketplace not known) gets one step that says so and asks the
     user to install the plugin from a marketplace or declare `name@marketplace`; no install command is guessed.
@@ -110,7 +112,9 @@ informational and carry no contract. No other element is unaccounted for.
 flowchart TD
   cmd([command run]) --> flags{E23 flags valid?}
   flags -->|no| exit2([exit 2])
-  flags -->|yes| root{E24 plugin root exists?}
+  flags -->|yes| hd{E28 harness detected or --harness given?}
+  hd -->|no| exit1h([exit 1 harness-not-detected])
+  hd -->|yes| root{E24 plugin root exists?}
   root -->|no| exit2
   root -->|yes| given
   fn([function call]) --> given{E26 dependencies list given?}
@@ -232,6 +236,8 @@ flowchart TD
 | E3 | command run, unparsable manifest, no other source | `the check command exits 1 with manifest-unparsable for an unparsable manifest` |
 | E3b | command run, unparsable manifest, later source all enabled | `the check command exits 1 with manifest-unparsable even when the later source is all enabled` |
 | E2 | command run, plugin lists nothing | `the check command says a plugin declares no dependencies and exits 0` |
+| E28 | no harness detected, no --harness | `the check command exits 1 with harness-not-detected when no harness is detected` |
+| E28 | --harness given | `the check command uses an explicit --harness` |
 | E23 | unknown flag | `the check command exits 2 for an unknown flag` |
 | E24 | --plugin path does not exist | `the check command exits 2 when the plugin root does not exist` |
 | E5b | command run, plugin installed from the declaring marketplace | `the check command resolves a bare name in the marketplace the plugin was installed from` |
@@ -253,6 +259,8 @@ flowchart TD
 | E4 | a malformed entry beside a valid one | `a malformed entry is skipped and its valid sibling kept` |
 | E26 | list given with a plugin root | `a given dependencies list is used and the plugin root is not read` |
 | E27 | neither list nor root | `neither a list nor a plugin root gives an empty list and no error` |
+
+<!-- open: round-6 spec-judge findings left at draft by the owner's decision (accepted as-is, no freeze). Builder: assert the reload step after a Claude Code enable-only case and its absence for the unknown-bare case, with E17 map rows for both. Architect: add an "entries remain?" exit to the entry loop so an empty or all-skipped list reaches the report; separate per-dependency decisions from the aggregate reload (E17) and nothing-resolved (E18) steps; qualify "the first step says nothing is resolved" with "when any step exists". Observations: record the `src/commands.ts` home of the command; list the global `--format` flag and the `HarnessEnvironment` options as informational; record the silent skip of a malformed entry as a known limitation. -->
 
 ## References
 
