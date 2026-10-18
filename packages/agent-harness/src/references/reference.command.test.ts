@@ -1036,8 +1036,10 @@ describe('list', () => {
 
 	it('states the zero when no layer holds a reference', async () => {
 		const root = repo()
+		// This package ships references of its own, so list from a plugin with none.
+		const empty = createReferenceCommands({ plugin: { name: 'empty', root: tempDir('reference-empty-plugin-') } }).list
 
-		expect(await list({ root, format: 'json' })).toBe(0)
+		expect(await exec(empty, { format: 'json', root })).toBe(0)
 		const report = JSON.parse(written()) as ReferenceListReport
 		expect(report.references).toBe('0 references — no layer holds one')
 	})

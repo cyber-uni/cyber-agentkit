@@ -49,6 +49,7 @@
 		"bin",
 		"dist",
 		"skills",
+		"references",
 		"plugin.json",
 		".claude-plugin",
 		".cursor-plugin",
@@ -56,6 +57,7 @@
 	],
 	"scripts": {
 		"build": "tsdown",
+		"generate:references": "tsx scripts/generate-references.ts",
 		"dev": "tsx src/index.ts",
 		"lint": "biome check .",
 		"prepack": "pnpm build",
