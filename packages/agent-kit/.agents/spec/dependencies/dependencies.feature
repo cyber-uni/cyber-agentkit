@@ -297,7 +297,7 @@ Feature: Check a plugin's declared dependencies against the running harness
     Given the harness is Claude Code
     And a plugin listing "tracer@acme"
     And the installed plugins are exactly "lintbot@forge"
-    When "agent-harness dependencies check --plugin <root>" runs
+    When "uni-agent-kit dependencies check --plugin <root>" runs
     Then its exit code is 1
     And its output names "tracer@acme" with the state "missing" and the code "dependency-missing"
 
@@ -306,7 +306,7 @@ Feature: Check a plugin's declared dependencies against the running harness
     And a plugin listing "tracer@acme"
     And "tracer@acme" is installed
     And its enabledPlugins entry is false
-    When "agent-harness dependencies check --plugin <root>" runs
+    When "uni-agent-kit dependencies check --plugin <root>" runs
     Then its exit code is 1
     And its output carries the code "dependency-disabled"
 
@@ -315,7 +315,7 @@ Feature: Check a plugin's declared dependencies against the running harness
     And a plugin listing "tracer@acme"
     And "tracer@acme" is installed
     And enabledPlugins lists only "lintbot@forge"
-    When "agent-harness dependencies check --plugin <root>" runs
+    When "uni-agent-kit dependencies check --plugin <root>" runs
     Then its exit code is 0
 
   Scenario: the check command exits 0 when every dependency is enabled
@@ -323,13 +323,13 @@ Feature: Check a plugin's declared dependencies against the running harness
     And a plugin listing "tracer@acme"
     And "tracer@acme" is installed
     And its enabledPlugins entry is true
-    When "agent-harness dependencies check --plugin <root>" runs
+    When "uni-agent-kit dependencies check --plugin <root>" runs
     Then its exit code is 0
 
   Scenario: the check command exits 1 with dependency-unknown when the harness keeps no install record
     Given the harness is Cursor
     And a plugin listing "tracer@acme"
-    When "agent-harness dependencies check --plugin <root>" runs
+    When "uni-agent-kit dependencies check --plugin <root>" runs
     Then its exit code is 1
     And its output carries the code "dependency-unknown"
 
@@ -338,7 +338,7 @@ Feature: Check a plugin's declared dependencies against the running harness
     And a plugin whose root plugin.json is not valid JSON
     And its .claude-plugin/plugin.json lists "tracer@acme"
     And the installed plugins are exactly "lintbot@forge"
-    When "agent-harness dependencies check --plugin <root>" runs
+    When "uni-agent-kit dependencies check --plugin <root>" runs
     Then its exit code is 1
     And its output carries the code "manifest-unparsable"
     And its output carries the code "dependency-missing"
@@ -346,7 +346,7 @@ Feature: Check a plugin's declared dependencies against the running harness
   Scenario: the check command exits 1 with manifest-unparsable for an unparsable manifest
     Given a plugin whose root plugin.json is not valid JSON
     And it has no .claude-plugin/plugin.json
-    When "agent-harness dependencies check --plugin <root>" runs
+    When "uni-agent-kit dependencies check --plugin <root>" runs
     Then its exit code is 1
     And its output carries the code "manifest-unparsable"
 
@@ -356,13 +356,13 @@ Feature: Check a plugin's declared dependencies against the running harness
     And its .claude-plugin/plugin.json lists "tracer@acme"
     And "tracer@acme" is installed
     And its enabledPlugins entry is true
-    When "agent-harness dependencies check --plugin <root>" runs
+    When "uni-agent-kit dependencies check --plugin <root>" runs
     Then its exit code is 1
     And its output carries the code "manifest-unparsable"
 
   Scenario: the check command says a plugin declares no dependencies and exits 0
     Given an empty plugin directory
-    When "agent-harness dependencies check --plugin <root>" runs
+    When "uni-agent-kit dependencies check --plugin <root>" runs
     Then its output says the plugin declares no dependencies
     And its exit code is 0
 
@@ -372,20 +372,20 @@ Feature: Check a plugin's declared dependencies against the running harness
     And its .claude-plugin/plugin.json lists "tracer" with no marketplace
     And "tracer@acme" is installed
     And its enabledPlugins entry is true
-    When "agent-harness dependencies check --plugin <root>" runs
+    When "uni-agent-kit dependencies check --plugin <root>" runs
     Then its exit code is 0
 
   Scenario: the check command reports a bare name as unknown when the plugin is not installed
     Given the harness is Claude Code
     And the plugin root is a folder under development that is not in the installed plugins
     And its .claude-plugin/plugin.json lists "tracer" with no marketplace
-    When "agent-harness dependencies check --plugin <root>" runs
+    When "uni-agent-kit dependencies check --plugin <root>" runs
     Then its exit code is 1
     And its output carries the code "dependency-unknown"
 
   Scenario: the check command exits 1 with harness-not-detected when no harness is detected
     Given the process runs in a plain shell that no harness has started
-    When "agent-harness dependencies check --plugin <root>" runs without --harness
+    When "uni-agent-kit dependencies check --plugin <root>" runs without --harness
     Then its exit code is 1
     And its output carries the code "harness-not-detected"
     And a step tells the user to pass --harness
@@ -393,22 +393,22 @@ Feature: Check a plugin's declared dependencies against the running harness
   Scenario: the check command uses an explicit --harness
     Given the process runs in a plain shell that no harness has started
     And a plugin listing "tracer@acme"
-    When "agent-harness dependencies check --plugin <root> --harness cursor" runs
+    When "uni-agent-kit dependencies check --plugin <root> --harness cursor" runs
     Then its output names "tracer@acme" with the state "unknown"
 
   Scenario: the check command exits 2 for an unknown flag
-    When "agent-harness dependencies check --nonsense" runs
+    When "uni-agent-kit dependencies check --nonsense" runs
     Then its exit code is 2
 
   Scenario: the check command exits 2 when the plugin root does not exist
-    When "agent-harness dependencies check --plugin <a path that does not exist>" runs
+    When "uni-agent-kit dependencies check --plugin <a path that does not exist>" runs
     Then its exit code is 2
 
   Scenario: the check command reads the current directory when --plugin is omitted
     Given the current directory is a plugin whose .claude-plugin/plugin.json lists "tracer@acme"
     And the harness is Claude Code
     And the installed plugins are exactly "lintbot@forge"
-    When "agent-harness dependencies check" runs
+    When "uni-agent-kit dependencies check" runs
     Then its output names "tracer@acme" with the state "missing"
 
   Scenario: the check command changes no plugin or settings file
@@ -416,5 +416,5 @@ Feature: Check a plugin's declared dependencies against the running harness
     And a plugin listing "tracer@acme"
     And the installed plugins are exactly "lintbot@forge"
     And a snapshot of the harness's installed-plugins file and settings files
-    When "agent-harness dependencies check --plugin <root>" runs
+    When "uni-agent-kit dependencies check --plugin <root>" runs
     Then the snapshot is byte-identical afterwards

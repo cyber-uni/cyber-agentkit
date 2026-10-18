@@ -1,6 +1,5 @@
 ---
 spec-type: behavioral
-concept: plugin-dependencies
 ---
 
 # dependencies — what a plugin needs, what is missing, what to do
@@ -25,7 +24,6 @@ It is **read-only**. It never installs, enables, or removes a plugin.
 - Reference-keyed overrides: alias, default marker, pin (a separate node, #110).
 - Telling whether a marketplace lists a plugin (only its author can fix that), or which marketplaces a harness has
   added. No verified query exists, so the check asks the user.
-- The shipped how-to document, which is its own node: [plugin-dependencies reference](../plugin-dependencies-reference/README.md).
 
 **Key terms:** see [glossary](../glossary.md). *State* is one of `enabled`, `installed` (installed, no explicit
 setting), `disabled`, `missing`, `unknown` (the check cannot tell). *Declaring marketplace* is the marketplace the
@@ -40,7 +38,7 @@ example while under development), a bare name is `unknown`, never guessed.
 
 **Actors.** A1 a user on any harness. A2 `universal-plugin`, the tool that builds and validates plugins. Affected
 without invoking it: the plugin author, who wants the list they wrote read the same way everywhere. The agent that a
-plugin's text sends to the how-to reference is served by the [reference node](../plugin-dependencies-reference/README.md).
+plugin's text sends to the how-to reference is served by [the shipped how-to reference](#the-shipped-how-to-reference).
 Sibling tools (`repobuddy`, `buddy-agent-harness`, `cyber-mux`) that gate a feature on a plugin being present call the
 same functions as A2; they need no use case beyond UC2. A2's goal comes from the owner (issue #110 discussion):
 `universal-plugin` does at the agent level what `depcheck` and `knip` do for packages.
@@ -52,7 +50,7 @@ same functions as A2; they need no use case beyond UC2. A2's goal comes from the
 
 ### UC1 — Check a plugin's dependencies (A1)
 
-- **Entry points:** the command `agent-harness dependencies check [--plugin <root>]` (a doctor skill will wrap it, as its own node later); backed by
+- **Entry points:** the command `uni-agent-kit dependencies check [--plugin <root>]` (a doctor skill will wrap it, as its own node later); backed by
   `checkPluginDependencies(harness, { pluginRoot })`.
 - **Inputs:** `--plugin`, the plugin root (default the current directory, which always exists), and the detected harness. A bare name's declaring marketplace is
   derived from the installed plugin whose install folder is the plugin root; a `declaringMarketplace` passed to the
@@ -261,6 +259,18 @@ flowchart TD
 | E27 | neither list nor root | `neither a list nor a plugin root gives an empty list and no error` |
 
 <!-- open: round-6 spec-judge findings left at draft by the owner's decision (accepted as-is, no freeze). Builder: assert the reload step after a Claude Code enable-only case and its absence for the unknown-bare case, with E17 map rows for both. Architect: add an "entries remain?" exit to the entry loop so an empty or all-skipped list reaches the report; separate per-dependency decisions from the aggregate reload (E17) and nothing-resolved (E18) steps; qualify "the first step says nothing is resolved" with "when any step exists". Observations: record the `src/commands.ts` home of the command; list the global `--format` flag and the `HarnessEnvironment` options as informational; record the silent skip of a malformed entry as a known limitation. -->
+
+## The shipped how-to reference
+
+The Markdown document `packages/agent-kit/references/plugin-dependencies.md`, shipped in the plugin and loaded by
+name through the `reference` skill (`reference show plugin-dependencies`). A plugin's own README or skill points an
+agent at it when a plugin it needs is missing.
+
+It tells an agent what a plugin declares and where, how to run the check, and the steps per harness: Claude Code, which
+resolves dependencies itself, and every other harness, where nothing is resolved for the user and no install command is
+given. It is written from the same facts as the check above, by `renderDependencyReference()`; a repository test fails
+while the committed file differs from the generator's output. It carries no suite: its text is checked by that test,
+not by scenarios.
 
 ## References
 
