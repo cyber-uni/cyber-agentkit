@@ -9,3 +9,8 @@
   fallback because `buddy-agent-harness` authors it today.
 - This library never installs, enables, or removes a plugin. It reports state and returns steps for the user to run.
 - Reference-keyed overrides (alias, default marker, pin) are a separate decision, still open in #110.
+- A dependency with no marketplace resolves only in the declaring plugin's marketplace, as Claude Code does. A
+  same-named plugin from another marketplace never satisfies it, because the plugin author chose which plugin is meant.
+  When the declaring marketplace is unknown the state is `unknown`, never guessed.
+- The doctor command follows AXI exit codes: 0 success, 1 the plugin is not ready (each problem with its own code),
+  2 usage error.

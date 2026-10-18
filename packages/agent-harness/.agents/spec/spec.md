@@ -31,7 +31,8 @@ a third folder level. Chosen because `src/` is already one folder per domain con
 | a flow across several domains | `workflows/` |
 | a term used by more than one node | `glossary.md` |
 
-Nodes so far: [`dependencies/`](./dependencies/README.md), the plugin dependency check.
+Nodes so far: [`dependencies/`](./dependencies/README.md), the plugin dependency check; and
+[`plugin-dependencies-reference/`](./plugin-dependencies-reference/README.md), the how-to document it generates.
 
 <!-- BEGIN generated: by-concept (project-spec/concept-index) -->
 

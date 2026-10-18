@@ -8,3 +8,5 @@
 - **extension key** — a reverse-domain name under `extensions` in the root `plugin.json` that holds one tool's data
   (Agent Plugins 1.0.0, section 8). For plugin management it is `org.spikyuni.plugin-manager`.
 - **reference** — a Markdown document an agent reads by name, layered across tiers.
+- **declaring marketplace** — the marketplace the declaring plugin was installed from. A dependency with no marketplace
+  resolves only there, as in Claude Code.
