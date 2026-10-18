@@ -7,9 +7,13 @@
 		"node": ">=22.12.0"
 	},
 	"scripts": {
+		"generate": "node scripts/generate-package-docs.mjs",
+		"predev": "node scripts/generate-package-docs.mjs",
 		"dev": "astro dev",
+		"prebuild": "node scripts/generate-package-docs.mjs",
 		"build": "astro build",
 		"preview": "astro preview",
+		"pretypecheck": "node scripts/generate-package-docs.mjs",
 		"typecheck": "astro check",
 		"astro": "astro"
 	},

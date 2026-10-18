@@ -1,0 +1,119 @@
+{
+	"skills": {
+		"reference": {
+			"examples": [
+				{
+					"prompt": "Show me the release-checklist reference.",
+					"result": "The skill runs `show release-checklist` and prints the document that answers the name. It reads nothing from tier folders itself."
+				},
+				{
+					"prompt": "Which references exist, and which copy of each is used?",
+					"result": "The skill runs `list` and reports every layer it read, then each reference with the copy marked `used` and the ones marked `shadowed`."
+				},
+				{
+					"prompt": "Find a reference about commit messages.",
+					"result": "The skill runs `search` with the topic and names the best matches. When nothing matches it says so and does not guess a name."
+				},
+				{
+					"prompt": "Create a project reference called release-checklist.",
+					"result": "The skill runs `create release-checklist --dry-run`, shows you the target path and the content, and writes the file under `.agents/references/` only after you approve. It then runs `show release-checklist --trace` and confirms the new file is `used`."
+				},
+				{
+					"prompt": "Change what the commit-style reference says, just for me.",
+					"result": "The skill writes an override in `~/.agents/references/` marked `merge-sections`, so the sections you do not redefine are kept. It never edits a copy a plugin ships."
+				},
+				{
+					"prompt": "Delete my project copy of release-checklist.",
+					"result": "The skill runs `delete release-checklist --dry-run`, shows the file and what answers the name afterwards, and deletes only after you approve."
+				},
+				{
+					"prompt": "Why does commit-style resolve to that file?",
+					"result": "The skill runs `show commit-style --trace` and reports the layer that was `used` and each layer that was `shadowed` or `not read`, with its reason."
+				}
+			]
+		}
+	},
+	"cli": {
+		"$run": "Install the package, or run it once with `npx`. The `reference` skill runs the same command from a launcher bundled in the plugin.\n\n```sh\nnpm install --save-dev @cyberuni/agent-harness\nnpx agent-harness reference list\n\n# or, without installing\nnpx -y @cyberuni/agent-harness reference list\n```",
+		"$format": "`show`, `create`, and `delete` answer in `text` unless `--format` says otherwise. The other subcommands answer in `toon`, a compact format an agent reads. Pass `--format json` to pipe the answer. Errors go to stderr, so stdout carries only the answer.",
+		"reference show": {
+			"examples": [
+				{
+					"title": "Print one reference.",
+					"args": ["show", "release-checklist"],
+					"explain": "The document prints as it is, without frontmatter."
+				},
+				{
+					"title": "Report why a name resolved to one copy.",
+					"args": ["show", "release-checklist", "--trace", "--format", "text"],
+					"explain": "`--trace` adds every path checked, the file that matched, the merge mode, and why a layer was dropped. It goes to stderr in `text` format, so this page shows only the document; run it to see the trace.",
+					"lines": 6
+				}
+			]
+		},
+		"reference list": {
+			"examples": [
+				{
+					"title": "Keep only names that match a pattern.",
+					"args": ["list", "release-*"],
+					"explain": "`*` stands for any run of characters; the rest must match exactly."
+				}
+			]
+		},
+		"reference search": {
+			"examples": [
+				{
+					"title": "Search by topic.",
+					"args": ["search", "release"],
+					"explain": "Matches come best first."
+				}
+			]
+		},
+		"reference where": {
+			"examples": [
+				{
+					"title": "See where an override can be written.",
+					"args": ["where", "release-checklist"],
+					"explain": "Slots are listed highest precedence first."
+				}
+			]
+		},
+		"reference create": {
+			"examples": [
+				{
+					"title": "Preview a new reference without writing it.",
+					"args": ["create", "deploy-notes", "--dry-run"],
+					"explain": "Nothing is written. Run it again without `--dry-run` to create the file."
+				}
+			]
+		},
+		"reference delete": {
+			"examples": [
+				{
+					"title": "Preview a delete.",
+					"args": ["delete", "release-checklist", "--dry-run"],
+					"explain": "The report names the file and what answers the name afterwards.",
+					"lines": 3
+				}
+			]
+		},
+		"reference implementations": {
+			"examples": [
+				{
+					"title": "List the implementations of an interface.",
+					"args": ["implementations", "scaffold.recipe"],
+					"explain": "This project defines no such interface, so the list is empty."
+				}
+			]
+		},
+		"reference check": {
+			"examples": [
+				{
+					"title": "Check every interface and implementation.",
+					"args": ["check"],
+					"explain": "The command exits 1 when any check fails."
+				}
+			]
+		}
+	}
+}
