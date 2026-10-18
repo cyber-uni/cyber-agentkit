@@ -82,7 +82,7 @@ implements: project-tracker.capabilities@1
 Start one from the interface's sections:
 
 ```sh
-npx -y @cyberuni/agent-harness reference create scaffold.recipe.typescript-lib --implements scaffold.recipe
+npx -y uni-agent-kit reference create scaffold.recipe.typescript-lib --implements scaffold.recipe
 ```
 
 It writes each section as a `##` heading, stubs each optional one `**Unsupported.**`, and sets
@@ -93,7 +93,7 @@ It writes each section as a `##` heading, stubs each optional one `**Unsupported
 A consumer names the interface in its References line:
 
 ```text
-Load the implementations of the `scaffold.recipe` interface with the `reference` skill in the `cyber-agent-harness` plugin.
+Load the implementations of the `scaffold.recipe` interface with the `reference` skill in the `uni-agent-kit` plugin.
 ```
 
 The skill runs:
@@ -116,7 +116,7 @@ A consumer that reads one known implementation, such as a `one` slot, loads it b
 
 ```ts
 import { homedir } from 'node:os'
-import { referenceImplementations, referenceLayers } from '@cyberuni/agent-harness'
+import { referenceImplementations, referenceLayers } from 'uni-agent-kit'
 
 const layers = await referenceLayers({ root: process.cwd(), home: homedir(), platform: process.platform })
 const { implementations, excluded } = referenceImplementations('scaffold.recipe', layers)

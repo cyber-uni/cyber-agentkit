@@ -27,7 +27,7 @@ function packageHost(): CliHost {
 function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 	return cli({
 		format,
-		name: 'agent-harness',
+		name: 'uni-agent-kit',
 		version,
 		description: 'Work with the AI agent harness running here: read its layered reference documents.',
 	}).command(createReferenceCommand({ plugin: { name, root } }))

@@ -26,7 +26,7 @@ export interface WorktreeOwner {
 }
 
 /** The `library` value a lease reason carries. */
-export const LEASE_LIBRARY = '@cyberuni/agent-harness'
+export const LEASE_LIBRARY = 'uni-agent-kit'
 
 /** A lease as recorded in the `locked` file: one line of JSON (E-GIT-L1, E-GIT-L2). */
 export interface LeaseReason {

@@ -100,7 +100,7 @@ const {
 	check: referenceCheckCommand,
 	implementations: referenceImplementationsCommand,
 } = createReferenceCommands({
-	plugin: { name: '@cyberuni/agent-harness', root: dirname(dirname(dirname(fileURLToPath(import.meta.url)))) },
+	plugin: { name: 'uni-agent-kit', root: dirname(dirname(dirname(fileURLToPath(import.meta.url)))) },
 })
 
 const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
@@ -1811,7 +1811,7 @@ describe('createReferenceCommand', () => {
 
 		expect(await exec(listAlone, { root, format: 'json' })).toBe(0)
 		const report = JSON.parse(written()) as ReferenceListReport
-		expect(report.layers.some(({ plugin }) => plugin === '@cyberuni/agent-harness')).toBe(false)
+		expect(report.layers.some(({ plugin }) => plugin === 'uni-agent-kit')).toBe(false)
 	})
 })
 

@@ -28,16 +28,17 @@ When loading any skill, also check `.agents/skills/<name>/SKILL.md` for project-
 
 ## Project overview
 
-`agent-harness` is a TypeScript toolkit for working with AI agent harnesses. It detects which
-harness is running (Claude Code, Cursor, Codex, GitHub Copilot CLI, and more), queries what it
-holds (its managed-policy locations, plugin storage, enabled plugins, and how it names plugin
-skills), and resolves named reference documents layered across the managed, project, user, and
-plugin tiers. It depends on no other agent-layer package; ordinary npm libraries are fine. It exists
-so `universal-plugin`, `buddy-agent-harness`, `repobuddy`, and `cyberlegion/cyber-mux` share one
-implementation instead of each re-detecting harnesses on their own.
+`uni-agent-kit` is an agent-harness-agnostic toolkit. It provides the fundamental features agent tools
+need and makes each one work the same way across harnesses (Claude Code, Cursor, Codex, GitHub Copilot
+CLI, and more). Today that is detecting which harness is running and querying what it holds, checking
+the plugins another plugin depends on, resolving named reference documents layered across the managed,
+project, user, and plugin tiers, and leasing git worktrees to concurrent sessions. It depends on no
+other agent-layer package; ordinary npm libraries are fine. It exists so `universal-plugin`,
+`buddy-agent-harness`, `repobuddy`, and `cyberlegion/cyber-mux` share one implementation instead of
+each solving these per harness on their own.
 
-The library is published to npm from `packages/agent-kit` as `@cyberuni/agent-harness`. It will
-also ship as an agent plugin, like `universal-plugin` does for itself.
+The library is published to npm from `packages/agent-kit` as `uni-agent-kit`. It also ships as an
+agent plugin of the same name, like `universal-plugin` does for itself.
 
 Research comes before code: every harness fact the library encodes rests on
 `.research/harness-detection`. The library must not claim to detect a harness it has not verified.

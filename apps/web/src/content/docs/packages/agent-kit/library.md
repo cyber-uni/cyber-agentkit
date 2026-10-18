@@ -1,16 +1,16 @@
 ---
 title: Library API
-description: The functions @cyberuni/agent-harness exports to detect the running harness, query what it holds, and resolve reference documents.
+description: The functions uni-agent-kit exports to detect the running harness, query what it holds, and resolve reference documents.
 sidebar:
   order: 3
 ---
 
 ```sh
-npm install @cyberuni/agent-harness
+npm install uni-agent-kit
 ```
 
 ```ts
-import { detectHarness, skillsDirectories } from '@cyberuni/agent-harness'
+import { detectHarness, skillsDirectories } from 'uni-agent-kit'
 
 const { harness } = detectHarness() // 'claude-code', 'codex', …, or 'unknown'
 if (harness !== 'unknown') skillsDirectories(harness)

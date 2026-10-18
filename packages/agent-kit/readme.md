@@ -1,13 +1,16 @@
-# @cyberuni/agent-harness
+# uni-agent-kit
 
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/spikyuni/uni-agent-kit/blob/main/LICENSE)
 
-A toolkit for working with AI agent harnesses. Detect which one is running — Claude Code, Cursor,
-Codex, GitHub Copilot CLI, OpenCode, Kilo Code, Gemini CLI, Qwen Code, GitHub Copilot in VS Code,
-Cline, Crush, OpenHands, or the Auggie CLI — query what it holds (its managed-policy locations,
-plugin storage, enabled plugins, how it names plugin skills, and how to run it headless), and
-check which plugins another plugin depends on, resolve the reference documents an agent reads on
-demand, and lease git worktrees to concurrent agent sessions.
+An agent-harness-agnostic toolkit. It provides the fundamental features agent tools need and makes
+each one work the same way across harnesses:
+
+- **Harness knowledge.** Detect which harness is running, and query what it holds: managed-policy
+  locations, plugin storage, installed and enabled plugins, skill naming and directories, and how to
+  run it headless.
+- **Plugin dependencies.** Check which plugins another plugin needs against what the harness has.
+- **Reference documents.** Resolve the named Markdown documents an agent reads on demand.
+- **Worktrees.** Lease git worktrees to concurrent agent sessions.
 
 It depends on no other agent tool, so any of them can build on it.
 
@@ -16,8 +19,11 @@ It depends on no other agent tool, so any of them can build on it.
 
 ## Detect the harness
 
+It detects Claude Code, Cursor, Codex, GitHub Copilot CLI, OpenCode, Kilo Code, Gemini CLI, Qwen
+Code, GitHub Copilot in VS Code, Cline, Crush, OpenHands, and the Auggie CLI.
+
 ```ts
-import { detectHarness } from '@cyberuni/agent-harness'
+import { detectHarness } from 'uni-agent-kit'
 
 const result = detectHarness()
 // {
@@ -66,7 +72,7 @@ Pass `{ env }` to inspect an environment other than `process.env`.
 ## Managed policy
 
 ```ts
-import { managedPolicyLocations } from '@cyberuni/agent-harness'
+import { managedPolicyLocations } from 'uni-agent-kit'
 
 managedPolicyLocations('claude-code', { platform: 'linux' })
 // [
@@ -84,7 +90,7 @@ organization. A `server` entry means the local files are not the whole policy.
 ## Plugin storage
 
 ```ts
-import { pluginStorage } from '@cyberuni/agent-harness'
+import { pluginStorage } from 'uni-agent-kit'
 
 pluginStorage('codex')
 // {
@@ -103,7 +109,7 @@ Cursor has no `enabled-record`: no file records which of its plugins are enabled
 ## Enabled plugins
 
 ```ts
-import { enabledPlugins } from '@cyberuni/agent-harness'
+import { enabledPlugins } from 'uni-agent-kit'
 
 const result = await enabledPlugins('claude-code')
 // {
@@ -130,7 +136,7 @@ override the answer.
 ## Installed plugins
 
 ```ts
-import { enabledPlugins, installedPlugins } from '@cyberuni/agent-harness'
+import { enabledPlugins, installedPlugins } from 'uni-agent-kit'
 
 const installed = await installedPlugins('claude-code')
 // {
@@ -162,7 +168,7 @@ path in place, without an install record, so they appear in `unread` instead.
 ## Skill naming
 
 ```ts
-import { skillInvocation } from '@cyberuni/agent-harness'
+import { skillInvocation } from 'uni-agent-kit'
 
 skillInvocation('claude-code', { plugin: 'my-plugin', skill: 'review' })?.text // '/my-plugin:review'
 skillInvocation('copilot-cli', { plugin: 'my-plugin', skill: 'review' })?.text // '/review'
@@ -178,7 +184,7 @@ why. This reads what a plugin declares, checks it against what the running harne
 enabled, and returns the steps that settle the rest. It installs nothing and compares no versions.
 
 ```ts
-import { checkPluginDependencies, supportsPluginDependencies } from '@cyberuni/agent-harness'
+import { checkPluginDependencies, supportsPluginDependencies } from 'uni-agent-kit'
 
 supportsPluginDependencies('claude-code') // true; false for the others
 
@@ -207,7 +213,7 @@ hold. The how-to for a person or agent, `plugin-dependencies`, ships as a
 ## Skill directories
 
 ```ts
-import { skillsDirectories } from '@cyberuni/agent-harness'
+import { skillsDirectories } from 'uni-agent-kit'
 
 skillsDirectories('claude-code') // { project: ['.claude/skills'], user: ['.claude/skills'], research: ['E-CC-L1'] }
 skillsDirectories('codex')?.project.includes('.agents/skills') // true
@@ -225,7 +231,7 @@ and the documented exit codes. The library only describes the run; starting the 
 you.
 
 ```ts
-import { headlessCommand, headlessInvocation } from '@cyberuni/agent-harness'
+import { headlessCommand, headlessInvocation } from 'uni-agent-kit'
 
 headlessCommand('claude-code', {
   prompt: 'Fix the failing test',
@@ -256,7 +262,7 @@ weights a skill applies. Anyone can override one without editing the plugin that
 project in `.agents/references/<name>.md`, a person in `~/.agents/references/<name>.md`.
 
 ```ts
-import { loadReference } from '@cyberuni/agent-harness'
+import { loadReference } from 'uni-agent-kit'
 
 const resolved = await loadReference('agent-readiness-weights', {
 	root: process.cwd(),
@@ -314,13 +320,13 @@ The package ships a `reference` command with `show`, `list`, `search`, `where`, 
 `check`, `create`, and `delete` subcommands:
 
 ```sh
-npx -y @cyberuni/agent-harness reference show <name>... --root <repository root>
-npx -y @cyberuni/agent-harness reference list
-npx -y @cyberuni/agent-harness reference list 'project-tracker.capabilities.*'
-npx -y @cyberuni/agent-harness reference implementations <interface id> --accept 1,2
-npx -y @cyberuni/agent-harness reference check
-npx -y @cyberuni/agent-harness reference create <name> --scope project
-npx -y @cyberuni/agent-harness reference delete <name> --scope project --dry-run
+npx -y uni-agent-kit reference show <name>... --root <repository root>
+npx -y uni-agent-kit reference list
+npx -y uni-agent-kit reference list 'project-tracker.capabilities.*'
+npx -y uni-agent-kit reference implementations <interface id> --accept 1,2
+npx -y uni-agent-kit reference check
+npx -y uni-agent-kit reference create <name> --scope project
+npx -y uni-agent-kit reference delete <name> --scope project --dry-run
 ```
 
 `implementations` lists what a consumer can load for an interface (a `<id>.interface` document) with
@@ -337,25 +343,25 @@ follow [`clibuilder`](https://www.npmjs.com/package/clibuilder) 12, and any othe
 usage error (exit code 2). A CLI built on clibuilder 12
 can host the same command under its own plugin name, imported from the `./commands` subpath. `--format`
 is the host's global option, so the host's `cli({ format })` sets the default for every subcommand;
-the `text` default of `show`, `create`, and `delete` belongs to the `agent-harness` CLI:
+the `text` default of `show`, `create`, and `delete` belongs to the `uni-agent-kit` CLI:
 
 ```ts
-import { createReferenceCommand } from '@cyberuni/agent-harness/commands'
+import { createReferenceCommand } from 'uni-agent-kit/commands'
 
 app.command(createReferenceCommand({ plugin: { name: 'my-plugin', root: pluginRoot } }))
 ```
 
 ### The `reference` skill
 
-The package is also an agent plugin, `cyber-agent-harness`, that ships a `reference` skill. Type
-`/reference` (`/cyber-agent-harness:reference` in Claude Code) to load, create, update, delete, find, or
+The package is also an agent plugin, `uni-agent-kit`, that ships a `reference` skill. Type
+`/reference` (`/uni-agent-kit:reference` in Claude Code) to load, create, update, delete, find, or
 inspect a reference, or to wire a skill to load one. The skill writes or deletes a file only after
 you approve it. It runs the command from its bundled `scripts/reference.mjs`, which needs no
 `node_modules`.
 
 ```text
 /plugin marketplace add cyberuni/cyberplace
-/plugin install cyber-agent-harness@cyberplace
+/plugin install uni-agent-kit@cyberplace
 ```
 
 A skill that needs a reference names it in one line, as the skill's
@@ -363,7 +369,7 @@ A skill that needs a reference names it in one line, as the skill's
 shows:
 
 ```text
-Load `skill-design` with the `reference` skill in the `cyber-agent-harness` plugin.
+Load `skill-design` with the `reference` skill in the `uni-agent-kit` plugin.
 ```
 
 ## Worktrees
@@ -372,7 +378,7 @@ The `./worktrees` subpath leases git worktrees to concurrent agent sessions, so 
 share a checkout. It does not fetch and never kills a process.
 
 ```ts
-import { acquire, pruneWorktrees, release } from '@cyberuni/agent-harness/worktrees'
+import { acquire, pruneWorktrees, release } from 'uni-agent-kit/worktrees'
 ```
 
 | Function | Does |

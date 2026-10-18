@@ -8,7 +8,7 @@ weights a skill applies. A plugin ships the default. A project or a person can o
 editing the plugin.
 
 ```ts
-import { loadReference } from '@cyberuni/agent-harness'
+import { loadReference } from 'uni-agent-kit'
 
 const resolved = await loadReference('agent-readiness-weights', {
 	root: process.cwd(),
@@ -20,7 +20,7 @@ if (resolved.status === 'found') console.log(resolved.content)
 From a shell, or from an agent:
 
 ```sh
-npx -y @cyberuni/agent-harness reference show agent-readiness-weights
+npx -y uni-agent-kit reference show agent-readiness-weights
 ```
 
 ## The reference command
@@ -44,8 +44,8 @@ plugin's.
 
 ## The reference skill
 
-The package is also an agent plugin, `cyber-agent-harness`, that ships a `reference` skill. Type
-`/reference` (`/cyber-agent-harness:reference` in Claude Code) to run it.
+The package is also an agent plugin, `uni-agent-kit`, that ships a `reference` skill. Type
+`/reference` (`/uni-agent-kit:reference` in Claude Code) to run it.
 
 | Mode | When |
 | --- | --- |
@@ -64,7 +64,7 @@ skill's bundled `scripts/reference.mjs`, never a package runner.
 A skill loads a reference by naming it in one line:
 
 ```text
-Load `agent-readiness-weights` with the `reference` skill in the `cyber-agent-harness` plugin.
+Load `agent-readiness-weights` with the `reference` skill in the `uni-agent-kit` plugin.
 ```
 
 ## Where a reference is read from

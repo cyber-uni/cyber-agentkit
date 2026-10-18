@@ -43,7 +43,7 @@ Tell the user, briefly, about every name that did not come from the command:
 - a name read from the caller's copy, and why: missing everywhere, or the command did not run;
 - when the command did not run: that it did not, the error it gave, and that the caller's copies were used, so no project, user, or machine override applied;
 - a name not loaded;
-- when the command did not run and a name has no copy: that `scripts/reference.mjs` ships with the npm package, so a `cyber-agent-harness` plugin installed from git has none, and installing it from npm fixes it;
+- when the command did not run and a name has no copy: that `scripts/reference.mjs` ships with the npm package, so a `uni-agent-kit` plugin installed from git has none, and installing it from npm fixes it;
 - an ambiguous name, with both qualified names;
 - a rejected name, and that it names a path rather than a reference.
 

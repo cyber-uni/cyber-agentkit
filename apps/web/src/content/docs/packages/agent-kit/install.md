@@ -1,6 +1,6 @@
 ---
 title: Install
-description: Install @cyberuni/agent-harness as a library, as a command, or as an agent plugin, and run your first reference command.
+description: Install uni-agent-kit as a library, as a command, or as an agent plugin, and run your first reference command.
 sidebar:
   order: 1
 ---
@@ -13,26 +13,26 @@ package. The plugin is the same package packaged for an agent harness.
 Node 22 or later is required, as the repository root declares in `engines`.
 
 ```sh
-npm install @cyberuni/agent-harness
+npm install uni-agent-kit
 ```
 
 Run the command without installing it:
 
 ```sh
-npx -y @cyberuni/agent-harness reference list
+npx -y uni-agent-kit reference list
 ```
 
-With the package installed, `npx agent-harness reference list` or `pnpm exec agent-harness reference list`
+With the package installed, `npx uni-agent-kit reference list` or `pnpm exec uni-agent-kit reference list`
 runs the same command.
 
 ## As an agent plugin
 
-The plugin is named `cyber-agent-harness`. Its `plugin.json` declares four harnesses: `claude-code`,
+The plugin is named `uni-agent-kit`. Its `plugin.json` declares four harnesses: `claude-code`,
 `cursor`, `codex`, and `copilot-cli`. In Claude Code, add the marketplace and install it:
 
 ```text
 /plugin marketplace add cyberuni/cyberplace
-/plugin install cyber-agent-harness@cyberplace
+/plugin install uni-agent-kit@cyberplace
 ```
 
 Those two lines come from the [package readme](https://github.com/spikyuni/uni-agent-kit/tree/main/packages/agent-kit#the-reference-skill).
@@ -50,7 +50,7 @@ which runs the [`list`](/uni-agent-kit/packages/agent-kit/cli/reference-list/) c
 reports the layers it read. From a shell, the same check is:
 
 ```sh
-npx -y @cyberuni/agent-harness reference list
+npx -y uni-agent-kit reference list
 ```
 
 ## Use the skill
@@ -70,9 +70,9 @@ Run `reference` subcommands directly when you script around them. The default `t
 compact for agents; add `--format json` to pipe the answer to another tool.
 
 ```sh
-npx agent-harness reference search release
-npx agent-harness reference show release-checklist
-npx agent-harness reference show release-checklist --trace
+npx uni-agent-kit reference search release
+npx uni-agent-kit reference show release-checklist
+npx uni-agent-kit reference show release-checklist --trace
 ```
 
 The [CLI reference](/uni-agent-kit/packages/agent-kit/cli/) documents every command and option.

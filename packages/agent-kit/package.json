@@ -1,7 +1,7 @@
 {
-	"name": "@cyberuni/agent-harness",
+	"name": "uni-agent-kit",
 	"version": "0.7.1",
-	"description": "A toolkit for working with AI agent harnesses: detect which one is running, query its managed-policy locations, plugin storage, enabled plugins, and skill naming, and resolve layered reference documents.",
+	"description": "An agent-harness-agnostic toolkit: the fundamental features agent tools need, working the same on every harness. Detect the running harness, check plugin dependencies, resolve layered reference documents, and lease git worktrees.",
 	"keywords": [
 		"agent-harness",
 		"claude-code",
@@ -42,7 +42,7 @@
 		"./package.json": "./package.json"
 	},
 	"bin": {
-		"agent-harness": "./bin/agent-harness.mjs"
+		"uni-agent-kit": "./bin/uni-agent-kit.mjs"
 	},
 	"files": [
 		"LICENSE",

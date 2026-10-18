@@ -1,9 +1,9 @@
 ---
 title: uni-agent-kit
-description: Detect which AI agent harness is running — Claude Code, Cursor, Codex, Copilot CLI, OpenCode, Kilo Code, Gemini CLI, Qwen Code, Copilot in VS Code, Cline, Crush, OpenHands, or the Auggie CLI — and query what it holds.
+description: An agent-harness-agnostic toolkit. The fundamental features agent tools need, working the same way on every harness.
 template: splash
 hero:
-  tagline: One detection library for the harness you are running under, shared across cyberuni's tools.
+  tagline: Fundamental agent features that work across harnesses, shared across cyberuni's tools.
   actions:
     # Starlight uses hero action links as written and does not prepend `base`, unlike
     # sidebar `slug:` entries. A relative link here resolves against the current URL, so it
@@ -25,18 +25,18 @@ import { Card, CardGrid } from '@astrojs/starlight/components'
 ## Install
 
 ```sh
-npm install @cyberuni/agent-harness
+npm install uni-agent-kit
 ```
 
 ```ts
-import { detectHarness, skillsDirectories } from '@cyberuni/agent-harness'
+import { detectHarness, skillsDirectories } from 'uni-agent-kit'
 
 const { harness } = detectHarness() // 'claude-code', 'codex', …, or 'unknown'
 if (harness !== 'unknown') skillsDirectories(harness)
 ```
 
 The package depends on no other agent tool, so any of them can build on it. It also ships as the
-`cyber-agent-harness` agent plugin and as the `agent-harness` command; see the
+`uni-agent-kit` agent plugin and as the `uni-agent-kit` command; see the
 [package overview](/uni-agent-kit/packages/agent-kit/).
 
 ## What it answers

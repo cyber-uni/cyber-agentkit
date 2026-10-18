@@ -1,5 +1,5 @@
 ---
-"@cyberuni/agent-harness": minor
+"uni-agent-kit": minor
 ---
 
 Add reference interfaces. An `<id>.interface` reference declares a contract in its `interface:` frontmatter: cardinality, version, accepted versions, tiers, and ordered sections, each optional unless marked `required`. A reference implements it with `implements: <id>@<version>`.
