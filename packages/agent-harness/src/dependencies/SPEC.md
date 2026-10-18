@@ -31,13 +31,30 @@ How the agent knows to ask: it does not detect the problem on its own on a harne
 (a) the user asks (U1), (b) a plugin's own text tells it to (U2), or (c) a load fails (U3). The domain never runs
 unprompted.
 
-### Delivery: a skill (proposed, not in this change)
+### Delivery: a read-only doctor skill (proposed, not in this change)
 
-The user-facing entry for U1 and U3 is expected to be a skill in this plugin, a dependency or plugin-manager skill that
-runs the check against the detected harness and walks the user through the steps. That skill needs a CLI subcommand
-(`agent-harness dependencies check [--plugin <root>]`) bundled into its script like `reference.mjs`. Neither is built
-here: this change is the library function, its facts, and the reference an agent can load. The skill and subcommand
-are the next unit of work and should be confirmed before they are built.
+The user-facing entry for U1 and U3 is expected to be a doctor skill in this plugin. It diagnoses and prints the
+commands for the user to run; it never installs, enables, or removes anything, and it does not need permission to.
+This package likewise only returns steps. The skill needs a CLI subcommand (`agent-harness dependencies check
+[--plugin <root>]`) bundled into its script like `reference.mjs`. Neither is built here.
+
+The doctor answers two questions, and the library covers only the first so far:
+
+1. **What is missing?** Each declared dependency is `enabled`, `installed`, `disabled`, `missing`, or `unknown`.
+   Built.
+2. **What is the remedy?** The cause decides it, so the diagnosis walks the causes in order. Not built; each needs a
+   verified fact first.
+   - **R1. The plugin lists no dependencies.** True of every harness but Claude Code, and of a plugin that never
+     declared them. The check then has nothing to compare. The doctor reads `.claude-plugin/plugin.json` first
+     (E-DEP-1). The root open-standard `plugin.json` is the second source, but its schema is closed (E-DEP-4), so a
+     listing there would have to sit under `extensions`; no such key is verified, so it is not read yet.
+   - **R2. The dependency's marketplace is not added.** The remedy is to add the marketplace, then install. Needs a
+     query for the marketplaces a harness knows, which does not exist yet.
+   - **R3. The marketplace is added but does not list the plugin.** The remedy is to tell the plugin's author; the user
+     cannot fix it.
+   - **R4. Cross-marketplace and not allowed.** Claude Code skips it unless the root marketplace lists the target in
+     `allowCrossMarketplaceDependenciesOn` (E-DEP-3).
+   - **R5. Installed but disabled.** Enable it.
 
 ## Reading what a plugin declares
 
