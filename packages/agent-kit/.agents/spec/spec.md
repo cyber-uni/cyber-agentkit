@@ -35,5 +35,5 @@ facts, is a section of that node, not a node of its own. Chosen because `src/` i
 | a term used by more than one node | `glossary.md` |
 
 Nodes so far: [`dependencies/`](./dependencies/README.md), the plugin dependency check and the how-to document it
-generates; [`references/`](./references/README.md), resolving a reference name to the one document that answers it
-(draft; writing, interfaces, and overrides are named there as later nodes).
+generates; [`reference/`](./reference/README.md), resolving a reference name to the one document that answers it
+(draft; backfills all of `src/references`, with the #110 overrides marked not built).
