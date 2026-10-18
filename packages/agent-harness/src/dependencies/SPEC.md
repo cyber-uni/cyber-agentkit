@@ -3,10 +3,41 @@
 Design: [#110](https://github.com/spikyuni/uni-agent-kit/issues/110), [#107](https://github.com/spikyuni/uni-agent-kit/issues/107).
 Facts: `.research/plugin-dependencies-and-overrides` (E-DEP-1 to E-DEP-5) and `.research/harness-detection` (E-CC-X1).
 
-## Purpose
+## Purpose and use cases
 
-Tell an agent which plugins a plugin needs, which of them the running harness is missing, and what to do about it.
-Nothing here installs anything; it returns steps.
+A plugin can need other plugins. Whether the harness enforces that depends on the harness:
+
+- **Claude Code** enforces it natively. `claude plugin install` installs missing dependencies, a plugin with a missing
+  or disabled one does not load, and a cross-marketplace dependency is skipped unless the root marketplace allows it
+  (E-DEP-2, E-DEP-3). Installing through the normal flow needs no help from this package.
+- **Every other harness** ignores the field, or has none (E-DEP-4, E-DEP-5). The plugin installs and then fails or
+  misbehaves at the point it uses a missing sibling. Nothing warns anyone.
+
+So this domain serves the cases the harness does not cover. Each use case names who calls it and what they get:
+
+- **U1. A user asks what a plugin is missing.** "Is `repobuddy` set up?", "why does this skill say a reference is
+  missing?", "I installed `repobuddy` in Cursor." The agent (or the user, through a skill) runs
+  `checkPluginDependencies(harness, { pluginRoot })` and reads the states and steps. This is the main entry.
+- **U2. A plugin points at its own requirements.** A plugin's README or skill says "if a reference or skill from
+  `uni-agent-kit` is not found, load the `plugin-dependencies` reference". This is how an agent that has never heard of
+  the domain finds it. The pointer belongs to the plugin that has the dependency; this package supplies the reference
+  it points at.
+- **U3. Claude Code, after a failed load or a silent skip.** A plugin did not load, or a cross-marketplace dependency
+  was not installed. The check names which dependency is `missing` or `disabled` and the step that fixes it.
+- **U4. A tool wants the answer as data.** `buddy-agent-harness`, `repobuddy` and `cyber-mux` import the function to
+  gate a feature on a sibling plugin being present, instead of re-detecting it.
+
+How the agent knows to ask: it does not detect the problem on its own on a harness without enforcement. It asks when
+(a) the user asks (U1), (b) a plugin's own text tells it to (U2), or (c) a load fails (U3). The domain never runs
+unprompted.
+
+### Delivery: a skill (proposed, not in this change)
+
+The user-facing entry for U1 and U3 is expected to be a skill in this plugin, a dependency or plugin-manager skill that
+runs the check against the detected harness and walks the user through the steps. That skill needs a CLI subcommand
+(`agent-harness dependencies check [--plugin <root>]`) bundled into its script like `reference.mjs`. Neither is built
+here: this change is the library function, its facts, and the reference an agent can load. The skill and subcommand
+are the next unit of work and should be confirmed before they are built.
 
 ## Reading what a plugin declares
 
