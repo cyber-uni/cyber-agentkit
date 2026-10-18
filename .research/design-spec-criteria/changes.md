@@ -1,0 +1,7 @@
+# Changes — Design spec contents and criteria
+
+- 2026-10-18. Topic created from a delegated survey of cyber-truss (`specification.md`, `relationship-to-sdd.md`),
+  the SDD spec bars, and external spec practice. Nine criteria (C1 to C9) proposed. Conclusion changed: new topic.
+- 2026-10-18. Owner decisions D8 to D12 added to the conclusion: rationale outside the spec, a specific design spec
+  with the functional spec beneath it, a standing spec, no notation in the design spec, and the decision graph in
+  its own file. The criteria are unchanged. Triggered by the owner's review in the session, not by a new source.
