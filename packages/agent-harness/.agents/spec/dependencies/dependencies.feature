@@ -138,6 +138,12 @@ Feature: Check a plugin's declared dependencies against the running harness
     When "agent-harness dependencies check --plugin <root>" runs
     Then its exit code is 0
 
+  Scenario: the check command says a plugin declares no dependencies and exits 0
+    Given a plugin that lists no dependencies in any source
+    When "agent-harness dependencies check --plugin <root>" runs
+    Then its output says the plugin declares no dependencies
+    And its exit code is 0
+
   Scenario: the check command changes no plugin or settings file
     Given a plugin listing "tracer@acme" that is not installed
     And a snapshot of the harness's installed-plugins file and settings files

@@ -76,8 +76,8 @@ the same way everywhere. (A3, sibling tools gating a feature, is deferred; it wo
 
 **Surface trace.** `checkPluginDependencies` (UC1, UC3), `readPluginDependencies` (UC1, UC3),
 `declaredPluginDependencies` (UC3), `renderDependencyReference` (UC2), the subcommand `dependencies check` and its
-`--plugin` option (UC1). Option `--plugin` may not be combined with a `dependencies` list passed to the function
-(different surfaces). No element is unaccounted for.
+`--plugin` option (UC1). The `--plugin` option and a `dependencies` list belong to different surfaces (command and function), so
+no combination of them needs refusing. No element is unaccounted for.
 
 ## Control Flow
 
@@ -109,6 +109,15 @@ flowchart TD
   ask --> done
   enabled --> done
   installed --> done
+  none --> done
+  err --> done
+  done --> out{E16 anything missing, disabled, or unknown?}
+  out -->|yes| exit1([exit 1])
+  out -->|no| exit0([exit 0])
+  done -.->|never| write[E20 write a plugin or settings file]
+  ref([reference show plugin-dependencies]) --> gen{E17 committed file equals generator output?}
+  gen -->|yes| load[E18 reference loads: Claude Code section + other-harness section]
+  gen -->|no| stale[E19 test run fails]
 ```
 
 ## Scenario map
@@ -151,16 +160,17 @@ flowchart TD
 
 | Edge | Path (Given) | Scenario |
 | --- | --- | --- |
-| report | something missing | `the check command exits 1 when a dependency is missing` |
-| report | all enabled | `the check command exits 0 when every dependency is enabled` |
-| report | any | `the check command changes no plugin or settings file` |
+| E16 | something missing | `the check command exits 1 when a dependency is missing` |
+| E16 | all enabled | `the check command exits 0 when every dependency is enabled` |
+| E2 | command, plugin lists nothing | `the check command says a plugin declares no dependencies and exits 0` |
+| E20 | any (barred edge) | `the check command changes no plugin or settings file` |
 
 ### UC2 — the reference
 
 | Edge | Path (Given) | Scenario |
 | --- | --- | --- |
-| load | any | `the plugin-dependencies reference loads by name` |
-| load | stale file | `a committed reference that differs from its generator fails the tests` |
+| E18 | file equals generator | `the plugin-dependencies reference loads by name` |
+| E19 | file differs from generator | `a committed reference that differs from its generator fails the tests` |
 
 ## References
 
