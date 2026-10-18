@@ -22,6 +22,12 @@ manifests, the rename, and the docs for that to work?
 4. Read #101 for the rename order, `repobuddy`'s marketplace and manifest, and search the owner's repositories
    for dependents of the plugin name.
 
+## Revision, 2026-10-18
+
+The Council keyed overrides on the reference, not the plugin (R1 to R3 in the conclusion). The `overrides`
+findings below describe what 0.7.1 does today; the design no longer relies on them. The revision re-checked
+what the resolver has for a neutral name, an alias, a default marker, and a pin (E-OVR-8 to E-OVR-11).
+
 ## Findings
 
 ### Overrides (Q1)

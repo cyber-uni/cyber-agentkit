@@ -9,27 +9,35 @@ plugin docs fetched 2026-10-18, Cursor, Agent Plugins 1.0, and Copilot CLI manif
 
 ## Q1. Is `extends: []` in v1?
 
-**No.** The first version needs no setting, because the `reference` command already lets a plugin
-contribute an override and lets the user choose among them (E-OVR-1 to E-OVR-6).
+**No, and the `overrides: [<plugin>]` mechanism is dropped from the design.** The Council keyed overrides on
+the reference, not the plugin:
 
-- **Tier precedence** is managed, then project, then user, then plugin (E-OVR-1). A project or user copy
-  always beats a plugin's.
-- **Merge** defaults to `first-wins` when `merge` is absent (E-OVR-2). The highest copy then answers alone and
-  every copy below it is `shadowed`. With `merge: merge-sections` the copy replaces only the sections it
-  redefines and keeps the rest of the copy below.
-- **A plugin override beats repobuddy's reference** only when its copy declares `overrides: [repobuddy]`
-  (E-OVR-3). Without it, two plugins holding one name are alternatives and the unqualified name fails as
-  ambiguous (E-OVR-4). This is the one trap for the design.
-- **Two overriders that do not order are ambiguous** (E-OVR-4). `unional-skills` and the `uni-agent-kit`
-  website references both override `repobuddy`. Enabled together, `show website.init` fails until one names the
-  other: the more specific plugin lists both, `overrides: [repobuddy, uni-agent-kit]` (E-OVR-5). A name in
-  `overrides` that is not installed does no harm (E-OVR-5).
-- **Choice already exists** without `extends`: enable or disable the plugin; write a project or user
-  override, which sits above every plugin; or ask for `<plugin>/<name>`, which reads that plugin plus the
-  copies that override it (E-OVR-6).
+- **R1. Neutral names.** `website.init`, `website.update`, and `website.deploy` belong to an interface, not
+  to a plugin. Existing prefixed names such as `repobuddy.work-template.task` keep working through an alias
+  until callers move.
+- **R2. A default marker.** A shipped copy can mark itself default. A non-default plugin copy of the same
+  name beats the default on its own, with no `overrides` line and no plugin name. `repobuddy` ships the
+  default; `unional-skills` and `uni-agent-kit` just ship `website.init`.
+- **R3. Pins settle ambiguity.** Two non-default providers of one name stay ambiguous until a user or project
+  pin settles it, for example `website.init: unional-skills` in `.agents/`. The pin is where a later
+  `extends`/`include`/`exclude` belongs; none of that is in v1.
 
-Reconsider `extends` when a user needs to exclude one enabled plugin's override for one project without
-disabling the plugin, or when two overriders cannot name each other. Neither occurs in this epic.
+The tier order is unchanged: managed, then project, then user, then plugin (E-OVR-1). A project or user copy
+still beats every plugin's, and `merge` still defaults to `first-wins` (E-OVR-2).
+
+### What exists today and what `uni-agent-kit` must add
+
+Re-verified 2026-10-18 against the 0.7.1 source and command (E-OVR-8 to E-OVR-11).
+
+| Piece | Today | Work |
+| --- | --- | --- |
+| Neutral name owned by an interface | **Partly exists.** An interface document `<id>.interface` fixes the contract and its owner's copy answers; implementations are named `<id>` or `<id>.<key>`. The document still sits in a plugin's layer, not in no plugin | Decide where `website.*` interface documents live; spec first |
+| Alias from an old name to a neutral one | **Missing.** The only aliases in the resolver are a plugin's several names (`pkg` and manifest `name`) for a qualified `<plugin>/<name>`, not reference names | Add a name alias, with a warning that names the new name |
+| Default marker | **Missing.** No frontmatter key marks a copy default | Add the marker and the rule that a non-default plugin copy beats the default |
+| Pin | **Partly exists.** `implementations` prints a `pin` string `<plugin>/<name>` that a consumer may hand back, and a qualified name reads that plugin. Nothing is stored, and no file in `.agents/` is read | Add a pin file in `.agents/` and, for a user, `~/.agents/`; shape is for the spec |
+| `overrides: [<plugin>]` | **Exists** (E-OVR-3 to E-OVR-5) and the design stops using it | Decide in the spec whether to remove it in a major, since removing it breaks any reference that sets it; none was found in the owner's local repositories (E-OVR-12) |
+
+None of the missing pieces is implemented here. Library work needs a spec first.
 
 ## Q2. Migration order
 
@@ -41,8 +49,10 @@ design only places `repobuddy`'s dependency in it and closes two gaps (E-MIG-1 t
    dependency here.
 3. Only then does `repobuddy` add `uni-agent-kit` to `dependencies` in its manifest, and its marketplace
    lists `uni-agent-kit` too (Q3), so the dependency resolves.
-4. The website references, the `unional-skills` override, and the removal of `add-website` follow, since they
-   load references through the plugin `repobuddy` now requires.
+4. The default marker, the name alias, and the pin file ship in a `uni-agent-kit` release after the spec.
+5. The website references, the `unional-skills` copy, and the removal of `add-website` follow, since they
+   load references through the plugin `repobuddy` now requires. A prefixed name keeps working through its
+   alias until each caller has moved.
 
 Gaps in #101: (a) R3 renames the marketplace entry `cyber-agent-harness` to `uni-agent-kit`, which breaks
 every dependent still declaring `cyber-agent-harness` until it moves. Keep the old entry until the last
@@ -76,9 +86,10 @@ static note in its README and its website "Requires" section, which a user reads
 
 ## What this settles for the children
 
-- `repobuddy`: marketplace lists `uni-agent-kit`; manifest `dependencies`; website references `website.init`,
-  `website.deploy`, `website.update` in its `references/`; README note for non-Claude harnesses.
-- `unional-skills`: a `website.*` override per reference with `overrides: [repobuddy, uni-agent-kit]` and
-  `merge: merge-sections`; remove `add-website`.
-- `uni-agent-kit`: dependency domain, `plugin-dependencies` reference, website references, and the order
-  between the three.
+- `repobuddy`: marketplace lists `uni-agent-kit`; manifest `dependencies`; ships the default
+  `website.init`, `website.deploy`, `website.update` in its `references/`, each marked default; README note for
+  non-Claude harnesses.
+- `unional-skills`: ships `website.init` (and the others that differ) with no `overrides` line; remove
+  `add-website`.
+- `uni-agent-kit`: spec, then the default marker, name alias, and pin file; the dependency domain; the
+  `plugin-dependencies` reference; the website references.
