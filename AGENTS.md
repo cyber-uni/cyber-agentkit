@@ -62,3 +62,11 @@ Each topic under `.research/<topic-slug>/` holds four files:
 
 A claim about a vendor decays, so check `evidence.md` for the source URL and re-verify against
 vendor documentation before you rely on one.
+
+<!-- buddy-agent-harness:begin -->
+
+Skills are canonical in `.agents/skills/` — create and edit them there.
+`.claude/skills/` is a generated bridge to it; never write to it directly.
+This file is the one home for shared instructions; every harness reads it.
+
+<!-- buddy-agent-harness:end -->
