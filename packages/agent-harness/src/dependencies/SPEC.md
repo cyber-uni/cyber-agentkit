@@ -120,7 +120,10 @@ The package page's "Requires" section links it.
 D3 reads `extensions["org.cyberuni.universal-plugin"]`, the only key in use (E-DEP-6). The direction is a standard that
 grows with the reference feature, which suggests one normalized key such as `org.spikyuni.uni-agent-kit` for
 dependencies and for the alias, default marker, and pin of #110's overrides bullet. It is not decided, so nothing reads
-it. When it is, `readPluginDependencies` tries the new key first and falls back to the old one, and
+it. Agent Plugins 1.0.0 §8 says client data MUST sit under a reverse-domain namespace in `extensions`, that a client
+SHOULD base it on a domain it controls and keep it stable, and that the key also names the client's top-level
+directory (§8.2). A bare `plugin-manager` or `open-plugin-spec` is therefore not conforming; `org.spikyuni.<name>` is.
+The spec reserves no names. When it is, `readPluginDependencies` tries the new key first and falls back to the old one, and
 `universal-plugin`'s ADR 0013 needs a successor. Tracked in #110.
 
 ## Out of scope
