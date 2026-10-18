@@ -25,6 +25,7 @@
 	"devDependencies": {
 		"@astrojs/check": "^0.9.9",
 		"@astrojs/starlight-tailwind": "^5.0.0",
+		"@cyberuni/agent-harness": "workspace:*",
 		"@tailwindcss/vite": "^4.3.3",
 		"tailwindcss": "^4.3.3",
 		"typescript": "^6.0.3"
