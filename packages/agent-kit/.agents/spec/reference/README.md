@@ -206,7 +206,8 @@ each name is answered with what can be found, and every fault is reported as a w
 - **Inputs:** a bare name; the tier written to (`project` by default, or `user`); the operation (default `patch`); a
   template or an interface; the root.
 - **Outcome:** `create` writes `<name>.md` in that tier's folder with `merge: <operation>`, and reports the path and
-  the resulting trace, in which the new file applies over everything below it (K17).
+  the resulting trace, in which the new file applies over everything below it (K17), with a hint that `show <name>`
+  gives the composed document. The skill shows the user where each section came from and offers the full document.
 - **Extensions:**
   - UC5.1 The file exists with a body: error, and nothing is written. `create` never overwrites; Update edits it.
   - UC5.2 The file holds only a selection: `create` adds the body and `merge`, and keeps its `extends`.
