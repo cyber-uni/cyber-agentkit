@@ -222,19 +222,26 @@ each name is answered with what can be found, and every fault is reported as a w
     warning.
   - UC5.9 `--dry-run`: the path and the content are printed, and nothing is written.
 
-### UC6 — Check and list interface implementations (A6)
+### UC6 — Check and list interface implementations (A6.3)
 
-- **Entry points:** `reference check [name...]`; `reference implementations <id> [--accept 1,2]`.
-- **Outcome:** `check` validates each resolved document (after overrides merge) against the interface it declares, or an
-  interface document against its own shape, and exits 1 on any failure. `implementations` lists the compatible ones
-  with pin, tier, version, description, and unsupported sections, and the ones left out with each reason.
+- **Trigger:** a plugin author wants to know a contribution meets the interface it declares, or a consumer wants the
+  implementations it can pin.
+- **Entry points:** Skill: the `reference` skill's Inspect mode (check) and Find mode (implementations). Code:
+  `reference check [name...]`; `reference implementations <id> [--accept <versions>]`; `checkReferences`,
+  `referenceImplementations`.
+- **Inputs:** names, or none; an interface id and the versions it accepts; the root; the detected harness.
+- **Outcome:** `check` validates each document, composed as UC1 composes it, against the interface it declares, or an
+  interface document against its own shape; any failure fails the result. `implementations` lists the ones that pass,
+  with pin, tier, version, description, and unsupported sections, and the ones left out, each with its reason.
 - **Extensions:**
-  - A named reference is missing or ambiguous: reported as that status with a failure, exit 1.
-  - A reference declares no `implements` and is not an interface: failure.
-  - `implements` is malformed, names an interface that is missing, ambiguous, or malformed: failure.
-  - No names: every interface document and every implementation is checked; a name two plugins hold is checked once
-    per plugin.
-  - `implementations` of an unknown interface: error, exit 1.
+  - UC6.1 A named reference is `missing`, `ambiguous`, or `invalid`: reported with that status, as a failure.
+  - UC6.2 A reference declares no `implements` and is not an interface: failure.
+  - UC6.3 `implements` is malformed, or names an interface that is missing, ambiguous, or malformed: failure.
+  - UC6.4 No names: every interface document and every implementation is checked. A name several plugins hold is
+    also checked as each `<plugin>/<name>`, so each author sees their own result. Each skill's default is checked as
+    its skill loads it, subject to UC3.5.
+  - UC6.5 `implementations` of an unknown interface: error.
+  - UC6.6 A skill's default is never listed by `implementations`: it has no qualified name to pin.
 
 ### UC7 — Publish an override a repository can use (A4, A6)
 
