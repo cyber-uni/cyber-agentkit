@@ -177,14 +177,17 @@ each name is answered with what can be found, and every fault is reported as a w
   runs without.
 - **Extensions:**
   - UC4.1 `missing`: the consumer carries on without it, and the user is told the name was not loaded. No substitute
-    is searched for.
-  - UC4.2 `ambiguous`: with a user present, the options are listed (each plugin's qualified name, and the default
-    contribution if there is one), the user picks one even when only one is left, the selection is saved (UC9), and
-    the name loads from it. With no user, the consumer carries on without it, and the user is told to settle it.
+    is searched for, and the skill does not read its own default instead: the command already included it. When a
+    `remove` turned the name off, nothing is said; the trace explains it.
+  - UC4.2 `ambiguous`: with a user present, the options are listed (each `<plugin>/<name>`, and the skill's default
+    if it has one), the user picks one even when only one is left, the pick is written as a selection contribution
+    (UC9), and the name loads from it. With no user, the consumer carries on without it, and the user is told to
+    settle it.
   - UC4.3 `invalid`: the consumer carries on without it, and the user is told the skill's load line names something
     that is not a reference name, a fault to report to the skill's author.
-  - UC4.4 The command does not run: each name is read from the default contribution, and the user is told no
-    customization applied and why the command did not run. A name with no default contribution is not loaded.
+  - UC4.4 The command does not run: each name is read from the skill's own `references/<name>.default.md`, and the
+    user is told no customization applied and why the command did not run. A name with no default contribution is not
+    loaded.
   - UC4.5 Every name is `found`: nothing is said.
 
 ### UC5 — Write and remove a contribution (A5)
