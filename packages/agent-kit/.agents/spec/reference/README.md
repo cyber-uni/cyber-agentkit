@@ -22,28 +22,28 @@ for one name read the same thing.
 
 **Non-goals:**
 
-- Installing, enabling, or removing plugins. That is [dependencies](../dependencies/README.md).
-- Finding references by meaning. Results are returned in a deterministic order.
-- Reading anything but Markdown by name, or any path. A name is never a path.
+- N1 Installing, enabling, or removing plugins. That is [dependencies](../dependencies/README.md).
+- N2 Finding references by meaning. Results are returned in a deterministic order.
+- N3 Reading anything but Markdown by name, or any path. A name is never a path.
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
 
-- **tier**: where a contribution lives: `managed`, `project`, `user`, `plugin`, `default`. Precedence is R3.
-- **layer**: one folder read for contributions. A tier reads one or more: the plugin tier one per plugin, the project
+- K1 **tier**: where a contribution lives: `managed`, `project`, `user`, `plugin`, `default`. Precedence is R3.
+- K2 **layer**: one folder read for contributions. A tier reads one or more: the plugin tier one per plugin, the project
   tier one per folder from `--root` up to the repository root, the managed tier one machine-wide folder and one per
   detected harness.
-- **contribution**: a reference file for a name, in one layer. A name may have several.
-- **default contribution**: the consumer's own contribution, `references/<name>.md` in its base folder. It forms the
+- K10 **contribution**: a reference file for a name, in one layer. A name may have several.
+- K13 **default contribution**: the consumer's own contribution, `references/<name>.md` in its base folder. It forms the
   `default` tier.
-- **qualified name**: `<plugin>/<name>`. It asks for that plugin's contribution.
-- **merge mode**: how a contribution applies over the ones below it, set by frontmatter `merge`. `first-wins` (the
+- K4 **qualified name**: `<plugin>/<name>`. It asks for that plugin's contribution.
+- K5 **merge mode**: how a contribution applies over the ones below it, set by frontmatter `merge`. `first-wins` (the
   default) **overrides**: it replaces everything below. `combine`, `section-first-wins`, and `section-merge`
   **extend**: they keep what is below and add to it or change parts of it.
-- **status of a name**: `found`, `missing`, or `ambiguous`.
-- **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, or `not read` with a reason.
-- **interface**: a contract declared in a `<id>.interface` reference. An **implementation** declares
+- K6 **status of a name**: `found`, `missing`, or `ambiguous`.
+- K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, or `not read` with a reason.
+- K8 **interface**: a contract declared in a `<id>.interface` reference. An **implementation** declares
   `implements: <id>@<version>`.
-- **consumer**: a plugin or skill that loads references through this capability, by skill, command, or library.
+- K9 **consumer**: a plugin or skill that loads references through this capability, by skill, command, or library.
 
 ## Use Cases
 
