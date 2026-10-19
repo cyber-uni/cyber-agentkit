@@ -35,8 +35,8 @@ each name is answered with what can be found, and every fault is reported as a w
   tier one per folder from `--root` up to the repository root, the managed tier one machine-wide folder and one per
   detected harness.
 - K10 **contribution**: a reference file for a name, in one layer. A name may have several.
-- K13 **default contribution**: the consumer's own contribution, `references/<name>.md` in its base folder. It forms the
-  `default` tier.
+- K13 **default contribution**: a skill's own contribution of a name, `references/<name>.default.md` in the skill's
+  folder. It forms the `default` tier when that skill loads the name. A name ending `.default` is reserved for it.
 - K4 **qualified name**: `<plugin>/<name>`. It makes that plugin, with what it builds on, the stack for one call.
 - K5 **merge operation**: how a contribution applies over what is below it. `replace` puts mine in place of everything
   below. `patch` (the default) keeps what is below and puts my text in place of the text it matches by heading.
@@ -83,8 +83,8 @@ each name is answered with what can be found, and every fault is reported as a w
 - **Trigger:** a consumer's instructions name one or more references to load.
 - **Entry points:** Skill: the `reference` skill's Load mode, which runs the command. Code: `reference show <name>...`;
   `loadReference(name, options)`.
-- **Inputs:** one or more names; the root (default the current directory); a base folder for the `default` tier (not
-  built); the detected harness.
+- **Inputs:** one or more names; the root (default the current directory); the calling skill's folder, for the
+  `default` tier (not built); the detected harness.
 - **Outcome:** for each name, in the order asked, the document composed from its contributions as their `extends` and
   `merge` declare, with status `found`.
 - **Extensions:** each name resolves on its own; a fault in one never stops the others.
@@ -94,7 +94,8 @@ each name is answered with what can be found, and every fault is reported as a w
   - UC1.2 Its contributions cannot be put in one order: status `ambiguous`. The error names the contributions in
     conflict, the cause (no written `extends` orders the plugins, a cycle in the plugins' own `extends`, or an
     `extends` listing one plugin at two separate places), and the options.
-  - UC1.3 It is not a name (it ends `.md`, is a path, or has a bad character): status `invalid`, and nothing is read
+  - UC1.3 It is not a name (it ends `.md` or `.default`, is a path, or has a bad
+    character): status `invalid`, and nothing is read
     for it. (Not built: today the whole call is rejected, and the library throws.)
   - UC1.5 A contribution has malformed frontmatter, an unknown `merge`, or a bad `extends`: it still answers, with a
     warning and the documented default. A `merge: remove` contribution with a body: the body is ignored, with a
@@ -103,7 +104,7 @@ each name is answered with what can be found, and every fault is reported as a w
     ignored with a warning.
   - UC1.7 No name given: error.
   - UC1.8 The document fails its interface check: still answered, with a warning.
-  - UC1.9 (not built) The base folder does not exist: a warning, and the name resolves without the `default` tier.
+  - UC1.9 (not built) The skill folder does not exist: a warning, and the name resolves without the `default` tier.
   - UC1.10 (not built) A plugin's contribution answers over the default contribution, and no selection names it: still
     answered, with a warning naming the plugin and `reference select <name>` (UC9). The warning stops once a written
     `extends`, whether a selection (UC9) or a customization, names the plugin or the default.
@@ -121,9 +122,9 @@ each name is answered with what can be found, and every fault is reported as a w
 
 - **Trigger:** someone asks what an agent reads for a name and why, or where a customization of it would go.
 - **Entry points:** Skill: the `reference` skill's Inspect mode. Code: `reference show <name> --trace`;
-  `reference where <name> [--default <base folder>]`; `resolveReference`, `whereReference`.
-- **Inputs:** a name; the root (default the current directory); a base folder for the `default` tier; the detected
-  harness.
+  `reference where <name> [--default <skill folder>]`; `resolveReference`, `whereReference`.
+- **Inputs:** a name; the root (default the current directory); the calling skill's folder, for the `default` tier;
+  the detected harness.
 - **Outcome:** the trace gives the name's status; the stack and what built it (the contribution whose `extends` was
   used, the plugins' own `extends`, or none); for each section of the composed document, by heading path, the
   contributions that supplied its text and the operation each applied; and every layer checked, in K17 order highest
@@ -147,16 +148,26 @@ each name is answered with what can be found, and every fault is reported as a w
   - UC2.6 `where` on a plugin's contribution or a default contribution: reported read-only, never offered as a place to
     write.
 
-### UC3 — List and search (A3)
+### UC3 — List and search (A3.1)
 
-- **Entry points:** `reference list [pattern]`; `reference search <query>`.
-- **Outcome:** `list` gives one row per name per layer holding it, with tier, plugin, path, description, and the status
-  resolution gave that layer. A pattern keeps exactly the names it matches. `search` gives matches best first.
+- **Trigger:** someone wants the names that exist, to load one or customize one.
+- **Entry points:** Skill: the `reference` skill's Find mode. Code: `reference list [pattern]`;
+  `reference search <query>`; `listReferences`, `searchReferences`.
+- **Inputs:** a pattern or a query; the root (default the current directory); the detected harness.
+- **Outcome:** `list` gives one row per name per layer holding it, and one per installed skill holding a default
+  contribution of it, with tier, plugin or skill, path, description, and the outcome (K7) that contribution gets; a
+  default's is the one it gets when its skill loads the name. A selection's row is marked as one. A pattern keeps
+  exactly the names it matches. `search` resolves each name as `show` would, and each default as its skill loads it,
+  then gives matches best first.
 - **Extensions:**
-  - Nothing matches: the output states zero explicitly; exit 0.
-  - Search with an empty query: error, exit 1.
-  - A name two plugins hold and neither overrides: `list` marks it ambiguous with the qualified names; `search` returns
-    it once per plugin.
+  - UC3.1 Nothing matches: the output says zero explicitly. It is not an error.
+  - UC3.2 `search` with an empty query: error.
+  - UC3.3 A name that no written `extends` orders: `list` marks it ambiguous with the options (each `<plugin>/<name>`,
+    and each skill's default); `search` returns it once per plugin.
+  - UC3.4 A name a `remove` turned off: `list` shows the `remove` row and each row below it as
+    `shadowed by <contribution> (remove)`; `search` leaves the name out.
+  - UC3.5 The detected harness's skill folders are not verified (Q12): `list` and `search` show no defaults, with a
+    warning saying why.
 
 ### UC4 — Act on an unanswered name (A1.2, A7.1)
 
@@ -392,6 +403,10 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   `overrides: [<plugin>]` (UC7, R8) and may replace #110's default marker and pin file (UC9). The main case is a
   project contribution over a plugin's; plugin over plugin is secondary.
 - **Q11.** Is a plugin-root `references/` folder part of the Agent Plugins spec, or a convention of ours?
+- **Q12.** For each harness: where a plugin's skills sit in its folder, how an installed plugin maps to its folder
+  beyond the three in `.research/harness-detection` R7, which copy of a skill runs when several folders hold it, and
+  whether the harness gives a running skill its own folder. It blocks building the `default` tier and UC3's defaults,
+  not the spec.
 
 ## References
 
