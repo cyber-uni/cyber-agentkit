@@ -117,17 +117,35 @@ each name is answered with what can be found, and every fault is reported as a w
     heading: the first is matched, with a warning. (Not built: an explicit `replace` marker that matches nothing does
     not warn yet.)
 
-### UC2 — Explain a resolution (A2)
+### UC2 — Explain a resolution (A2.1)
 
-- **Entry points:** `reference show <name> --trace`; `reference where <name> [--caller <skill folder>]`.
-- **Outcome:** `--trace` reports every layer checked with its path, the file that matched, its merge mode, and its
-  outcome. `where` reports the slots in precedence order, which is `used`, and the project and user files an override
-  could be written to, each with its scope.
+- **Trigger:** someone asks what an agent reads for a name and why, or where a customization of it would go.
+- **Entry points:** Skill: the `reference` skill's Inspect mode. Code: `reference show <name> --trace`;
+  `reference where <name> [--default <base folder>]`; `resolveReference`, `whereReference`.
+- **Inputs:** a name; the root (default the current directory); a base folder for the `default` tier; the detected
+  harness.
+- **Outcome:** the trace gives the name's status; the stack and what built it (the contribution whose `extends` was
+  used, the plugins' own `extends`, or none); for each section of the composed document, by heading path, the
+  contributions that supplied its text and the operation each applied; and every layer checked, in K17 order highest
+  first, with its path, the file that matched, the operation it applied and whether that came from the contribution or
+  from a step, and its outcome (K7). The composed document itself is unchanged. `where` gives the same layers with
+  their outcomes; the project and user `<name>.md` files a customization or a selection is written to, each with its
+  scope and the default operation, `patch`; and the heading paths of the document below each, which a section
+  operation can target.
 - **Extensions:**
-  - A layer is skipped (policy held in MDM, a plugin with no install folder): it appears with the reason.
-  - `where` on an ambiguous name: error naming the qualified names, exit 1.
-  - `where` on a plugin's contribution or the consumer's default contribution: reported read-only, never offered as a
-    place to write.
+  - UC2.1 A layer or step cannot be read (policy held in MDM, a plugin with no install folder, a step not installed, a
+    `default` step with nothing there): it appears with the reason, such as `not read (not installed)` or
+    `not read (no default)`.
+  - UC2.2 A `replace` or `remove` above drops a contribution: `shadowed by <contribution> (replace|remove)`. A section a
+    `remove` dropped appears with the contribution that dropped it.
+  - UC2.3 A plugin left out of the stack: `not used (not in extends)`. A plugin a step's own `extends` left out:
+    `not used (<step>'s extends replaced by <contribution>)`.
+  - UC2.4 An `extends` that did not build the stack: `not used (<contribution>'s extends builds the stack)`, or
+    `not used (qualified name)`. The contribution's body still applies.
+  - UC2.5 `where` on an ambiguous name: it lists each `<plugin>/<name>` and the default as options, and the project and
+    user files a selection goes to. It is not an error.
+  - UC2.6 `where` on a plugin's contribution or a default contribution: reported read-only, never offered as a place to
+    write.
 
 ### UC3 — List and search (A3)
 
