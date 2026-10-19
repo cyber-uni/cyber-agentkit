@@ -18,8 +18,9 @@ exactly that. The skill depends on the name, not on a file. Whoever places a con
 says: a plugin ships one, and a repository, a user, or a machine-wide policy can each place their own. Each contribution
 declares whether it replaces the contributions below it or extends them, and one rule, the same for every skill, puts
 the contributions in order. A team can then customize a plugin's instructions without forking it, and two skills asking
-for one name read the same thing. Contributions come from authors who never coordinate, so a fault in one never stops
-the rest: each name is answered with what can be found, and every fault is reported as a warning.
+for one name read the same thing, unless each answers from its own default. Contributions come from authors who never
+coordinate, so a fault in one never stops the rest: each name is answered with what can be found, and every fault is
+reported as a warning.
 
 **Non-goals:**
 
@@ -76,7 +77,7 @@ the rest: each name is answered with what can be found, and every fault is repor
   - UC1.1 No contribution answers: status `missing`, with the reason: no tier holds the name (`default` included), or
     the plugin a qualified name asks for is not installed.
   - UC1.2 Its contributions cannot be put in one order: status `ambiguous`. The error names the contributions in
-    conflict, the cause (no order between them, or a cycle), and the qualified name to ask for each.
+    conflict, the cause (no order between them, a cycle, or a selection that no longer exists), and the options.
   - UC1.3 It is not a name (it ends `.md`, is a path, or has a bad character): status `invalid`, and nothing is read
     for it. (Not built: today the whole call is rejected, and the library throws.)
   - UC1.5 A contribution has malformed frontmatter, an unknown `merge`, or a bad `overrides`: it still answers, with a
@@ -110,24 +111,23 @@ the rest: each name is answered with what can be found, and every fault is repor
   - A name two plugins hold and neither overrides: `list` marks it ambiguous with the qualified names; `search` returns
     it once per plugin.
 
-### UC4 — Fall back when the resolver cannot answer (A1)
+### UC4 — Act on an unanswered name (A1.2, A7.1)
 
-- **Entry points:** the `reference` skill's Load mode; a skill that names references and ships its own contributions.
-  This use case is behavior of the skill's instructions, not of the command.
-- **Outcome:** the consumer gets the resolver's document when the command ran and the name is `found`; otherwise its
-  default contribution, read from `<base folder>/references/<name>.md`; and the user is told which names came from a
-  fallback and why.
+- **Trigger:** a name comes back with a status other than `found`, or the command does not run.
+- **Entry points:** Skill: the `reference` skill's Load mode. This use case is behavior of the skill's instructions.
+- **Outcome:** the consumer takes the step the reason calls for and carries on; the agent user is told what the agent
+  runs without.
 - **Extensions:**
-  - The name is missing and the consumer has no default contribution: the name is not loaded, reported, and the consumer
-    carries on without it. No substitute is searched for.
-  - The name is ambiguous: neither plugin's document nor the default contribution is loaded; both qualified names are
-    reported, and the user is told to settle which one the repository uses.
-  - The call was rejected (a name that is a file or a path): that name is never read from disk; the call is repeated
-    without it.
-  - The command did not run (no node, module missing): every name is read from the default contribution, the user is
-    told no project, user, or machine override applied, and, when a name has no contribution, that the script ships with
-    the npm package and a git-installed plugin has none.
-  - Every name came from the command: nothing is said about the load.
+  - UC4.1 `missing`: the consumer carries on without it, and the user is told the name was not loaded. No substitute
+    is searched for.
+  - UC4.2 `ambiguous`: with a user present, the options are listed (each plugin's qualified name, and the default
+    contribution if there is one), the user picks one even when only one is left, the selection is saved (UC9), and
+    the name loads from it. With no user, the consumer carries on without it, and the user is told to settle it.
+  - UC4.3 `invalid`: the consumer carries on without it, and the user is told the skill's load line names something
+    that is not a reference name, a fault to report to the skill's author.
+  - UC4.4 The command does not run: each name is read from the default contribution, and the user is told no
+    customization applied and why the command did not run. A name with no default contribution is not loaded.
+  - UC4.5 Every name is `found`: nothing is said.
 
 ### UC5 — Write and remove a contribution (A5)
 
@@ -177,12 +177,20 @@ the rest: each name is answered with what can be found, and every fault is repor
   `match` from `search`.
 - **Extensions:** none, a field either exists or the consumer is broken; [Q4](#open-questions) records the decision.
 
-### UC9 — Settle an ambiguity without editing a plugin (A4) — not built, issue #110
+### UC9 — Select which contribution answers (A5.1) — not built, issue #110
 
-- **Entry points:** a name alias, a default marker on a plugin contribution, a pin file in `.agents/` and `~/.agents/`.
-- **Outcome:** a non-default plugin contribution beats the default with no `overrides` line; two non-default
-  contributions are ambiguous until a pin settles them; the ambiguity error names the pin.
-- **Extensions:** deferred to the #110 spec. Nothing in the criteria below may forbid it.
+- **Trigger:** a name is ambiguous, or a customizer wants a different plugin's contribution, or the default, to
+  answer.
+- **Entry points:** Skill: Load mode asks (UC4.2). Code: `reference select`; the settings files
+  `.agents/uni-agent-kit/references/config.json` (project) and `~/.agents/uni-agent-kit/references/config.json` (user),
+  which also hold other settings.
+- **Outcome:** the name resolves through the selected contribution. Project, user, and managed contributions still
+  apply over it: a selection orders only the plugin and default tiers. The user can view every selection with its
+  scope, and view a name's options when given a base folder.
+- **Extensions:**
+  - UC9.1 The selected contribution no longer exists: status `ambiguous`, and the user picks again (UC4.2).
+  - UC9.2 A settings file is malformed: a warning, and resolution goes on as if it held no selections.
+  - UC9.3 The project and user files select differently: the project's selection answers.
 
 **Surface trace.** `show`, `--trace` (UC1, UC2); `--root` (all); `where`, `--caller` (UC2); `list`, pattern (UC3);
 `search` (UC3); `create` with `--template`, `--implements`, `--scope`, `--dry-run` (UC5); `delete` with `--scope`,
