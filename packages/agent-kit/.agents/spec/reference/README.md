@@ -361,11 +361,13 @@ each name is answered with what can be found, and every fault is reported as a w
   - UC12.5 A skill ships its copy as `references/<name>.md` (the old layout): it is not read as a default. A name no
     other contribution holds is then `missing`, and UC4.1 tells the user.
 
-**Surface trace.** `show`, `--trace` (UC1, UC2); `--root` (all); `where`, `--caller` (UC2); `list`, pattern (UC3);
-`search` (UC3); `create` with `--template`, `--implements`, `--scope`, `--dry-run` (UC5); `delete` with `--scope`,
-`--dry-run` (UC5); `check` (UC6); `implementations`, `--accept` (UC6); `--format` (UC8). Frontmatter keys `merge`,
-`overrides`, `implements`, `interface`, `description`, `tags` serve UC1, UC6, UC7. Informational, no contract: the
-trace's keys beyond those in R9.
+**Surface trace.** `show`, `--trace`, `--default` (UC1, UC2, UC10, UC12); `--root` (all); `where`, `--default`
+(UC2); `list`, pattern (UC3); `search` (UC3); `create` with `--merge`, `--template`, `--implements`, `--scope`,
+`--dry-run` (UC5); `select` with `--scope`, `--clear` (UC9); `delete` with `--scope`, `--dry-run` (UC11); `check`
+(UC6); `implementations`, `--accept` (UC6); `--format` (UC8). Frontmatter keys `merge`, `extends`, `implements`,
+`interface`, `description`, `tags` serve UC1, UC5, UC6, UC7, UC9; the section marker `<!-- merge: ... -->` serves
+UC1 and UC7. File names `<name>.md` and `<name>.default.md` serve UC5, UC9, UC11 and UC3, UC12. Informational, no
+contract: the trace's keys beyond those the Adapters group names.
 
 ## Criteria
 
