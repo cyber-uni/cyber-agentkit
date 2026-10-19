@@ -327,12 +327,16 @@ each name is answered with what can be found, and every fault is reported as a w
 - **Entry points:** Skill: the `reference` skill's Delete mode. Code: `reference delete <name> [--scope user]
   [--dry-run]`.
 - **Inputs:** a bare name; the tier deleted from (`project` by default, or `user`); the root.
-- **Outcome:** `delete` removes only that contribution, and reports which contribution answers the name afterwards.
+- **Outcome:** `delete` removes only that file, and reports what answers the name afterwards: its status, and the stack
+  with what built it. The status can be `ambiguous`, with the options, when the file held the selection that ordered
+  the plugins.
 - **Extensions:**
   - UC11.1 No contribution in that tier: error stating what answers the name now. A plugin's or managed contribution
     is never deleted.
   - UC11.2 A qualified name: error naming the bare name to use.
   - UC11.3 `--dry-run`: the path and the answer afterwards are printed, and nothing is deleted.
+  - UC11.4 The file also holds a selection (`extends`): both go, and the report says the selection went too, naming
+    `reference select` to restore it.
 
 **Surface trace.** `show`, `--trace` (UC1, UC2); `--root` (all); `where`, `--caller` (UC2); `list`, pattern (UC3);
 `search` (UC3); `create` with `--template`, `--implements`, `--scope`, `--dry-run` (UC5); `delete` with `--scope`,
