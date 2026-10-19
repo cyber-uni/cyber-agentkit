@@ -457,20 +457,20 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 
 **Layers**
 
-- R12 (UC1, E14): The project tier reads `.agents/references/` in `--root` and each folder above it up to the repository
-  root (a `.git`, `pnpm-workspace.yaml`, or a `package.json` with `workspaces`); with no repository root above, `--root`
-  alone. The user tier reads `~/.agents/references/`. The managed tier reads the machine-wide folder for the platform,
-  then each detected harness's managed folder.
+- R12 (UC1, E14): The project tier reads `.agents/references/` in the root and each folder above it up to the
+  repository root (a `.git`, `pnpm-workspace.yaml`, or a `package.json` with `workspaces`); with no repository root
+  above, the root alone. The user tier reads `~/.agents/references/`. The managed tier reads `references/` in each
+  detected harness's managed folder; the library keeps no managed folder of its own.
 - R13 (UC1, E15): The plugin tier holds, for the detected harness, each enabled plugin's `references/`, and the declared
   `dependencies` and `devDependencies` of the nearest `package.json` that ship one; never a transitive package. The
-  plugin running the command contributes its own `references/` first and is not read twice.
-- R14 (UC1, E16): A higher contribution of a `<id>.interface` name is ignored with a warning; the lowest contribution
-  answers; two plugins holding it make it `ambiguous`.
+  plugin running the command is read once.
+- R14 (UC1, E16): An interface document is never composed: `extends` and `merge` on it are ignored with a warning, a
+  higher contribution of it is ignored with a warning, and the lowest answers; two plugins holding it make it
+  `ambiguous`.
 - R15 (UC2, E17): A layer skipped for a reason appears in the trace with that reason and adds no contribution.
-- R20 (UC1, UC2, E22) (not built): No `governances/` folder is read, in any tier or in a base folder. A document in
-  one answers only after it moves to the `references/` folder beside it.
-- R41 (UC1, UC2, UC4, E43) (not built): `show <name>... --default <base folder>` reads
-  `<base folder>/references/<name>.md` as the `default` tier. `where` takes `--default` in place of `--caller`.
+- R20 (UC1, UC2, E22): No `governances/` folder is read, in any tier or skill folder.
+- R41 (UC1, UC2, UC4, E43): `--default <skill folder>` reads `<skill folder>/references/<name>.default.md` as the
+  `default` tier; the old `references/<name>.md` copy is not read as a default. `where` takes `--default`.
 
 **Finding**
 
