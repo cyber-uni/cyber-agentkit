@@ -243,6 +243,10 @@ each name is answered with what can be found, and every fault is reported as a w
     its skill loads it, subject to UC3.5.
   - UC6.5 `implementations` of an unknown interface: error.
   - UC6.6 A skill's default is never listed by `implementations`: it has no qualified name to pin.
+  - UC6.7 An interface extends another (`extends: <id>@<version>` in its `interface` block): its sections are the
+    base's, in the base's order, then its own; it may add sections and make an optional base section required, never
+    rename or remove one. An implementation of it is checked against all of them and also counts as an implementation
+    of the base.
 
 ### UC7 — Build on other contributions (A5.1, A6.2)
 
