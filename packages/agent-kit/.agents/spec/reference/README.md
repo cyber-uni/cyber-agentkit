@@ -26,8 +26,8 @@ the same thing.
 - Finding documents by meaning. `search` is lexical and ranked by match kind; it promises an order, not relevance.
 - Reading anything but Markdown by name, or any path. A name is never a path.
 - Writing into a plugin's or a managed copy, ever. An override is written above it.
-- Standing-rules governance such as who may write which tier (cyberfleet ADR 0024 section 10 plans it). This capability
-  places no access rule on `create` beyond the two folders it writes.
+- Deciding who may write a copy. Anyone who can write the project or user folder can place a copy there; a rule on who
+  may is enforced elsewhere.
 - Reference-keyed overrides (alias, default marker, pin file, `extends`): not built, issue #110. Recorded here as use
   case UC9 so the built parts do not contradict it.
 
@@ -318,8 +318,6 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   governance as a version-pinned rule set; universal-plugin ADR 0002 named a tier `local` and `package`. Which words
   does the glossary fix, and do the stale `governance show` lines in cyberfleet and cyberlegion `AGENTS.md` get a
   separate fix?
-- **Q8.** cyberfleet ADR 0024 section 10 plans standing rules as references written by the Council only. Does that
-  need a write-protection concept here, or stay in cyberfleet?
 
 ## References
 
