@@ -423,17 +423,37 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   nothing below warns, and its text goes at the end (nothing, for `remove`); an unmarked section that matches nothing
   does not warn. A document repeating a heading warns, and the first is matched.
 
-**Plugins**
+**Stack**
 
-- R8 (UC1, UC7, E8–E10): When two plugins hold a name and one's contribution lists the other in `overrides`, the
-  overrider sits above; when every holder is ordered this way the name is `found`. Any holder left unordered makes the
-  name `ambiguous`, with `<plugin>/<name>` for each choice, exit 1.
+- R8 (UC1, UC7, E8–E10): The highest written `extends` builds the stack: its steps apply bottom first, each bringing
+  its own `extends` beneath it, recursively; a plugin both listed and brought in appears once, at its listed place.
+  With no written `extends` in the managed, project, or user tiers, the plugins' own `extends` order them. A plugin
+  left unordered makes the name `ambiguous`, with each `<plugin>/<name>` and the default as options.
+- R52 (UC7, E8): A step applies with its own `merge` key, else the plugin's own `merge`, else `patch`. A step's own
+  `extends` key replaces the plugin's. `<plugin>: <operation>` is short for `{merge: <operation>}`.
+- R53 (UC1, UC7, E9): A plugin or `default` left out of the highest written `extends` is `not used (not in extends)`
+  and does not make the name `ambiguous`. A lower contribution's `extends` that builds a different stack is
+  `not used`, with a warning.
+- R54 (UC1, UC7, E10): A cycle only plugins wrote makes the name `ambiguous`, cause `cycle`. Under a written list,
+  bringing in stops at a plugin already in the stack, silently. An adjacent repeat collapses. A plugin listed at two
+  separate places makes the name `ambiguous`. Two steps bringing one plugin put it once, beneath the first. A plugin
+  listing itself has that entry ignored, with a warning.
+- R55 (UC1, UC9, E47): A step not installed, or not holding the name, is skipped with what only it brings in, with a
+  warning. When every step is missing, the `extends` counts as not written, with a warning, and the stack falls
+  through. A `default` step with nothing there is skipped with no warning; the trace shows `not read (no default)`.
+- R56 (UC1, UC4, E42): A plugin's contribution answering over the loading skill's default, when no written `extends`
+  names the plugin or the default, still answers, with a warning naming the plugin and `reference select <name>`.
 
 **Reporting**
 
-- R9 (UC2, E11): `--trace` lists, for every layer checked, `tier`, `plugin`, `path`, `found`, `candidate`, `merge`, and
-  `outcome`; a layer below a `first-wins` contribution reads `shadowed by <tier> (first-wins)`, and an overriding plugin
-  contribution reads `used (overrides <plugin>)`.
+- R9 (UC2, E11): The trace reports, for every layer checked, tier, plugin or skill, path, the file matched, its
+  frontmatter as written, the operation applied and where it came from, and the outcome: `used`;
+  `shadowed by <contribution> (replace|remove)`; `not used (not in extends)`,
+  `not used (<step>'s extends replaced by <contribution>)`, `not used (<contribution>'s extends builds the stack)`, or
+  `not used (qualified name)`; `not read (<reason>)`; `ambiguous`; `missing`. It names the detected harnesses.
+- R57 (UC2, E11): `where` gives the layers with their outcomes, the project and user `<name>.md` with who each reaches
+  and the default operation, `patch`, and the heading paths below each. On an ambiguous name it lists the options and
+  the files a selection goes to.
 
 **Layers**
 
@@ -507,8 +527,6 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   a breaking change.
 - R39 (UC8, E41) (not built): Every failure that makes a name unresolved carries a stable `code`
   (`reference-missing`, `reference-ambiguous`, `name-rejected`); the human wording is not a contract.
-- R40 (UC1, E42) (not built): When a project or user contribution of a bare name is `used` over one or more plugin
-  contributions of it, `show` warns, naming the plugins it sits above and that a `<plugin>.`-prefixed name avoids it.
 
 **Read-only reads**
 
