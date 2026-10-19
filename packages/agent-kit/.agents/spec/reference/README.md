@@ -34,8 +34,8 @@ each name is answered with what can be found, and every fault is reported as a w
   write goes to `project`, which reaches everyone working in the repository, or `user`, which reaches only you, in every
   repository.
 - K2 **layer**: one folder read for contributions. A tier reads one or more: the plugin tier one per plugin, the project
-  tier one per folder from the root (K18) up to the repository root, the managed tier one machine-wide folder and one
-  per detected harness.
+  tier one per folder from the root (K18) up to the repository root, the managed tier one per detected harness, beside
+  that harness's own managed settings.
 - K10 **contribution**: a reference file for a name, in one layer. A name may have several.
 - K13 **default contribution**: a skill's own contribution of a name, `references/<name>.default.md` in the skill's
   folder. It forms the `default` tier when that skill loads the name. A name ending `.default` is reserved for it.
@@ -58,9 +58,9 @@ each name is answered with what can be found, and every fault is reported as a w
 - K16 **selection**: a contribution with `extends` and no body. It picks the stack and changes nothing else.
 - K17 **above and below**: the order contributions apply in, bottom first: the stack (its plugins and `default` in
   `extends` order, the first listed lowest; with no written `extends`, `default` lowest), then `user`, then `project`
-  from the repository root down to `--root`, then `managed` (each detected harness's folder, then the machine-wide
-  folder). Each contribution applies over the result of everything below it, so a higher one wins where they
-  conflict. Lower and higher mean below and above.
+  from the repository root down to the root (K18), then `managed` (each detected harness's managed folder). Each
+  contribution applies over the result of everything below it, so a higher one wins where they conflict. Lower and
+  higher mean below and above.
 - K18 **root**: the folder the project tier starts from (default the current directory). The project tier reads it and
   each folder above it up to the repository root, and a project write goes to its `.agents/references/`.
 
@@ -305,6 +305,21 @@ each name is answered with what can be found, and every fault is reported as a w
   - UC9.4 A qualified name: error naming the bare name to use.
   - UC9.5 `--clear`: `extends` is removed from the file, and a file left with nothing in it is deleted. With no
     selection in that tier: error stating what answers the name now.
+
+### UC10 — Confirm a managed contribution is in effect (A4.1)
+
+- **Trigger:** an admin has placed `<name>.md` in a harness's managed folder, by hand or through device management,
+  and wants to confirm it is in effect.
+- **Entry points:** Skill: the `reference` skill's Inspect mode. Code: `reference show <name> --trace`.
+- **Inputs:** a name; the root of a repository to check from; the detected harness.
+- **Outcome:** the trace shows the managed contribution with its outcome, above project and user contributions, and
+  what it changed in each section (UC2). Placing the file is outside this capability: it is written like any other
+  contribution, in the managed folder that harness detection finds for each harness.
+- **Extensions:**
+  - UC10.1 The harness keeps its managed policy where it cannot be read locally (such as an MDM domain): the trace
+    shows that layer not read, with the reason.
+  - UC10.2 The file sits in the managed folder of a harness that is not detected: that folder is not read, and the
+    trace names the detected harnesses, so the admin sees why.
 
 ### UC11 — Remove a customization (A5.2)
 
