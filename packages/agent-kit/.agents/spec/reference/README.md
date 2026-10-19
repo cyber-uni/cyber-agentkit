@@ -223,17 +223,19 @@ each name is answered with what can be found, and every fault is reported as a w
     warning.
   - UC5.9 `--dry-run`: the path and the content are printed, and nothing is written.
 
-### UC6 — Check and list interface implementations (A6.3)
+### UC6 — Publish and check interfaces (A6.3)
 
-- **Trigger:** a plugin author wants to know a contribution meets the interface it declares, or a consumer wants the
-  implementations it can pin.
-- **Entry points:** Skill: the `reference` skill's Inspect mode (check) and Find mode (implementations). Code:
-  `reference check [name...]`; `reference implementations <id> [--accept <versions>]`; `checkReferences`,
-  `referenceImplementations`.
-- **Inputs:** names, or none; an interface id and the versions it accepts; the root; the detected harness.
-- **Outcome:** `check` validates each document, composed as UC1 composes it, against the interface it declares, or an
-  interface document against its own shape; any failure fails the result. `implementations` lists the ones that pass,
-  with pin, tier, version, description, and unsupported sections, and the ones left out, each with its reason.
+- **Trigger:** a plugin author publishes an interface, or wants to know a contribution meets the interface it
+  declares; or a consumer wants the implementations it can pin.
+- **Entry points:** Skill: the `reference` skill's Create mode (an interface document), Inspect mode (check), and Find
+  mode (implementations). Code: `reference check [name...]`; `reference implementations <id> [--accept <versions>]`;
+  `checkReferences`, `referenceImplementations`.
+- **Inputs:** an interface document, `<id>.interface.md` in the plugin's `references/`; names, or none; an interface
+  id and the versions it accepts; the root; the detected harness.
+- **Outcome:** an interface document is valid when its `interface` block meets the format (Interfaces criteria).
+  `check` validates each document, composed as UC1 composes it, against the interface it declares, or an interface
+  document against its own shape; any failure fails the result. `implementations` lists the ones that pass, with pin,
+  tier, version, description, and unsupported sections, and the ones left out, each with its reason.
 - **Extensions:**
   - UC6.1 A named reference is `missing`, `ambiguous`, or `invalid`: reported with that status, as a failure.
   - UC6.2 A reference declares no `implements` and is not an interface: failure.
