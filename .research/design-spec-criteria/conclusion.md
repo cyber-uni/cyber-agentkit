@@ -2,7 +2,7 @@
 
 ## Last updated
 
-October 2026 (reviewed by the owner; decisions D8 to D16 added)
+October 2026 (reviewed by the owner; decisions D8 to D17 added)
 
 ## Question
 
@@ -66,6 +66,11 @@ These settle the open choices below and override the recommendations where they 
 - D16 Every list item in a spec carries an ID, and a removed item retires its ID. Reason: grilling and review
   cite items one at a time ("drop N4", "revise A1.2"); without an ID each reference quotes the text, and a reworded
   item can no longer be found by the quote.
+- D17 Outcomes are stated once, adapter-neutral, and one `Adapters` criteria group maps them to each adapter; skill
+  instructions get their own use cases. Reason: a CLI, a library, and an MCP server are adapters of one code path, so
+  stating an outcome per adapter puts one fact in three homes (C7). The reference spec cited a CLI exit code and a
+  low-level function as if they were separate behaviors. A skill's instructions add behavior no adapter has and no
+  deterministic test reaches.
 
 ## Reference material
 

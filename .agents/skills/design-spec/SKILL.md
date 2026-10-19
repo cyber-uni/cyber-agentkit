@@ -81,6 +81,12 @@ change, it is a criterion here. Otherwise it is not.
 **Notation.** The design spec names no scenario form. Use cases and criteria are the contract. A use case may carry
 Gherkin or EARS for one scenario when it clarifies; the functional spec or test plan owns the form of the rest.
 
+**Several surfaces.** When the same code is reached through several adapters (a CLI, a library, an MCP server), state
+each outcome once without naming an adapter: "the status is `missing`", not "exit 1". Map each outcome to each
+adapter's form (exit code, stream, return value, thrown error) in one criteria group, `Adapters`. Group a use case's
+entry points by surface. Behavior that a skill's instructions add on top, such as a fallback or what to tell the user,
+is its own use case, kept apart because no deterministic test reaches it.
+
 **Decision graph.** When the behavior branches, draw the decisions in `graph.md` (see
 [decision graph](references/decision-graph.md)) and cite its edge IDs from the criteria. Omit it for a spec that
 states facts or a table.

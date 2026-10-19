@@ -10,3 +10,5 @@
   review of the reference spec, not by a new source.
 - 2026-10-18. Owner decision D16 added: every list item in a spec carries an ID. Triggered by the owner's grilling of
   the reference spec.
+- 2026-10-19. Owner decision D17 added: adapter-neutral outcomes with one `Adapters` criteria group, and skill
+  instructions as their own use cases. Triggered by the owner's grilling of the reference spec's UC1.
