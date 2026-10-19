@@ -74,7 +74,7 @@ each name is answered with what can be found, and every fault is reported as a w
 | A5.1 | A5 customizer (a team for its repository, or a user for themselves) | Change what a skill reads without forking the plugin: replace, patch, combine with, or remove a plugin's contribution, and choose which plugins it builds on and in what order |
 | A5.2 | A5 | Remove a customization, and learn what answers afterwards |
 | A6.1 | A6 plugin author | Ship skills that load references by name, with defaults others can customize |
-| A6.2 | A6 | Build on another plugin's contribution, or on a skill's default, as its author wrote it |
+| A6.2 | A6 | Build on another plugin's contribution, or on the loading skill's default, as its author wrote it |
 | A6.3 | A6 | Publish an interface, and know an implementation meets it |
 | A7.1 | A7 agent user | Be told when the agent ran without instructions it asked for, or without the customizations placed for it |
 
@@ -156,7 +156,8 @@ each name is answered with what can be found, and every fault is reported as a w
 - **Inputs:** a pattern or a query; the root (default the current directory); the detected harness.
 - **Outcome:** `list` gives one row per name per layer holding it, and one per installed skill holding a default
   contribution of it, with tier, plugin or skill, path, description, and the outcome (K7) that contribution gets; a
-  default's is the one it gets when its skill loads the name. A selection's row is marked as one. A pattern keeps
+  default's is the one it gets when its skill loads the name, and its row notes that the `default` step reaches it
+  then; a default has no qualified name. A selection's row is marked as one. A pattern keeps
   exactly the names it matches. `search` resolves each name as `show` would, and each default as its skill loads it,
   then gives matches best first.
 - **Extensions:**
