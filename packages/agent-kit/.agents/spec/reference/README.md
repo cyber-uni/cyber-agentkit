@@ -133,11 +133,11 @@ each name is answered with what can be found, and every fault is reported as a w
 - **Outcome:** the trace gives the name's status; the stack and what built it (the contribution whose `extends` was
   used, the plugins' own `extends`, or none); for each section of the composed document, by heading path, the
   contributions that supplied its text and the operation each applied; and every layer checked, in K17 order highest
-  first, with its path, the file that matched, the operation it applied and whether that came from the contribution or
-  from a step, and its outcome (K7). The composed document itself is unchanged. `where` gives the same layers with
-  their outcomes; the project and user `<name>.md` files a customization or a selection is written to, each with who
-  it reaches and the default operation, `patch`; and the heading paths of the document below each, which a section
-  operation can target.
+  first, with its path, the file that matched, its frontmatter as written, the operation it applied and whether that
+  came from the contribution or from a step, and its outcome (K7). The composed document itself is unchanged. `where`
+  gives the same layers with their outcomes; the project and user `<name>.md` files a customization or a selection is
+  written to, each with who it reaches and the default operation, `patch`; and the heading paths of the document below
+  each, which a section operation can target.
 - **Extensions:**
   - UC2.1 A layer or step cannot be read (policy held in MDM, a plugin with no install folder, a step not installed, a
     `default` step with nothing there): it appears with the reason, such as `not read (not installed)` or
@@ -267,12 +267,22 @@ each name is answered with what can be found, and every fault is reported as a w
   - UC7.4 A qualified name builds that plugin's own stack; a written `extends` is not used (UC2.4).
   - UC7.5 `extends` or `merge` on an interface document: ignored with a warning. An interface is never composed.
 
-### UC8 — Consumers read a stable output (A1)
+### UC8 — Consumers read a stable output (A1.1)
 
-- **Entry points:** `--format json` on `show`, `search`, `where`, `list`, `check`, `implementations`.
-- **Outcome:** a skill parses fields and codes instead of prose. repobuddy reads `metadata.contract` from `show` and
-  `match` from `search`.
-- **Extensions:** none, a field either exists or the consumer is broken; [Q4](#open-questions) records the decision.
+- **Trigger:** a consumer's code (a skill's script, or a program using the library) needs fields from a result, not
+  prose.
+- **Entry points:** Code: `--format json` on `show`, `where`, `list`, `search`, `check`, `implementations`, `create`,
+  `select`, and `delete`; the library functions return the same records.
+- **Inputs:** a command and its arguments; the output format.
+- **Outcome:** each result carries the same fields in every adapter, so a consumer reads status, metadata, and codes
+  instead of prose (repobuddy reads `metadata.contract` from `show` and `match` from `search`). Removing or renaming a
+  field is a breaking change. Each failure and warning carries a stable code; the human wording is not a contract.
+  `metadata` is the composed frontmatter, key by key with the higher contribution winning, without `merge` and
+  `extends`: those say how one contribution applies, and the trace carries each as written (UC2).
+- **Extensions:**
+  - UC8.1 A name not `found`: its entry carries the status and code, and the other names still resolve.
+  - UC8.2 A warning in structured output goes in the entry's `warnings`, so a consumer reads every fault from one
+    place.
 
 ### UC9 — Select what a name builds on (A5.1)
 
