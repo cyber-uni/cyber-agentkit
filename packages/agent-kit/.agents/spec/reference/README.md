@@ -47,19 +47,21 @@ for one name read the same thing.
 
 ## Use Cases
 
-**Actors.** A1 a skill, or the agent running it, that needs a document by name. A2 a user or agent asking why a name
-resolved as it did. A3 a user or agent finding what exists. A4 an author or admin who places contributions in tiers and
-is affected without invoking it: their placement must win in the order promised. A5 a user or agent writing or removing
-their own contribution. A6 a plugin author who publishes an interface or an implementation and wants it checked.
+**Actors and goals.** A4 and A7 are affected by the outcome without invoking it.
 
-| Actor | Goal |
-| --- | --- |
-| A1 skill | Get the one document that answers a name, the same in every skill, and still get something sensible when it cannot |
-| A2 inspector | Learn which contribution answered, which were set aside, and why |
-| A3 finder | See every name that exists, or those matching a pattern or topic, each with its contribution and status |
-| A4 author or admin | Have a higher tier beat a lower one, and a plugin contribution be overridable only as declared |
-| A5 writer | Add or remove a project or user contribution, and learn what answers the name afterwards |
-| A6 plugin author | Know that an implementation has the sections its interface requires, and list the ones a consumer can load |
+| ID | Actor | Goal |
+| --- | --- | --- |
+| A1.1 | A1 consumer (a skill, or the agent running it) | Load exactly the instructions it names, composed as their tiers declare |
+| A1.2 | A1 | When a name can't be answered, know the reason, since each needs a different next step, and carry on |
+| A2.1 | A2 inspector (anyone) | Know what an agent reads for a name, and why |
+| A3.1 | A3 finder (anyone) | Find the names that exist, to load one or customize one |
+| A4.1 | A4 admin | Have a managed contribution reach every repository on the machine, above project and user ones |
+| A5.1 | A5 customizer (a team for its repository, or a user for themselves) | Change what a skill reads (override, combine, or extend a plugin's contribution) without forking the plugin |
+| A5.2 | A5 | Remove a customization, and learn what answers afterwards |
+| A6.1 | A6 plugin author | Ship skills that load references by name, with defaults others can customize |
+| A6.2 | A6 | Customize another plugin's contribution (Q10's secondary case) |
+| A6.3 | A6 | Publish an interface, and know an implementation meets it |
+| A7.1 | A7 agent user | Be told when the agent ran with a fallback, or without instructions it asked for |
 
 ### UC1 — Resolve names (A1, A4)
 
