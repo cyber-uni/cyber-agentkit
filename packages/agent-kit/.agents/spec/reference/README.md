@@ -251,20 +251,27 @@ each name is answered with what can be found, and every fault is reported as a w
   `match` from `search`.
 - **Extensions:** none, a field either exists or the consumer is broken; [Q4](#open-questions) records the decision.
 
-### UC9 — Select which contribution answers (A5.1) — not built, issue #110
+### UC9 — Select what a name builds on (A5.1)
 
-- **Trigger:** a name is ambiguous, or a customizer wants a different plugin's contribution, or the default, to
-  answer.
-- **Entry points:** Skill: Load mode asks (UC4.2). Code: `reference select`; the settings files
-  `.agents/uni-agent-kit/references/config.json` (project) and `~/.agents/uni-agent-kit/references/config.json` (user),
-  which also hold other settings.
-- **Outcome:** the name resolves through the selected contribution. Project, user, and managed contributions still
-  apply over it: a selection orders only the plugin and default tiers. The user can view every selection with its
-  scope, and view a name's options when given a base folder.
+- **Trigger:** a name is ambiguous, or a customizer wants to choose which plugins, or the default, a name builds on
+  and in what order.
+- **Entry points:** Skill: Load mode asks (UC4.2); otherwise the skill runs the command. Code:
+  `reference select <name> <option>... [--scope user] [--clear]`.
+- **Inputs:** a bare name; one or more options, bottom first, each a `<plugin>` or `default`; the tier written to
+  (`project` by default, or `user`); the root.
+- **Outcome:** `<name>.md` in that tier's folder holds an `extends` listing the options. An existing file keeps its
+  body and other keys; only its `extends` changes. The name then resolves through that stack (K14), with managed,
+  project, and user contributions applied over it in K17 order. A selection is a contribution, so `list` marks it and
+  `--trace` explains it.
 - **Extensions:**
-  - UC9.1 The selected contribution no longer exists: status `ambiguous`, and the user picks again (UC4.2).
-  - UC9.2 A settings file is malformed: a warning, and resolution goes on as if it held no selections.
-  - UC9.3 The project and user files select differently: the project's selection answers.
+  - UC9.1 A selected plugin is no longer installed: it is skipped with a warning (UC1.12). When every option is gone,
+    the selection counts as not written and the stack falls through; a name left ambiguous is asked again (UC4.2).
+  - UC9.2 An option that is neither `default` nor a plugin holding the name: error, and nothing is written.
+  - UC9.3 The project and user folders select differently: the project's builds the stack; the user's is `not used`,
+    with a warning (UC1.12).
+  - UC9.4 A qualified name: error naming the bare name to use.
+  - UC9.5 `--clear`: `extends` is removed from the file, and a file left with nothing in it is deleted. With no
+    selection in that tier: error stating what answers the name now.
 
 ### UC11 — Remove a customization (A5.2)
 
