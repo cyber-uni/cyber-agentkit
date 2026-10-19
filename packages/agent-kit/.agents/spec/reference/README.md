@@ -30,19 +30,21 @@ each name is answered with what can be found, and every fault is reported as a w
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
 
-- K1 **tier**: where a contribution lives: `managed`, `project`, `user`, `plugin`, `default`. Their order is K17.
+- K1 **tier**: where a contribution lives: `managed`, `project`, `user`, `plugin`, `default`. Their order is K17. A
+  write goes to `project`, which reaches everyone working in the repository, or `user`, which reaches only you, in every
+  repository.
 - K2 **layer**: one folder read for contributions. A tier reads one or more: the plugin tier one per plugin, the project
-  tier one per folder from `--root` up to the repository root, the managed tier one machine-wide folder and one per
-  detected harness.
+  tier one per folder from the root (K18) up to the repository root, the managed tier one machine-wide folder and one
+  per detected harness.
 - K10 **contribution**: a reference file for a name, in one layer. A name may have several.
 - K13 **default contribution**: a skill's own contribution of a name, `references/<name>.default.md` in the skill's
   folder. It forms the `default` tier when that skill loads the name. A name ending `.default` is reserved for it.
 - K4 **qualified name**: `<plugin>/<name>`. It makes that plugin, with what it builds on, the stack for one call.
 - K5 **merge operation**: how a contribution applies over what is below it. `replace` puts mine in place of everything
-  below. `patch` (the default) keeps what is below and puts my text in place of the text it matches by heading.
+  below. `patch` (the default) keeps what is below and puts my text in place of the text it matches by heading path.
   `combine` keeps what is below and adds my text after the text it matches. `remove` drops what is below. The same
   four apply to a whole contribution (frontmatter `merge`), to a step, and to one section (a `<!-- merge: ... -->`
-  marker).
+  marker). A heading path is read from each document's own top heading level, so `# Review` and `## Review` match.
 - K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid` (not built).
 - K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, or `not read` or `not used`
   with a reason.
@@ -59,6 +61,8 @@ each name is answered with what can be found, and every fault is reported as a w
   from the repository root down to `--root`, then `managed` (each detected harness's folder, then the machine-wide
   folder). Each contribution applies over the result of everything below it, so a higher one wins where they
   conflict. Lower and higher mean below and above.
+- K18 **root**: the folder the project tier starts from (default the current directory). The project tier reads it and
+  each folder above it up to the repository root, and a project write goes to its `.agents/references/`.
 
 ## Use Cases
 
@@ -86,7 +90,8 @@ each name is answered with what can be found, and every fault is reported as a w
 - **Inputs:** one or more names; the root (default the current directory); the calling skill's folder, for the
   `default` tier (not built); the detected harness.
 - **Outcome:** for each name, in the order asked, the document composed from its contributions as their `extends` and
-  `merge` declare, with status `found`.
+  `merge` declare, with status `found`. The document is the composed bodies; no contribution's frontmatter is part of
+  it.
 - **Extensions:** each name resolves on its own; a fault in one never stops the others.
   - UC1.1 No contribution answers: status `missing`, with the reason: no tier holds the name (`default` included);
     the plugin a qualified name asks for is not installed; or (not built) a `merge: remove` contribution leaves nothing
@@ -130,8 +135,8 @@ each name is answered with what can be found, and every fault is reported as a w
   contributions that supplied its text and the operation each applied; and every layer checked, in K17 order highest
   first, with its path, the file that matched, the operation it applied and whether that came from the contribution or
   from a step, and its outcome (K7). The composed document itself is unchanged. `where` gives the same layers with
-  their outcomes; the project and user `<name>.md` files a customization or a selection is written to, each with its
-  scope and the default operation, `patch`; and the heading paths of the document below each, which a section
+  their outcomes; the project and user `<name>.md` files a customization or a selection is written to, each with who
+  it reaches and the default operation, `patch`; and the heading paths of the document below each, which a section
   operation can target.
 - **Extensions:**
   - UC2.1 A layer or step cannot be read (policy held in MDM, a plugin with no install folder, a step not installed, a
@@ -191,24 +196,31 @@ each name is answered with what can be found, and every fault is reported as a w
     loaded.
   - UC4.5 Every name is `found`: nothing is said.
 
-### UC5 — Write and remove a contribution (A5)
+### UC5 — Customize a plugin's instructions (A5.1)
 
-- **Entry points:** `reference create <name>`; `reference delete <name>`.
-- **Outcome:** `create` writes `<name>.md` in the project folder (default) or the user folder (`--scope user`) and
-  reports the path and the resulting trace. `delete` removes only that contribution and reports which contribution
-  answers the name afterwards.
+- **Trigger:** a customizer wants to change what a skill reads for a name: replace, patch, combine with, or remove
+  what is below.
+- **Entry points:** Skill: the `reference` skill's Create and Update modes; Update edits the file, then checks the
+  trace. Code: `reference create <name> [--scope user] [--merge <operation>] [--template <file> | --implements <id>]
+  [--dry-run]`.
+- **Inputs:** a bare name; the tier written to (`project` by default, or `user`); the operation (default `patch`); a
+  template or an interface; the root.
+- **Outcome:** `create` writes `<name>.md` in that tier's folder with `merge: <operation>`, and reports the path and
+  the resulting trace, in which the new file applies over everything below it (K17).
 - **Extensions:**
-  - `create` where the file exists: error, nothing written; never overwrites.
-  - `create` with a qualified name: error naming the bare name to ask for.
-  - `create` where a higher `first-wins` contribution would hide the new file: error naming that contribution.
-  - `create` over a contribution below: the new file is marked `merge: merge-sections` unless the template sets `merge`,
-    or it is a whole implementation (then it replaces the contribution below and says so).
-  - `create` with both `--template` and `--implements`, an unreadable template, a template whose frontmatter is not a
-    mapping, an unknown interface, or a tier the interface bars: error.
-  - A template with a one-hash `#` heading, or no `description`: warning.
-  - `--dry-run`: path and content printed, nothing written (create) or deleted (delete).
-  - `delete` with no contribution in that scope: error stating what answers the name now; a plugin's or managed
-    contribution is never deleted. A qualified name: error.
+  - UC5.1 The file exists with a body: error, and nothing is written. `create` never overwrites; Update edits it.
+  - UC5.2 The file holds only a selection: `create` adds the body and `merge`, and keeps its `extends`.
+  - UC5.3 A qualified name: error naming the bare name to use.
+  - UC5.4 A `replace` or `remove` above would hide the new file: error naming that contribution.
+  - UC5.5 `--implements <id>`: the interface's sections are written with `merge: replace`, and a warning says the
+    file replaces what is below.
+  - UC5.6 `--merge remove`: no body is written. With `--template`: error.
+  - UC5.7 Both `--template` and `--implements`, an unreadable template, a template whose frontmatter is not a mapping,
+    an unknown interface, or a tier the interface bars: error.
+  - UC5.8 A template whose top level is a single heading holding all the others (a title, so `patch` would add the
+    whole document instead of patching its sections), or with no `description` (`list` and `search` show it blank):
+    warning.
+  - UC5.9 `--dry-run`: the path and the content are printed, and nothing is written.
 
 ### UC6 — Check and list interface implementations (A6)
 
@@ -253,6 +265,19 @@ each name is answered with what can be found, and every fault is reported as a w
   - UC9.1 The selected contribution no longer exists: status `ambiguous`, and the user picks again (UC4.2).
   - UC9.2 A settings file is malformed: a warning, and resolution goes on as if it held no selections.
   - UC9.3 The project and user files select differently: the project's selection answers.
+
+### UC11 — Remove a customization (A5.2)
+
+- **Trigger:** a customizer wants a project or user contribution gone.
+- **Entry points:** Skill: the `reference` skill's Delete mode. Code: `reference delete <name> [--scope user]
+  [--dry-run]`.
+- **Inputs:** a bare name; the tier deleted from (`project` by default, or `user`); the root.
+- **Outcome:** `delete` removes only that contribution, and reports which contribution answers the name afterwards.
+- **Extensions:**
+  - UC11.1 No contribution in that tier: error stating what answers the name now. A plugin's or managed contribution
+    is never deleted.
+  - UC11.2 A qualified name: error naming the bare name to use.
+  - UC11.3 `--dry-run`: the path and the answer afterwards are printed, and nothing is deleted.
 
 **Surface trace.** `show`, `--trace` (UC1, UC2); `--root` (all); `where`, `--caller` (UC2); `list`, pattern (UC3);
 `search` (UC3); `create` with `--template`, `--implements`, `--scope`, `--dry-run` (UC5); `delete` with `--scope`,
