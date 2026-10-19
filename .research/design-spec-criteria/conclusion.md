@@ -2,7 +2,7 @@
 
 ## Last updated
 
-October 2026 (reviewed by the owner; decisions D8 to D17 added)
+October 2026 (reviewed by the owner; decisions D8 to D18 added)
 
 ## Question
 
@@ -71,6 +71,10 @@ These settle the open choices below and override the recommendations where they 
   stating an outcome per adapter puts one fact in three homes (C7). The reference spec cited a CLI exit code and a
   low-level function as if they were separate behaviors. A skill's instructions add behavior no adapter has and no
   deterministic test reaches.
+- D18 A spec states what must be true, not whether it is built yet. The gap between the criteria and the code is
+  derived by checking one against the other; the work to close it lives in the project tracker, linked by criterion
+  ID. Reason: a "(not built)" mark is a second home for the gap, beside the tracker, and goes stale on each release
+  unless the spec is edited again. After a redesign most criteria carry it, so it stops saying anything.
 
 ## Reference material
 

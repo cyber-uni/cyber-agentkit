@@ -50,7 +50,8 @@ section is derived from the ones before it, so a wrong outcome or a missed actor
 each section:
 
 1. Draft it. In a backfill the code supplies the draft, and it still goes through these steps: code shows what the
-   capability does, not what it should do.
+   capability does, not what it should do. Decided behavior the code lacks is still written as a criterion; the gap
+   goes to the tracker.
 2. Judge the draft against the criteria that apply to it: C1 on the outcome, C2 on the non-goals, C3 on the actors and
    use cases, C4 to C6 on the criteria, C8 on the open questions.
 3. Show the user that section and the questions it raises, and nothing beyond it.
@@ -65,8 +66,10 @@ need less than half of it, split the capability into child specs along the line 
 outcome; the parent keeps the shared terms and links each child. Do not split by section type, such as a separate
 criteria file: every task needs a slice of every section.
 
-Leave out implementation design, task lists, stack choices, and alternatives analysis. Link rationale (an ADR, an
-issue, a research topic) and do not copy it in.
+Leave out implementation design, task lists, stack choices, alternatives analysis, and whether a criterion is built
+yet. The gap between the criteria and the code is found by checking one against the other; the work to close it lives
+in the project tracker, linked by criterion ID. Link rationale (an ADR, an issue, a research topic) and do not copy it
+in.
 
 **Why the rationale is linked, not inlined.** An agent loads the spec on every task, so every line costs tokens every
 time. Rationale is read only when someone questions a criterion, and it decays on a different clock from the

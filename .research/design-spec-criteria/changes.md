@@ -12,3 +12,5 @@
   the reference spec.
 - 2026-10-19. Owner decision D17 added: adapter-neutral outcomes with one `Adapters` criteria group, and skill
   instructions as their own use cases. Triggered by the owner's grilling of the reference spec's UC1.
+- 2026-10-19. Owner decision D18 added: a spec carries no build status; the gap goes to the project tracker.
+  Triggered by the owner's grilling of the reference spec's UC2.
