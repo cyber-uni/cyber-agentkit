@@ -30,7 +30,7 @@ each name is answered with what can be found, and every fault is reported as a w
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
 
-- K1 **tier**: where a contribution lives: `managed`, `project`, `user`, `plugin`, `default`. Precedence is R3.
+- K1 **tier**: where a contribution lives: `managed`, `project`, `user`, `plugin`, `default`. Their order is K17.
 - K2 **layer**: one folder read for contributions. A tier reads one or more: the plugin tier one per plugin, the project
   tier one per folder from `--root` up to the repository root, the managed tier one machine-wide folder and one per
   detected harness.
@@ -54,6 +54,11 @@ each name is answered with what can be found, and every fault is reported as a w
 - K15 **step**: one entry of `extends`: a plugin or `default`, optionally with the keys (`merge`, `extends`) to use for
   that contribution in place of its own.
 - K16 **selection**: a contribution with `extends` and no body. It picks the stack and changes nothing else.
+- K17 **above and below**: the order contributions apply in, bottom first: the stack (its plugins and `default` in
+  `extends` order, the first listed lowest; with no written `extends`, `default` lowest), then `user`, then `project`
+  from the repository root down to `--root`, then `managed` (each detected harness's folder, then the machine-wide
+  folder). Each contribution applies over the result of everything below it, so a higher one wins where they
+  conflict. Lower and higher mean below and above.
 
 ## Use Cases
 
