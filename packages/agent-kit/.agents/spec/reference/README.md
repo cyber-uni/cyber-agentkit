@@ -374,6 +374,23 @@ contract: the trace's keys beyond those the Adapters group names.
 Edge IDs are in [graph.md](./graph.md). An unmarked criterion is how 0.7.1 behaves. "(not built)" marks a decided
 criterion the code does not meet yet; each has an issue or an answer recorded in Open questions.
 
+**Adapters**
+
+- R43 (UC1, UC6, UC8, E12): The command exits 0 when it did what was asked: every name `found`, or `where` on an
+  ambiguous name. It exits 1 when a name is not `found`, a check fails, or a write is refused, and 2 on a usage error
+  (no name, an unknown flag).
+- R44 (UC1): In text, one name prints its document; several print each as `<reference name="...">...</reference>` in
+  the order asked; a name not `found` prints `<reference name="..." status="..." />` in its place.
+- R45 (UC1, UC8, E13): In text, a failure is an `error: <code>: <message>` line and a warning a
+  `warning: <code>: <message>` line, both on stderr. Neither changes stdout, and a warning never changes the exit code.
+- R46 (UC2): `--trace` in text writes to stderr a summary line (status, stack, what built it), then each section's
+  heading path with its contributions and operations, then each layer; stdout stays the plain document.
+- R47 (UC8): `--format json` writes one JSON document to stdout. Each entry carries its status, code, `metadata`, and
+  `warnings`; a warning goes only in `warnings`, not on stderr.
+- R48 (UC1, UC8): Each library function returns the same records as the JSON output. A name not `found`, `invalid`
+  included, is a status in its record, never a thrown error. Warnings go in the record's `warnings` and are never
+  printed.
+
 **Names**
 
 - R1 (UC1, E1): A name with a `.md` suffix, a path separator other than one `<plugin>/` prefix, or a character other
@@ -410,9 +427,6 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 - R9 (UC2, E11): `--trace` lists, for every layer checked, `tier`, `plugin`, `path`, `found`, `candidate`, `merge`, and
   `outcome`; a layer below a `first-wins` contribution reads `shadowed by <tier> (first-wins)`, and an overriding plugin
   contribution reads `used (overrides <plugin>)`.
-- R10 (UC1, E12): A missing name exits 1 with `status="missing"` for that name and an `error:` line on stderr; the other
-  names asked still print.
-- R11 (UC1, E13): A warning is printed on stderr as `warning: ...` and never changes the exit code or stdout.
 
 **Layers**
 
