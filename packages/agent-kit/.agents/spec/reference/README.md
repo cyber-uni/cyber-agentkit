@@ -25,11 +25,6 @@ the same thing.
 - Installing, enabling, or removing plugins. That is [dependencies](../dependencies/README.md).
 - Finding documents by meaning. `search` is lexical and ranked by match kind; it promises an order, not relevance.
 - Reading anything but Markdown by name, or any path. A name is never a path.
-- Writing into a plugin's or a managed copy, ever. An override is written above it.
-- Deciding who may write a copy. Anyone who can write the project or user folder can place a copy there; a rule on who
-  may is enforced elsewhere.
-- Reference-keyed overrides (alias, default marker, pin file, `extends`): not built, issue #110. Recorded here as use
-  case UC9 so the built parts do not contradict it.
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
 
