@@ -16,11 +16,11 @@ contribution to follow.
 This capability lets a skill ask for instructions by name, such as `project-tracker.capabilities.github`, and get
 exactly that. The skill depends on the name, not on a file. Whoever places a contribution for the name decides what it
 says: a plugin ships one, and a repository, a user, or a machine-wide policy can each place their own. Each contribution
-declares whether it replaces the contributions below it or extends them, and one rule, the same for every skill, puts
-the contributions in order. A team can then customize a plugin's instructions without forking it, and two skills asking
-for one name read the same thing, unless each answers from its own default. Contributions come from authors who never
-coordinate, so a fault in one never stops the rest: each name is answered with what can be found, and every fault is
-reported as a warning.
+declares what it builds on and how it applies over it: it replaces it, combines with it, patches some of its sections,
+or removes it. One rule, the same for every skill, puts the contributions in order. A team can then customize a
+plugin's instructions without forking it, and two skills asking for one name read the same thing, unless each answers
+from its own default. Contributions come from authors who never coordinate, so a fault in one never stops the rest:
+each name is answered with what can be found, and every fault is reported as a warning.
 
 **Non-goals:**
 
@@ -37,15 +37,23 @@ reported as a warning.
 - K10 **contribution**: a reference file for a name, in one layer. A name may have several.
 - K13 **default contribution**: the consumer's own contribution, `references/<name>.md` in its base folder. It forms the
   `default` tier.
-- K4 **qualified name**: `<plugin>/<name>`. It asks for that plugin's contribution.
-- K5 **merge mode**: how a contribution applies over the ones below it, set by frontmatter `merge`. `first-wins` (the
-  default) **overrides**: it replaces everything below. `combine`, `section-first-wins`, and `section-combine`
-  **extend**: they keep what is below and add to it or change parts of it.
+- K4 **qualified name**: `<plugin>/<name>`. It makes that plugin, with what it builds on, the stack for one call.
+- K5 **merge operation**: how a contribution applies over what is below it. `replace` puts mine in place of everything
+  below. `patch` (the default) keeps what is below and puts my text in place of the text it matches by heading.
+  `combine` keeps what is below and adds my text after the text it matches. `remove` drops what is below. The same
+  four apply to a whole contribution (frontmatter `merge`), to a step, and to one section (a `<!-- merge: ... -->`
+  marker).
 - K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid` (not built).
-- K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, or `not read` with a reason.
+- K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, or `not read` or `not used`
+  with a reason.
 - K8 **interface**: a contract declared in a `<id>.interface` reference. An **implementation** declares
   `implements: <id>@<version>`.
 - K9 **consumer**: a plugin or skill that loads references through this capability, by skill, command, or library.
+- K14 **stack**: the plugin and default contributions under the managed, project, and user tiers, bottom first.
+  Frontmatter `extends` lists it.
+- K15 **step**: one entry of `extends`: a plugin or `default`, optionally with the keys (`merge`, `extends`) to use for
+  that contribution in place of its own.
+- K16 **selection**: a contribution with `extends` and no body. It picks the stack and changes nothing else.
 
 ## Use Cases
 
