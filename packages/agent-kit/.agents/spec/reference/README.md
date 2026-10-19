@@ -478,19 +478,28 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 
 **Finding**
 
-- R16 (UC3, E18): `list` has one row per name per layer holding it; `list '<pattern>'` keeps exactly the names matching,
-  where `*` is any run of characters and everything else is literal and case-sensitive.
+- R16 (UC3, E18): `list` has one row per name per layer holding it, and one per installed skill holding a default of
+  it, naming the skill and noting that the `default` step reaches it; a selection's row is marked as one.
+  `list '<pattern>'` keeps exactly the names matching, where `*` is any run of characters and everything else is
+  literal and case-sensitive.
 - R17 (UC3, E19): `search` ranks match kinds in the order `name`, `prefix`, `close name`, `description`, `heading`,
-  `body`, then by name; a name resolves as `show` would before it is searched.
-- R18 (UC3, E20): `list` and `search` with no match print an explicit zero and exit 0.
+  `body`, then by name. A name resolves as `show` would, and each default as its skill loads it, before it is
+  searched; a name a `remove` turned off is left out.
+- R18 (UC3, E20): `list` and `search` with no match print an explicit zero; it is not an error.
+- R58 (UC3, E48): Defaults are found in the skill folders the detected harness reads: its project and user skill
+  folders, its machine-wide admin skill folders, and each enabled plugin's skills. On a harness whose skill folders are
+  not verified, no defaults are listed, with a warning.
 
 **Fallback (UC4)**
 
-- R21 (UC4, E23): The default contribution is read only when the name is `missing` or the command did not run, never
-  when it is `found` or `ambiguous`.
-- R22 (UC4, E24): Every name read from a fallback, and every name not loaded, is reported to the user with the reason;
-  nothing is reported when all came from the command.
-- R23 (UC4, E25): A rejected name's path is never read.
+- R21 (UC4, E23): The skill reads its own `references/<name>.default.md` only when the command did not run, never for
+  a name the command reported, whatever its status.
+- R59 (UC4, E49): With a user present, an `ambiguous` name lists every option, the skill's default included, even
+  when one is left; the pick is written with `reference select`, and the name loads from it. With no user, it is not
+  loaded, and the user is told to settle it.
+- R22 (UC4, E24): Every name read from a fallback, and every name not loaded, is reported to the user with the
+  reason, except a name a `remove` turned off; nothing is reported when every name came from the command.
+- R23 (UC4, E25): An `invalid` name's path is never read.
 
 **Writing (UC5)**
 
