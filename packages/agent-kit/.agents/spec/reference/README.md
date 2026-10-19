@@ -40,7 +40,7 @@ the rest: each name is answered with what can be found, and every fault is repor
 - K5 **merge mode**: how a contribution applies over the ones below it, set by frontmatter `merge`. `first-wins` (the
   default) **overrides**: it replaces everything below. `combine`, `section-first-wins`, and `section-merge`
   **extend**: they keep what is below and add to it or change parts of it.
-- K6 **status of a name**: `found`, `missing`, or `ambiguous`.
+- K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid` (not built).
 - K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, or `not read` with a reason.
 - K8 **interface**: a contract declared in a `<id>.interface` reference. An **implementation** declares
   `implements: <id>@<version>`.
@@ -64,24 +64,28 @@ the rest: each name is answered with what can be found, and every fault is repor
 | A6.3 | A6 | Publish an interface, and know an implementation meets it |
 | A7.1 | A7 agent user | Be told when the agent ran without instructions it asked for, or without the customizations placed for it |
 
-### UC1 — Resolve names (A1, A4)
+### UC1 — Resolve names (A1.1)
 
-- **Entry points:** `reference show <name>...`; `resolveReference(name, layers)`.
-- **Inputs:** one or more names, `--root` (default the current directory), the detected harness.
-- **Outcome:** per name, in the order asked: the document on stdout (one name prints it bare; several print each in a
-  `<reference name tier>` block), exit 0 when every name resolved.
-- **Extensions:**
-  - A name is missing: that entry is `status="missing"`, an `error:` line on stderr names it, exit 1.
-  - A name is ambiguous (two plugins hold it and neither overrides the other): `status="ambiguous"`, the error lists
-    the qualified names to ask for, exit 1.
-  - A name ends `.md` or is not a name (a path, bad characters): the whole call is rejected, nothing is read, exit 1.
-  - A qualified name whose plugin is not installed: missing, and the trace says no plugin by that name exists.
-  - A contribution has malformed frontmatter, an unknown `merge`, or a bad `overrides`: it still answers, with a warning
-    on stderr and the documented default.
-  - Two files in one folder answer one name (`<name>.md` and `<name>/README.md`): the first in the order answers, the
-    other is ignored with a warning.
-  - No name given: error, exit 1.
-  - The resolved document fails its interface check: it is still printed, with a warning.
+- **Trigger:** a consumer's instructions name one or more references to load.
+- **Entry points:** Skill: the `reference` skill's Load mode, which runs the command. Code: `reference show <name>...`;
+  `loadReference(name, options)`.
+- **Inputs:** one or more names; the root (default the current directory); a base folder for the `default` tier (not
+  built); the detected harness.
+- **Outcome:** for each name, in the order asked, the document composed from its contributions, with status `found`.
+- **Extensions:** each name resolves on its own; a fault in one never stops the others.
+  - UC1.1 No contribution answers: status `missing`, with the reason: no tier holds the name (`default` included), or
+    the plugin a qualified name asks for is not installed.
+  - UC1.2 Its contributions cannot be put in one order: status `ambiguous`. The error names the contributions in
+    conflict, the cause (no order between them, or a cycle), and the qualified name to ask for each.
+  - UC1.3 It is not a name (it ends `.md`, is a path, or has a bad character): status `invalid`, and nothing is read
+    for it. (Not built: today the whole call is rejected, and the library throws.)
+  - UC1.5 A contribution has malformed frontmatter, an unknown `merge`, or a bad `overrides`: it still answers, with a
+    warning and the documented default.
+  - UC1.6 Two files in one folder answer one name (`<name>.md` and `<name>/README.md`): the first answers; the other is
+    ignored with a warning.
+  - UC1.7 No name given: error.
+  - UC1.8 The document fails its interface check: still answered, with a warning.
+  - UC1.9 (not built) The base folder does not exist: a warning, and the name resolves without the `default` tier.
 
 ### UC2 — Explain a resolution (A2)
 
