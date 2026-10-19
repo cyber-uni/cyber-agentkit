@@ -61,7 +61,7 @@ for one name read the same thing.
 | A6.1 | A6 plugin author | Ship skills that load references by name, with defaults others can customize |
 | A6.2 | A6 | Customize another plugin's contribution (Q10's secondary case) |
 | A6.3 | A6 | Publish an interface, and know an implementation meets it |
-| A7.1 | A7 agent user | Be told when the agent ran without instructions it asked for |
+| A7.1 | A7 agent user | Be told when the agent ran without instructions it asked for, or without the customizations placed for it |
 
 ### UC1 — Resolve names (A1, A4)
 
