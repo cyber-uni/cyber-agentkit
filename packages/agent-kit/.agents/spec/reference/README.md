@@ -87,6 +87,9 @@ reported as a warning.
   - UC1.7 No name given: error.
   - UC1.8 The document fails its interface check: still answered, with a warning.
   - UC1.9 (not built) The base folder does not exist: a warning, and the name resolves without the `default` tier.
+  - UC1.10 (not built) A plugin's contribution answers over the default contribution, and no selection names it: still
+    answered, with a warning naming the plugin and `reference select <name>` (UC9). The warning stops once a selection
+    exists, for the plugin or the default.
 
 ### UC2 — Explain a resolution (A2)
 
