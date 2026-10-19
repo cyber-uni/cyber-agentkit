@@ -338,6 +338,29 @@ each name is answered with what can be found, and every fault is reported as a w
   - UC11.4 The file also holds a selection (`extends`): both go, and the report says the selection went too, naming
     `reference select` to restore it.
 
+### UC12 — Wire a skill to load references (A6.1)
+
+- **Trigger:** a skill author wants a skill to load references by name, with defaults others can customize.
+- **Entry points:** Skill: the `reference` skill's Wire a skill mode, which gives the load line: "Load `<name>` and
+  `<name>` with the `reference` skill of `uni-agent-kit`." Code: none directly; Load runs
+  `show <name>... --default <the caller's folder>` (UC1).
+- **Inputs:** the names; the harness the skill is written for, if only one; the defaults the author ships.
+- **Outcome:** the skill carries one load line naming the references and the `reference` skill with its package, in
+  words every harness reads. The author ships each default as `<skill>/references/<name>.default.md`. When the skill
+  runs, Load resolves the names with the skill's folder as the `default` tier (UC1) and acts on an unanswered name
+  (UC4); a customizer finds the defaults with `list` (UC3) and builds on them (UC5, UC7).
+- **Extensions:**
+  - UC12.1 A skill written for one harness: the line may add that harness's typed form of the skill
+    (`.research/harness-detection` R4). A harness with no typed form recorded gets the words only.
+  - UC12.2 The skill uses an interface: the line names the interface ("Load the implementations of the `<id>`
+    interface ..."); Load lists the implementations (UC6), and the skill loads each by its pin.
+  - UC12.3 The agent cannot tell the caller's folder: the names resolve without the `default` tier, and the user is
+    told.
+  - UC12.4 The `reference` skill is not installed: the line names the package, so the agent tells the user what to
+    install.
+  - UC12.5 A skill ships its copy as `references/<name>.md` (the old layout): it is not read as a default. A name no
+    other contribution holds is then `missing`, and UC4.1 tells the user.
+
 **Surface trace.** `show`, `--trace` (UC1, UC2); `--root` (all); `where`, `--caller` (UC2); `list`, pattern (UC3);
 `search` (UC3); `create` with `--template`, `--implements`, `--scope`, `--dry-run` (UC5); `delete` with `--scope`,
 `--dry-run` (UC5); `check` (UC6); `implementations`, `--accept` (UC6); `--format` (UC8). Frontmatter keys `merge`,
