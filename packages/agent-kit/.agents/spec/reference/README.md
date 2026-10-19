@@ -501,24 +501,36 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   reason, except a name a `remove` turned off; nothing is reported when every name came from the command.
 - R23 (UC4, E25): An `invalid` name's path is never read.
 
-**Writing (UC5)**
+**Writing (UC5, UC9, UC11)**
 
-- R24 (UC5, E26): `create` writes only `<name>.md` under `.agents/references/` of `--root` or `~/.agents/references/`,
-  and never overwrites an existing file.
-- R25 (UC5, E27): `create` and `delete` reject a qualified name and say which bare name to use.
-- R26 (UC5, E28): `create` refuses when a higher `first-wins` contribution would hide the new file, and names that
+- R24 (UC5, UC9, E26): `create` and `select` write only `<name>.md`, in the root's `.agents/references/` (`project`,
+  the default) or in `~/.agents/references/` (`user`, with `--scope user`); never in the managed tier, a plugin, or a
+  skill folder.
+- R25 (UC5, UC9, UC11, E27): `create`, `select`, and `delete` reject a qualified name and say which bare name to use.
+- R60 (UC5, E26): `create` never overwrites a file with a body. On a file holding only a selection, it adds the body
+  and `merge` and keeps the `extends`.
+- R26 (UC5, E28): `create` refuses when a `replace` or `remove` above would hide the new file, and names that
   contribution.
-- R27 (UC5, E29): `create` over a contribution below writes `merge: merge-sections` unless the template sets `merge` or
-  `--implements` is given; with `--implements` it warns that the file replaces the contribution below.
-- R28 (UC5, E30): `create --implements <id>` writes the interface's sections as `##` headings in order and `implements:
-  <id>@<version>`, each optional section stubbed `**Unsupported.**`; it fails for an unknown interface or a tier the
-  interface bars, and with `--template`.
-- R29 (UC5, E31): `--dry-run` prints the path and the exact content (create) or the path and the answer afterwards
-  (delete), and changes no file.
-- R30 (UC5, E32): `delete` removes only the contribution in the chosen scope, never a plugin's or managed contribution,
-  and reports which contribution answers the name afterwards; with no contribution in that scope it fails with exit 1.
-- R31 (UC5, E33): After a `create` write, the trace shows the new file `used`.
-- R32 (UC5, E34): `create` warns for a one-hash heading in the template and for a missing `description`.
+- R27 (UC5, E29): `create` writes `merge` from `--merge`, else the template's `merge`, else `patch`. `--implements`
+  writes `merge: replace` and warns that the file replaces what is below. `--merge remove` writes no body, and fails
+  with `--template`.
+- R28 (UC5, E30): `create --implements <id>` writes the interface's sections as `##` headings in order, those it
+  inherits through `interface.extends` included, and `implements: <id>@<version>`, each optional section stubbed
+  `**Unsupported.**`; it fails for an unknown interface, a tier the interface bars, and with `--template`.
+- R61 (UC9, E50): `select <name> <option>...` writes `extends` listing the options bottom first, leaving the body and
+  other keys unchanged. An option that is neither `default` nor a plugin holding the name fails, and nothing is
+  written.
+- R62 (UC9, E51): `select --clear` removes `extends` and deletes a file left with nothing in it; with no selection in
+  that tier, it fails stating what answers the name now.
+- R30 (UC11, E32): `delete` removes only the file in the chosen tier, never a plugin's, managed, or skill default
+  contribution, and reports the status and stack afterwards; when the file held a selection, the report says so and
+  names `reference select`. With no file in that tier, it fails stating what answers the name now.
+- R29 (UC5, UC11, E31): `--dry-run` prints the path and the exact content (`create`) or the path and the answer
+  afterwards (`delete`), and changes no file.
+- R31 (UC5, E33): After a `create` write, the trace shows the new file `used`, and the report points to `show <name>`
+  for the composed document.
+- R32 (UC5, E34): `create` warns for a template whose top level is a single heading holding the others (a title), and
+  for a missing `description`.
 
 **Interfaces (UC6)**
 
