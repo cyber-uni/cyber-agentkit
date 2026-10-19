@@ -2,7 +2,7 @@
 
 ## Last updated
 
-October 2026 (reviewed by the owner; decisions D8 to D15 added)
+October 2026 (reviewed by the owner; decisions D8 to D16 added)
 
 ## Question
 
@@ -63,6 +63,9 @@ These settle the open choices below and override the recommendations where they 
   built on it. Code-derived text records what the code does, not what it should do: the reference backfill left eight
   questions (Q1 to Q8) the code could not answer. With no user, every section is drafted and each question goes to
   Open questions.
+- D16 Every list item in a spec carries an ID, and a removed item retires its ID. Reason: grilling and review
+  cite items one at a time ("drop N4", "revise A1.2"); without an ID each reference quotes the text, and a reworded
+  item can no longer be found by the quote.
 
 ## Reference material
 

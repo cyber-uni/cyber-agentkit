@@ -8,3 +8,5 @@
 - 2026-10-18. Owner decisions D13 to D15 added: the What opens with the problem, a spec is sized by the tasks that read
   it (C9 extended to that cost), and a spec is settled one section at a time with the user. Triggered by the owner's
   review of the reference spec, not by a new source.
+- 2026-10-18. Owner decision D16 added: every list item in a spec carries an ID. Triggered by the owner's grilling of
+  the reference spec.

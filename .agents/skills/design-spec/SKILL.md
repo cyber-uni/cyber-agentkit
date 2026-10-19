@@ -41,6 +41,10 @@ behavior branches. Write these sections of `README.md`, in order. Keep each as s
 8. **Open questions.** What is unresolved, marked. Empty before the spec is ready.
 9. **References.** Links to rationale, sibling specs, and the home of any shared fact.
 
+**Give every list item an ID** a reader can cite: `N1` for a non-goal, `K1` for a key term, `A1` for an actor and
+`A1.1` for its goal, `UC1` for a use case and `UC1.1` for its extension, `R1` for a criterion, `E1` for a graph edge,
+`Q1` for an open question. An ID is never reused: a removed item retires its ID.
+
 **Settle one section at a time.** Grill the spec with the user, one section at a time, in the order above. Each
 section is derived from the ones before it, so a wrong outcome or a missed actor carries into every criterion. For
 each section:
