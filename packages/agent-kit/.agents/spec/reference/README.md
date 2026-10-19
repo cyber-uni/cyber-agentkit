@@ -393,28 +393,35 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 
 **Names**
 
-- R1 (UC1, E1): A name with a `.md` suffix, a path separator other than one `<plugin>/` prefix, or a character other
-  than letters, digits, `-` and `.` is rejected, nothing is read, and the exit code is 1.
-- R2 (UC1, E2): `<plugin>/<name>` reads only that plugin's layers, plus plugin layers whose contribution of the name
-  declares `overrides` naming that plugin.
+- R1 (UC1, E1): A name is `invalid` when it ends `.md`, or `.default` (that suffix names a default's file, K13), has a
+  path separator other than one `<plugin>/` prefix, or a character other than letters, digits, `-` and `.`. Nothing is
+  read for it, and the other names still resolve.
+- R51 (UC1, E1): A `<name>.default.md` in a tier folder is ignored, with a warning that a default goes in a skill's
+  `references/` folder.
+- R2 (UC1, UC7, E2): `<plugin>/<name>` builds the stack from that plugin's contribution and what its own `extends`
+  brings in; managed, project, and user contributions still apply over it. A written `extends` is not used, and a
+  plugin extending the named one is left out.
 
-**Precedence**
+**Composition**
 
-- R3 (UC1, E3): With no merge modes set, the answer is the contribution in the highest tier in the order `managed`,
-  `project`, `user`, `plugin`, then `default` (not built: today the default contribution is read only by UC4). A
-  project or user contribution of a bare name therefore beats every plugin's contribution of it. Within a tier, the
-  nearer project folder wins over a farther one.
-- R4 (UC1, E4): A contribution with `merge: first-wins`, or none, ends the chain: every contribution below it is
-  `shadowed`.
-- R5 (UC1, E5): A contribution with `merge: combine` prints above the contributions below it, each marked with its
-  layer, highest first.
-- R6 (UC1, E6): A contribution with `merge: merge-sections` replaces, combines, or removes only the `##` sections it
-  names (by `<!-- merge: replace|combine|remove -->`, default replace) and keeps the rest of the contribution below.
-- R42 (UC1, E44) (not built): `merge: section-first-wins` behaves as `merge-sections` does in R6.
-  `merge: section-combine` behaves the same except that a named section with no marker combines. `merge-sections` is
-  read as `section-first-wins` with a warning naming the new value.
-- R7 (UC1, E7): An unknown `merge` value is read as `first-wins` with a warning; an unknown section merge is read as
-  `replace` with a warning; a section merge that matches no section below warns.
+- R3 (UC1, E3): Contributions apply bottom first in K17 order, each over the result of everything below it with its
+  own operation. With no `merge` written anywhere, every contribution patches. Within the project tier, the nearer
+  folder is higher.
+- R6 (UC1, E6): `patch` keeps what is below and puts each section's text in place of the text it matches by heading
+  path, unless that text is empty. Unmarked subsections replace. A section that matches nothing is added at the end. A
+  heading path is read from each document's own top heading level.
+- R5 (UC1, E5): `combine` keeps what is below and adds each section's text after the text it matches, lower first.
+  Unmarked subsections combine. When combined text was joined, the output says once that where they conflict, the
+  later text wins.
+- R4 (UC1, E4): `replace` drops everything below; each contribution below is `shadowed by <contribution> (replace)`.
+- R49 (UC1, E45): `remove` drops everything below, and its body is ignored with a warning. When no contribution above
+  it has a body, the name is `missing`, naming that contribution.
+- R42 (UC1, E44): A `<!-- merge: <operation> -->` marker under a heading applies that operation to that section alone;
+  a section with no marker takes its document's operation.
+- R50 (UC1, E46): A contribution with no body changes nothing, except with `remove`.
+- R7 (UC1, E7): An unknown `merge` value or marker is read as `patch`, with a warning. An explicit marker that matches
+  nothing below warns, and its text goes at the end (nothing, for `remove`); an unmarked section that matches nothing
+  does not warn. A document repeating a heading warns, and the first is matched.
 
 **Plugins**
 
