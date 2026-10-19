@@ -243,13 +243,28 @@ each name is answered with what can be found, and every fault is reported as a w
   - UC6.5 `implementations` of an unknown interface: error.
   - UC6.6 A skill's default is never listed by `implementations`: it has no qualified name to pin.
 
-### UC7 — Publish an override a repository can use (A4, A6)
+### UC7 — Build on other contributions (A5.1, A6.2)
 
-- **Entry points:** frontmatter `overrides: [<plugin>]` on a plugin's contribution; `merge`.
-- **Outcome:** a plugin's contribution sits above the named plugin's contribution, so a house-style plugin changes what
-  a generic skill reads without forking it; the trace says `used (overrides <plugin>)`.
-- **Extensions:** an `overrides` on a non-plugin contribution, on an interface document, or not a list of plugin names
-  is ignored with a warning; plugins that override each other, or a holder no contribution names, stay ambiguous.
+- **Trigger:** an author (a plugin author, or a customizer in the project or user folder) wants a contribution to
+  build on other plugins' contributions, or on the loading skill's default, in a chosen order and way.
+- **Entry points:** Skill: the `reference` skill's Create and Update modes. Code: the contribution's frontmatter
+  `extends` and `merge`.
+- **Inputs:** `extends`, steps bottom first, each a `<plugin>` or `default`, optionally with its own `merge` and
+  `extends` (`- house-style: {merge: combine, extends: []}`; `house-style: patch` is short for `{merge: patch}`); the
+  contribution's own `merge`.
+- **Outcome:** each step brings its own `extends` beneath it, recursively; a plugin both listed and brought in appears
+  once, at its listed place. Each step applies with its own operation: the step's key, else the plugin's own `merge`,
+  else `patch`. The contribution's body applies on top with its own `merge`. The highest written `extends` builds the
+  stack, and managed, project, and user contributions apply over it in K17 order. Anything left out of that `extends`,
+  a plugin or `default`, is `not used`. So a house-style plugin changes what a generic skill reads without forking it.
+- **Extensions:**
+  - UC7.1 A step cannot be used, a lower `extends` differs, or a plugin lists itself: as UC1.12 says.
+  - UC7.2 The steps cannot be put in one order: as UC1.2 says. Under a written list, bringing in stops at a plugin
+    already in the stack, silently; an adjacent repeat collapses (`[a, a, b]` is `[a, b]`); two steps bringing one
+    plugin put it once, beneath the first.
+  - UC7.3 A malformed `extends`: as UC1.5 says; it counts as not written.
+  - UC7.4 A qualified name builds that plugin's own stack; a written `extends` is not used (UC2.4).
+  - UC7.5 `extends` or `merge` on an interface document: ignored with a warning. An interface is never composed.
 
 ### UC8 — Consumers read a stable output (A1)
 
