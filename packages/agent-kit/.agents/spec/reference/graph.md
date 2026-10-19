@@ -98,4 +98,4 @@ flowchart TD
 | E41 | an unresolved name (not built) | stable `code` |
 | E42 | project or user contribution over plugin contributions (not built) | warning names the plugins |
 | E43 | `--default <base folder>` given (not built) | `<base folder>/references/<name>.md` read as the lowest tier |
-| E44 | `merge` is `section-first-wins` or `section-merge` (not built) | named sections replace, or combine, by default |
+| E44 | `merge` is `section-first-wins` or `section-combine` (not built) | named sections replace, or combine, by default |

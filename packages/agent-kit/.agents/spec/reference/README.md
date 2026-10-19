@@ -39,7 +39,7 @@ reported as a warning.
   `default` tier.
 - K4 **qualified name**: `<plugin>/<name>`. It asks for that plugin's contribution.
 - K5 **merge mode**: how a contribution applies over the ones below it, set by frontmatter `merge`. `first-wins` (the
-  default) **overrides**: it replaces everything below. `combine`, `section-first-wins`, and `section-merge`
+  default) **overrides**: it replaces everything below. `combine`, `section-first-wins`, and `section-combine`
   **extend**: they keep what is below and add to it or change parts of it.
 - K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid` (not built).
 - K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, or `not read` with a reason.
@@ -226,7 +226,7 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 - R6 (UC1, E6): A contribution with `merge: merge-sections` replaces, combines, or removes only the `##` sections it
   names (by `<!-- merge: replace|combine|remove -->`, default replace) and keeps the rest of the contribution below.
 - R42 (UC1, E44) (not built): `merge: section-first-wins` behaves as `merge-sections` does in R6.
-  `merge: section-merge` behaves the same except that a named section with no marker combines. `merge-sections` is
+  `merge: section-combine` behaves the same except that a named section with no marker combines. `merge-sections` is
   read as `section-first-wins` with a warning naming the new value.
 - R7 (UC1, E7): An unknown `merge` value is read as `first-wins` with a warning; an unknown section merge is read as
   `replace` with a warning; a section merge that matches no section below warns.
