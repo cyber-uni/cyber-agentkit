@@ -28,18 +28,22 @@ for one name read the same thing.
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
 
-- **tier**: where a contribution lives. In precedence order, highest first: `managed`, `project`, `user`, `plugin`.
-- **layer**: one folder read for references. A tier holds one or more layers.
-- **legacy layer**: a `governances/` folder, still read, ranked below the `references/` folder of the same tier.
-- **qualified name** (a **pin**): `<plugin>/<name>`. It asks for that plugin's contribution.
-- **merge mode**: how a contribution applies over the contributions below it, set by frontmatter `merge`: `first-wins`
-  (default), `combine`, `merge-sections`.
+- **tier**: where a contribution lives: `managed`, `project`, `user`, `plugin`, `default`. Precedence is R3.
+- **layer**: one folder read for contributions. A tier reads one or more: the plugin tier one per plugin, the project
+  tier one per folder from `--root` up to the repository root, the managed tier one machine-wide folder and one per
+  detected harness.
+- **contribution**: a reference file for a name, in one layer. A name may have several.
+- **default contribution**: the consumer's own contribution, `references/<name>.md` in its base folder. It forms the
+  `default` tier.
+- **qualified name**: `<plugin>/<name>`. It asks for that plugin's contribution.
+- **merge mode**: how a contribution applies over the ones below it, set by frontmatter `merge`. `first-wins` (the
+  default) **overrides**: it replaces everything below. `combine`, `section-first-wins`, and `section-merge`
+  **extend**: they keep what is below and add to it or change parts of it.
 - **status of a name**: `found`, `missing`, or `ambiguous`.
 - **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, or `not read` with a reason.
 - **interface**: a contract declared in a `<id>.interface` reference. An **implementation** declares
   `implements: <id>@<version>`.
 - **consumer**: a plugin or skill that loads references through this capability, by skill, command, or library.
-- **contribution**: a reference file for a name, in one layer of a tier. A name may have several.
 
 ## Use Cases
 
@@ -84,7 +88,6 @@ their own contribution. A6 a plugin author who publishes an interface or an impl
   could be written to, each with its scope.
 - **Extensions:**
   - A layer is skipped (policy held in MDM, a plugin with no install folder): it appears with the reason.
-  - A layer is legacy or deprecated: it still answers and its status says to move it.
   - `where` on an ambiguous name: error naming the qualified names, exit 1.
   - `where` on a plugin's contribution or the consumer's default contribution: reported read-only, never offered as a
     place to write.
@@ -105,8 +108,8 @@ their own contribution. A6 a plugin author who publishes an interface or an impl
 - **Entry points:** the `reference` skill's Load mode; a skill that names references and ships its own contributions.
   This use case is behavior of the skill's instructions, not of the command.
 - **Outcome:** the consumer gets the resolver's document when the command ran and the name is `found`; otherwise its
-  default contribution, read from `<base folder>/references/<name>.md`, then
-  `<base folder>/references/governances/<name>.md`; and the user is told which names came from a fallback and why.
+  default contribution, read from `<base folder>/references/<name>.md`; and the user is told which names came from a
+  fallback and why.
 - **Extensions:**
   - The name is missing and the consumer has no default contribution: the name is not loaded, reported, and the consumer
     carries on without it. No substitute is searched for.
@@ -195,15 +198,18 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 **Precedence**
 
 - R3 (UC1, E3): With no merge modes set, the answer is the contribution in the highest tier in the order `managed`,
-  `project`, `user`, `plugin`. A project or user contribution of a bare name therefore beats every plugin's contribution
-  of it. Within a tier, the nearer project folder wins over a farther one, and a `references/` folder over its legacy
-  folder.
+  `project`, `user`, `plugin`, then `default` (not built: today the default contribution is read only by UC4). A
+  project or user contribution of a bare name therefore beats every plugin's contribution of it. Within a tier, the
+  nearer project folder wins over a farther one.
 - R4 (UC1, E4): A contribution with `merge: first-wins`, or none, ends the chain: every contribution below it is
   `shadowed`.
 - R5 (UC1, E5): A contribution with `merge: combine` prints above the contributions below it, each marked with its
   layer, highest first.
 - R6 (UC1, E6): A contribution with `merge: merge-sections` replaces, combines, or removes only the `##` sections it
   names (by `<!-- merge: replace|combine|remove -->`, default replace) and keeps the rest of the contribution below.
+- R42 (UC1, E44) (not built): `merge: section-first-wins` behaves as `merge-sections` does in R6.
+  `merge: section-merge` behaves the same except that a named section with no marker combines. `merge-sections` is
+  read as `section-first-wins` with a warning naming the new value.
 - R7 (UC1, E7): An unknown `merge` value is read as `first-wins` with a warning; an unknown section merge is read as
   `replace` with a warning; a section merge that matches no section below warns.
 
@@ -233,11 +239,11 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   plugin running the command contributes its own `references/` first and is not read twice.
 - R14 (UC1, E16): A higher contribution of a `<id>.interface` name is ignored with a warning; the lowest contribution
   answers; two plugins holding it make it `ambiguous`.
-- R15 (UC2, E17): A layer skipped for a reason appears in the trace with that reason and contributes no contribution.
-- R20 (UC1, UC2, E22): The managed, project, and user tiers, and the running plugin's own layer, also read a legacy
-  `governances/` folder, ranked below that tier's `references/` folder. The managed tier has a second legacy folder,
-  reported `deprecated`. Each answers, and its status tells the
-  reader which folder to move the documents to.
+- R15 (UC2, E17): A layer skipped for a reason appears in the trace with that reason and adds no contribution.
+- R20 (UC1, UC2, E22) (not built): No `governances/` folder is read, in any tier or in a base folder. A document in
+  one answers only after it moves to the `references/` folder beside it.
+- R41 (UC1, UC2, UC4, E43) (not built): `show <name>... --default <base folder>` reads
+  `<base folder>/references/<name>.md` as the `default` tier. `where` takes `--default` in place of `--caller`.
 
 **Finding**
 
@@ -320,6 +326,10 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   governance as a version-pinned rule set; universal-plugin ADR 0002 named a tier `local` and `package`. Which words
   does the glossary fix, and do the stale `governance show` lines in cyberfleet and cyberlegion `AGENTS.md` get a
   separate fix?
+- **Q10.** How does a contribution name what it builds on, and how (override, combine, or extend)? This replaces
+  `overrides: [<plugin>]` (UC7, R8) and may replace #110's default marker and pin file (UC9). The main case is a
+  project contribution over a plugin's; plugin over plugin is secondary.
+- **Q11.** Is a plugin-root `references/` folder part of the Agent Plugins spec, or a convention of ours?
 
 ## References
 

@@ -45,7 +45,7 @@ Layer reading, before any name is resolved:
 | E19 | `search` | match kinds ranked `name` to `body`, then by name |
 | E20 | no match | explicit zero, exit 0 |
 | E21 | any subcommand here | writes no file (barred edge) |
-| E22 | a legacy folder holds the name | answers below the tier's `references/` folder; status says to move it |
+| E22 | a `governances/` folder holds the name (not built) | not read |
 | E23 | fallback: name `missing` or command did not run | read the default contribution |
 | E24 | fallback used, or a name not loaded | reported to the user with the reason |
 | E25 | name rejected | its path is never read; call repeated without it |
@@ -97,3 +97,5 @@ flowchart TD
 | E40 | `--format json` (not built) | fields in R38 |
 | E41 | an unresolved name (not built) | stable `code` |
 | E42 | project or user contribution over plugin contributions (not built) | warning names the plugins |
+| E43 | `--default <base folder>` given (not built) | `<base folder>/references/<name>.md` read as the lowest tier |
+| E44 | `merge` is `section-first-wins` or `section-merge` (not built) | named sections replace, or combine, by default |
