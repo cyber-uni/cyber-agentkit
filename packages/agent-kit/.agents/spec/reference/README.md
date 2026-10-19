@@ -23,7 +23,7 @@ the same thing.
 **Non-goals:**
 
 - Installing, enabling, or removing plugins. That is [dependencies](../dependencies/README.md).
-- Finding documents by meaning. `search` is lexical and ranked by match kind; it promises an order, not relevance.
+- Finding references by meaning. Results are returned in a deterministic order.
 - Reading anything but Markdown by name, or any path. A name is never a path.
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
