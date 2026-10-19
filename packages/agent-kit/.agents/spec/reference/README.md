@@ -160,11 +160,11 @@ each name is answered with what can be found, and every fault is reported as a w
   `reference search <query>`; `listReferences`, `searchReferences`.
 - **Inputs:** a pattern or a query; the root (default the current directory); the detected harness.
 - **Outcome:** `list` gives one row per name per layer holding it, and one per installed skill holding a default
-  contribution of it, with tier, plugin or skill, path, description, and the outcome (K7) that contribution gets; a
-  default's is the one it gets when its skill loads the name, and its row notes that the `default` step reaches it
-  then; a default has no qualified name. A selection's row is marked as one. A pattern keeps
-  exactly the names it matches. `search` resolves each name as `show` would, and each default as its skill loads it,
-  then gives matches best first.
+  contribution of it (a harness's machine-wide admin skills included), with tier, plugin or skill, path, description,
+  and the outcome (K7) that contribution gets; a default's is the one it gets when its skill loads the name, and its row
+  notes that the `default` step reaches it then; a default has no qualified name. A selection's row is marked as one. A
+  pattern keeps exactly the names it matches. `search` resolves each name as `show` would, and each default as its skill
+  loads it, then gives matches best first.
 - **Extensions:**
   - UC3.1 Nothing matches: the output says zero explicitly. It is not an error.
   - UC3.2 `search` with an empty query: error.
@@ -316,8 +316,8 @@ each name is answered with what can be found, and every fault is reported as a w
   what it changed in each section (UC2). Placing the file is outside this capability: it is written like any other
   contribution, in the managed folder that harness detection finds for each harness.
 - **Extensions:**
-  - UC10.1 The harness keeps its managed policy where it cannot be read locally (such as an MDM domain): the trace
-    shows that layer not read, with the reason.
+  - UC10.1 The harness keeps its managed content where it cannot be read locally (an MDM domain, or a server): the
+    trace shows that layer not read, with the reason.
   - UC10.2 The file sits in the managed folder of a harness that is not detected: that folder is not read, and the
     trace names the detected harnesses, so the admin sees why.
 
@@ -489,13 +489,15 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 - **Q11.** Is a plugin-root `references/` folder part of the Agent Plugins spec, or a convention of ours?
 - **Q12.** For each harness: where a plugin's skills sit in its folder, how an installed plugin maps to its folder
   beyond the three in `.research/harness-detection` R7, which copy of a skill runs when several folders hold it, and
-  whether the harness gives a running skill its own folder. It blocks building the `default` tier and UC3's defaults,
-  not the spec.
+  whether the harness gives a running skill its own folder. Machine-wide admin skill folders are known for Claude Code,
+  Codex, and OpenCode (`.research/machine-wide-content`). It blocks building the `default` tier and UC3's defaults, not
+  the spec.
 
 ## References
 
 - Interfaces design: issue #97 (closed). Overrides, dependencies, pin: #107, #110. Name-pattern listing: #79.
 - Harness facts for enabled-plugin layers and managed folders: `.research/harness-detection`.
+- Machine-wide and managed content, including admin skill folders: `.research/machine-wide-content`.
 - The agent-facing procedure: `skills/reference/SKILL.md` and `skills/reference/references/load.md`.
 - Consumers surveyed: universal-plugin ADR 0017, cyberplace `skill-design`, repobuddy `project-tracker`, cynapse ADR
   0008, cyberfleet ADR 0024.
