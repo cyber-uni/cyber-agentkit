@@ -18,7 +18,8 @@ exactly that. The skill depends on the name, not on a file. Whoever places a con
 says: a plugin ships one, and a repository, a user, or a machine-wide policy can each place their own. Each contribution
 declares whether it replaces the contributions below it or extends them, and one rule, the same for every skill, puts
 the contributions in order. A team can then customize a plugin's instructions without forking it, and two skills asking
-for one name read the same thing.
+for one name read the same thing. Contributions come from authors who never coordinate, so a fault in one never stops
+the rest: each name is answered with what can be found, and every fault is reported as a warning.
 
 **Non-goals:**
 
