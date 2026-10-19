@@ -61,15 +61,15 @@ each name is answered with what can be found, and every fault is reported as a w
 
 | ID | Actor | Goal |
 | --- | --- | --- |
-| A1.1 | A1 consumer (a skill, or the agent running it) | Load exactly the instructions it names, composed as their tiers declare |
+| A1.1 | A1 consumer (a skill, or the agent running it) | Load exactly the instructions it names, composed as their contributions declare |
 | A1.2 | A1 | When a name can't be answered, know the reason, since each needs a different next step, and carry on |
 | A2.1 | A2 inspector (anyone) | Know what an agent reads for a name, and why |
 | A3.1 | A3 finder (anyone) | Find the names that exist, to load one or customize one |
 | A4.1 | A4 admin | Have a managed contribution reach every repository on the machine, above project and user ones |
-| A5.1 | A5 customizer (a team for its repository, or a user for themselves) | Change what a skill reads (override, combine, or extend a plugin's contribution) without forking the plugin |
+| A5.1 | A5 customizer (a team for its repository, or a user for themselves) | Change what a skill reads without forking the plugin: replace, patch, combine with, or remove a plugin's contribution, and choose which plugins it builds on and in what order |
 | A5.2 | A5 | Remove a customization, and learn what answers afterwards |
 | A6.1 | A6 plugin author | Ship skills that load references by name, with defaults others can customize |
-| A6.2 | A6 | Customize another plugin's contribution (Q10's secondary case) |
+| A6.2 | A6 | Build on another plugin's contribution, or on a skill's default, as its author wrote it |
 | A6.3 | A6 | Publish an interface, and know an implementation meets it |
 | A7.1 | A7 agent user | Be told when the agent ran without instructions it asked for, or without the customizations placed for it |
 
