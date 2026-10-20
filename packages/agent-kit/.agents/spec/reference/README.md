@@ -190,8 +190,8 @@ Edge IDs are in [graph.md](./graph.md).
   convention of this library, not of the Agent Plugins spec (R13). It no longer blocks the `default` tier or UC3's
   defaults (#113). What stays unverified: which Cursor marketplace plugins are enabled (Cursor keeps that on its server,
   so only the cached copies can be read); Claude Code's project-scope plugin records; and the text OpenCode and Gemini
-  CLI give a loaded skill, read from source only. The harnesses also disagree on which same-named skill runs, so how
-  `list` shows a default held by two skills of one name is left to #113.
+  CLI give a loaded skill, read from source only. The harnesses also disagree on which same-named skill runs; R16 says
+  how `list` shows a default two skills of one name hold.
 
 ## References
 
