@@ -2,7 +2,7 @@
 
 ## Last updated
 
-October 2026 (reviewed by the owner; decisions D8 to D18 added)
+October 2026 (reviewed by the owner; decisions D8 to D19 added)
 
 ## Question
 
@@ -75,6 +75,13 @@ These settle the open choices below and override the recommendations where they 
   derived by checking one against the other; the work to close it lives in the project tracker, linked by criterion
   ID. Reason: a "(not built)" mark is a second home for the gap, beside the tracker, and goes stale on each release
   unless the spec is edited again. After a redesign most criteria carry it, so it stops saying anything.
+- D19 A spec splits by the procedure in the skill: the parent keeps what every task shares, each child owns its use
+  cases and their criteria, IDs stay shared and unchanged, and the move is a commit of its own. Reason: the split
+  applies the capability-first rule (D14) to the spec itself, the same line the code's folders follow. Stable IDs keep
+  every issue, commit message, and cross-reference valid; a move-only commit lets a reviewer confirm nothing changed.
+  Splitting before the sections are agreed would make each revision of a shared term edit several files: the
+  reference spec's stack redesign reopened every section after Key terms. The reference spec split into resolve, write,
+  interfaces, and skill, cutting the largest task's read from the whole spec to about 60%.
 
 ## Reference material
 

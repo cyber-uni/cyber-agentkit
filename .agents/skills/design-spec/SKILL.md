@@ -66,6 +66,19 @@ need less than half of it, split the capability into child specs along the line 
 outcome; the parent keeps the shared terms and links each child. Do not split by section type, such as a separate
 criteria file: every task needs a slice of every section.
 
+**Split a spec.** Decide the line once the use cases are settled, and move the text once every section is agreed, so
+a revision never straddles files.
+
+1. Table the tasks, the sections each needs, and its share of the spec. Split only when most shares are under half.
+2. Put in the parent what every task needs: the What, Non-goals, Key terms, Actors, the criteria groups that span
+   children (such as `Adapters`, names, the output contract), the open questions they share, References, and a table
+   linking each child with its use cases.
+3. Give each child its use cases, the criteria groups bound to them, its open questions, a title naming its own
+   outcome, and a line linking the parent's terms. A child is never read without its parent.
+4. Keep every ID: IDs are shared across the parent and its children, and a retired one stays retired. Move each graph
+   edge with the criteria that cite it; edges several children cite stay in the parent's `graph.md`.
+5. Make the split a commit of its own that moves text without rewording it, and check that no line was lost.
+
 Leave out implementation design, task lists, stack choices, alternatives analysis, and whether a criterion is built
 yet. The gap between the criteria and the code is found by checking one against the other; the work to close it lives
 in the project tracker, linked by criterion ID. Link rationale (an ADR, an issue, a research topic) and do not copy it

@@ -14,3 +14,5 @@
   instructions as their own use cases. Triggered by the owner's grilling of the reference spec's UC1.
 - 2026-10-19. Owner decision D18 added: a spec carries no build status; the gap goes to the project tracker.
   Triggered by the owner's grilling of the reference spec's UC2.
+- 2026-10-20. Owner decision D19 added: how a spec splits into child specs, and when. Triggered by splitting the
+  reference spec after its grilling.
