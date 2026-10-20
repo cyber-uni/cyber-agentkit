@@ -615,7 +615,10 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 
 ## References
 
-- Interfaces design: issue #97 (closed). Overrides, dependencies, pin: #107, #110. Name-pattern listing: #79.
+- Interfaces design: issue #97 (closed). Name-pattern listing: #79 (closed). #110 (open): its alias, default marker,
+  and pin file are replaced by `extends` and selection (UC7, UC9). #107 (open): overrides and hard plugin dependencies.
+- Output rules (R38, R43 to R48): clibuilder v12's `axi` output. A returned value goes to stdout in the asked format,
+  diagnostics to stderr, errors coded; `--full` there means no truncation, so this spec's extra fields use `--metadata`.
 - Harness facts for enabled-plugin layers and managed folders: `.research/harness-detection`.
 - Machine-wide and managed content, including admin skill folders: `.research/machine-wide-content`.
 - The agent-facing procedure: `skills/reference/SKILL.md` and `skills/reference/references/load.md`.
