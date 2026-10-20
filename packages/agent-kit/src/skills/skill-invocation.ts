@@ -31,9 +31,12 @@ export interface SkillInvocation {
  * Kilo Code returns `/<skill>` in both the CLI and the VS Code extension; when a custom command or
  * MCP prompt has the same name, the skill is typed `/<skill>:skill` instead (E-KILO-S3).
  *
- * Returns `undefined` for OpenCode, Gemini CLI, Qwen Code, and Crush, which document no typed form:
- * the model loads a skill through a tool call when its description matches the task (E-OC-S2,
- * E-GEM-S2, E-QWEN-S1, E-CRUSH-S1). Crush can also list a skill in its command
+ * OpenCode returns `/<skill>` too, but when a built-in (`init`, `review`), config command, or MCP
+ * prompt has the same name, that one wins and the skill has no command (E-OC-S3).
+ *
+ * Returns `undefined` for Gemini CLI, Qwen Code, and Crush, which document no typed form: the model
+ * loads a skill through a tool call when its description matches the task (E-GEM-S2, E-QWEN-S1,
+ * E-CRUSH-S1). Crush can also list a skill in its command
  * palette, which is picked, not typed (E-CRUSH-S2). OpenHands triggers skills from the model too;
  * only a plugin's commands take a `/<plugin>:<command>` form (E-OH-S2, E-OH-S3).
  *
@@ -57,6 +60,7 @@ export function skillInvocation(harness: HarnessId, { plugin, skill }: PluginSki
 		case 'kilo':
 			return { text: `/${skill}`, namespaced: false, research: 'E-KILO-S3' }
 		case 'opencode':
+			return { text: `/${skill}`, namespaced: false, research: 'E-OC-S3' }
 		case 'gemini-cli':
 		case 'qwen-code':
 		case 'crush':

@@ -183,3 +183,14 @@ syntax, is superseded by `skill-resolution` E-SR-CODEX-18: Codex's `$` mention p
 plugin skill as `$<plugin>:<skill>`. `skillInvocation('codex')` now returns that form. Copilot CLI keeps `/<skill>`:
 it lists a plugin skill as `<plugin>:<skill>` only while two plugins collide (E-SR-COPILOT-8), and typing that form
 is not verified.
+
+## 2026-10-20 — OpenCode skills are slash commands
+
+For [#59](https://github.com/spikyuni/uni-agent-kit/issues/59). The lead from Kilo (E-KILO-S3) holds upstream. In
+OpenCode's source at v1.18.34 and at the latest release, v1.19.3, every loaded skill is also a `/<skill>` command. A
+built-in, config command, or MCP prompt with the same name wins, and the skill then gets no command. A run of 1.18.34
+listed a project skill among the server's commands (E-OC-S3). That supersedes E-OC-S2's invocation claim, whose
+uniqueness claim `skill-resolution` already contradicted. The unreleased 2.x on `dev` is different: its docs, already
+published, make the command an opt-in (`opencode/slash`), and its code registers no skill commands (E-OC-S4).
+`skillInvocation('opencode')` now returns `/<skill>`, not namespaced. R4's OpenCode row and the open questions are
+updated.

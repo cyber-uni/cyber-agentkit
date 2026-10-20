@@ -39,7 +39,7 @@ A skill written for one harness only may add that harness's typed form after the
 | `cursor` | `/reference` | no |
 | `codex` | `$uni-agent-kit:reference` | yes |
 | `copilot-cli` | `/reference` | no |
-| `opencode` | no typed form recorded | — |
+| `opencode` | `/reference` | no |
 | `kilo` | `/reference` | no |
 | `gemini-cli` | no typed form recorded | — |
 | `qwen-code` | no typed form recorded | — |

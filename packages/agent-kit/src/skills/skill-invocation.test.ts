@@ -47,7 +47,15 @@ describe('skillInvocation', () => {
 		})
 	})
 
-	it.each(['opencode', 'gemini-cli', 'qwen-code', 'crush', 'openhands', 'augment'] as const)(
+	it('uses the bare skill name as a slash command in OpenCode', () => {
+		expect(skillInvocation('opencode', { plugin: 'p', skill: 'deploy' })).toEqual({
+			text: '/deploy',
+			namespaced: false,
+			research: 'E-OC-S3',
+		})
+	})
+
+	it.each(['gemini-cli', 'qwen-code', 'crush', 'openhands', 'augment'] as const)(
 		'returns undefined for %s, where no typed form of a plugin skill is confirmed',
 		(harness) => {
 			expect(skillInvocation(harness, { plugin: 'p', skill: 'review' })).toBeUndefined()
