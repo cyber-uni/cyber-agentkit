@@ -184,12 +184,14 @@ Edge IDs are in [graph.md](./graph.md).
 
 - **Q4.** The codes for warnings and refused writes, and the fields of `where`, `create`, `select`, and `delete` (R38,
   R39). Needs the owner and a check with repobuddy, which parses the output today.
-- **Q12.** (#114) For each harness: where a plugin's skills sit in its folder, how an installed plugin maps to its
-  folder beyond the three in `.research/harness-detection` R7, which copy of a skill runs when several folders hold it,
-  and whether the harness gives a running skill its own folder. Machine-wide admin skill folders are known for Claude
-  Code, Codex, and OpenCode (`.research/machine-wide-content`). It blocks building the `default` tier and UC3's
-  defaults, not the spec. Also: is a plugin-root `references/` folder part of the Agent Plugins spec, or a convention of
-  ours?
+- **Q12.** (#114) Narrowed by `.research/skill-resolution`, which answers it for Claude Code, Cursor, Codex, Copilot
+  CLI, OpenCode, and Gemini CLI: where a plugin's skills sit, how an installed plugin maps to its folder, which copy of
+  a skill runs, and that every one tells a loaded skill its folder (R41). A plugin-root `references/` folder is a
+  convention of this library, not of the Agent Plugins spec (R13). It no longer blocks the `default` tier or UC3's
+  defaults (#113). What stays unverified: which Cursor marketplace plugins are enabled (Cursor keeps that on its server,
+  so only the cached copies can be read); Claude Code's project-scope plugin records; and the text OpenCode and Gemini
+  CLI give a loaded skill, read from source only. The harnesses also disagree on which same-named skill runs, so how
+  `list` shows a default held by two skills of one name is left to #113.
 
 ## References
 
@@ -199,6 +201,8 @@ Edge IDs are in [graph.md](./graph.md).
   diagnostics to stderr, errors coded; `--full` there means no truncation, so this spec's extra fields use `--metadata`.
 - Harness facts for enabled-plugin layers and managed folders: `.research/harness-detection`.
 - Machine-wide and managed content, including admin skill folders: `.research/machine-wide-content`.
+- Where each harness keeps a plugin's skills, its install records, same-name precedence, what a loaded skill is told
+  about its folder, and that a plugin-root `references/` is ours: `.research/skill-resolution`.
 - Skill folders package managers write (pnpm, `npx skills`) and which harnesses read them:
   `.research/package-manager-skills`.
 - The agent-facing procedure: `skills/reference/SKILL.md` and `skills/reference/references/load.md`.
