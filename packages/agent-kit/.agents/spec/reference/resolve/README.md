@@ -14,41 +14,39 @@ IDs are shared across the parent and its children.
 - **Trigger:** a consumer's instructions name one or more references to load.
 - **Entry points:** Skill: the `reference` skill's Load mode, which runs the command. Code: `reference show <name>...`;
   `loadReference(name, options)`.
-- **Inputs:** one or more names; the root (default the current directory); the calling skill's folder, for the
-  `default` tier (not built); the detected harness.
+- **Inputs:** one or more names; the root (default the current directory); the calling skill's folder, for the `default`
+  tier; the detected harness.
 - **Outcome:** for each name, in the order asked, the document composed from its contributions as their `extends` and
   `merge` declare, with status `found`. The document is the composed bodies; no contribution's frontmatter is part of
   it.
 - **Extensions:** each name resolves on its own; a fault in one never stops the others.
-  - UC1.1 No contribution answers: status `missing`, with the reason: no tier holds the name (`default` included);
-    the plugin a qualified name asks for is not installed; or (not built) a `merge: remove` contribution leaves nothing
-    and no contribution above it has a body, naming that contribution.
+  - UC1.1 No contribution answers: status `missing`, with the reason: no tier holds the name (`default` included); the
+    plugin a qualified name asks for is not installed; or a `merge: remove` contribution leaves nothing and no
+    contribution above it has a body, naming that contribution.
   - UC1.2 Its contributions cannot be put in one order: status `ambiguous`. The error names the contributions in
     conflict, the cause (no written `extends` orders the plugins, a cycle in the plugins' own `extends`, or an
     `extends` listing one plugin at two separate places), and the options.
-  - UC1.3 It is not a name (it ends `.md` or `.default`, is a path, or has a bad
-    character): status `invalid`, and nothing is read
-    for it. (Not built: today the whole call is rejected, and the library throws.)
+  - UC1.3 It is not a name (it ends `.md` or `.default`, is a path, or has a bad character): status `invalid`, and
+    nothing is read for it.
   - UC1.5 A contribution has malformed frontmatter, an unknown `merge`, or a bad `extends`: it still answers, with a
-    warning and the documented default. A `merge: remove` contribution with a body: the body is ignored, with a
-    warning, and the remove still applies (not built).
+    warning and the documented default. A `merge: remove` contribution with a body: the body is ignored, with a warning,
+    and the remove still applies.
   - UC1.6 Only `<name>.md` and `<name>/README.md` answer a name; no other file does. Both in one folder: the first
     answers, and the other is ignored with a warning.
   - UC1.7 No name given: error.
   - UC1.8 The document fails its interface check: still answered, with a warning.
-  - UC1.9 (not built) The skill folder does not exist: a warning, and the name resolves without the `default` tier.
-  - UC1.10 (not built) A plugin's contribution answers over the default contribution, and no selection names it: still
-    answered, with a warning naming the plugin and `reference select <name>` (UC9). The warning stops once a written
-    `extends`, whether a selection (UC9) or a customization, names the plugin or the default.
-  - UC1.12 (not built) A step in `extends` cannot be used. A step not installed, or not holding the name, is skipped
-    with whatever only it brings in, with a warning. When every step is missing, the `extends` counts as not written,
-    with a warning, and the stack falls to the next written `extends`. A plugin listing itself has that entry ignored,
-    with a warning. A lower contribution's `extends` that builds a different stack is not used, with a warning. A
-    `default` step with nothing there is skipped with no warning; the trace shows it.
+  - UC1.9 The skill folder does not exist: a warning, and the name resolves without the `default` tier.
+  - UC1.10 A plugin's contribution answers over the default contribution, and no selection names it: still answered,
+    with a warning naming the plugin and `reference select <name>` (UC9). The warning stops once a written `extends`,
+    whether a selection (UC9) or a customization, names the plugin or the default.
+  - UC1.12 A step in `extends` cannot be used. A step not installed, or not holding the name, is skipped with whatever
+    only it brings in, with a warning. When every step is missing, the `extends` counts as not written, with a warning,
+    and the stack falls to the next written `extends`. A plugin listing itself has that entry ignored, with a warning. A
+    lower contribution's `extends` that builds a different stack is not used, with a warning. A `default` step with
+    nothing there is skipped with no warning; the trace shows it.
   - UC1.13 A section matches no section below: with an explicit `<!-- merge: ... -->` marker, a warning, and its text
     goes at the end (nothing, for `remove`); unmarked, it goes at the end with no warning. A document repeating a
-    heading: the first is matched, with a warning. (Not built: an explicit `replace` marker that matches nothing does
-    not warn yet.)
+    heading: the first is matched, with a warning.
 
 ### UC2 — Explain a resolution (A2.1)
 

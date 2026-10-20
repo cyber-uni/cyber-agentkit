@@ -4,6 +4,8 @@ spec-type: behavioral
 
 # reference — an agent loads exactly the instructions a skill names, composed from tiers that hold them
 
+The work to make the code meet this spec and its child specs is tracked in #113.
+
 ## What
 
 A skill often needs instructions it does not carry itself: how this repository tracks issues, or which house style to
@@ -45,7 +47,7 @@ each name is answered with what can be found, and every fault is reported as a w
   `combine` keeps what is below and adds my text after the text it matches. `remove` drops what is below. The same
   four apply to a whole contribution (frontmatter `merge`), to a step, and to one section (a `<!-- merge: ... -->`
   marker). A heading path is read from each document's own top heading level, so `# Review` and `## Review` match.
-- K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid` (not built).
+- K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid`.
 - K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, or `not read` or `not used`
   with a reason.
 - K8 **interface**: a contract declared in a `<id>.interface` reference. An **implementation** declares
@@ -120,8 +122,7 @@ UC11 and UC3, UC12. Informational, no contract: the trace's keys beyond those th
 
 ## Criteria
 
-Edge IDs are in [graph.md](./graph.md). An unmarked criterion is how 0.7.1 behaves. "(not built)" marks a decided
-criterion the code does not meet yet; each has an issue or an answer recorded in Open questions.
+Edge IDs are in [graph.md](./graph.md).
 
 **Adapters**
 
