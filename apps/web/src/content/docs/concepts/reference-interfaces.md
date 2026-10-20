@@ -1,16 +1,15 @@
 ---
 title: Reference interfaces
-description: How a reference declares an interface, how other references implement it, how a skill loads the implementations, and how one plugin's reference overrides another plugin's.
+description: How a reference declares an interface, how other references implement it, how a skill loads the implementations, and how one plugin's implementation builds on another's.
 ---
 
 An interface is a named contract. A skill consumes it, and a [reference](/uni-agent-kit/concepts/reference-documents/)
-in any tier implements it. The resolver lists the implementations of an interface, checks that
-each has the shape the interface requires, and lets one plugin's reference override another
-plugin's.
+in any tier implements it. The resolver lists the implementations of an interface, and checks that
+each one has the shape the interface describes.
 
 | Term | Means |
 | --- | --- |
-| interface | An id, a cardinality, a version, and the `##` sections an implementation has |
+| interface | An id, a cardinality, a version, and the top-level sections an implementation has |
 | interface document | The reference that declares an interface, named `<id>.interface` |
 | implementation | A reference that declares `implements: <id>@<version>` |
 | consumer | A skill that reads the implementations of an interface |
@@ -18,7 +17,7 @@ plugin's.
 ## Declaring an interface
 
 The plugin that owns an interface ships its interface document, named `<id>.interface`. Its
-frontmatter holds the contract. Its body holds the prose agents read.
+frontmatter holds the contract. Its body holds the prose implementers read.
 
 ```md
 ---
@@ -27,9 +26,8 @@ interface:
   cardinality: many
   version: 1
   versions: [1]
-  tiers: [managed, project, user, plugin]
   sections:
-    - Recipe: required
+    - Recipe
     - Inputs
     - Files
     - Config
@@ -47,14 +45,15 @@ Recipe, Inputs, Files, Config, Verify, Post.
 | `cardinality` | `one`: the implementation is named `<id>`. `many`: each is named `<id>.<key>` |
 | `version` | A positive integer |
 | `versions` | The versions the owner's consumers accept. Defaults to `[version]` |
-| `tiers` | Optional. The tiers that may implement it, such as `[project]` |
-| `sections` | The `##` sections, in order. A section is optional unless marked `required` |
+| `sections` | The implementation's top-level sections, in order, each listed once |
 
-Heading text is API. Adding a section or an optional field keeps the version. Renaming or removing
-a section, or making one required, raises it.
+A missing or malformed key fails the `interface` check, naming each problem. Any other key is
+ignored. Every section is optional, and a `required` mark on a listed section is ignored. Heading
+text is API: renaming or removing a section raises the version.
 
-An interface document is not overridable. A higher-tier copy of `<id>.interface` is ignored with a
-warning, and the lowest copy answers. To change a contract, define a new interface id.
+An interface document is never composed. A higher contribution of `<id>.interface` is ignored with a
+warning, and so are `extends` and `merge` on it; the lowest contribution answers. Two plugins
+holding one make it `ambiguous`. To change a contract, define a new interface id.
 
 ## Implementing an interface
 
@@ -75,9 +74,9 @@ implements: project-tracker.capabilities@1
 
 - The name is `<id>` for cardinality `one`, or `<id>.<key>` for `many`. The interface id is the
   namespace, so an implementation does not take its plugin's prefix.
-- `implements` may be a list, when one document implements two interfaces.
-- A section whose first line is `**Unsupported.**` is a declared gap. An absent optional section
-  also counts as unsupported. A `required` section can be neither.
+- `implements` names one interface.
+- A listed section whose first line is `**Unsupported.**`, or that is left out, is listed as
+  unsupported. A section the interface does not list may sit anywhere.
 
 Start one from the interface's sections:
 
@@ -85,15 +84,15 @@ Start one from the interface's sections:
 npx -y uni-agent-kit reference create scaffold.recipe.typescript-lib --implements scaffold.recipe
 ```
 
-It writes each section as a `##` heading, stubs each optional one `**Unsupported.**`, and sets
-`implements`. It refuses a name or a tier the interface does not allow.
+It writes each section as a `##` heading stubbed `**Unsupported.**`, sets `implements`, and writes
+`merge: replace`. It refuses a name the interface does not allow.
 
 ## Loading the implementations
 
-A consumer names the interface in its References line:
+A consumer names the interface in one line:
 
 ```text
-Load the implementations of the `scaffold.recipe` interface with the `reference` skill in the `uni-agent-kit` plugin.
+Load the implementations of the `scaffold.recipe` interface with the `reference` skill of `uni-agent-kit`.
 ```
 
 The skill runs:
@@ -102,17 +101,18 @@ The skill runs:
 reference implementations scaffold.recipe --format json
 ```
 
-It returns each compatible implementation with its pin, tier, `description`, and the sections it
-marks unsupported. It also returns each implementation it left out, with the reasons, such as
-`unknown version 2`, `missing required section Recipe`, or
-`ambiguous between a/scaffold.recipe.x and b/scaffold.recipe.x`.
+It returns each implementation that passes `check` for the interface, with its `pin`,
+`description`, and the sections it does not support. `--trace` adds each one's name, tier, and
+version, the interface's cardinality and accepted versions, and each implementation it left out
+with the reasons, such as `version: unknown version 2`.
 
-The pin is what the consumer loads: `<plugin>/<name>` when a plugin's copy is the base, or the bare
-name for a project or user copy. `--accept 1,2` replaces the interface's `versions`, for a consumer
-shipped apart from the interface's owner.
+The pin is what the consumer loads: the name as it resolved, or `<plugin>/<name>` for each plugin
+when no `extends` orders the plugins holding it. A skill's default is never listed: it has no
+qualified name to pin. `--accept 1,2` replaces the interface's `versions`, for a consumer shipped
+apart from the interface's owner.
 
 A consumer that reads one known implementation, such as a `one` slot, loads it by name with `show`.
-`show` warns when the document it resolves fails its interface check.
+`show` warns when the document it composes fails its interface check.
 
 ```ts
 import { homedir } from 'node:os'
@@ -124,34 +124,34 @@ const { implementations, excluded } = referenceImplementations('scaffold.recipe'
 
 ## Checking
 
-`reference check [name]...` checks each reference after every override is merged, since
-`<!-- merge: remove -->` can drop a section. With no names, it checks every interface document and
-every reference that declares `implements`. It exits 1 on any failure, so a plugin's CI can run it.
+`reference check [name]...` checks each reference as `show` composes it, since a contribution above
+can drop or change a section. With no names, it checks every interface document and implementation
+found. It also checks a name several plugins hold as each `<plugin>/<name>`, and each skill's
+default as its skill loads it. It exits 1 on any failure, so a plugin's CI can run it. Its answer
+gives each reference that fails, with its failures, and the count that pass.
 
 | Check | Fails when |
 | --- | --- |
-| interface found | `implements` names no `<id>.interface`, or is not `<id>@<version>` |
+| interface found | `implements` is not one `<id>@<version>`, or names no found, valid `<id>.interface` |
 | version | the declared version is not in the interface's `versions` |
 | name | the name is not `<id>` or `<id>.<key>` |
-| tier | a used layer's tier is not in `tiers` |
-| required | a `required` section is absent or `**Unsupported.**` |
-| known | a `##` heading is not one of the interface's sections |
-| order | the sections are out of the declared order, or one appears twice |
-| interface | an interface document's frontmatter is malformed |
+| order | the listed sections are out of order, or one appears twice |
+| interface | an interface document's `interface` block is malformed |
+| compose | composing the document raised a warning |
 
-`implementations` applies the same checks to decide what to leave out. The library exports the
-check as `checkReferences`.
+A name not found fails with its status code, such as `reference-missing`. `implementations` applies
+the same checks to decide what to leave out. The library exports the check as `checkReferences`.
 
-## Overriding another plugin
+## Building on another plugin's implementation
 
-Plugins are alternatives: two plugins holding one name make it ambiguous. A plugin's copy can
-declare which plugins' copies it sits above:
+A plugin can change how another plugin's implementation reads without forking it, such as a house
+style. It ships the same name, lists the other plugin in `extends`, and holds only the sections it
+changes:
 
 ```md
 ---
 implements: project-tracker.capabilities@1
-overrides: [repobuddy]
-merge: merge-sections
+extends: [repobuddy]
 ---
 
 ## Create
@@ -159,14 +159,7 @@ merge: merge-sections
 The house way to file an issue.
 ```
 
-- When every plugin holding the name but one is named in that one's `overrides`, the name is not
-  ambiguous. The overriding copy sits above the others, and its `merge` mode applies as it does for
-  a project override.
-- Two plugins that override each other stay ambiguous. So does a third holder that no one names.
-- A pin to the overridden plugin, such as `repobuddy/project-tracker.capabilities.github`, still
-  applies the copies that name it.
-- `overrides` matches any name of a plugin: its package name or its `plugin.json` name.
-- `show --trace` reports the overriding copy as `used (overrides repobuddy)`.
-
-`overrides` applies only to a plugin's copy. The project, user, and managed tiers already sit above
-the plugin tier.
+With no `extends` written in the managed, project, or user tier, the plugins' own `extends` order
+them: `repobuddy` sits below, and this contribution patches it. Plugins that nothing orders make the
+name `ambiguous`. A project settles that with `reference select <name> <plugin>...`. A qualified name
+such as `repobuddy/project-tracker.capabilities.github` builds only `repobuddy`'s own stack.

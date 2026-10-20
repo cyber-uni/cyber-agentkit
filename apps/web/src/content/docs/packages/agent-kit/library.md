@@ -33,7 +33,7 @@ if (harness !== 'unknown') skillsDirectories(harness)
 
 ## Reference documents
 
-`loadReference()` resolves a named document across the managed, project, user, and plugin tiers.
+`loadReference()` composes a named document from its contributions in the managed, project, user, plugin, and default tiers.
 `createReferenceCommand()` and `createReferenceCommands()` build the [`reference` command](/uni-agent-kit/packages/agent-kit/cli/)
 for a host CLI. The concepts behind them are in [reference documents](/uni-agent-kit/concepts/reference-documents/)
 and [reference interfaces](/uni-agent-kit/concepts/reference-interfaces/).
