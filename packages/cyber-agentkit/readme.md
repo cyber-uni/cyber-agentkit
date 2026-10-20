@@ -204,7 +204,7 @@ harness keeps no readable install record). A dependency with no marketplace reso
 declaring plugin's own marketplace, as Claude Code does, and is `unknown` when that marketplace
 cannot be found.
 
-`readPluginDependencies(pluginRoot)` reads the list from `extensions["org.spikyuni.plugin-manager"]`
+`readPluginDependencies(pluginRoot)` reads the list from `extensions["io.github.cyber-uni.plugin-manager"]`
 (or the older `extensions["org.cyberuni.universal-plugin"]`) in the root `plugin.json`, then from
 `.claude-plugin/plugin.json`. `declaredPluginDependencies(manifest)` parses a manifest you already
 hold. The how-to for a person or agent, `plugin-dependencies`, ships as a

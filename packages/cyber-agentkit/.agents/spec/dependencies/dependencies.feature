@@ -3,7 +3,7 @@ Feature: Check a plugin's declared dependencies against the running harness
   # ── Read a declared list ──
 
   Scenario: the plugin-manager key wins over every other source
-    Given a plugin whose root plugin.json lists "tracer" under the org.spikyuni.plugin-manager extension
+    Given a plugin whose root plugin.json lists "tracer" under the io.github.cyber-uni.plugin-manager extension
     And the same file lists "lintbot" under the org.cyberuni.universal-plugin extension
     And its .claude-plugin/plugin.json lists "formatter"
     When the declared dependencies are read

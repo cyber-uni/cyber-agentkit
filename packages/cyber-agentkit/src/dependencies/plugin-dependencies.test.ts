@@ -87,13 +87,13 @@ describe('readPluginDependencies', () => {
 		expect(read.path).toBe(join(root, 'p/plugin.json'))
 	})
 
-	it('prefers org.spikyuni.plugin-manager over the older namespace', async () => {
+	it('prefers io.github.cyber-uni.plugin-manager over the older namespace', async () => {
 		await put(
 			join(root, 'p/plugin.json'),
 			JSON.stringify({
 				extensions: {
 					'org.cyberuni.universal-plugin': { dependencies: ['old'] },
-					'org.spikyuni.plugin-manager': { dependencies: ['new'] },
+					'io.github.cyber-uni.plugin-manager': { dependencies: ['new'] },
 				},
 			}),
 		)
