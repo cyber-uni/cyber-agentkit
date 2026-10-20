@@ -217,7 +217,7 @@ each name is answered with what can be found, and every fault is reported as a w
     file replaces what is below.
   - UC5.6 `--merge remove`: no body is written. With `--template`: error.
   - UC5.7 Both `--template` and `--implements`, an unreadable template, a template whose frontmatter is not a mapping,
-    an unknown interface, or a tier the interface bars: error.
+    or an unknown interface: error.
   - UC5.8 A template whose top level is a single heading holding all the others (a title, so `patch` would add the
     whole document instead of patching its sections), or with no `description` (`list` and `search` show it blank):
     warning.
@@ -239,16 +239,13 @@ each name is answered with what can be found, and every fault is reported as a w
 - **Extensions:**
   - UC6.1 A named reference is `missing`, `ambiguous`, or `invalid`: reported with that status, as a failure.
   - UC6.2 A reference declares no `implements` and is not an interface: failure.
-  - UC6.3 `implements` is malformed, or names an interface that is missing, ambiguous, or malformed: failure.
+  - UC6.3 `implements` is malformed, lists more than one interface, or names an interface that is missing, ambiguous,
+    or malformed: failure.
   - UC6.4 No names: every interface document and every implementation is checked. A name several plugins hold is
     also checked as each `<plugin>/<name>`, so each author sees their own result. Each skill's default is checked as
     its skill loads it, subject to UC3.5.
   - UC6.5 `implementations` of an unknown interface: error.
   - UC6.6 A skill's default is never listed by `implementations`: it has no qualified name to pin.
-  - UC6.7 An interface extends another (`extends: <id>@<version>` in its `interface` block): its sections are the
-    base's, in the base's order, then its own; it may add sections and make an optional base section required, never
-    rename or remove one. An implementation of it is checked against all of them and also counts as an implementation
-    of the base.
 
 ### UC7 — Build on other contributions (A5.1, A6.2)
 
@@ -516,9 +513,9 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 - R27 (UC5, E29): `create` writes `merge` from `--merge`, else the template's `merge`, else `patch`. `--implements`
   writes `merge: replace` and warns that the file replaces what is below. `--merge remove` writes no body, and fails
   with `--template`.
-- R28 (UC5, E30): `create --implements <id>` writes the interface's sections as `##` headings in order, those it
-  inherits through `interface.extends` included, and `implements: <id>@<version>`, each optional section stubbed
-  `**Unsupported.**`; it fails for an unknown interface, a tier the interface bars, and with `--template`.
+- R28 (UC5, E30): `create --implements <id>` writes the interface's sections as `##` headings in order and
+  `implements: <id>@<version>`, each section stubbed `**Unsupported.**`; it fails for an unknown interface and with
+  `--template`.
 - R61 (UC9, E50): `select <name> <option>...` writes `extends` listing the options bottom first, leaving the body and
   other keys unchanged. An option that is neither `default` nor a plugin holding the name fails, and nothing is
   written.
@@ -536,14 +533,22 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 
 **Interfaces (UC6)**
 
-- R33 (UC6, E35): `check` runs these checks on the resolved document, each named in the output: `interface found`,
-  `version`, `name`, `tier`, `required`, `known`, `order`, `interface`; exit 1 when any fails, 0 when none does.
-- R34 (UC6, E36): An optional section left out, or whose first line is `**Unsupported.**`, is listed `unsupported`; a
-  required section can be neither.
+- R63 (UC6, E52): An interface document is the reference `<id>.interface`; its body is prose for implementers. Its
+  frontmatter `interface` block holds `cardinality` (`one`: the implementation is named `<id>`; `many`: each is named
+  `<id>.<key>`), `version` (a positive integer), `versions` (the versions its consumers accept, positive integers,
+  default `[version]`), and `sections` (the implementation's top-level sections in order, each listed once). A missing
+  or malformed key fails the `interface` check, naming each problem; any other key is ignored.
+- R64 (UC6, E36): Every section is optional; a `required` mark on a listed section is ignored. An implementation may
+  hold sections the interface does not list, anywhere; `order` compares only the listed ones, each at most once.
+- R33 (UC6, E35): `check` runs these checks on an implementation's composed document, each named in the output:
+  `interface found` (`implements` is one `<id>@<version>` naming a found, valid interface), `version`, `name`, and
+  `order`; an interface document gets the `interface` check (R63). Any failure fails the result.
+- R34 (UC6, E36): A listed section left out, or whose first line is `**Unsupported.**`, is listed `unsupported`.
 - R35 (UC6, E37): `implementations <id>` lists an implementation only when it passes `check` for that interface; every
-  other candidate is under `excluded` with a reason. `--accept` replaces the interface's accepted versions.
-- R36 (UC6, E38): `check` with no names covers every interface document and implementation found, one entry per
-  plugin for a name two plugins hold.
+  other candidate is under `excluded` with each reason. A skill's default is never listed. `--accept` replaces the
+  interface's accepted versions.
+- R36 (UC6, E38): `check` with no names covers every interface document and implementation found. A name several
+  plugins hold is also checked as each `<plugin>/<name>`, and each skill's default as its skill loads it.
 - R37 (UC1, E39): `show` prints a document that fails its interface check, with a warning naming the failed check.
 
 **Consumers (UC8)**
@@ -587,6 +592,11 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   whether the harness gives a running skill its own folder. Machine-wide admin skill folders are known for Claude Code,
   Codex, and OpenCode (`.research/machine-wide-content`). It blocks building the `default` tier and UC3's defaults, not
   the spec.
+- **Q13.** Interface composition (traits, mixins): an interface that includes others, and a document that implements
+  several. A name fits one interface's namespace, so these need implementations found by what a document declares,
+  not by its name. Parked: `implements` names one interface (UC6.3).
+- **Q14.** Required sections: every section is optional for now (R64). When an interface needs to require one, what
+  does `check` do, and does adding the mark raise the version?
 
 ## References
 
