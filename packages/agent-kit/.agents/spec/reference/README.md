@@ -598,31 +598,15 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 
 ## Open questions
 
-- **Q1.** `merge: combine` has no consumer in universal-plugin, cyberplace, or repobuddy; all use `merge-sections` or
-  the default. Keep it, or deprecate it? Specified as built meanwhile.
-- **Q2.** `devDependencies` count as plugin sources (R13) because the code reads them. Is that intended for a published
-  consumer?
-- **Q3.** `search` ignores tier in its order. Intended?
-- **Q4.** Which error `code` names, and whether `--format json` fields are final (R38, R39). Needs the owner and a
-  check with repobuddy, which parses them today.
-- **Q5.** repobuddy's docs say a team overrides a tracker "under the qualified name"; `create` rejects a qualified name
-  (R25). Which is right? This decides whether an override of one plugin's contribution among several has a home before
-  #110.
+- **Q4.** The codes for warnings and refused writes, and the fields of `where`, `create`, `select`, and `delete` (R38,
+  R39). Needs the owner and a check with repobuddy, which parses the output today.
 - **Q6.** UC4 is behavior of skill text, so it cannot be a deterministic unit test (C5). How is it checked: a skill
   eval, or a fixture run of the Load steps?
-- **Q7.** Vocabulary: cyberfleet and cyberlegion call a name-only skill a "governance"; buddy-agent-harness defines a
-  governance as a version-pinned rule set; universal-plugin ADR 0002 named a tier `local` and `package`. Which words
-  does the glossary fix, and do the stale `governance show` lines in cyberfleet and cyberlegion `AGENTS.md` get a
-  separate fix?
-- **Q10.** How does a contribution name what it builds on, and how (override, combine, or extend)? This replaces
-  `overrides: [<plugin>]` (UC7, R8) and may replace #110's default marker and pin file (UC9). The main case is a
-  project contribution over a plugin's; plugin over plugin is secondary.
-- **Q11.** Is a plugin-root `references/` folder part of the Agent Plugins spec, or a convention of ours?
 - **Q12.** For each harness: where a plugin's skills sit in its folder, how an installed plugin maps to its folder
   beyond the three in `.research/harness-detection` R7, which copy of a skill runs when several folders hold it, and
   whether the harness gives a running skill its own folder. Machine-wide admin skill folders are known for Claude Code,
   Codex, and OpenCode (`.research/machine-wide-content`). It blocks building the `default` tier and UC3's defaults, not
-  the spec.
+  the spec. Also: is a plugin-root `references/` folder part of the Agent Plugins spec, or a convention of ours?
 - **Q13.** Interface composition (traits, mixins): an interface that includes others, and a document that implements
   several. A name fits one interface's namespace, so these need implementations found by what a document declares,
   not by its name. Parked: `implements` names one interface (UC6.3).
