@@ -4,8 +4,8 @@
 
 2026-10-18. Checked: `agent-harness` 0.7.1 built from this repository (`reference` command), Claude Code
 plugin docs fetched 2026-10-18, Cursor, Agent Plugins 1.0, and Copilot CLI manifest schemas fetched
-2026-10-18. Design issue: [#107](https://github.com/spikyuni/cyber-agentkit/issues/107), epic
-[#106](https://github.com/spikyuni/cyber-agentkit/issues/106).
+2026-10-18. Design issue: [#107](https://github.com/cyber-uni/cyber-agentkit/issues/107), epic
+[#106](https://github.com/cyber-uni/cyber-agentkit/issues/106).
 
 > The dependency design now lives in the project spec, `packages/agent-kit/.agents/spec/dependencies/`. This topic keeps the
 > research and evidence behind it.
@@ -44,7 +44,7 @@ None of the missing pieces is implemented here. Library work needs a spec first.
 
 ## Q2. Migration order
 
-[#101](https://github.com/spikyuni/cyber-agentkit/issues/101) already fixes the order of the rename; this
+[#101](https://github.com/cyber-uni/cyber-agentkit/issues/101) already fixes the order of the rename; this
 design only places `repobuddy`'s dependency in it and closes two gaps (E-MIG-1 to E-MIG-4).
 
 1. #101 rename PR, trusted publisher, `cyber-agentkit@1.0.0` on npm, the plugin published as `cyber-agentkit`.

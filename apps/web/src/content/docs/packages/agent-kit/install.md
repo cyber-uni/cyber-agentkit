@@ -35,7 +35,7 @@ The plugin is named `cyber-agentkit`. Its `plugin.json` declares four harnesses:
 /plugin install cyber-agentkit@cyberplace
 ```
 
-Those two lines come from the [package readme](https://github.com/spikyuni/cyber-agentkit/tree/main/packages/agent-kit#the-reference-skill).
+Those two lines come from the [package readme](https://github.com/cyber-uni/cyber-agentkit/tree/main/packages/agent-kit#the-reference-skill).
 For Cursor, Codex, and Copilot CLI, install the plugin with that harness's own plugin command. The
 package ships a manifest for each: `.claude-plugin`, `.cursor-plugin`, and `.codex-plugin`.
 

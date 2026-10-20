@@ -1,7 +1,7 @@
 # cyber-agentkit
 
 [![npm](https://img.shields.io/npm/v/cyber-agentkit.svg)](https://www.npmjs.com/package/cyber-agentkit)
-[![release](https://github.com/spikyuni/cyber-agentkit/actions/workflows/release.yml/badge.svg)](https://github.com/spikyuni/cyber-agentkit/actions/workflows/release.yml)
+[![release](https://github.com/cyber-uni/cyber-agentkit/actions/workflows/release.yml/badge.svg)](https://github.com/cyber-uni/cyber-agentkit/actions/workflows/release.yml)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 
 An agent-harness-agnostic toolkit. It provides the fundamental features agent tools need and makes

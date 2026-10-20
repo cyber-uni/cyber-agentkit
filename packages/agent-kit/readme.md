@@ -1,6 +1,6 @@
 # cyber-agentkit
 
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/spikyuni/cyber-agentkit/blob/main/LICENSE)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/cyber-uni/cyber-agentkit/blob/main/LICENSE)
 
 An agent-harness-agnostic toolkit. It provides the fundamental features agent tools need and makes
 each one work the same way across harnesses:
@@ -15,7 +15,7 @@ each one work the same way across harnesses:
 It depends on no other agent tool, so any of them can build on it.
 
 **Status: pre-release.** Every fact this library encodes rests on
-[`.research/harness-detection`](https://github.com/spikyuni/cyber-agentkit/tree/main/.research/harness-detection).
+[`.research/harness-detection`](https://github.com/cyber-uni/cyber-agentkit/tree/main/.research/harness-detection).
 
 ## Detect the harness
 
@@ -382,7 +382,7 @@ you approve it. It runs the command from its bundled `scripts/reference.mjs`, wh
 ```
 
 A skill that needs a reference names it in one line, as the skill's
-[`README.md`](https://github.com/spikyuni/cyber-agentkit/blob/main/packages/agent-kit/skills/reference/README.md)
+[`README.md`](https://github.com/cyber-uni/cyber-agentkit/blob/main/packages/agent-kit/skills/reference/README.md)
 shows:
 
 ```text
@@ -420,4 +420,4 @@ This package exists so they share one implementation instead.
 
 ## License
 
-[MIT](https://github.com/spikyuni/cyber-agentkit/blob/main/LICENSE)
+[MIT](https://github.com/cyber-uni/cyber-agentkit/blob/main/LICENSE)

@@ -18,13 +18,13 @@
 		"openhands",
 		"auggie"
 	],
-	"homepage": "https://spikyuni.github.io/cyber-agentkit/",
+	"homepage": "https://cyber-uni.github.io/cyber-agentkit/",
 	"bugs": {
-		"url": "https://github.com/spikyuni/cyber-agentkit/issues"
+		"url": "https://github.com/cyber-uni/cyber-agentkit/issues"
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/spikyuni/cyber-agentkit.git",
+		"url": "git+https://github.com/cyber-uni/cyber-agentkit.git",
 		"directory": "packages/agent-kit"
 	},
 	"license": "MIT",

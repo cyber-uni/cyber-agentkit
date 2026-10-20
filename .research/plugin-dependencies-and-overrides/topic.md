@@ -1,6 +1,6 @@
 # Topic — Reference overrides and plugin dependencies
 
-Investigation record for [#107](https://github.com/spikyuni/cyber-agentkit/issues/107). The answers are in
+Investigation record for [#107](https://github.com/cyber-uni/cyber-agentkit/issues/107). The answers are in
 [conclusion.md](./conclusion.md); each claim's source is in [evidence.md](./evidence.md).
 
 ## Question

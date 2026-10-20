@@ -40,5 +40,5 @@ and [reference interfaces](/cyber-agentkit/concepts/reference-interfaces/).
 
 ## Full signatures
 
-The [package readme](https://github.com/spikyuni/cyber-agentkit/tree/main/packages/agent-kit#readme)
+The [package readme](https://github.com/cyber-uni/cyber-agentkit/tree/main/packages/agent-kit#readme)
 documents each function with its options, return shape, and the research claim behind each answer.

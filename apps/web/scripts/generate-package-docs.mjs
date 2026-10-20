@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 const web = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repo = resolve(web, '../..')
 const docs = join(web, 'src/content/docs/packages')
-const repoUrl = 'https://github.com/spikyuni/cyber-agentkit/tree/main'
+const repoUrl = 'https://github.com/cyber-uni/cyber-agentkit/tree/main'
 
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'))
 const esc = (text) => String(text).replaceAll('|', '\\|')
@@ -128,7 +128,7 @@ function requiresPage(pkg, plugin) {
 		'',
 	)
 	out.push(
-		'To install them, load the [`plugin-dependencies` reference](https://github.com/spikyuni/cyber-agentkit/blob/main/packages/agent-kit/references/plugin-dependencies.md) through the `reference` skill of `cyber-agentkit`. On a harness other than Claude Code nothing is installed for you.',
+		'To install them, load the [`plugin-dependencies` reference](https://github.com/cyber-uni/cyber-agentkit/blob/main/packages/agent-kit/references/plugin-dependencies.md) through the `reference` skill of `cyber-agentkit`. On a harness other than Claude Code nothing is installed for you.',
 		'',
 	)
 	out.push('| Plugin | Marketplace | Version |', '| --- | --- | --- |')

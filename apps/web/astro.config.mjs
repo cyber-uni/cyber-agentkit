@@ -12,7 +12,7 @@ const packages = readdirSync(new URL('./src/content/docs/packages/', import.meta
 	.map((entry) => ({ label: entry.name, items: [{ autogenerate: { directory: `packages/${entry.name}` } }] }))
 
 export default defineConfig({
-	site: 'https://spikyuni.github.io',
+	site: 'https://cyber-uni.github.io',
 	base: '/cyber-agentkit',
 	vite: { plugins: [tailwindcss()] },
 	integrations: [
@@ -26,7 +26,7 @@ export default defineConfig({
 			favicon: '/img/logo.svg',
 			logo: { light: './src/assets/logo-light.svg', dark: './src/assets/logo-dark.svg', alt: 'cyber-agentkit' },
 			customCss: ['./src/styles/global.css'],
-			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/spikyuni/cyber-agentkit' }],
+			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/cyber-uni/cyber-agentkit' }],
 			sidebar: [
 				{ label: 'Packages', items: packages },
 				{

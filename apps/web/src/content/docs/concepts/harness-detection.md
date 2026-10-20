@@ -5,7 +5,7 @@ description: How cyber-agentkit identifies which AI agent harness is running, an
 
 `detectHarness()` reads environment variables that each harness sets on the processes it spawns.
 Every rule rests on a vendor source recorded in
-[`.research/harness-detection`](https://github.com/spikyuni/cyber-agentkit/tree/main/.research/harness-detection),
+[`.research/harness-detection`](https://github.com/cyber-uni/cyber-agentkit/tree/main/.research/harness-detection),
 and every piece of evidence it returns names the research claim behind it.
 
 ## What each harness sets
