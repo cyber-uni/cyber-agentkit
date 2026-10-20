@@ -748,7 +748,7 @@ function selectCommand(layersFor: LayersFor): cli.Command {
 					deleted: selected.deleted || undefined,
 					status: selected.after.status,
 					stack: selected.after.trace.stack,
-					answer: describeAnswer(selected.after),
+					answer: describeAnswer(selected.after, display),
 				})
 				if (format !== 'text') return result(report)
 				writeWarnings(selected.after.warnings)
@@ -774,7 +774,7 @@ function deleteReport(deleted: DeleteResult, home: string): ReferenceDeleteRepor
 		dryRun: deleted.dryRun || undefined,
 		status: deleted.after.status,
 		stack: deleted.after.trace.stack,
-		answer: describeAnswer(deleted.after),
+		answer: describeAnswer(deleted.after, (path) => collapseHome(home, path)),
 		selection,
 		options: deleted.after.options,
 	})
