@@ -1,4 +1,4 @@
-# @cyberuni/agent-harness
+# cyber-agentkit
 
 ## 0.7.1
 
