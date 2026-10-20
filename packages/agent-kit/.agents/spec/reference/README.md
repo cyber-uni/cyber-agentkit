@@ -127,7 +127,7 @@ each name is answered with what can be found, and every fault is reported as a w
 
 - **Trigger:** someone asks what an agent reads for a name and why, or where a customization of it would go.
 - **Entry points:** Skill: the `reference` skill's Inspect mode. Code: `reference show <name> --trace`;
-  `reference where <name> [--default <skill folder>]`; `resolveReference`, `whereReference`.
+  `reference where <name> [--default <skill folder>] [--trace]`; `resolveReference`, `whereReference`.
 - **Inputs:** a name; the root (default the current directory); the calling skill's folder, for the `default` tier;
   the detected harness.
 - **Outcome:** the trace gives the name's status; the stack and what built it (the contribution whose `extends` was
@@ -135,9 +135,9 @@ each name is answered with what can be found, and every fault is reported as a w
   contributions that supplied its text and the operation each applied; and every layer checked, in K17 order highest
   first, with its path, the file that matched, its frontmatter as written, the operation it applied and whether that
   came from the contribution or from a step, and its outcome (K7). The composed document itself is unchanged. `where`
-  gives the same layers with their outcomes; the project and user `<name>.md` files a customization or a selection is
-  written to, each with who it reaches and the default operation, `patch`; and the heading paths of the document below
-  each, which a section operation can target.
+  gives the project and user `<name>.md` files a customization or a selection is written to, each with who it reaches,
+  and the heading paths of the document below each, which a section operation can target; with `--trace`, also the
+  layers with their outcomes.
 - **Extensions:**
   - UC2.1 A layer or step cannot be read (policy held in MDM, a plugin with no install folder, a step not installed, a
     `default` step with nothing there): it appears with the reason, such as `not read (not installed)` or
@@ -159,21 +159,22 @@ each name is answered with what can be found, and every fault is reported as a w
 - **Entry points:** Skill: the `reference` skill's Find mode. Code: `reference list [pattern]`;
   `reference search <query>`; `listReferences`, `searchReferences`.
 - **Inputs:** a pattern or a query; the root (default the current directory); the detected harness.
-- **Outcome:** `list` gives one row per name per layer holding it, and one per installed skill holding a default
-  contribution of it (a harness's machine-wide admin skills included), with tier, plugin or skill, path, description,
-  and the outcome (K7) that contribution gets; a default's is the one it gets when its skill loads the name, and its row
-  notes that the `default` step reaches it then; a default has no qualified name. A selection's row is marked as one. A
-  pattern keeps exactly the names it matches. `search` resolves each name as `show` would, and each default as its skill
-  loads it, then gives matches best first.
+- **Outcome:** `list` gives one row per name with its description, and its status when not `found`; a pattern keeps
+  exactly the names it matches. With `--trace`, it gives one row per name per layer holding it, and one per installed
+  skill holding a default contribution of it (a harness's machine-wide admin skills included), with tier, plugin or
+  skill, path, description, and the outcome (K7) that contribution gets; a default's is the one it gets when its skill
+  loads the name, and its row notes that the `default` step reaches it then; a default has no qualified name. A
+  selection's row is marked as one. `search` resolves each name as `show` would, and each default as its skill loads it,
+  then gives matches best first, each with its name, description, and match kind.
 - **Extensions:**
   - UC3.1 Nothing matches: the output says zero explicitly. It is not an error.
   - UC3.2 `search` with an empty query: error.
   - UC3.3 A name that no written `extends` orders: `list` marks it ambiguous with the options (each `<plugin>/<name>`,
     and each skill's default); `search` returns it once per plugin.
-  - UC3.4 A name a `remove` turned off: `list` shows the `remove` row and each row below it as
-    `shadowed by <contribution> (remove)`; `search` leaves the name out.
-  - UC3.5 The detected harness's skill folders are not verified (Q12): `list` and `search` show no defaults, with a
-    warning saying why.
+  - UC3.4 A name a `remove` turned off: `list` shows it `missing`, and with `--trace` the `remove` row and each row
+    below it as `shadowed by <contribution> (remove)`; `search` leaves the name out.
+  - UC3.5 The detected harness's skill folders are not verified (Q12): `list` and `search` show no defaults, and the
+    answer says so and why. It is a limit of the harness, not a warning.
 
 ### UC4 — Act on an unanswered name (A1.2, A7.1)
 
@@ -205,22 +206,22 @@ each name is answered with what can be found, and every fault is reported as a w
   [--dry-run]`.
 - **Inputs:** a bare name; the tier written to (`project` by default, or `user`); the operation (default `patch`); a
   template or an interface; the root.
-- **Outcome:** `create` writes `<name>.md` in that tier's folder with `merge: <operation>`, and reports the path and
-  the resulting trace, in which the new file applies over everything below it (K17), with a hint that `show <name>`
-  gives the composed document. The skill shows the user where each section came from and offers the full document.
+- **Outcome:** `create` writes `<name>.md` in that tier's folder with `merge: <operation>`, and reports the path with
+  a hint that `show <name>` gives the composed document; with `--trace`, also the resulting trace, in which the new
+  file applies over everything below it (K17). The skill shows the user where each section came from and offers the
+  full document.
 - **Extensions:**
   - UC5.1 The file exists with a body: error, and nothing is written. `create` never overwrites; Update edits it.
   - UC5.2 The file holds only a selection: `create` adds the body and `merge`, and keeps its `extends`.
   - UC5.3 A qualified name: error naming the bare name to use.
   - UC5.4 A `replace` or `remove` above would hide the new file: error naming that contribution.
-  - UC5.5 `--implements <id>`: the interface's sections are written with `merge: replace`, and a warning says the
-    file replaces what is below.
+  - UC5.5 `--implements <id>`: the interface's sections are written with `merge: replace`.
   - UC5.6 `--merge remove`: no body is written. With `--template`: error.
   - UC5.7 Both `--template` and `--implements`, an unreadable template, a template whose frontmatter is not a mapping,
     or an unknown interface: error.
-  - UC5.8 A template whose top level is a single heading holding all the others (a title, so `patch` would add the
-    whole document instead of patching its sections), or with no `description` (`list` and `search` show it blank):
-    warning.
+  - UC5.8 A template whose top level is a single heading holding all the others (a title, so `patch` would add the whole
+    document instead of patching its sections): error, and nothing is written. A template with no `description`:
+    written, with a hint that `list` and `search` will show it blank.
   - UC5.9 `--dry-run`: the path and the content are printed, and nothing is written.
 
 ### UC6 — Publish and check interfaces (A6.3)
@@ -246,6 +247,8 @@ each name is answered with what can be found, and every fault is reported as a w
     its skill loads it, subject to UC3.5.
   - UC6.5 `implementations` of an unknown interface: error.
   - UC6.6 A skill's default is never listed by `implementations`: it has no qualified name to pin.
+  - UC6.8 Composing a checked name raises a warning: its `compose` check fails, so `check` is the strict gate while
+    `show` still answers.
 
 ### UC7 — Build on other contributions (A5.1, A6.2)
 
@@ -277,11 +280,13 @@ each name is answered with what can be found, and every fault is reported as a w
 - **Entry points:** Code: `--format json` on `show`, `where`, `list`, `search`, `check`, `implementations`, `create`,
   `select`, and `delete`; the library functions return the same records.
 - **Inputs:** a command and its arguments; the output format.
-- **Outcome:** each result carries the same fields in every adapter, so a consumer reads status, metadata, and codes
-  instead of prose (repobuddy reads `metadata.contract` from `show` and `match` from `search`). Removing or renaming a
-  field is a breaking change. Each failure and warning carries a stable code; the human wording is not a contract.
-  `metadata` is the composed frontmatter, key by key with the higher contribution winning, without `merge` and
-  `extends`: those say how one contribution applies, and the trace carries each as written (UC2).
+- **Outcome:** each result carries the same fields in every adapter: by default only those that answer the request, with
+  `--metadata` and `--trace` adding the rest, so an agent pays for no detail it did not ask for, and a consumer reads
+  status, metadata, and codes instead of prose (repobuddy reads `metadata.contract` from `show --metadata` and `match`
+  from `search`). Removing or renaming a field is a breaking change. Each failure and warning carries a stable code; the
+  human wording is not a contract. `metadata` is the composed frontmatter, key by key with the higher contribution
+  winning, without `merge` and `extends`: those say how one contribution applies, and the trace carries each as written
+  (UC2).
 - **Extensions:**
   - UC8.1 A name not `found`: its entry carries the status and code, and the other names still resolve.
   - UC8.2 A warning in structured output goes in the entry's `warnings`, so a consumer reads every fault from one
@@ -388,11 +393,11 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   `warning: <code>: <message>` line, both on stderr. Neither changes stdout, and a warning never changes the exit code.
 - R46 (UC2): `--trace` in text writes to stderr a summary line (status, stack, what built it), then each section's
   heading path with its contributions and operations, then each layer; stdout stays the plain document.
-- R47 (UC8): `--format json` writes one JSON document to stdout. Each entry carries its status, code, `metadata`, and
-  `warnings`; a warning goes only in `warnings`, not on stderr.
-- R48 (UC1, UC8): Each library function returns the same records as the JSON output. A name not `found`, `invalid`
-  included, is a status in its record, never a thrown error. Warnings go in the record's `warnings` and are never
-  printed.
+- R47 (UC8): `--format json` or `toon` writes one document to stdout, with the fields R38 gives; a warning goes only in
+  the entry's `warnings`, not on stderr.
+- R48 (UC1, UC8): Each library function returns full records: every field R38 lists, including those `--metadata` and
+  `--trace` add; the command prints a subset. A name not `found`, `invalid` included, is a status in its record, never a
+  thrown error. Warnings go in the record's `warnings` and are never printed.
 
 **Names**
 
@@ -454,9 +459,9 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   `shadowed by <contribution> (replace|remove)`; `not used (not in extends)`,
   `not used (<step>'s extends replaced by <contribution>)`, `not used (<contribution>'s extends builds the stack)`, or
   `not used (qualified name)`; `not read (<reason>)`; `ambiguous`; `missing`. It names the detected harnesses.
-- R57 (UC2, E11): `where` gives the layers with their outcomes, the project and user `<name>.md` with who each reaches
-  and the default operation, `patch`, and the heading paths below each. On an ambiguous name it lists the options and
-  the files a selection goes to.
+- R57 (UC2, E11): `where` gives the project and user `<name>.md` with who each reaches, and the heading paths below
+  each; on an ambiguous name, the options and the files a selection goes to. With `--trace`, it also gives the layers
+  with their outcomes.
 
 **Layers**
 
@@ -477,17 +482,17 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 
 **Finding**
 
-- R16 (UC3, E18): `list` has one row per name per layer holding it, and one per installed skill holding a default of
-  it, naming the skill and noting that the `default` step reaches it; a selection's row is marked as one.
-  `list '<pattern>'` keeps exactly the names matching, where `*` is any run of characters and everything else is
-  literal and case-sensitive.
+- R16 (UC3, E18): `list` has one row per name, with its description and, when not `found`, its status and options. With
+  `--trace`, it has one row per name per layer holding it, and one per installed skill holding a default of it, naming
+  the skill and noting that the `default` step reaches it; a selection's row is marked as one. `list '<pattern>'` keeps
+  exactly the names matching, where `*` is any run of characters and everything else is literal and case-sensitive.
 - R17 (UC3, E19): `search` ranks match kinds in the order `name`, `prefix`, `close name`, `description`, `heading`,
   `body`, then by name. A name resolves as `show` would, and each default as its skill loads it, before it is
   searched; a name a `remove` turned off is left out.
 - R18 (UC3, E20): `list` and `search` with no match print an explicit zero; it is not an error.
 - R58 (UC3, E48): Defaults are found in the skill folders the detected harness reads: its project and user skill
   folders, its machine-wide admin skill folders, and each enabled plugin's skills. On a harness whose skill folders are
-  not verified, no defaults are listed, with a warning.
+  not verified, no defaults are listed, and the answer says so.
 
 **Fallback (UC4)**
 
@@ -511,8 +516,7 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 - R26 (UC5, E28): `create` refuses when a `replace` or `remove` above would hide the new file, and names that
   contribution.
 - R27 (UC5, E29): `create` writes `merge` from `--merge`, else the template's `merge`, else `patch`. `--implements`
-  writes `merge: replace` and warns that the file replaces what is below. `--merge remove` writes no body, and fails
-  with `--template`.
+  writes `merge: replace`. `--merge remove` writes no body, and fails with `--template`.
 - R28 (UC5, E30): `create --implements <id>` writes the interface's sections as `##` headings in order and
   `implements: <id>@<version>`, each section stubbed `**Unsupported.**`; it fails for an unknown interface and with
   `--template`.
@@ -526,10 +530,10 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   names `reference select`. With no file in that tier, it fails stating what answers the name now.
 - R29 (UC5, UC11, E31): `--dry-run` prints the path and the exact content (`create`) or the path and the answer
   afterwards (`delete`), and changes no file.
-- R31 (UC5, E33): After a `create` write, the trace shows the new file `used`, and the report points to `show <name>`
-  for the composed document.
-- R32 (UC5, E34): `create` warns for a template whose top level is a single heading holding the others (a title), and
-  for a missing `description`.
+- R31 (UC5, E33): After a `create` write, the report gives the path and points to `show <name>` for the composed
+  document; with `--trace`, the trace shows the new file `used`.
+- R32 (UC5, E34): `create` refuses a template whose top level is a single heading holding the others (a title), and
+  writes nothing; for a missing `description` it writes the file with a hint, not a warning.
 
 **Interfaces (UC6)**
 
@@ -542,7 +546,8 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   hold sections the interface does not list, anywhere; `order` compares only the listed ones, each at most once.
 - R33 (UC6, E35): `check` runs these checks on an implementation's composed document, each named in the output:
   `interface found` (`implements` is one `<id>@<version>` naming a found, valid interface), `version`, `name`, and
-  `order`; an interface document gets the `interface` check (R63). Any failure fails the result.
+  `order`; an interface document gets the `interface` check (R63). Every document checked also gets `compose`, which
+  fails when composing it raised any warning. Any failure fails the result.
 - R34 (UC6, E36): A listed section left out, or whose first line is `**Unsupported.**`, is listed `unsupported`.
 - R35 (UC6, E37): `implementations <id>` lists an implementation only when it passes `check` for that interface; every
   other candidate is under `excluded` with each reason. A skill's default is never listed. `--accept` replaces the
@@ -553,12 +558,25 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 
 **Consumers (UC8)**
 
-- R38 (UC8, E40) (not built): In `--format json`, `show` entries carry `name`, `status`, `tier`, `plugin`, `path`,
-  `merge`, `metadata`, `content`, `warnings`, `plugins`; `search` matches carry `name`, `tier`, `match`, `description`;
-  `implementations` carries `pin`, `name`, `tier`, `version`, `description`, `unsupported`. Removing or renaming one is
-  a breaking change.
-- R39 (UC8, E41) (not built): Every failure that makes a name unresolved carries a stable `code`
-  (`reference-missing`, `reference-ambiguous`, `name-rejected`); the human wording is not a contract.
+- R38 (UC8, E40): A command prints only the fields that answer it; `--metadata` (on `show`) and `--trace` add more, and
+  a field with nothing to say is left out. In `--format json` and `toon`:
+  - `show`: one entry per name asked, in order. A `found` name with no warnings is its content as a string; otherwise a
+    record of `name`, `status`, `content`, and `warnings`. A name not `found` is a record of `name`, `status`, `code`,
+    and `options` when `ambiguous`. `--metadata` makes every entry a record and adds `status` and `metadata`. `--trace`
+    adds `trace`: the stack, the contributions used (tier, plugin or skill, path, operation), the sections, and the
+    layers.
+  - `list`: rows of `name` and `description`, with `status` and `options` when not `found`; `--trace` adds the rows per
+    layer (R16) with `tier`, `plugin` or `skill`, `path`, and outcome.
+  - `search`: matches of `name`, `description`, and `match`; `--trace` adds `tier` and `plugin` or `skill`.
+  - `check`: the entries that fail, each `name` and `failures` (each `check` and `message`), and the count that pass;
+    `--trace` adds every entry with `kind` and `unsupported`.
+  - `implementations`: each `pin`, `description`, and `unsupported`; `--trace` adds `name`, `tier`, `version`, the
+    interface's `cardinality` and `accept`, and `excluded` with `name` and `reasons`.
+  Removing or renaming one of these fields is a breaking change. The fields of `where`, `create`, `select`, and `delete`
+  follow R57, R31, R61, R62, and R30, and are not a contract yet (Q4).
+- R39 (UC8, E41): Every failure and warning carries a stable `code`; a warning in `warnings` is `{code, message}`. A
+  name not `found` has `reference-missing`, `reference-ambiguous`, or `reference-invalid`; a check failure's code is its
+  check's name (R33). The other codes are Q4. The human wording is not a contract.
 
 **Read-only reads**
 
