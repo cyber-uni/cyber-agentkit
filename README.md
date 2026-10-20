@@ -47,7 +47,7 @@ Harness detection covers Claude Code, Cursor, Codex, GitHub Copilot CLI, OpenCod
 CLI, Qwen Code, GitHub Copilot in VS Code, Cline, Crush, OpenHands, and the Auggie CLI. It reports
 `unknown` rather than guess when no harness matches or when more than one does.
 
-The [package readme](packages/agent-kit/readme.md) documents each function, the signal behind
+The [package readme](packages/cyber-agentkit/readme.md) documents each function, the signal behind
 each harness, and the cases that report `unknown`.
 
 ## Research first
@@ -63,7 +63,7 @@ and Warp are left out because none has a verified signal. See
 
 | Path | Contents |
 | --- | --- |
-| `packages/agent-kit` | The published library |
+| `packages/cyber-agentkit` | The published library |
 | `.research/` | Vendor findings, each claim recorded with a source URL |
 | `apps/web` | The documentation site |
 

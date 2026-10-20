@@ -34,11 +34,11 @@ if (harness !== 'unknown') skillsDirectories(harness)
 ## Reference documents
 
 `loadReference()` composes a named document from its contributions in the managed, project, user, plugin, and default tiers.
-`createReferenceCommand()` and `createReferenceCommands()` build the [`reference` command](/cyber-agentkit/packages/agent-kit/cli/)
+`createReferenceCommand()` and `createReferenceCommands()` build the [`reference` command](/cyber-agentkit/packages/cyber-agentkit/cli/)
 for a host CLI. The concepts behind them are in [reference documents](/cyber-agentkit/concepts/reference-documents/)
 and [reference interfaces](/cyber-agentkit/concepts/reference-interfaces/).
 
 ## Full signatures
 
-The [package readme](https://github.com/cyber-uni/cyber-agentkit/tree/main/packages/agent-kit#readme)
+The [package readme](https://github.com/cyber-uni/cyber-agentkit/tree/main/packages/cyber-agentkit#readme)
 documents each function with its options, return shape, and the research claim behind each answer.

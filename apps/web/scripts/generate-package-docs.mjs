@@ -128,7 +128,7 @@ function requiresPage(pkg, plugin) {
 		'',
 	)
 	out.push(
-		'To install them, load the [`plugin-dependencies` reference](https://github.com/cyber-uni/cyber-agentkit/blob/main/packages/agent-kit/references/plugin-dependencies.md) through the `reference` skill of `cyber-agentkit`. On a harness other than Claude Code nothing is installed for you.',
+		'To install them, load the [`plugin-dependencies` reference](https://github.com/cyber-uni/cyber-agentkit/blob/main/packages/cyber-agentkit/references/plugin-dependencies.md) through the `reference` skill of `cyber-agentkit`. On a harness other than Claude Code nothing is installed for you.',
 		'',
 	)
 	out.push('| Plugin | Marketplace | Version |', '| --- | --- | --- |')

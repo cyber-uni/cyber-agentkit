@@ -382,7 +382,7 @@ you approve it. It runs the command from its bundled `scripts/reference.mjs`, wh
 ```
 
 A skill that needs a reference names it in one line, as the skill's
-[`README.md`](https://github.com/cyber-uni/cyber-agentkit/blob/main/packages/agent-kit/skills/reference/README.md)
+[`README.md`](https://github.com/cyber-uni/cyber-agentkit/blob/main/packages/cyber-agentkit/skills/reference/README.md)
 shows:
 
 ```text

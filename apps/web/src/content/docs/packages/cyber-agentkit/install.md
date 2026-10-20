@@ -35,7 +35,7 @@ The plugin is named `cyber-agentkit`. Its `plugin.json` declares four harnesses:
 /plugin install cyber-agentkit@cyberplace
 ```
 
-Those two lines come from the [package readme](https://github.com/cyber-uni/cyber-agentkit/tree/main/packages/agent-kit#the-reference-skill).
+Those two lines come from the [package readme](https://github.com/cyber-uni/cyber-agentkit/tree/main/packages/cyber-agentkit#the-reference-skill).
 For Cursor, Codex, and Copilot CLI, install the plugin with that harness's own plugin command. The
 package ships a manifest for each: `.claude-plugin`, `.cursor-plugin`, and `.codex-plugin`.
 
@@ -45,8 +45,8 @@ In the repository where you installed the plugin, ask the agent:
 
 > Which references exist?
 
-The agent loads the [`reference` skill](/cyber-agentkit/packages/agent-kit/skills/reference/),
-which runs the [`list`](/cyber-agentkit/packages/agent-kit/cli/reference-list/) command and
+The agent loads the [`reference` skill](/cyber-agentkit/packages/cyber-agentkit/skills/reference/),
+which runs the [`list`](/cyber-agentkit/packages/cyber-agentkit/cli/reference-list/) command and
 reports the layers it read. From a shell, the same check is:
 
 ```sh
@@ -61,7 +61,7 @@ Describe what you want done with a reference. You do not name the command:
 2. Ask it to read one: "Show me release-checklist."
 3. Ask why a copy won: "Why does release-checklist resolve to that file?"
 
-[The skill page](/cyber-agentkit/packages/agent-kit/skills/reference/) lists every kind of request
+[The skill page](/cyber-agentkit/packages/cyber-agentkit/skills/reference/) lists every kind of request
 and what the agent does for each.
 
 ## Use the command
@@ -75,4 +75,4 @@ npx cyber-agentkit reference show release-checklist
 npx cyber-agentkit reference show release-checklist --trace
 ```
 
-The [CLI reference](/cyber-agentkit/packages/agent-kit/cli/) documents every command and option.
+The [CLI reference](/cyber-agentkit/packages/cyber-agentkit/cli/) documents every command and option.
