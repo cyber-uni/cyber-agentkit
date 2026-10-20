@@ -8,6 +8,7 @@
 | [plugin-dependency-prior-art](./plugin-dependency-prior-art/conclusion.md) | Existing systems that solve similar problems to plugin dependency declaration, a read-only doctor, neutral names with default/override/pin, and a namespaced extension key |
 | [design-spec-criteria](./design-spec-criteria/conclusion.md) | What a design spec should contain and the high-level criteria that judge it, drawing on cyber-truss, the SDD spec bars, and external spec practice |
 | [machine-wide-content](./machine-wide-content/conclusion.md) | Which harnesses read skills, plugins, and instructions from a machine-wide folder, where managed (team or company) content lives, and what `uni-agent-kit` needs to read |
+| [skill-resolution](./skill-resolution/conclusion.md) | Where each harness keeps a plugin's skills, how an installed plugin maps to its folder, which copy of a same-named skill runs, whether a running skill is told its folder, and whether a plugin-root `references/` is in the Agent Plugins spec |
 
 Each topic under `.research/<topic-slug>/` holds four files: `conclusion.md` (the current best
 answer), `topic.md` (the full investigation), `evidence.md` (claims with source URLs and
