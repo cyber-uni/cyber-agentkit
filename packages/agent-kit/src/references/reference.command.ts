@@ -238,6 +238,12 @@ export function traceText(resolved: ResolvedReference, home: string): string {
 	return `${lines.join('\n')}\n`
 }
 
+/** A name not found, for a person: the name, why, and, when ambiguous, the options `reference select` takes. */
+function errorText(entry: ResolvedReference): string {
+	const options = entry.options?.length ? `; options: ${entry.options.join(', ')}` : ''
+	return `${entry.name}: ${entry.message}${options}`
+}
+
 type ShowFlags = { metadata: boolean; trace: boolean }
 
 function showEntry(resolved: ResolvedReference, home: string, { metadata, trace }: ShowFlags): ReferenceShowEntry {
@@ -324,7 +330,7 @@ function showCommand(layersFor: LayersFor): cli.Command {
 				if (format === 'text') {
 					for (const entry of resolved) {
 						writeWarnings(entry.warnings)
-						if (entry.status !== 'found') process.stderr.write(`error: ${entry.code}: ${entry.message}\n`)
+						if (entry.status !== 'found') process.stderr.write(`error: ${entry.code}: ${errorText(entry)}\n`)
 						if (args.trace) process.stderr.write(traceText(entry, home))
 					}
 					const answer = showText(resolved)

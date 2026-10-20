@@ -400,7 +400,9 @@ describe('show: text output', () => {
 		plugins(root, { a: { name: 'a\n' }, b: { name: 'b\n' } })
 
 		expect(await show(['name'], { root })).toBe(1)
-		expect(errors()).toMatch(/^error: reference-ambiguous: the plugins a, b hold it/m)
+		expect(errors()).toMatch(
+			/^error: reference-ambiguous: name: the plugins a, b hold it, and no extends orders them; options: a\/name, b\/name$/m,
+		)
 	})
 
 	it('writes the trace to stderr: a summary line, the sections, then the layers', async () => {
