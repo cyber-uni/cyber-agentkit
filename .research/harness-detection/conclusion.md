@@ -186,7 +186,7 @@ project config override it, so it sets defaults, not policy.
 | --- | --- | --- | --- | --- |
 | Claude Code | `/<plugin>:<skill>`; bare `/<skill>` also works when no other command has the name | — | Yes | E-CC-S1 |
 | Cursor | `/<skill>` | — | No | E-CUR-S1 |
-| Codex | `/skills` opens a picker | `$<skill>`; a plugin skill is `$<plugin>:<skill>` | Yes, for plugin skills (`<plugin>:<skill>`); other skills are bare names | E-CODEX-S1–S3, `skill-resolution` E-SR-CODEX-5, E-SR-CODEX-9 |
+| Codex | `/skills` opens a picker | `$<skill>`; a plugin skill is `$<plugin>:<skill>` | Yes, for plugin skills (`<plugin>:<skill>`); other skills are bare names | E-CODEX-S1, E-CODEX-S2, `skill-resolution` E-SR-CODEX-5, E-SR-CODEX-9, E-SR-CODEX-18 (supersedes E-CODEX-S3) |
 | Copilot CLI | `/<skill>` | — | Only when two enabled plugins share a skill name (`<plugin>:<skill>`); otherwise the first skill found with the name wins | E-COPILOT-S2, E-COPILOT-S5, E-COPILOT-S6, `skill-resolution` E-SR-COPILOT-8 |
 | OpenCode | None; the model calls a `skill` tool | — | No | E-OC-S1, E-OC-S2 |
 | Kilo Code | `/<skill>`; `/<skill>:skill` when a command or MCP prompt has the name | Ask in prose ("use the api-design skill") | No | E-KILO-S1, E-KILO-S3 |

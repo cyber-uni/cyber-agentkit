@@ -12,15 +12,21 @@ export interface SkillInvocation {
 	readonly text: string
 	/** Whether the text names the plugin, so same-named skills from two plugins stay distinct. */
 	readonly namespaced: boolean
-	/** The claim ID in `.research/harness-detection/evidence.md` that backs this form. */
+	/**
+	 * The claim ID that backs this form, in `.research/harness-detection/evidence.md`, or in
+	 * `.research/skill-resolution/evidence.md` for an `E-SR-` ID.
+	 */
 	readonly research: string
 }
 
 /**
  * How a user invokes a plugin's skill in a harness.
  *
- * Claude Code and Copilot in VS Code namespace by plugin; elsewhere two plugins' skills with the
- * same name collide (Copilot CLI keeps the first one it finds).
+ * Claude Code, Codex, and Copilot in VS Code namespace by plugin; elsewhere two plugins' skills with
+ * the same name collide. Codex names a plugin skill `<plugin>:<skill>`, and its `$` mention takes the
+ * whole name (E-SR-CODEX-5, E-SR-CODEX-18). Copilot CLI lists `<plugin>:<skill>` only while two
+ * enabled plugins share the name (E-SR-COPILOT-8); whether that form can be typed is not verified,
+ * so it returns the bare `/<skill>`.
  *
  * Kilo Code returns `/<skill>` in both the CLI and the VS Code extension; when a custom command or
  * MCP prompt has the same name, the skill is typed `/<skill>:skill` instead (E-KILO-S3).
@@ -41,7 +47,7 @@ export function skillInvocation(harness: HarnessId, { plugin, skill }: PluginSki
 		case 'cursor':
 			return { text: `/${skill}`, namespaced: false, research: 'E-CUR-S1' }
 		case 'codex':
-			return { text: `$${skill}`, namespaced: false, research: 'E-CODEX-S1' }
+			return { text: `$${plugin}:${skill}`, namespaced: true, research: 'E-SR-CODEX-18' }
 		case 'copilot-cli':
 			return { text: `/${skill}`, namespaced: false, research: 'E-COPILOT-S6' }
 		case 'vscode-copilot':
