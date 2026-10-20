@@ -9,26 +9,27 @@ Decide who starts the read:
 
 ## 2. Choose where it lives
 
-| Who it is for | Folder | File |
+| Who it is for | Where | Flag |
 | --- | --- | --- |
-| this repository | `.agents/references/` at the repository root, or in a package's folder for that package alone | `<reference>.md` |
-| the user, in every repository | `~/.agents/references/` | `<reference>.md` |
-| every user of a plugin | the plugin's `references/` folder, next to its `skills/` | `<plugin name>.<reference>.md` |
+| this repository | `.agents/references/<name>.md` at the root, or in a package's folder for that package alone | (none) |
+| the user, in every repository | `~/.agents/references/<name>.md` | `--scope user` |
+| every user of a plugin | `references/<name>.md` in the plugin's source folder, next to its `skills/` | `--plugin <plugin folder>` |
+| a skill, as its default | `references/<name>.default.md` in the skill's source folder | `--default <skill folder>` |
 
-To change a reference that already exists, use Update instead.
+`--plugin` and `--default` write only into a source folder in this repository, never into an installed copy. To change a reference that already exists, use Update instead.
 
 ## 3. Name it
 
-- Use lowercase words joined by `-`. A name is a file name, never a path.
-- **A plugin prefixes every name it ships** with its own name and a dot: `cyber-asana.work-hierarchy.md`, not `work-hierarchy.md`. Callers load it as `cyber-asana.work-hierarchy`. Without the prefix, a project's `work-hierarchy.md` silently replaces the document of every plugin that ships `work-hierarchy`.
-- A repository's or user's own reference needs no prefix.
+- Use lowercase words joined by `-`. A name is a file name, never a path, and never ends `.default`.
+- **A plugin prefixes every name it ships** with its own name and a dot: `cyber-asana.work-hierarchy`, not `work-hierarchy`. Without the prefix, every plugin that ships `work-hierarchy` contributes to one name, and the name is ambiguous until someone selects one.
+- A repository's or user's own reference needs no prefix. A skill's default takes the name its skill loads.
 - **An implementation of an interface takes the interface's id as its namespace**, not the plugin's: `<id>` when the interface's cardinality is `one`, `<id>.<key>` when it is `many`, such as `scaffold.recipe.typescript-lib`. Read the interface with `show <id>.interface`.
-- Run `show <name>`. If the name already resolves, pick another name, or switch to Update.
+- Run `show <name>`. If the name already resolves and the user wants a new document, pick another name; to change the existing one, switch to Update.
 - Do not rename a reference that a plugin has already shipped. Its callers load it by the old name. Rename one only in a release that also updates every caller.
 
 ## 4. Write it
 
-A reference is top-level `##` sections, with no `#` title, and a `description` in its frontmatter:
+A reference is top-level `##` sections, with no single `#` title holding them, and a `description` in its frontmatter:
 
 ```md
 ---
@@ -42,31 +43,29 @@ Instructions only.
 ```
 
 - `description` and `tags` are what `search` matches. Always write a `description`.
-- Other frontmatter keys are allowed. `show --format json` returns them under `metadata`, merged key by key across the layers used.
-- If the user's text starts with a `#` title, drop the title and make the sections under it top-level `##` sections.
+- Other frontmatter keys are allowed. `show --metadata` returns them under `metadata`, composed key by key across the contributions used.
+- If the user's text starts with a `#` title, drop the title and make the sections under it top-level `##` sections. `create` refuses a template whose top level is one heading holding the others.
 - Write instructions an agent follows. Leave the rationale out.
 
-For the project or the user, run `create`; never write the file by hand:
+Run `create`; never write the file by hand:
 
-1. Run `create <name> --dry-run`. Add `--scope user` for the user alone, and `--template <path>` when a calling skill or the user supplies the text; without it, the command writes its own template.
-2. Show the user the path and the content it printed, with any warning.
-3. On approval, run the same command without `--dry-run`. Its trace must report the new file `used`.
+1. Run `create <name> --dry-run`, with the flag from step 2. Add `--template <path>` when a calling skill or the user supplies the text; without it, the command writes its own template. Add `--merge <operation>` when it should not patch: `combine` to add after what is below, `replace` to stand alone, `remove` to turn the name off.
+2. Show the user the path and the content it printed, and any `hint:` line.
+3. On approval, run the same command without `--dry-run`. Then run `show <name>`; add `--trace` to see the new file `used`.
 
-If `create` refuses, report its reason and write nothing. An existing file means Update.
+If `create` refuses, report its reason and write nothing. An existing file with a body means Update. A file holding only a selection gets the body added, and keeps its `extends`.
 
-To implement an interface, run `create <name> --implements <id> --dry-run` instead of passing a template. It writes the interface's sections as `##` headings, stubs each optional one `**Unsupported.**`, and sets `implements: <id>@<version>`. Replace each stub with the section, or keep `**Unsupported.**` followed by one sentence on why. A required section can be neither absent nor unsupported. Then run `check <name>`; it must pass.
+To implement an interface, run `create <name> --implements <id> --dry-run` instead of passing a template. It writes the interface's sections as `##` headings, stubs each one `**Unsupported.**`, and sets `implements: <id>@<version>` and `merge: replace`. Replace each stub with the section, or keep `**Unsupported.**` followed by one sentence on why. Then run `check <name>`; it must pass.
 
-For a plugin, `create` does not write into the plugin. Show the file and its path, then write it by hand on approval, under the same shape.
-
-A plugin that changes how another plugin's implementation reads, such as a house style, ships the same name with `overrides: [<other plugin>]` and `merge: merge-sections` in its frontmatter, holding only the sections it changes.
+A plugin that changes how another plugin's reference reads, such as a house style, ships the same name with `extends: [<other plugin>]` in its frontmatter, holding only the sections it changes; it patches the other plugin's text. A plugin that builds on the loading skill's default lists `default` in `extends`.
 
 ## 5. Connect it to a caller
 
 Nothing loads a reference by itself. Tell the user where to name it:
 
 - For a repository, add a line to `AGENTS.md`, or to the skill that needs it, such as: "Read the `testing` reference before writing tests."
-- For a plugin, add the caller line to each skill that needs the reference, as Wire a skill says.
+- For a plugin or a skill's default, add the load line to each skill that needs the reference, as Wire a skill says.
 
 ## 6. Verify
 
-Run `show <name> --trace`, unless `create`'s own trace already showed it. The new file must be the layer that is `used`. For an implementation, `check <name>` must also pass. For a plugin reference, run the command where the plugin is installed. Otherwise, report that the plugin tier was not checked.
+Run `show <name> --trace`. The new file must be `used`. For a skill's default, add `--default <skill folder>`. For an implementation, `check <name>` must also pass. For a plugin reference, run the command where the plugin is installed; otherwise, report that the plugin tier was not checked.
