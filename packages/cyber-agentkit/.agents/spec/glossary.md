@@ -6,7 +6,7 @@
 - **declared dependency** — a dependency listed in the plugin's own manifest.
 - **doctor** — a read-only check that reports what is wrong and what the user can do. It changes nothing.
 - **extension key** — a reverse-domain name under `extensions` in the root `plugin.json` that holds one tool's data
-  (Agent Plugins 1.0.0, section 8). For plugin management it is `io.github.cyber-uni.plugin-manager`.
+  (Agent Plugins 1.0.0, section 8). For plugin management it is `org.cyberuni.plugin-manager`.
 - **reference** — a Markdown document an agent reads by name, layered across tiers.
 - **declaring marketplace** — the marketplace the declaring plugin was installed from. A dependency with no marketplace
   resolves only there, as in Claude Code.

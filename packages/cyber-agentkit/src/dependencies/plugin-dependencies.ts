@@ -48,10 +48,10 @@ export interface PluginDependenciesRead {
 }
 
 /** The extension namespaces a root `plugin.json` may author its dependency list under, newest first (E-DEP-6, E-DEP-7). */
-const extensionNamespaces = ['io.github.cyber-uni.plugin-manager', 'org.cyberuni.universal-plugin'] as const
+const extensionNamespaces = ['org.cyberuni.plugin-manager', 'org.cyberuni.universal-plugin'] as const
 
 /**
- * Read what the plugin at `pluginRoot` declares: `dependencies` under `extensions["io.github.cyber-uni.plugin-manager"]`,
+ * Read what the plugin at `pluginRoot` declares: `dependencies` under `extensions["org.cyberuni.plugin-manager"]`,
  * else under `extensions["org.cyberuni.universal-plugin"]` in the root `plugin.json`, else `dependencies` in
  * `.claude-plugin/plugin.json` (E-DEP-1, E-DEP-6, E-DEP-7).
  */
