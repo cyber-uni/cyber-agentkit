@@ -188,7 +188,7 @@ project config override it, so it sets defaults, not policy.
 | Cursor | `/<skill>` | — | No | E-CUR-S1 |
 | Codex | `/skills` opens a picker | `$<skill>`; a plugin skill is `$<plugin>:<skill>` | Yes, for plugin skills (`<plugin>:<skill>`); other skills are bare names | E-CODEX-S1, E-CODEX-S2, `skill-resolution` E-SR-CODEX-5, E-SR-CODEX-9, E-SR-CODEX-18 (supersedes E-CODEX-S3) |
 | Copilot CLI | `/<skill>` | — | Only when two enabled plugins share a skill name (`<plugin>:<skill>`); otherwise the first skill found with the name wins | E-COPILOT-S2, E-COPILOT-S5, E-COPILOT-S6, `skill-resolution` E-SR-COPILOT-8 |
-| OpenCode | None; the model calls a `skill` tool | — | No | E-OC-S1, E-OC-S2 |
+| OpenCode | `/<skill>`, unless a built-in (`init`, `review`), config command, or MCP prompt has the name; the model can also load it through a `skill` tool | — | No | E-OC-S1, E-OC-S3 (supersedes E-OC-S2); E-OC-S4 for the unreleased 2.x opt-in |
 | Kilo Code | `/<skill>`; `/<skill>:skill` when a command or MCP prompt has the name | Ask in prose ("use the api-design skill") | No | E-KILO-S1, E-KILO-S3 |
 | Gemini CLI | None; the model calls `activate_skill`, and `/skills` only manages skills | — | Extension commands take an `<extension>:` prefix on collision | E-GEM-S1–S3 |
 | Qwen Code | None; the model calls a `skill` tool | — | No | E-QWEN-S1 |
@@ -380,6 +380,9 @@ The survey behind #6 reported five products as gone. Checked against vendor sour
 - Wave 2: a live `env` capture for each harness in "Wave 2: no verified signal" marked as needing
   one.
 - How the Auggie CLI types a plugin's skill: `/<skill>` or `/<plugin>:<skill>` (E-AUG-S3).
+- Whether OpenCode 2.x keeps skills as slash commands. Its docs say only a skill with `opencode/slash: "true"`
+  becomes one; its code on `dev` registers none and offers skills as `@<skill>` mentions (E-OC-S4). Recheck when
+  2.x is released.
 - R9: Copilot CLI's `-p --output-format json` event schema and `--usage-output-file` fields, and
   Cursor's transcript location, need one real run each to record. Whether `cursor-agent -p` writes
   files without `--force` is contested between its help and its headless page (E-CUR-H1).

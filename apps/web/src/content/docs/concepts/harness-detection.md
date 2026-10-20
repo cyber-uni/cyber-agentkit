@@ -78,7 +78,7 @@ The same research backs the harness queries:
   Codex, and Copilot CLI. Codex keeps no install record, so it applies Codex's own rule for which
   cached version is active.
 - `skillInvocation()` returns what a user types to run a plugin skill, or `undefined` where the
-  model loads skills itself: OpenCode, Gemini CLI, Qwen Code, Crush, and OpenHands. It
+  model loads skills itself: Gemini CLI, Qwen Code, Crush, and OpenHands. It
   also returns `undefined` for the Auggie CLI, where the typed form of a plugin skill is not
   confirmed.
 - `skillsDirectories()` returns the project and user directories a harness reads skills from, or
