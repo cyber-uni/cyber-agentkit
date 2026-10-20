@@ -229,4 +229,5 @@ Edge IDs are in [graph.md](./graph.md).
 - R18 (UC3, E20): `list` and `search` with no match print an explicit zero; it is not an error.
 - R58 (UC3, E48): Defaults are found in the skill folders the detected harness reads: its project and user skill
   folders, its machine-wide admin skill folders, and each enabled plugin's skills. On a harness whose skill folders are
-  not verified, no defaults are listed, and the answer says so.
+  not verified, no defaults are listed, and the answer says so. A skill is known by the `name` in its `SKILL.md`, not by
+  its folder's name, and a symlinked skill folder is followed.
