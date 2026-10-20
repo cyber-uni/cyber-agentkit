@@ -199,13 +199,13 @@ each name is answered with what can be found, and every fault is reported as a w
 
 ### UC5 — Customize a plugin's instructions (A5.1)
 
-- **Trigger:** a customizer wants to change what a skill reads for a name: replace, patch, combine with, or remove
-  what is below.
+- **Trigger:** a customizer wants to change what a skill reads for a name: replace, patch, combine with, or remove what
+  is below; or an author writes a contribution or a default into their plugin's or skill's source.
 - **Entry points:** Skill: the `reference` skill's Create and Update modes; Update edits the file, then checks the
-  trace. Code: `reference create <name> [--scope user] [--merge <operation>] [--template <file> | --implements <id>]
-  [--dry-run]`.
-- **Inputs:** a bare name; the tier written to (`project` by default, or `user`); the operation (default `patch`); a
-  template or an interface; the root.
+  trace. Code: `reference create <name> [--scope user | --plugin <plugin folder> | --default <skill folder>] [--merge
+  <operation>] [--template <file> | --implements <id>] [--dry-run]`.
+- **Inputs:** a bare name; where it is written (the project tier by default, the user tier, or a plugin's or skill's
+  source folder); the operation (default `patch`); a template or an interface; the root.
 - **Outcome:** `create` writes `<name>.md` in that tier's folder with `merge: <operation>`, and reports the path with
   a hint that `show <name>` gives the composed document; with `--trace`, also the resulting trace, in which the new
   file applies over everything below it (K17). The skill shows the user where each section came from and offers the
@@ -223,6 +223,12 @@ each name is answered with what can be found, and every fault is reported as a w
     document instead of patching its sections): error, and nothing is written. A template with no `description`:
     written, with a hint that `list` and `search` will show it blank.
   - UC5.9 `--dry-run`: the path and the content are printed, and nothing is written.
+  - UC5.10 `--plugin <plugin folder>`: writes `<plugin folder>/references/<name>.md`, with `merge` only when `--merge`
+    is given. `--default <skill folder>`: writes `<skill folder>/references/<name>.default.md`, with no `merge`. The
+    hide check (UC5.4) and the trace apply only when the folder is a layer the stack reads.
+  - UC5.11 The folder holds no plugin manifest (`--plugin`) or no `SKILL.md` (`--default`), or lies outside the
+    repository, such as an installed copy: error, and nothing is written. More than one of `--scope`, `--plugin`, and
+    `--default`: usage error.
 
 ### UC6 — Publish and check interfaces (A6.3)
 
@@ -331,20 +337,24 @@ each name is answered with what can be found, and every fault is reported as a w
 
 ### UC11 — Remove a customization (A5.2)
 
-- **Trigger:** a customizer wants a project or user contribution gone.
-- **Entry points:** Skill: the `reference` skill's Delete mode. Code: `reference delete <name> [--scope user]
-  [--dry-run]`.
-- **Inputs:** a bare name; the tier deleted from (`project` by default, or `user`); the root.
+- **Trigger:** a customizer wants a project or user contribution gone, or an author wants one gone from their plugin's
+  or skill's source.
+- **Entry points:** Skill: the `reference` skill's Delete mode. Code: `reference delete <name> [--scope user | --plugin
+  <plugin folder> | --default <skill folder>] [--dry-run]`.
+- **Inputs:** a bare name; where it is deleted from (the project tier by default, the user tier, or a plugin's or
+  skill's source folder); the root.
 - **Outcome:** `delete` removes only that file, and reports what answers the name afterwards: its status, and the stack
   with what built it. The status can be `ambiguous`, with the options, when the file held the selection that ordered
   the plugins.
 - **Extensions:**
-  - UC11.1 No contribution in that tier: error stating what answers the name now. A plugin's or managed contribution
-    is never deleted.
+  - UC11.1 No contribution there: error stating what answers the name now. An installed plugin's, a managed, or an
+    installed skill's contribution is never deleted.
   - UC11.2 A qualified name: error naming the bare name to use.
   - UC11.3 `--dry-run`: the path and the answer afterwards are printed, and nothing is deleted.
   - UC11.4 The file also holds a selection (`extends`): both go, and the report says the selection went too, naming
     `reference select` to restore it.
+  - UC11.5 `--plugin <plugin folder>` or `--default <skill folder>`: deletes `<name>.md` or `<name>.default.md` there,
+    under the folder checks of UC5.11.
 
 ### UC12 — Wire a skill to load references (A6.1)
 
@@ -369,13 +379,13 @@ each name is answered with what can be found, and every fault is reported as a w
   - UC12.5 A skill ships its copy as `references/<name>.md` (the old layout): it is not read as a default. A name no
     other contribution holds is then `missing`, and UC4.1 tells the user.
 
-**Surface trace.** `show`, `--trace`, `--default` (UC1, UC2, UC10, UC12); `--root` (all); `where`, `--default`
-(UC2); `list`, pattern (UC3); `search` (UC3); `create` with `--merge`, `--template`, `--implements`, `--scope`,
-`--dry-run` (UC5); `select` with `--scope`, `--clear` (UC9); `delete` with `--scope`, `--dry-run` (UC11); `check`
-(UC6); `implementations`, `--accept` (UC6); `--format` (UC8). Frontmatter keys `merge`, `extends`, `implements`,
-`interface`, `description`, `tags` serve UC1, UC5, UC6, UC7, UC9; the section marker `<!-- merge: ... -->` serves
-UC1 and UC7. File names `<name>.md` and `<name>.default.md` serve UC5, UC9, UC11 and UC3, UC12. Informational, no
-contract: the trace's keys beyond those the Adapters group names.
+**Surface trace.** `show`, `--trace`, `--default` (UC1, UC2, UC10, UC12); `--root` (all); `where`, `--default` (UC2);
+`list`, pattern (UC3); `search` (UC3); `create` with `--merge`, `--template`, `--implements`, `--scope`, `--plugin`,
+`--default`, `--dry-run` (UC5); `select` with `--scope`, `--clear` (UC9); `delete` with `--scope`, `--plugin`,
+`--default`, `--dry-run` (UC11); `check` (UC6); `implementations`, `--accept` (UC6); `--format`, `--metadata` (UC8).
+Frontmatter keys `merge`, `extends`, `implements`, `interface`, `description`, `tags` serve UC1, UC5, UC6, UC7, UC9; the
+section marker `<!-- merge: ... -->` serves UC1 and UC7. File names `<name>.md` and `<name>.default.md` serve UC5, UC9,
+UC11 and UC3, UC12. Informational, no contract: the trace's keys beyond those the Adapters group names.
 
 ## Criteria
 
@@ -507,9 +517,11 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 
 **Writing (UC5, UC9, UC11)**
 
-- R24 (UC5, UC9, E26): `create` and `select` write only `<name>.md`, in the root's `.agents/references/` (`project`,
-  the default) or in `~/.agents/references/` (`user`, with `--scope user`); never in the managed tier, a plugin, or a
-  skill folder.
+- R24 (UC5, UC9, UC11, E26): `select` writes only `<name>.md`, in the root's `.agents/references/` (`project`, the
+  default) or in `~/.agents/references/` (`user`, with `--scope user`). `create` and `delete` act there too, or on
+  `<plugin folder>/references/<name>.md` with `--plugin <plugin folder>`, or on `<skill
+  folder>/references/<name>.default.md` with `--default <skill folder>`; that folder must hold a plugin manifest or a
+  `SKILL.md` and sit inside the repository. `--scope`, `--plugin`, and `--default` exclude each other (exit 2).
 - R25 (UC5, UC9, UC11, E27): `create`, `select`, and `delete` reject a qualified name and say which bare name to use.
 - R60 (UC5, E26): `create` never overwrites a file with a body. On a file holding only a selection, it adds the body
   and `merge` and keeps the `extends`.
@@ -525,9 +537,9 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   written.
 - R62 (UC9, E51): `select --clear` removes `extends` and deletes a file left with nothing in it; with no selection in
   that tier, it fails stating what answers the name now.
-- R30 (UC11, E32): `delete` removes only the file in the chosen tier, never a plugin's, managed, or skill default
-  contribution, and reports the status and stack afterwards; when the file held a selection, the report says so and
-  names `reference select`. With no file in that tier, it fails stating what answers the name now.
+- R30 (UC11, E32): `delete` removes only the file at the place chosen (R24), never a managed contribution or an
+  installed copy, and reports the status and stack afterwards; when the file held a selection, the report says so and
+  names `reference select`. With no file there, it fails stating what answers the name now.
 - R29 (UC5, UC11, E31): `--dry-run` prints the path and the exact content (`create`) or the path and the answer
   afterwards (`delete`), and changes no file.
 - R31 (UC5, E33): After a `create` write, the report gives the path and points to `show <name>` for the composed
@@ -580,8 +592,9 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
 
 **Read-only reads**
 
-- R19 (UC1–UC3, UC6, E21): `show`, `where`, `list`, `search`, `check`, `implementations` create, change, or delete no
-  file.
+- R19 (UC1–UC3, UC6, E21): `show`, `where`, `list`, `search`, `check`, and `implementations` create, change, or delete
+  no file. Only `create`, `select`, and `delete` write, each only where R24 allows; none writes in the managed tier or
+  an installed copy of a plugin or skill.
 
 ## Open questions
 
