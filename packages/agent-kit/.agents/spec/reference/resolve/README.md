@@ -32,8 +32,8 @@ IDs are shared across the parent and its children.
   - UC1.5 A contribution has malformed frontmatter, an unknown `merge`, or a bad `extends`: it still answers, with a
     warning and the documented default. A `merge: remove` contribution with a body: the body is ignored, with a
     warning, and the remove still applies (not built).
-  - UC1.6 Two files in one folder answer one name (`<name>.md` and `<name>/README.md`): the first answers; the other is
-    ignored with a warning.
+  - UC1.6 Only `<name>.md` and `<name>/README.md` answer a name; no other file does. Both in one folder: the first
+    answers, and the other is ignored with a warning.
   - UC1.7 No name given: error.
   - UC1.8 The document fails its interface check: still answered, with a warning.
   - UC1.9 (not built) The skill folder does not exist: a warning, and the name resolves without the `default` tier.
@@ -205,8 +205,10 @@ Edge IDs are in [graph.md](./graph.md).
   above, the root alone. The user tier reads `~/.agents/references/`. The managed tier reads `references/` in each
   detected harness's managed folder; the library keeps no managed folder of its own.
 - R13 (UC1, E15): The plugin tier holds, for the detected harness, each enabled plugin's `references/`, and the declared
-  `dependencies` and `devDependencies` of the nearest `package.json` that ship one; never a transitive package. The
-  plugin running the command is read once.
+  `dependencies` and `devDependencies` of the nearest `package.json` that are plugins and ship one, each named by its
+  plugin manifest's `name`, never by its package name; never a transitive package. Any other dependency adds no plugin
+  layer: a standalone skill's defaults are found with the skills (R58), and the trace shows the rest `not read (not a
+  plugin)`. The plugin running the command is read once.
 - R14 (UC1, E16): An interface document is never composed: `extends` and `merge` on it are ignored with a warning, a
   higher contribution of it is ignored with a warning, and the lowest answers; two plugins holding it make it
   `ambiguous`.
@@ -221,9 +223,9 @@ Edge IDs are in [graph.md](./graph.md).
   `--trace`, it has one row per name per layer holding it, and one per installed skill holding a default of it, naming
   the skill and noting that the `default` step reaches it; a selection's row is marked as one. `list '<pattern>'` keeps
   exactly the names matching, where `*` is any run of characters and everything else is literal and case-sensitive.
-- R17 (UC3, E19): `search` ranks match kinds in the order `name`, `prefix`, `close name`, `description`, `heading`,
-  `body`, then by name. A name resolves as `show` would, and each default as its skill loads it, before it is
-  searched; a name a `remove` turned off is left out.
+- R17 (UC3, E19): `search` ranks match kinds in the order `name`, `prefix`, `close name`, `description` (which also
+  matches `tags`), `heading`, `body`, then by name. A name resolves as `show` would, and each default as its skill loads
+  it, before it is searched; a name a `remove` turned off is left out.
 - R18 (UC3, E20): `list` and `search` with no match print an explicit zero; it is not an error.
 - R58 (UC3, E48): Defaults are found in the skill folders the detected harness reads: its project and user skill
   folders, its machine-wide admin skill folders, and each enabled plugin's skills. On a harness whose skill folders are

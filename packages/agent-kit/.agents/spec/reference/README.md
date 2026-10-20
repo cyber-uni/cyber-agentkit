@@ -187,7 +187,9 @@ criterion the code does not meet yet; each has an issue or an answer recorded in
   beyond the three in `.research/harness-detection` R7, which copy of a skill runs when several folders hold it, and
   whether the harness gives a running skill its own folder. Machine-wide admin skill folders are known for Claude Code,
   Codex, and OpenCode (`.research/machine-wide-content`). It blocks building the `default` tier and UC3's defaults, not
-  the spec. Also: is a plugin-root `references/` folder part of the Agent Plugins spec, or a convention of ours?
+  the spec. Also: is a plugin-root `references/` folder part of the Agent Plugins spec, or a convention of ours? Also:
+  the skill folders package managers install into (`npx skills`; pnpm hoisting a dependency's skills into
+  `.agents/skills/pnpm-<skill>/`), and which harnesses read them.
 
 ## References
 
