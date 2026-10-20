@@ -40,7 +40,7 @@ if (harness !== 'unknown') skillsDirectories(harness)
 | --- | --- |
 | Harness knowledge | Which harness is running, and what it holds: managed-policy locations, plugin storage, installed and enabled plugins, skill naming and directories, how to run it headless |
 | Plugin dependencies | What a plugin declares it needs, whether the running harness has it, and the steps to settle the rest |
-| Reference documents | Named Markdown files an agent reads on demand, layered across managed, project, user, and plugin tiers, with a `reference` command and skill |
+| Reference documents | Named Markdown files an agent reads on demand, composed from contributions in the managed, project, user, plugin, and default tiers, with a `reference` command and skill |
 | Worktrees | Leasing git worktrees to concurrent agent sessions, so two agents never share a checkout |
 
 Harness detection covers Claude Code, Cursor, Codex, GitHub Copilot CLI, OpenCode, Kilo Code, Gemini

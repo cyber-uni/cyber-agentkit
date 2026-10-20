@@ -258,7 +258,8 @@ a run stopped by a turn or budget cap is told apart by the `result` message's `s
 ## Reference documents
 
 A reference is a named Markdown document an agent reads on demand, such as a checklist or a set of
-weights a skill applies. Anyone can override one without editing the plugin that ships it: a
+weights a skill applies. A plugin ships a contribution, a skill ships its default at
+`<skill>/references/<name>.default.md`, and anyone can add their own without editing the plugin: a
 project in `.agents/references/<name>.md`, a person in `~/.agents/references/<name>.md`.
 
 ```ts
@@ -268,82 +269,98 @@ const resolved = await loadReference('agent-readiness-weights', {
 	root: process.cwd(),
 	// The plugin calling the resolver: its own `references/` is the first plugin layer.
 	plugin: { name: 'my-plugin', root: pluginRoot },
+	// The skill loading the name: its `references/<name>.default.md` joins as the default tier.
+	defaultSkill: skillFolder,
 })
 if (resolved.status === 'found') console.log(resolved.content)
 ```
 
-`status` is `found`, `missing`, or `ambiguous` (two plugins hold the name; ask for one of
-`resolved.plugins`, such as `my-plugin/agent-readiness-weights`). `trace` says what each layer held.
+`status` is `found`, `missing`, `ambiguous` (nothing orders the plugins holding the name; pick one
+of `resolved.options`, such as `my-plugin/agent-readiness-weights`, or settle it with
+`reference select`), or `invalid` (not a reference name). A name not found also has a `code`, such
+as `reference-missing`. A library function never throws for a bad name. `warnings` holds each fault
+as `{ code, message }`, and `trace` says how the document was built.
 
-Layers are read highest precedence first:
+The tiers, highest first:
 
 | Tier | Folders |
 | --- | --- |
-| managed | the admin `references/` folder, and a `references/` beside each detected harness's managed-policy files |
+| managed | a `references/` beside each detected harness's managed-policy files |
 | project | `.agents/references/` in the root and each folder above it, up to the repository root |
 | user | `~/.agents/references/` |
-| plugin | the calling plugin's `references/`, each plugin the harness has enabled, then each package the project's `package.json` declares |
+| plugin | the calling plugin's `references/`, each plugin the harness has enabled, then each declared dependency that has a plugin manifest, named by that manifest |
+| default | `<skill folder>/references/<name>.default.md` of the skill loading the name |
 
-In each folder, `<name>.md` answers first, then `<name>/README.md`, `<name>/index.md`, and
-`<name>/SKILL.md`. Legacy `governances/` folders are still read, below the `references/` beside
-them.
+In each folder, only `<name>.md` and `<name>/README.md` answer a name, in that order.
 
-A document's frontmatter `merge` says how it combines with the layers below:
+Contributions apply bottom first: the plugins and the default, in the order `extends` gives them,
+then user, project, and managed. Each applies over what is below it with its frontmatter `merge`:
 
-- `first-wins` (the default): it replaces everything below.
-- `combine`: it is placed above the layers below, each kept whole.
-- `merge-sections`: its sections replace the same-titled sections below, matched by heading path,
-  and the sections it does not redefine are kept. Under a heading, `<!-- merge: combine -->` appends
-  to that section instead, and `<!-- merge: remove -->` deletes it.
+- `patch` (the default): its sections replace the text they match by heading path, and the rest is
+  kept.
+- `combine`: its sections' text is added after the text they match, lower first; where combined text
+  conflicts, the later text wins.
+- `replace`: it replaces everything below.
+- `remove`: it drops everything below.
 
-Frontmatter is read as YAML. `merge`, `description`, and `tags` are the keys the resolver reads;
-`resolved.metadata` holds every key, the higher layer winning. Frontmatter that is not a YAML
-mapping is ignored with a warning.
+A `<!-- merge: <operation> -->` marker under a heading applies an operation to that section alone.
+Frontmatter `extends` lists what a contribution builds on, bottom first: plugins by their manifest
+name, and `default`. The highest `extends` written in the managed, project, or user tier builds the
+stack; without one, the plugins' own `extends` order them. `resolved.metadata` holds the composed
+frontmatter, the higher contribution winning each key, without `merge` and `extends`. Frontmatter
+that is not a YAML mapping is ignored with a warning.
 
 | Function | Does |
 | --- | --- |
 | `loadReference(name, options)` | Resolves one name for a root, with every tier read |
-| `referenceLayers(options)` | Builds the ordered layers, to resolve several names against |
-| `resolveReference(name, layers)` | Resolves a parsed name (`parseReferenceName`) against layers |
-| `listReferences(layers)`, `referenceNames(layers)` | Every name the layers hold, with the status of each copy |
-| `listReferences(layers, { pattern })` | Every reference by exact name pattern, with tier, plugin, and ambiguity status |
+| `referenceLayers(options)` | Builds the ordered layers, and finds the skills holding a default, to resolve several names against |
+| `resolveReference(name, layers)` | Resolves a name against layers |
+| `listReferences(layers)`, `referenceNames(layers)` | Every name the layers hold, one row each, and a row per layer holding it |
+| `listReferences(layers, { pattern })` | Every reference by exact name pattern |
 | `searchReferences(query, layers)` | Names matching a query by name, description, heading, or body |
-| `whereReference(name, layers, options)` | The project and user files an override can be written to |
-| `managedReferencesDir()`, `projectReferencesDir()`, `projectReferenceLayers()` | Single folders and layers |
-| `declaredDependencies()`, `packageDir()` | A manifest's declared packages, and where each is installed |
+| `whereReference(name, layers, options)` | The project and user files a customization is written to, and the heading paths below each |
+| `projectReferencesDir()`, `userReferencesDir()`, `defaultLayer()` | Single folders and layers |
+| `declaredDependencies()`, `packageDir()`, `pluginManifestName()` | A manifest's declared packages, where each is installed, and a plugin's manifest name |
+| `harnessSkillFolders()`, `pluginSkillFolders()`, `skillsIn()` | The skill folders a harness reads, and the skills in them, known by their `SKILL.md` name |
 | `referenceImplementations(id, layers)` | The implementations of an interface a consumer can load, and those left out with why |
-| `checkReferences(layers, options)` | Checks interface documents and their implementations, each with every override merged |
+| `checkReferences(layers, options)` | Checks interface documents and their implementations, each as `show` composes it |
 
 ### The reference command
 
 The package ships a `reference` command with `show`, `list`, `search`, `where`, `implementations`,
-`check`, `create`, and `delete` subcommands:
+`check`, `create`, `select`, and `delete` subcommands:
 
 ```sh
-npx -y uni-agent-kit reference show <name>... --root <repository root>
+npx -y uni-agent-kit reference show <name>... --root <repository root> --default <skill folder>
 npx -y uni-agent-kit reference list
 npx -y uni-agent-kit reference list 'project-tracker.capabilities.*'
 npx -y uni-agent-kit reference implementations <interface id> --accept 1,2
 npx -y uni-agent-kit reference check
-npx -y uni-agent-kit reference create <name> --scope project
+npx -y uni-agent-kit reference create <name> --merge combine
+npx -y uni-agent-kit reference select <name> <plugin> --scope user
 npx -y uni-agent-kit reference delete <name> --scope project --dry-run
 ```
 
 `implementations` lists what a consumer can load for an interface (a `<id>.interface` document) with
-each one's pin, tier, and unsupported sections. `check` verifies interface documents and their
-implementations, and exits 1 on any failure.
+each one's pin, description, and unsupported sections. `check` verifies interface documents and
+their implementations, and exits 1 on any failure.
 
-`delete` removes only the copy in `.agents/references/` (`--scope project`) or
-`~/.agents/references/` (`--scope user`), and reports which copy answers the name afterwards: the
-plugin's copy, once a project override of it is gone. It refuses a plugin-shipped or managed copy.
+`create`, `select`, and `delete` act on `.agents/references/` (the project, the default) or
+`~/.agents/references/` (`--scope user`). `create` and `delete` also take `--plugin <plugin folder>`
+or `--default <skill folder>` for a plugin's or a skill's source in the repository. `delete` reports
+what answers the name afterwards, and never deletes a managed contribution or an installed copy.
+`select` writes the `extends` that picks what a name builds on, and `--clear` removes it.
 
 Output is [TOON](https://github.com/toon-format/toon) by default, for an agent to parse; pass
-`--format json` or `--format text` (`show`, `create`, and `delete` default to `text`). The formats
+`--format json` or `--format text` (`show`, `create`, `select`, and `delete` default to `text`).
+Each command prints only the fields that answer it; on `show`, `--metadata` adds the status and the
+composed frontmatter, and `--trace` adds how the document was built. Every warning carries a stable
+`code`. The formats
 follow [`clibuilder`](https://www.npmjs.com/package/clibuilder) 12, and any other value is a
 usage error (exit code 2). A CLI built on clibuilder 12
 can host the same command under its own plugin name, imported from the `./commands` subpath. `--format`
 is the host's global option, so the host's `cli({ format })` sets the default for every subcommand;
-the `text` default of `show`, `create`, and `delete` belongs to the `uni-agent-kit` CLI:
+the `text` default of `show`, `create`, `select`, and `delete` belongs to the `uni-agent-kit` CLI:
 
 ```ts
 import { createReferenceCommand } from 'uni-agent-kit/commands'
@@ -369,7 +386,7 @@ A skill that needs a reference names it in one line, as the skill's
 shows:
 
 ```text
-Load `skill-design` with the `reference` skill in the `uni-agent-kit` plugin.
+Load `skill-design` with the `reference` skill of `uni-agent-kit`.
 ```
 
 ## Worktrees

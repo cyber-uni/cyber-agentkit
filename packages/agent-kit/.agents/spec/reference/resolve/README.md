@@ -223,8 +223,11 @@ Edge IDs are in [graph.md](./graph.md).
 
 - R16 (UC3, E18): `list` has one row per name, with its description and, when not `found`, its status and options. With
   `--trace`, it has one row per name per layer holding it, and one per installed skill holding a default of it, naming
-  the skill and noting that the `default` step reaches it; a selection's row is marked as one. `list '<pattern>'` keeps
-  exactly the names matching, where `*` is any run of characters and everything else is literal and case-sensitive.
+  the skill and noting that the `default` step reaches it; a selection's row is marked as one. Two installed skills of
+  one name in different folders, each holding a default of the name, get a row each with its path: the harnesses
+  disagree on which copy runs, so neither is chosen. A name only skills' defaults hold resolves as the first such skill,
+  by name, loads it. `list '<pattern>'` keeps exactly the names matching, where `*` is any run of characters and
+  everything else is literal and case-sensitive.
 - R17 (UC3, E19): `search` ranks match kinds in the order `name`, `prefix`, `close name`, `description` (which also
   matches `tags`), `heading`, `body`, then by name. A name resolves as `show` would, and each default as its skill loads
   it, before it is searched; a name a `remove` turned off is left out.

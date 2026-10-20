@@ -130,7 +130,10 @@ function tryRead(path: string): string | undefined {
 }
 
 /** What answers a name, in one sentence a person reads. */
-export function describeAnswer(resolved: ResolvedReference): string {
+export function describeAnswer(
+	resolved: ResolvedReference,
+	display: (path: string) => string = (path) => path,
+): string {
 	if (resolved.status === 'found') {
 		const top = resolved.trace.contributions.at(-1)
 		const by = top
@@ -138,7 +141,7 @@ export function describeAnswer(resolved: ResolvedReference): string {
 				? `plugin ${top.plugin}`
 				: top.tier === 'default'
 					? `the default of ${top.skill}`
-					: `the ${top.tier} file ${top.path}`
+					: `the ${top.tier} file ${display(top.path)}`
 			: 'nothing'
 		const stack = resolved.trace.stack.length ? `, on the stack ${resolved.trace.stack.join(' → ')}` : ''
 		return `"${resolved.name}" is answered by ${by}${stack}.`
@@ -258,7 +261,7 @@ export function createContribution(
 	if (existing !== undefined && hasBody(parseDocument(existing, () => {}).body)) {
 		throw new ReferenceWriteError(
 			'file-exists',
-			`${target.path} already holds "${name.name}"; change it with the reference skill's Update mode.`,
+			`${(options.display ?? ((path: string) => path))(target.path)} already holds "${name.name}"; change it with the reference skill's Update mode.`,
 		)
 	}
 	const template: Template =
@@ -350,7 +353,7 @@ export function selectContribution(
 		if (!steps) {
 			throw new ReferenceWriteError(
 				'no-selection',
-				`the ${scope} tier holds no selection of "${name.name}". ${describeAnswer(resolveReference(name, layers, options))}`,
+				`the ${scope} tier holds no selection of "${name.name}". ${describeAnswer(resolveReference(name, layers, options), options.display)}`,
 			)
 		}
 		const content = editFrontmatter(existing as string, { extends: undefined })
@@ -415,6 +418,7 @@ export function deleteContribution(
 ): DeleteResult {
 	const name = bareName(args.name)
 	const target = writeTarget(name, args)
+	const shown = options.display ?? ((path: string) => path)
 	const before = resolveReference(name, layers, options)
 	const candidates =
 		target.scope === 'project' || target.scope === 'user'
@@ -424,7 +428,7 @@ export function deleteContribution(
 	if (!path) {
 		throw new ReferenceWriteError(
 			'no-file',
-			`${target.path} does not exist, so there is no ${target.scope} contribution of "${name.name}" to delete. ${describeAnswer(before)} An installed plugin's, a managed, or an installed skill's contribution is never deleted.`,
+			`${shown(target.path)} does not exist, so there is no ${target.scope} contribution of "${name.name}" to delete. ${describeAnswer(before, options.display)} An installed plugin's, a managed, or an installed skill's contribution is never deleted.`,
 		)
 	}
 	const steps = readExtends(parseDocument(tryRead(path) ?? '', () => {}).metadata['extends'], () => {})

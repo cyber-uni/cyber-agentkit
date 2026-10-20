@@ -7,8 +7,8 @@
 					"result": "The skill runs `show release-checklist` and prints the document that answers the name. It reads nothing from tier folders itself."
 				},
 				{
-					"prompt": "Which references exist, and which copy of each is used?",
-					"result": "The skill runs `list` and reports every layer it read, then each reference with the copy marked `used` and the ones marked `shadowed`."
+					"prompt": "Which references exist?",
+					"result": "The skill runs `list` and reports each name with its description, and its status when it is not found. For which contribution of each is used, it runs `list --trace`."
 				},
 				{
 					"prompt": "Find a reference about commit messages.",
@@ -20,33 +20,42 @@
 				},
 				{
 					"prompt": "Change what the commit-style reference says, just for me.",
-					"result": "The skill writes an override in `~/.agents/references/` marked `merge-sections`, so the sections you do not redefine are kept. It never edits a copy a plugin ships."
+					"result": "The skill writes a contribution in `~/.agents/references/` holding only the sections you change. It patches the document below by default, so the sections you leave out are kept. It never edits a contribution a plugin ships."
 				},
 				{
-					"prompt": "Delete my project copy of release-checklist.",
+					"prompt": "Two plugins ship project-tracker.capabilities.github. Use repobuddy's.",
+					"result": "The skill runs `select project-tracker.capabilities.github repobuddy`, which writes the selection to `.agents/references/` after you approve, then confirms the name loads."
+				},
+				{
+					"prompt": "Delete my project contribution to release-checklist.",
 					"result": "The skill runs `delete release-checklist --dry-run`, shows the file and what answers the name afterwards, and deletes only after you approve."
 				},
 				{
-					"prompt": "Why does commit-style resolve to that file?",
-					"result": "The skill runs `show commit-style --trace` and reports the layer that was `used` and each layer that was `shadowed` or `not read`, with its reason."
+					"prompt": "How is commit-style built?",
+					"result": "The skill runs `show commit-style --trace` and reports the stack, the contributions behind each section with the operation each applied, and each layer that was `shadowed`, `not used`, or `not read`, with its reason."
 				}
 			]
 		}
 	},
 	"cli": {
 		"$run": "Install the package, or run it once with `npx`. The `reference` skill runs the same command from a launcher bundled in the plugin.\n\n```sh\nnpm install --save-dev uni-agent-kit\nnpx uni-agent-kit reference list\n\n# or, without installing\nnpx -y uni-agent-kit reference list\n```",
-		"$format": "`show`, `create`, and `delete` answer in `text` unless `--format` says otherwise. The other subcommands answer in `toon`, a compact format an agent reads. Pass `--format json` to pipe the answer. Errors go to stderr, so stdout carries only the answer.",
+		"$format": "`show`, `create`, `select`, and `delete` answer in `text` unless `--format` says otherwise. The other subcommands answer in `toon`, a compact format an agent reads. Pass `--format json` to pipe the answer. Each command prints only the fields that answer it. Errors and warnings go to stderr as `error: <code>: <message>` and `warning: <code>: <message>`, so stdout carries only the answer.",
 		"reference show": {
 			"examples": [
 				{
 					"title": "Print one reference.",
 					"args": ["show", "release-checklist"],
-					"explain": "The document prints as it is, without frontmatter."
+					"explain": "The document prints as it is composed, without frontmatter."
 				},
 				{
-					"title": "Report why a name resolved to one copy.",
+					"title": "Give the status and composed frontmatter.",
+					"args": ["show", "release-checklist", "--metadata", "--format", "json"],
+					"explain": "`--metadata` makes the entry a record with its `status` and `metadata`. Without it, a found name is its content alone."
+				},
+				{
+					"title": "Report how a name was built.",
 					"args": ["show", "release-checklist", "--trace", "--format", "text"],
-					"explain": "`--trace` adds every path checked, the file that matched, the merge mode, and why a layer was dropped. It goes to stderr in `text` format, so this page shows only the document; run it to see the trace.",
+					"explain": "`--trace` writes a summary line, each section with the contributions behind it, and every layer checked with its outcome. It goes to stderr in `text` format, so this page shows only the document; run it to see the trace.",
 					"lines": 6
 				}
 			]
@@ -72,9 +81,9 @@
 		"reference where": {
 			"examples": [
 				{
-					"title": "See where an override can be written.",
+					"title": "See where a customization is written.",
 					"args": ["where", "release-checklist"],
-					"explain": "Slots are listed highest precedence first."
+					"explain": "Each place says who it reaches, and the heading paths of the document below it, which a section of the new file can match."
 				}
 			]
 		},
@@ -102,7 +111,7 @@
 				{
 					"title": "List the implementations of an interface.",
 					"args": ["implementations", "scaffold.recipe"],
-					"explain": "This project defines no such interface, so the list is empty."
+					"explain": "Each implementation comes with its pin, description, and the sections it does not support."
 				}
 			]
 		},
@@ -111,7 +120,16 @@
 				{
 					"title": "Check every interface and implementation.",
 					"args": ["check"],
-					"explain": "The command exits 1 when any check fails."
+					"explain": "The answer gives the failures, if any, and the count that pass. The command exits 1 when any check fails."
+				}
+			]
+		},
+		"reference select": {
+			"examples": [
+				{
+					"title": "Clear a selection that is not there.",
+					"args": ["select", "release-checklist", "--clear"],
+					"explain": "With no selection in the project tier, the command says what answers the name now."
 				}
 			]
 		}
