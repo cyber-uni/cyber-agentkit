@@ -157,3 +157,11 @@ Kilo's skills page and the source at main (76bcfd4). Both products register ever
 slash command under its bare name; on a clash with a custom command or MCP prompt the skill becomes
 `/<skill>:skill` (E-KILO-S3). That supersedes E-KILO-S2. Prose invocation still works.
 `skillInvocation('kilo')` now returns `/<skill>`, not namespaced.
+
+## 2026-10-20 — skill-resolution cross-references
+
+`.research/skill-resolution` (#114) settled two open questions here: Cursor keeps per-plugin enabled state on its
+server, and two Codex plugins' same-named skills are told apart by a `<plugin>:` prefix. It also found R4 and R6 rows
+that need correcting (Codex and Copilot CLI plugin skill namespacing, Cursor's `.grok/skills`, Copilot CLI's
+conditional `~/.agents/skills`). A note under R4 points to them; the tables and `skillsDirectories()` are not changed
+here, since that is library work.

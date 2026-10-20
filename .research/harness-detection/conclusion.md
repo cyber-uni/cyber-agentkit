@@ -200,6 +200,10 @@ project config override it, so it sets defaults, not policy.
 
 The skill's frontmatter `name` supplies the skill segment in every harness.
 
+Corrections from `skill-resolution` (2026-10-20): Codex plugin skills are `<plugin>:<skill>`, and Copilot CLI
+namespaces plugin skills as `<plugin>:<skill>` when two enabled plugins share a skill name. In R6, Cursor also reads
+`.grok/skills`, and Copilot CLI reads `~/.agents/skills` only when `COPILOT_HOME` is the default.
+
 ## R5. Plugin-to-plugin dependencies
 
 Only Claude Code supports them: `dependencies` in `plugin.json` (E-CC-X1). Cursor's schema
@@ -363,8 +367,10 @@ The survey behind #6 reported five products as gone. Checked against vendor sour
   Running `env | cut -d= -f1 | sort` from the IDE's agent chat would settle it.
 - How Claude Code merges `enabledPlugins` across scopes, and how Copilot CLI ranks `.claude/`
   settings against `.github/copilot/` settings.
-- Whether Cursor persists a per-plugin enabled state anywhere.
-- Whether two Codex plugins with the same skill name are disambiguated.
+- Whether Cursor persists a per-plugin enabled state anywhere. Settled 2026-10-20: on Cursor's server, not on disk
+  (`skill-resolution` E-SR-CUR-7).
+- Whether two Codex plugins with the same skill name are disambiguated. Settled 2026-10-20: yes, plugin skills are
+  `<plugin>:<skill>` (`skill-resolution` E-SR-CODEX-5, E-SR-CODEX-9).
 - Which of OpenCode's two bash tools ships. The one read copies `process.env` explicitly; the newer
   core tool inherits it by default, so the variables arrive either way (E-OC-D3).
 - Whether the Kilo Code VS Code and JetBrains extensions set `KILO=1` in their terminals. Only the
