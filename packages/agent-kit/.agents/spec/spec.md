@@ -1,12 +1,12 @@
 ---
 status: draft
-name: uni-agent-kit
+name: cyber-agentkit
 project-path: packages/agent-kit
 ---
 
-# uni-agent-kit — fundamental agent features that work across harnesses
+# cyber-agentkit — fundamental agent features that work across harnesses
 
-> Root project spec, the **descriptive** top index for `uni-agent-kit` (the package at `packages/agent-kit`).
+> Root project spec, the **descriptive** top index for `cyber-agentkit` (the package at `packages/agent-kit`).
 > Behaviors live in the node folders below. This spec starts as a backfill: only the `dependencies/` node is being
 > specified; the other `src/` domains get a node when someone changes them.
 

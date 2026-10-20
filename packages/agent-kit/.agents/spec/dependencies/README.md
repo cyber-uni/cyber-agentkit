@@ -50,7 +50,7 @@ same functions as A2; they need no use case beyond UC2. A2's goal comes from the
 
 ### UC1 — Check a plugin's dependencies (A1)
 
-- **Entry points:** the command `uni-agent-kit dependencies check [--plugin <root>]` (a doctor skill will wrap it, as its own node later); backed by
+- **Entry points:** the command `cyber-agentkit dependencies check [--plugin <root>]` (a doctor skill will wrap it, as its own node later); backed by
   `checkPluginDependencies(harness, { pluginRoot })`.
 - **Inputs:** `--plugin`, the plugin root (default the current directory, which always exists), and the detected harness. A bare name's declaring marketplace is
   derived from the installed plugin whose install folder is the plugin root; a `declaringMarketplace` passed to the

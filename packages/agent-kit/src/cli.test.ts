@@ -44,7 +44,7 @@ describe('run', () => {
 		mkdirSync(join(root, '.agents', 'references'), { recursive: true })
 		writeFileSync(join(root, '.agents', 'references', 'probe.md'), '# Probe\n')
 
-		expect(await run(['node', 'uni-agent-kit', 'reference', 'show', 'probe', '--root', root])).toBe(0)
+		expect(await run(['node', 'cyber-agentkit', 'reference', 'show', 'probe', '--root', root])).toBe(0)
 		expect(stdout).toHaveBeenCalledWith('# Probe\n')
 	})
 
@@ -60,18 +60,18 @@ describe('run', () => {
 
 	it('names its own plugin layer after the plugin, not the npm package', async () => {
 		expect(
-			await run(['node', 'uni-agent-kit', 'reference', 'list', '--trace', '--format', 'json', '--root', tempRoot()]),
+			await run(['node', 'cyber-agentkit', 'reference', 'list', '--trace', '--format', 'json', '--root', tempRoot()]),
 		).toBe(0)
 		const { layers } = JSON.parse(String(stdout.mock.calls[0]?.[0])) as { layers: { plugin: string }[] }
-		expect(layers.map(({ plugin }) => plugin)).toContain('uni-agent-kit')
+		expect(layers.map(({ plugin }) => plugin)).toContain('cyber-agentkit')
 	})
 
 	it('returns the exit code a failing subcommand gives', async () => {
-		expect(await run(['node', 'uni-agent-kit', 'reference', 'show', 'absent', '--root', tempRoot()])).toBe(1)
+		expect(await run(['node', 'cyber-agentkit', 'reference', 'show', 'absent', '--root', tempRoot()])).toBe(1)
 	})
 
 	it('treats a run that returns no code as a success', async () => {
-		expect(await run(['node', 'uni-agent-kit', '--version'])).toBe(0)
+		expect(await run(['node', 'cyber-agentkit', '--version'])).toBe(0)
 	})
 
 	it.each([
@@ -83,7 +83,7 @@ describe('run', () => {
 		['select', 'name', 'a'],
 		['delete', 'name'],
 	])('rejects an unsupported --format on %s as a usage error, before the command runs', async (...subcommand) => {
-		const argv = ['node', 'uni-agent-kit', 'reference', ...subcommand, '--format', 'yaml', '--root', tempRoot()]
+		const argv = ['node', 'cyber-agentkit', 'reference', ...subcommand, '--format', 'yaml', '--root', tempRoot()]
 		expect(await run(argv)).toBe(2)
 		// clibuilder 12 reports a usage error once, coded, on stdout.
 		expect(stdout).toHaveBeenCalledTimes(1)
@@ -92,11 +92,11 @@ describe('run', () => {
 
 	it('reports a failure the parser throws on stderr, as a usage error', async () => {
 		thrown.value = new Error('bad argv')
-		expect(await run(['node', 'uni-agent-kit', 'reference', 'list'])).toBe(2)
+		expect(await run(['node', 'cyber-agentkit', 'reference', 'list'])).toBe(2)
 		expect(stderr).toHaveBeenCalledWith('error: bad argv\n')
 
 		thrown.value = 'not an error'
-		expect(await run(['node', 'uni-agent-kit', 'reference', 'list'])).toBe(2)
+		expect(await run(['node', 'cyber-agentkit', 'reference', 'list'])).toBe(2)
 		expect(stderr).toHaveBeenCalledWith('error: Invalid command.\n')
 	})
 })

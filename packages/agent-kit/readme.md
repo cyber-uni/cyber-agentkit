@@ -1,6 +1,6 @@
-# uni-agent-kit
+# cyber-agentkit
 
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/spikyuni/uni-agent-kit/blob/main/LICENSE)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/spikyuni/cyber-agentkit/blob/main/LICENSE)
 
 An agent-harness-agnostic toolkit. It provides the fundamental features agent tools need and makes
 each one work the same way across harnesses:
@@ -15,7 +15,7 @@ each one work the same way across harnesses:
 It depends on no other agent tool, so any of them can build on it.
 
 **Status: pre-release.** Every fact this library encodes rests on
-[`.research/harness-detection`](https://github.com/spikyuni/uni-agent-kit/tree/main/.research/harness-detection).
+[`.research/harness-detection`](https://github.com/spikyuni/cyber-agentkit/tree/main/.research/harness-detection).
 
 ## Detect the harness
 
@@ -23,7 +23,7 @@ It detects Claude Code, Cursor, Codex, GitHub Copilot CLI, OpenCode, Kilo Code, 
 Code, GitHub Copilot in VS Code, Cline, Crush, OpenHands, and the Auggie CLI.
 
 ```ts
-import { detectHarness } from 'uni-agent-kit'
+import { detectHarness } from 'cyber-agentkit'
 
 const result = detectHarness()
 // {
@@ -72,7 +72,7 @@ Pass `{ env }` to inspect an environment other than `process.env`.
 ## Managed policy
 
 ```ts
-import { managedPolicyLocations } from 'uni-agent-kit'
+import { managedPolicyLocations } from 'cyber-agentkit'
 
 managedPolicyLocations('claude-code', { platform: 'linux' })
 // [
@@ -90,7 +90,7 @@ organization. A `server` entry means the local files are not the whole policy.
 ## Plugin storage
 
 ```ts
-import { pluginStorage } from 'uni-agent-kit'
+import { pluginStorage } from 'cyber-agentkit'
 
 pluginStorage('codex')
 // {
@@ -109,7 +109,7 @@ Cursor has no `enabled-record`: no file records which of its plugins are enabled
 ## Enabled plugins
 
 ```ts
-import { enabledPlugins } from 'uni-agent-kit'
+import { enabledPlugins } from 'cyber-agentkit'
 
 const result = await enabledPlugins('claude-code')
 // {
@@ -136,7 +136,7 @@ override the answer.
 ## Installed plugins
 
 ```ts
-import { enabledPlugins, installedPlugins } from 'uni-agent-kit'
+import { enabledPlugins, installedPlugins } from 'cyber-agentkit'
 
 const installed = await installedPlugins('claude-code')
 // {
@@ -168,7 +168,7 @@ path in place, without an install record, so they appear in `unread` instead.
 ## Skill naming
 
 ```ts
-import { skillInvocation } from 'uni-agent-kit'
+import { skillInvocation } from 'cyber-agentkit'
 
 skillInvocation('claude-code', { plugin: 'my-plugin', skill: 'review' })?.text // '/my-plugin:review'
 skillInvocation('copilot-cli', { plugin: 'my-plugin', skill: 'review' })?.text // '/review'
@@ -184,7 +184,7 @@ why. This reads what a plugin declares, checks it against what the running harne
 enabled, and returns the steps that settle the rest. It installs nothing and compares no versions.
 
 ```ts
-import { checkPluginDependencies, supportsPluginDependencies } from 'uni-agent-kit'
+import { checkPluginDependencies, supportsPluginDependencies } from 'cyber-agentkit'
 
 supportsPluginDependencies('claude-code') // true; false for the others
 
@@ -213,7 +213,7 @@ hold. The how-to for a person or agent, `plugin-dependencies`, ships as a
 ## Skill directories
 
 ```ts
-import { skillsDirectories } from 'uni-agent-kit'
+import { skillsDirectories } from 'cyber-agentkit'
 
 skillsDirectories('claude-code') // { project: ['.claude/skills'], user: ['.claude/skills'], research: ['E-CC-L1'] }
 skillsDirectories('codex')?.project.includes('.agents/skills') // true
@@ -231,7 +231,7 @@ and the documented exit codes. The library only describes the run; starting the 
 you.
 
 ```ts
-import { headlessCommand, headlessInvocation } from 'uni-agent-kit'
+import { headlessCommand, headlessInvocation } from 'cyber-agentkit'
 
 headlessCommand('claude-code', {
   prompt: 'Fix the failing test',
@@ -263,7 +263,7 @@ weights a skill applies. A plugin ships a contribution, a skill ships its defaul
 project in `.agents/references/<name>.md`, a person in `~/.agents/references/<name>.md`.
 
 ```ts
-import { loadReference } from 'uni-agent-kit'
+import { loadReference } from 'cyber-agentkit'
 
 const resolved = await loadReference('agent-readiness-weights', {
 	root: process.cwd(),
@@ -331,14 +331,14 @@ The package ships a `reference` command with `show`, `list`, `search`, `where`, 
 `check`, `create`, `select`, and `delete` subcommands:
 
 ```sh
-npx -y uni-agent-kit reference show <name>... --root <repository root> --default <skill folder>
-npx -y uni-agent-kit reference list
-npx -y uni-agent-kit reference list 'project-tracker.capabilities.*'
-npx -y uni-agent-kit reference implementations <interface id> --accept 1,2
-npx -y uni-agent-kit reference check
-npx -y uni-agent-kit reference create <name> --merge combine
-npx -y uni-agent-kit reference select <name> <plugin> --scope user
-npx -y uni-agent-kit reference delete <name> --scope project --dry-run
+npx -y cyber-agentkit reference show <name>... --root <repository root> --default <skill folder>
+npx -y cyber-agentkit reference list
+npx -y cyber-agentkit reference list 'project-tracker.capabilities.*'
+npx -y cyber-agentkit reference implementations <interface id> --accept 1,2
+npx -y cyber-agentkit reference check
+npx -y cyber-agentkit reference create <name> --merge combine
+npx -y cyber-agentkit reference select <name> <plugin> --scope user
+npx -y cyber-agentkit reference delete <name> --scope project --dry-run
 ```
 
 `implementations` lists what a consumer can load for an interface (a `<id>.interface` document) with
@@ -360,33 +360,33 @@ follow [`clibuilder`](https://www.npmjs.com/package/clibuilder) 12, and any othe
 usage error (exit code 2). A CLI built on clibuilder 12
 can host the same command under its own plugin name, imported from the `./commands` subpath. `--format`
 is the host's global option, so the host's `cli({ format })` sets the default for every subcommand;
-the `text` default of `show`, `create`, `select`, and `delete` belongs to the `uni-agent-kit` CLI:
+the `text` default of `show`, `create`, `select`, and `delete` belongs to the `cyber-agentkit` CLI:
 
 ```ts
-import { createReferenceCommand } from 'uni-agent-kit/commands'
+import { createReferenceCommand } from 'cyber-agentkit/commands'
 
 app.command(createReferenceCommand({ plugin: { name: 'my-plugin', root: pluginRoot } }))
 ```
 
 ### The `reference` skill
 
-The package is also an agent plugin, `uni-agent-kit`, that ships a `reference` skill. Type
-`/reference` (`/uni-agent-kit:reference` in Claude Code) to load, create, update, delete, find, or
+The package is also an agent plugin, `cyber-agentkit`, that ships a `reference` skill. Type
+`/reference` (`/cyber-agentkit:reference` in Claude Code) to load, create, update, delete, find, or
 inspect a reference, or to wire a skill to load one. The skill writes or deletes a file only after
 you approve it. It runs the command from its bundled `scripts/reference.mjs`, which needs no
 `node_modules`.
 
 ```text
 /plugin marketplace add cyberuni/cyberplace
-/plugin install uni-agent-kit@cyberplace
+/plugin install cyber-agentkit@cyberplace
 ```
 
 A skill that needs a reference names it in one line, as the skill's
-[`README.md`](https://github.com/spikyuni/uni-agent-kit/blob/main/packages/agent-kit/skills/reference/README.md)
+[`README.md`](https://github.com/spikyuni/cyber-agentkit/blob/main/packages/agent-kit/skills/reference/README.md)
 shows:
 
 ```text
-Load `skill-design` with the `reference` skill of `uni-agent-kit`.
+Load `skill-design` with the `reference` skill of `cyber-agentkit`.
 ```
 
 ## Worktrees
@@ -395,7 +395,7 @@ The `./worktrees` subpath leases git worktrees to concurrent agent sessions, so 
 share a checkout. It does not fetch and never kills a process.
 
 ```ts
-import { acquire, pruneWorktrees, release } from 'uni-agent-kit/worktrees'
+import { acquire, pruneWorktrees, release } from 'cyber-agentkit/worktrees'
 ```
 
 | Function | Does |
@@ -420,4 +420,4 @@ This package exists so they share one implementation instead.
 
 ## License
 
-[MIT](https://github.com/spikyuni/uni-agent-kit/blob/main/LICENSE)
+[MIT](https://github.com/spikyuni/cyber-agentkit/blob/main/LICENSE)

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 const web = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repo = resolve(web, '../..')
 const docs = join(web, 'src/content/docs/packages')
-const repoUrl = 'https://github.com/spikyuni/uni-agent-kit/tree/main'
+const repoUrl = 'https://github.com/spikyuni/cyber-agentkit/tree/main'
 
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'))
 const esc = (text) => String(text).replaceAll('|', '\\|')
@@ -97,7 +97,7 @@ function skillsIndex(pkg, rows) {
 	]
 	out.push('| Skill | Use it when |', '| --- | --- |')
 	for (const { skill, description } of rows) {
-		out.push(`| [\`${skill}\`](/uni-agent-kit/packages/${pkg}/skills/${skill}/) | ${esc(description)} |`)
+		out.push(`| [\`${skill}\`](/cyber-agentkit/packages/${pkg}/skills/${skill}/) | ${esc(description)} |`)
 	}
 	write(join(docs, pkg, 'skills', 'index.md'), `${out.join('\n')}\n`)
 }
@@ -128,7 +128,7 @@ function requiresPage(pkg, plugin) {
 		'',
 	)
 	out.push(
-		'To install them, load the [`plugin-dependencies` reference](https://github.com/spikyuni/uni-agent-kit/blob/main/packages/agent-kit/references/plugin-dependencies.md) through the `reference` skill of `uni-agent-kit`. On a harness other than Claude Code nothing is installed for you.',
+		'To install them, load the [`plugin-dependencies` reference](https://github.com/spikyuni/cyber-agentkit/blob/main/packages/agent-kit/references/plugin-dependencies.md) through the `reference` skill of `cyber-agentkit`. On a harness other than Claude Code nothing is installed for you.',
 		'',
 	)
 	out.push('| Plugin | Marketplace | Version |', '| --- | --- | --- |')
@@ -226,7 +226,7 @@ function cliPages(pkg, binName, data) {
 		if (node.commands) {
 			out.push('## Subcommands', '', '| Command | What it does |', '| --- | --- |')
 			for (const c of node.commands)
-				out.push(`| [\`${c.name}\`](/uni-agent-kit/packages/${pkg}/cli/${slug}-${c.name}/) | ${esc(c.description)} |`)
+				out.push(`| [\`${c.name}\`](/cyber-agentkit/packages/${pkg}/cli/${slug}-${c.name}/) | ${esc(c.description)} |`)
 			out.push('')
 		}
 		if (node.arguments?.length) {
@@ -249,7 +249,7 @@ function cliPages(pkg, binName, data) {
 				'',
 			)
 		}
-		if (leaf) out.push('Every command also takes the [global options](/uni-agent-kit/packages/' + pkg + '/cli/).', '')
+		if (leaf) out.push('Every command also takes the [global options](/cyber-agentkit/packages/' + pkg + '/cli/).', '')
 		const examples = data?.cli?.[key]?.examples ?? []
 		if (examples.length) {
 			out.push('## Examples', '')
@@ -283,7 +283,7 @@ function cliPages(pkg, binName, data) {
 	intro.push(all[0].node.description, '', '## Run it', '', data?.cli?.$run ?? '', '')
 	intro.push('## Commands', '', '| Command | What it does |', '| --- | --- |')
 	for (const r of rows)
-		intro.push(`| [\`${r.key}\`](/uni-agent-kit/packages/${pkg}/cli/${r.slug}/) | ${esc(r.description)} |`)
+		intro.push(`| [\`${r.key}\`](/cyber-agentkit/packages/${pkg}/cli/${r.slug}/) | ${esc(r.description)} |`)
 	intro.push(
 		'',
 		'## Global options',

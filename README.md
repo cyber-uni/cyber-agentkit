@@ -1,13 +1,13 @@
-# uni-agent-kit
+# cyber-agentkit
 
-[![npm](https://img.shields.io/npm/v/uni-agent-kit.svg)](https://www.npmjs.com/package/uni-agent-kit)
-[![release](https://github.com/spikyuni/uni-agent-kit/actions/workflows/release.yml/badge.svg)](https://github.com/spikyuni/uni-agent-kit/actions/workflows/release.yml)
+[![npm](https://img.shields.io/npm/v/cyber-agentkit.svg)](https://www.npmjs.com/package/cyber-agentkit)
+[![release](https://github.com/spikyuni/cyber-agentkit/actions/workflows/release.yml/badge.svg)](https://github.com/spikyuni/cyber-agentkit/actions/workflows/release.yml)
 ![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 
 An agent-harness-agnostic toolkit. It provides the fundamental features agent tools need and makes
 each one work the same way across harnesses.
 
-**Status: pre-release.** `uni-agent-kit` is published on npm, and its API may still change
+**Status: pre-release.** `cyber-agentkit` is published on npm, and its API may still change
 between minor versions.
 
 ## The problem
@@ -18,7 +18,7 @@ running, where it keeps its plugins and policy, what a plugin needs, where an ov
 solves them with its own guesses about env vars, file paths, and process trees, and each guess
 decays differently as vendors change their tooling.
 
-`uni-agent-kit` does each of these once, depending on no other agent tool, so
+`cyber-agentkit` does each of these once, depending on no other agent tool, so
 [`universal-plugin`](https://github.com/cyberuni/universal-plugin),
 [`buddy-agent-harness`](https://github.com/repobuddy/buddy-agent-harness), `repobuddy`, and
 `cyberlegion/cyber-mux` share one implementation instead of maintaining four.
@@ -26,11 +26,11 @@ decays differently as vendors change their tooling.
 ## What it does
 
 ```sh
-npm install uni-agent-kit
+npm install cyber-agentkit
 ```
 
 ```ts
-import { detectHarness, skillsDirectories } from 'uni-agent-kit'
+import { detectHarness, skillsDirectories } from 'cyber-agentkit'
 
 const { harness } = detectHarness() // 'claude-code', 'codex', …, or 'unknown'
 if (harness !== 'unknown') skillsDirectories(harness)

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Moves each skill's `npx -y uni-agent-kit@<version>` fallback to this package's version.
+// Moves each skill's `npx -y cyber-agentkit@<version>` fallback to this package's version.
 // Run by the root `version` script after `changeset version`; `src/references/reference-skill.test.ts`
 // fails while a pin is stale.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'

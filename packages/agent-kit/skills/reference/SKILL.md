@@ -35,7 +35,7 @@ node <this skill's folder>/scripts/reference.mjs <subcommand> ... --root <reposi
 
 `scripts/reference.mjs` is the package's `reference` command bundled into one file; it needs no `node_modules`. Pass `--root` every time, so the repository's own `.agents/references/` is read. A failure prints `error: <code>: <message>` and a warning `warning: <code>: <message>`, both on stderr.
 
-Outside Load, when it is missing or cannot run, use `pnpm exec uni-agent-kit reference` when the package is a direct dependency, else `npx -y uni-agent-kit@0.7.1 reference`, with the same arguments. Load never falls back to a package runner.
+Outside Load, when it is missing or cannot run, use `pnpm exec cyber-agentkit reference` when the package is a direct dependency, else `npx -y cyber-agentkit@0.7.1 reference`, with the same arguments. Load never falls back to a package runner.
 
 ## Load
 

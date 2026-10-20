@@ -34,7 +34,7 @@ IDs are shared across the parent and its children.
 
 - **Trigger:** a skill author wants a skill to load references by name, with defaults others can customize.
 - **Entry points:** Skill: the `reference` skill's Wire a skill mode, which gives the load line: "Load `<name>` and
-  `<name>` with the `reference` skill of `uni-agent-kit`." Code: none directly; Load runs
+  `<name>` with the `reference` skill of `cyber-agentkit`." Code: none directly; Load runs
   `show <name>... --default <the caller's folder>` (UC1).
 - **Inputs:** the names; the harness the skill is written for, if only one; the defaults the author ships.
 - **Outcome:** the skill carries one load line naming the references and the `reference` skill with its package, in

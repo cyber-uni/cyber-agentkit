@@ -5,7 +5,7 @@
 		"build": "turbo build",
 		"check": "biome check --write",
 		"cs": "changeset",
-		"dev": "pnpm --filter uni-agent-kit dev",
+		"dev": "pnpm --filter cyber-agentkit dev",
 		"format": "biome format --write .",
 		"prepare": "node -e \"if(!(process.env.CI||process.env.GITHUB_ACTIONS))require('child_process').execSync('husky',{stdio:'inherit'})\"",
 		"release": "changeset publish",

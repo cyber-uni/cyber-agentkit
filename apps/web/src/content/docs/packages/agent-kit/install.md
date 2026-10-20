@@ -1,6 +1,6 @@
 ---
 title: Install
-description: Install uni-agent-kit as a library, as a command, or as an agent plugin, and run your first reference command.
+description: Install cyber-agentkit as a library, as a command, or as an agent plugin, and run your first reference command.
 sidebar:
   order: 1
 ---
@@ -13,29 +13,29 @@ package. The plugin is the same package packaged for an agent harness.
 Node 22 or later is required, as the repository root declares in `engines`.
 
 ```sh
-npm install uni-agent-kit
+npm install cyber-agentkit
 ```
 
 Run the command without installing it:
 
 ```sh
-npx -y uni-agent-kit reference list
+npx -y cyber-agentkit reference list
 ```
 
-With the package installed, `npx uni-agent-kit reference list` or `pnpm exec uni-agent-kit reference list`
+With the package installed, `npx cyber-agentkit reference list` or `pnpm exec cyber-agentkit reference list`
 runs the same command.
 
 ## As an agent plugin
 
-The plugin is named `uni-agent-kit`. Its `plugin.json` declares four harnesses: `claude-code`,
+The plugin is named `cyber-agentkit`. Its `plugin.json` declares four harnesses: `claude-code`,
 `cursor`, `codex`, and `copilot-cli`. In Claude Code, add the marketplace and install it:
 
 ```text
 /plugin marketplace add cyberuni/cyberplace
-/plugin install uni-agent-kit@cyberplace
+/plugin install cyber-agentkit@cyberplace
 ```
 
-Those two lines come from the [package readme](https://github.com/spikyuni/uni-agent-kit/tree/main/packages/agent-kit#the-reference-skill).
+Those two lines come from the [package readme](https://github.com/spikyuni/cyber-agentkit/tree/main/packages/agent-kit#the-reference-skill).
 For Cursor, Codex, and Copilot CLI, install the plugin with that harness's own plugin command. The
 package ships a manifest for each: `.claude-plugin`, `.cursor-plugin`, and `.codex-plugin`.
 
@@ -45,12 +45,12 @@ In the repository where you installed the plugin, ask the agent:
 
 > Which references exist?
 
-The agent loads the [`reference` skill](/uni-agent-kit/packages/agent-kit/skills/reference/),
-which runs the [`list`](/uni-agent-kit/packages/agent-kit/cli/reference-list/) command and
+The agent loads the [`reference` skill](/cyber-agentkit/packages/agent-kit/skills/reference/),
+which runs the [`list`](/cyber-agentkit/packages/agent-kit/cli/reference-list/) command and
 reports the layers it read. From a shell, the same check is:
 
 ```sh
-npx -y uni-agent-kit reference list
+npx -y cyber-agentkit reference list
 ```
 
 ## Use the skill
@@ -61,7 +61,7 @@ Describe what you want done with a reference. You do not name the command:
 2. Ask it to read one: "Show me release-checklist."
 3. Ask why a copy won: "Why does release-checklist resolve to that file?"
 
-[The skill page](/uni-agent-kit/packages/agent-kit/skills/reference/) lists every kind of request
+[The skill page](/cyber-agentkit/packages/agent-kit/skills/reference/) lists every kind of request
 and what the agent does for each.
 
 ## Use the command
@@ -70,9 +70,9 @@ Run `reference` subcommands directly when you script around them. The default `t
 compact for agents; add `--format json` to pipe the answer to another tool.
 
 ```sh
-npx uni-agent-kit reference search release
-npx uni-agent-kit reference show release-checklist
-npx uni-agent-kit reference show release-checklist --trace
+npx cyber-agentkit reference search release
+npx cyber-agentkit reference show release-checklist
+npx cyber-agentkit reference show release-checklist --trace
 ```
 
-The [CLI reference](/uni-agent-kit/packages/agent-kit/cli/) documents every command and option.
+The [CLI reference](/cyber-agentkit/packages/agent-kit/cli/) documents every command and option.

@@ -1,4 +1,4 @@
-# AGENTS.md — uni-agent-kit
+# AGENTS.md — cyber-agentkit
 
 No agent-layer dependencies. This package sits under the agent tools (`universal-plugin`,
 `buddy-agent-harness`, `repobuddy`, `cyber-*`), so it must never depend on one of them or on

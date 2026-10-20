@@ -1,5 +1,5 @@
 ---
-"uni-agent-kit": minor
+"cyber-agentkit": minor
 ---
 
 Add reference interfaces. An `<id>.interface` reference declares a contract in its `interface:` frontmatter: cardinality, version, accepted versions, and the implementation's top-level sections in order. Every section is optional, and an implementation may hold sections the interface does not list. A reference implements one interface with `implements: <id>@<version>`.

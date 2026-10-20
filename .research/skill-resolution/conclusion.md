@@ -108,7 +108,7 @@ then `.cursor-plugin/plugin.json` (E-SR-CODEX-4).
 | OpenCode | `Base directory for this skill: <folder>` and a sampled file list, from the `skill` tool | None | E-SR-OC-7, -8 |
 | Gemini CLI | `<location>` (`SKILL.md` path) in the prompt; the folder and its tree from `activate_skill` | `${extensionPath}` in extension skills | E-SR-GEM-13–15 |
 
-## What this means for `uni-agent-kit`
+## What this means for `cyber-agentkit`
 
 - **The `default` tier (R41) is unblocked on all six harnesses.** Each tells a loaded skill its folder (or its
   `SKILL.md` path, whose folder is the skill's), so the `reference` skill can pass `--default <skill folder>`. The

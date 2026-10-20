@@ -4,8 +4,8 @@
 
 2026-10-18. Checked: `agent-harness` 0.7.1 built from this repository (`reference` command), Claude Code
 plugin docs fetched 2026-10-18, Cursor, Agent Plugins 1.0, and Copilot CLI manifest schemas fetched
-2026-10-18. Design issue: [#107](https://github.com/spikyuni/uni-agent-kit/issues/107), epic
-[#106](https://github.com/spikyuni/uni-agent-kit/issues/106).
+2026-10-18. Design issue: [#107](https://github.com/spikyuni/cyber-agentkit/issues/107), epic
+[#106](https://github.com/spikyuni/cyber-agentkit/issues/106).
 
 > The dependency design now lives in the project spec, `packages/agent-kit/.agents/spec/dependencies/`. This topic keeps the
 > research and evidence behind it.
@@ -20,7 +20,7 @@ the reference, not the plugin:
   until callers move.
 - **R2. A default marker.** A shipped copy can mark itself default. A non-default plugin copy of the same
   name beats the default on its own, with no `overrides` line and no plugin name. `repobuddy` ships the
-  default; `unional-skills` and `uni-agent-kit` just ship `website.init`.
+  default; `unional-skills` and `cyber-agentkit` just ship `website.init`.
 - **R3. Pins settle ambiguity.** Two non-default providers of one name stay ambiguous until a user or project
   pin settles it, for example `website.init: unional-skills` in `.agents/`. The pin is where a later
   `extends`/`include`/`exclude` belongs; none of that is in v1.
@@ -28,7 +28,7 @@ the reference, not the plugin:
 The tier order is unchanged: managed, then project, then user, then plugin (E-OVR-1). A project or user copy
 still beats every plugin's, and `merge` still defaults to `first-wins` (E-OVR-2).
 
-### What exists today and what `uni-agent-kit` must add
+### What exists today and what `cyber-agentkit` must add
 
 Re-verified 2026-10-18 against the 0.7.1 source and command (E-OVR-8 to E-OVR-11).
 
@@ -44,20 +44,20 @@ None of the missing pieces is implemented here. Library work needs a spec first.
 
 ## Q2. Migration order
 
-[#101](https://github.com/spikyuni/uni-agent-kit/issues/101) already fixes the order of the rename; this
+[#101](https://github.com/spikyuni/cyber-agentkit/issues/101) already fixes the order of the rename; this
 design only places `repobuddy`'s dependency in it and closes two gaps (E-MIG-1 to E-MIG-4).
 
-1. #101 rename PR, trusted publisher, `uni-agent-kit@1.0.0` on npm, the plugin published as `uni-agent-kit`.
+1. #101 rename PR, trusted publisher, `cyber-agentkit@1.0.0` on npm, the plugin published as `cyber-agentkit`.
 2. #101 downstream moves, `repobuddy` among them (import, six SKILL.md lines). `repobuddy` still declares no
    dependency here.
-3. Only then does `repobuddy` add `uni-agent-kit` to `dependencies` in its manifest, and its marketplace
-   lists `uni-agent-kit` too (Q3), so the dependency resolves.
-4. The default marker, the name alias, and the pin file ship in a `uni-agent-kit` release after the spec.
+3. Only then does `repobuddy` add `cyber-agentkit` to `dependencies` in its manifest, and its marketplace
+   lists `cyber-agentkit` too (Q3), so the dependency resolves.
+4. The default marker, the name alias, and the pin file ship in a `cyber-agentkit` release after the spec.
 5. The website references, the `unional-skills` copy, and the removal of `add-website` follow, since they
    load references through the plugin `repobuddy` now requires. A prefixed name keeps working through its
    alias until each caller has moved.
 
-Gaps in #101: (a) R3 renames the marketplace entry `cyber-agent-harness` to `uni-agent-kit`, which breaks
+Gaps in #101: (a) R3 renames the marketplace entry `cyber-agent-harness` to `cyber-agentkit`, which breaks
 every dependent still declaring `cyber-agent-harness` until it moves. Keep the old entry until the last
 dependent has moved, then remove it. (b) A bare dependency name resolves in the declaring plugin's own
 marketplace, and `repobuddy`'s lists only `repobuddy`.
@@ -82,17 +82,17 @@ generator already reads `dependencies` (#108).
 
 ## Q4. Where the dependency-docs reference lives
 
-**`uni-agent-kit`.** It owns the per-harness facts and the dependency domain, so the reference that tells an
+**`cyber-agentkit`.** It owns the per-harness facts and the dependency domain, so the reference that tells an
 agent how to install a plugin's dependencies is generated from them. `repobuddy` cannot host it: the
 reference is loaded through the very plugin that may be missing. `repobuddy` therefore also carries a short
 static note in its README and its website "Requires" section, which a user reads without any plugin installed.
 
 ## What this settles for the children
 
-- `repobuddy`: marketplace lists `uni-agent-kit`; manifest `dependencies`; ships the default
+- `repobuddy`: marketplace lists `cyber-agentkit`; manifest `dependencies`; ships the default
   `website.init`, `website.deploy`, `website.update` in its `references/`, each marked default; README note for
   non-Claude harnesses.
 - `unional-skills`: ships `website.init` (and the others that differ) with no `overrides` line; remove
   `add-website`.
-- `uni-agent-kit`: spec, then the default marker, name alias, and pin file; the dependency domain; the
+- `cyber-agentkit`: spec, then the default marker, name alias, and pin file; the dependency domain; the
   `plugin-dependencies` reference; the website references.

@@ -38,7 +38,7 @@
 		}
 	},
 	"cli": {
-		"$run": "Install the package, or run it once with `npx`. The `reference` skill runs the same command from a launcher bundled in the plugin.\n\n```sh\nnpm install --save-dev uni-agent-kit\nnpx uni-agent-kit reference list\n\n# or, without installing\nnpx -y uni-agent-kit reference list\n```",
+		"$run": "Install the package, or run it once with `npx`. The `reference` skill runs the same command from a launcher bundled in the plugin.\n\n```sh\nnpm install --save-dev cyber-agentkit\nnpx cyber-agentkit reference list\n\n# or, without installing\nnpx -y cyber-agentkit reference list\n```",
 		"$format": "`show`, `create`, `select`, and `delete` answer in `text` unless `--format` says otherwise. The other subcommands answer in `toon`, a compact format an agent reads. Pass `--format json` to pipe the answer. Each command prints only the fields that answer it. Errors and warnings go to stderr as `error: <code>: <message>` and `warning: <code>: <message>`, so stdout carries only the answer.",
 		"reference show": {
 			"examples": [

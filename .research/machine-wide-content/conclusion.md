@@ -33,8 +33,8 @@ repository. Where it lands differs: a per-user folder (Claude Code synced plugin
 admin fills them, usually through MDM; the harness never writes there, and on a personal machine they
 are missing or empty (E-MW-BI-2). Built-in skills live elsewhere: inside the Claude Code binary, in
 `~/.codex/skills/.system` for Codex's SYSTEM scope, and in the install for Gemini CLI and Qwen Code
-(E-MW-BI-1). For `uni-agent-kit`, these folders matter for references and skill listing, not for
-plugin checks (see "What this means for uni-agent-kit").
+(E-MW-BI-1). For `cyber-agentkit`, these folders matter for references and skill listing, not for
+plugin checks (see "What this means for cyber-agentkit").
 
 ## Reference
 
@@ -96,7 +96,7 @@ choice, not a built-in location.
 | Qwen Code | `bundled` level, shipped with the install | None |
 | OpenCode 2.x | Not researched | `<managed dir>/skill(s)/` |
 
-### What this means for uni-agent-kit
+### What this means for cyber-agentkit
 
 | Area | Read the machine-wide folders? | Why |
 | --- | --- | --- |

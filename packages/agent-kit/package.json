@@ -1,5 +1,5 @@
 {
-	"name": "uni-agent-kit",
+	"name": "cyber-agentkit",
 	"version": "0.7.1",
 	"description": "An agent-harness-agnostic toolkit: the fundamental features agent tools need, working the same on every harness. Detect the running harness, check plugin dependencies, resolve layered reference documents, and lease git worktrees.",
 	"keywords": [
@@ -18,13 +18,13 @@
 		"openhands",
 		"auggie"
 	],
-	"homepage": "https://spikyuni.github.io/uni-agent-kit/",
+	"homepage": "https://spikyuni.github.io/cyber-agentkit/",
 	"bugs": {
-		"url": "https://github.com/spikyuni/uni-agent-kit/issues"
+		"url": "https://github.com/spikyuni/cyber-agentkit/issues"
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/spikyuni/uni-agent-kit.git",
+		"url": "git+https://github.com/spikyuni/cyber-agentkit.git",
 		"directory": "packages/agent-kit"
 	},
 	"license": "MIT",
@@ -42,7 +42,7 @@
 		"./package.json": "./package.json"
 	},
 	"bin": {
-		"uni-agent-kit": "./bin/uni-agent-kit.mjs"
+		"cyber-agentkit": "./bin/cyber-agentkit.mjs"
 	},
 	"files": [
 		"LICENSE",

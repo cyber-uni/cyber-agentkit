@@ -47,7 +47,7 @@ Tell the user, briefly, about every name that did not come from the command, and
 
 - a name not loaded, and why: missing, ambiguous (with the options), or invalid (a fault for the caller's author);
 - when the command did not run: that it did not, the error it gave, and that each name came from the caller's default, so no project, user, or machine customization applied;
-- when the command did not run and a name has no default: that `scripts/reference.mjs` ships with the npm package, so a `uni-agent-kit` plugin installed from git has none, and installing it from npm fixes it;
+- when the command did not run and a name has no default: that `scripts/reference.mjs` ships with the npm package, so a `cyber-agentkit` plugin installed from git has none, and installing it from npm fixes it;
 - when you could not tell the caller's folder: that the names were loaded without its defaults.
 
 Say nothing about the load when every name came from the command, and nothing about a name a `remove` turned off.

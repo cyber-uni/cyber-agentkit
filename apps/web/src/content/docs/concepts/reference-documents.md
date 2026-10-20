@@ -1,6 +1,6 @@
 ---
 title: Reference documents
-description: How uni-agent-kit composes a named reference document from the contributions in the managed, project, user, plugin, and default tiers, and how a contribution says what it builds on and how it applies.
+description: How cyber-agentkit composes a named reference document from the contributions in the managed, project, user, plugin, and default tiers, and how a contribution says what it builds on and how it applies.
 ---
 
 A reference is a named Markdown document an agent reads on demand, such as a checklist or a set of
@@ -10,7 +10,7 @@ ships one, a skill ships its default, and a repository, a user, or a machine-wid
 add their own without forking the plugin.
 
 ```ts
-import { loadReference } from 'uni-agent-kit'
+import { loadReference } from 'cyber-agentkit'
 
 const resolved = await loadReference('agent-readiness-weights', {
 	root: process.cwd(),
@@ -23,7 +23,7 @@ if (resolved.status === 'found') console.log(resolved.content)
 From a shell, or from an agent:
 
 ```sh
-npx -y uni-agent-kit reference show agent-readiness-weights
+npx -y cyber-agentkit reference show agent-readiness-weights
 ```
 
 ## The reference command
@@ -37,8 +37,8 @@ npx -y uni-agent-kit reference show agent-readiness-weights
 | `create <name>` | Starts a contribution, with `merge: patch` unless `--merge` says otherwise |
 | `select <name> <option>...` | Writes the `extends` that picks what a name builds on |
 | `delete <name>` | Deletes a project or user contribution, and reports what answers the name afterwards |
-| `implementations <id>` | The implementations of an [interface](/uni-agent-kit/concepts/reference-interfaces/) a consumer can load |
-| `check [name]...` | Checks references against their [interface](/uni-agent-kit/concepts/reference-interfaces/); exits 1 on any failure |
+| `implementations <id>` | The implementations of an [interface](/cyber-agentkit/concepts/reference-interfaces/) a consumer can load |
+| `check [name]...` | Checks references against their [interface](/cyber-agentkit/concepts/reference-interfaces/); exits 1 on any failure |
 
 `create`, `select`, and `delete` act on the project tier by default (`.agents/references/` at the
 root) or the user tier with `--scope user` (`~/.agents/references/`). `create` and `delete` also
@@ -48,8 +48,8 @@ the repository. They never write to a managed folder or an installed copy of a p
 
 ## The reference skill
 
-The package is also an agent plugin, `uni-agent-kit`, that ships a `reference` skill. Type
-`/reference` (`/uni-agent-kit:reference` in Claude Code) to run it.
+The package is also an agent plugin, `cyber-agentkit`, that ships a `reference` skill. Type
+`/reference` (`/cyber-agentkit:reference` in Claude Code) to run it.
 
 | Mode | When |
 | --- | --- |
@@ -69,7 +69,7 @@ bundled `scripts/reference.mjs`, never a package runner.
 A skill loads references by naming them in one line:
 
 ```text
-Load `agent-readiness-weights` and `release-checklist` with the `reference` skill of `uni-agent-kit`.
+Load `agent-readiness-weights` and `release-checklist` with the `reference` skill of `cyber-agentkit`.
 ```
 
 ## Where contributions are read from
@@ -171,7 +171,7 @@ A contribution with `extends` and no body is a selection: it picks the stack and
 else. `reference select <name> <option>...` writes one, and `--clear` removes it:
 
 ```sh
-npx -y uni-agent-kit reference select project-tracker.capabilities.github repobuddy house-style
+npx -y cyber-agentkit reference select project-tracker.capabilities.github repobuddy house-style
 ```
 
 A qualified name, `<plugin>/<name>`, builds that plugin's own stack. A written `extends` is not used

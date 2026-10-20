@@ -1,4 +1,4 @@
-# Glossary — uni-agent-kit
+# Glossary — cyber-agentkit
 
 - **harness** — an AI-agent runtime such as Claude Code, Cursor, Codex, or GitHub Copilot CLI.
 - **plugin** — a bundle of skills, agents, hooks, or references that a harness installs from a marketplace.

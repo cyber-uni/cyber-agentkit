@@ -1,16 +1,16 @@
 ---
 title: Library API
-description: The functions uni-agent-kit exports to detect the running harness, query what it holds, and resolve reference documents.
+description: The functions cyber-agentkit exports to detect the running harness, query what it holds, and resolve reference documents.
 sidebar:
   order: 3
 ---
 
 ```sh
-npm install uni-agent-kit
+npm install cyber-agentkit
 ```
 
 ```ts
-import { detectHarness, skillsDirectories } from 'uni-agent-kit'
+import { detectHarness, skillsDirectories } from 'cyber-agentkit'
 
 const { harness } = detectHarness() // 'claude-code', 'codex', …, or 'unknown'
 if (harness !== 'unknown') skillsDirectories(harness)
@@ -34,11 +34,11 @@ if (harness !== 'unknown') skillsDirectories(harness)
 ## Reference documents
 
 `loadReference()` composes a named document from its contributions in the managed, project, user, plugin, and default tiers.
-`createReferenceCommand()` and `createReferenceCommands()` build the [`reference` command](/uni-agent-kit/packages/agent-kit/cli/)
-for a host CLI. The concepts behind them are in [reference documents](/uni-agent-kit/concepts/reference-documents/)
-and [reference interfaces](/uni-agent-kit/concepts/reference-interfaces/).
+`createReferenceCommand()` and `createReferenceCommands()` build the [`reference` command](/cyber-agentkit/packages/agent-kit/cli/)
+for a host CLI. The concepts behind them are in [reference documents](/cyber-agentkit/concepts/reference-documents/)
+and [reference interfaces](/cyber-agentkit/concepts/reference-interfaces/).
 
 ## Full signatures
 
-The [package readme](https://github.com/spikyuni/uni-agent-kit/tree/main/packages/agent-kit#readme)
+The [package readme](https://github.com/spikyuni/cyber-agentkit/tree/main/packages/agent-kit#readme)
 documents each function with its options, return shape, and the research claim behind each answer.
