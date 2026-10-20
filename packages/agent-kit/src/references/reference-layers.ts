@@ -1,75 +1,66 @@
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
+import type { HarnessId } from '../harness/harness-id.js'
 import type { Platform } from '../harness/platform.js'
 import { isRecord } from '../plugins/json-file.js'
 import { declaredDependencies, packageDir } from '../plugins/package-dependencies.js'
+import { pluginManifestName } from '../plugins/plugin-manifest.js'
+import { skillName } from '../skills/skill-folder.js'
 import { detectedHarnesses, enabledPluginLayers, harnessManagedLayers } from './harness-layers.js'
+import type { ReferenceWarning } from './reference-warning.js'
 
-/** Order here is precedence order, highest first. */
-export type ReferenceTier = 'managed' | 'project' | 'user' | 'plugin'
+/** Where a contribution lives. Listed highest first; the stack (plugins and `default`) is ordered by `extends`. */
+export type ReferenceTier = 'managed' | 'project' | 'user' | 'plugin' | 'default'
 
 export type ReferenceLayer = {
 	tier: ReferenceTier
+	/** The folder read for contributions. */
 	dir: string
-	/** Every name a qualified `<plugin>/<name>` may use for this layer; empty outside the plugin tier. */
-	plugins: string[]
-	/** Empty unless the layer is legacy, deprecated, or skipped; then it says why. */
-	status: string
-	/** Set when the layer is never read, and why: policy held in MDM, or a plugin with no install folder. */
-	skipped?: string
+	/** The plugin tier: the plugin's manifest `name`, which a qualified `<plugin>/<name>` uses. */
+	plugin?: string | undefined
+	/** The default tier: the skill's `SKILL.md` `name`. */
+	skill?: string | undefined
+	/** Set when the layer is never read, and why: policy held in MDM, a plugin with no install folder. */
+	skipped?: string | undefined
+	/** Raised on every name resolved through this layer, such as a `--default` folder that does not exist. */
+	warning?: ReferenceWarning | undefined
 }
 
 export type ReferenceLayerOptions = {
 	root: string
 	home: string
 	platform: Platform
-	programData?: string | undefined
 	/**
 	 * The plugin running the resolver. Its `references/` is the first plugin layer, and its install,
 	 * when a harness has it enabled, is not read a second time.
 	 */
 	plugin?: ReferencePlugin | undefined
+	/** The calling skill's folder: its `references/<name>.default.md` forms the `default` tier. */
+	defaultSkill?: string | undefined
 	/** Detects the harness and reads its settings. Defaults to `process.env`. */
 	env?: Readonly<Record<string, string | undefined>>
 }
 
 export type ReferencePlugin = {
-	/** The name a qualified `<plugin>/<name>` uses for it. */
+	/** Its manifest `name`, which a qualified `<plugin>/<name>` uses. */
 	name: string
-	/** The package root, which holds its `references/`. */
+	/** The plugin root, which holds its `references/`. */
 	root: string
 }
 
-export const LEGACY_STATUS = 'legacy — move these documents to references/ beside it'
-export const DEPRECATED_STATUS = 'deprecated — move these documents to the managed references/ layer'
-
-/** Read below the managed `references/` layer, so a machine already using it keeps working. */
-export function managedGovernancesDir(platform: Platform, programData?: string | undefined): string {
-	if (platform === 'darwin') return '/Library/Application Support/BuddyAgentHarness/governances'
-	if (platform === 'win32') return join(programData || 'C:\\ProgramData', 'BuddyAgentHarness', 'governances')
-	return '/etc/buddy-agent-harness/governances'
-}
-
-/** Still read, below the layer above, and reported as deprecated so an admin knows to move it. */
-export function deprecatedManagedGovernancesDir(platform: Platform, programData?: string | undefined): string {
-	if (platform === 'darwin') return '/Library/Application Support/UniPlugin/governances'
-	if (platform === 'win32') return join(programData || 'C:\\ProgramData', 'UniPlugin', 'governances')
-	return '/etc/universal-plugin/governances'
-}
-
-export function managedReferencesDir(platform: Platform, programData?: string | undefined): string {
-	return join(dirname(managedGovernancesDir(platform, programData)), 'references')
+export type ReferenceLayers = {
+	/** Highest first: managed, project (nearest first), user, plugin, default. */
+	layers: ReferenceLayer[]
+	/** The harnesses detected, whose managed folders and enabled plugins were read. */
+	harnesses: readonly HarnessId[]
 }
 
 export function projectReferencesDir(root: string): string {
 	return join(root, '.agents', 'references')
 }
 
-export function projectReferenceLayers(root: string): ReferenceLayer[] {
-	return [
-		{ tier: 'project', dir: projectReferencesDir(root), plugins: [], status: '' },
-		{ tier: 'project', dir: join(root, '.agents', 'governances'), plugins: [], status: LEGACY_STATUS },
-	]
+export function userReferencesDir(home: string): string {
+	return join(home, '.agents', 'references')
 }
 
 function readJson(path: string): unknown {
@@ -103,7 +94,14 @@ export function projectChain(root: string): string[] {
 	}
 }
 
-function isDirectory(path: string): boolean {
+/** The repository root the project tier reads up to, or `undefined` when there is none above `root`. */
+export function repositoryRoot(root: string): string | undefined {
+	const chain = projectChain(root)
+	const top = chain.at(-1) as string
+	return isRepositoryRoot(top) ? top : undefined
+}
+
+export function isDirectory(path: string): boolean {
 	try {
 		return statSync(path).isDirectory()
 	} catch {
@@ -122,7 +120,7 @@ function nearestManifest(root: string): string | undefined {
 	}
 }
 
-function canonical(path: string): string {
+export function canonical(path: string): string {
 	try {
 		return realpathSync(path)
 	} catch {
@@ -132,7 +130,8 @@ function canonical(path: string): string {
 
 /**
  * Declared dependencies only: a transitive package never becomes a plugin, because a reference is
- * instruction text an agent follows.
+ * instruction text an agent follows. Only a package with a plugin manifest is a plugin, named by
+ * that manifest; one that ships `references/` without a manifest is shown, not read.
  */
 function dependencyLayers(root: string, skip: ReadonlySet<string>): ReferenceLayer[] {
 	const manifestPath = nearestManifest(root)
@@ -143,52 +142,56 @@ function dependencyLayers(root: string, skip: ReadonlySet<string>): ReferenceLay
 		if (!dir || skip.has(canonical(dir))) continue
 		const references = join(dir, 'references')
 		if (!isDirectory(references)) continue
-		const manifest = readJson(join(dir, 'plugin.json'))
-		const manifestName = isRecord(manifest) && typeof manifest['name'] === 'string' ? manifest['name'] : undefined
-		const plugins = manifestName && manifestName !== pkg ? [pkg, manifestName] : [pkg]
-		layers.push({ tier: 'plugin', dir: references, plugins, status: '' })
+		const plugin = pluginManifestName(dir)
+		layers.push(
+			plugin
+				? { tier: 'plugin', dir: references, plugin }
+				: { tier: 'plugin', dir: references, skipped: 'not a plugin' },
+		)
 	}
 	return layers
 }
 
-function ownLayers({ name, root }: ReferencePlugin): ReferenceLayer[] {
-	return [
-		{ tier: 'plugin', dir: join(root, 'references'), plugins: [name], status: '' },
-		{ tier: 'plugin', dir: join(root, 'governances'), plugins: [name], status: LEGACY_STATUS },
-	]
+/** The `default` tier for the skill at `folder`; a folder that does not exist warns and adds no contribution. */
+export function defaultLayer(folder: string): ReferenceLayer {
+	const dir = join(folder, 'references')
+	if (!isDirectory(folder)) {
+		return {
+			tier: 'default',
+			dir,
+			skill: basename(folder),
+			skipped: 'no skill folder',
+			warning: {
+				code: 'default-folder-missing',
+				message: `the skill folder ${folder} does not exist; the name resolves without its default`,
+			},
+		}
+	}
+	return { tier: 'default', dir, skill: skillName(folder) ?? basename(folder) }
 }
 
 export async function referenceLayers({
 	root,
 	home,
 	platform,
-	programData,
 	plugin,
+	defaultSkill,
 	env = process.env,
-}: ReferenceLayerOptions): Promise<ReferenceLayer[]> {
-	const layer = (tier: ReferenceTier, dir: string, status = ''): ReferenceLayer => ({
-		tier,
-		dir,
-		plugins: [],
-		status,
-	})
+}: ReferenceLayerOptions): Promise<ReferenceLayers> {
 	const harnesses = detectedHarnesses(env)
 	const chain = projectChain(root)
 	const ownRoot = plugin && canonical(plugin.root)
 	const enabled = await enabledPluginLayers(harnesses, chain, { env, homedir: home, cwd: resolve(root), platform })
 	const layers: ReferenceLayer[] = [
-		layer('managed', managedReferencesDir(platform, programData)),
 		...harnessManagedLayers(harnesses, platform, env),
-		layer('managed', managedGovernancesDir(platform, programData), LEGACY_STATUS),
-		layer('managed', deprecatedManagedGovernancesDir(platform, programData), DEPRECATED_STATUS),
-		...chain.flatMap(projectReferenceLayers),
-		layer('user', join(home, '.agents', 'references')),
-		layer('user', join(home, '.agents', 'governances'), LEGACY_STATUS),
-		...(plugin ? ownLayers(plugin) : []),
+		...chain.map((dir): ReferenceLayer => ({ tier: 'project', dir: projectReferencesDir(dir) })),
+		{ tier: 'user', dir: userReferencesDir(home) },
+		...(plugin ? [{ tier: 'plugin' as const, dir: join(plugin.root, 'references'), plugin: plugin.name }] : []),
 		...enabled.filter(({ dir, skipped }) => skipped || (isDirectory(dir) && canonical(dirname(dir)) !== ownRoot)),
 		...dependencyLayers(root, new Set(ownRoot ? [ownRoot] : [])),
+		...(defaultSkill === undefined ? [] : [defaultLayer(resolve(defaultSkill))]),
 	]
 	// A repository checked out at the home directory would read the same folder as project and user.
 	const seen = new Set<string>()
-	return layers.filter(({ dir }) => !seen.has(dir) && seen.add(dir))
+	return { layers: layers.filter(({ dir }) => !seen.has(dir) && seen.add(dir)), harnesses }
 }

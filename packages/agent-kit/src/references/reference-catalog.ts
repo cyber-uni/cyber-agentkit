@@ -1,66 +1,127 @@
-import type { ReferenceLayer, ReferenceTier } from './reference-layers.js'
+import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
+import type { ReferenceWarning } from './reference-warning.js'
 import {
-	parseReferenceName,
+	type ReferenceStatus,
 	type ResolvedReference,
 	type ResolveOptions,
 	referenceNames,
 	resolveReference,
 } from './resolve-reference.js'
 
-export type ReferenceRow = {
+/** One row per name. */
+export type ReferenceListRow = {
 	name: string
-	tier: ReferenceTier
-	plugin: string
-	path: string
-	status: string
 	description: string
+	status: ReferenceStatus
+	/** When `ambiguous`: each `<plugin>/<name>`, and `default`. */
+	options?: string[]
 }
 
-export type ReferenceListing = { rows: ReferenceRow[]; warnings: string[] }
+/** One row per name per layer holding it, with the outcome that contribution gets. */
+export type ReferenceListLayerRow = {
+	name: string
+	tier: ReferenceTier
+	plugin?: string
+	skill?: string
+	path: string
+	description: string
+	outcome: string
+	/** A contribution with `extends` and no body. */
+	selection?: boolean
+}
+
+export type ReferenceListing = {
+	references: ReferenceListRow[]
+	layers: ReferenceListLayerRow[]
+	/** Why no skill's default is listed: the harness's skill folders are not verified yet (#114). */
+	defaults: string
+	warnings: ReferenceWarning[]
+}
 
 export type ListOptions = ResolveOptions & {
 	/** Keep only names matching this pattern: `*` stands for any run of characters, everything else is literal and case-sensitive. */
-	pattern?: string
+	pattern?: string | undefined
 }
+
+type Source = ReferenceLayers | readonly ReferenceLayer[]
+
+/**
+ * Defaults are found in the skill folders the detected harness reads. Which folders those are, and
+ * which copy of a skill runs, is not verified for any harness yet (spec Q12, #114), so none is read.
+ */
+export const defaultsNotListed =
+	"no skill's default is listed: the skill folders the harness reads are not verified yet, so only the --default folder a skill passes is read"
 
 function patternMatcher(pattern: string): RegExp {
 	const source = pattern.split('*').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
 	return new RegExp(`^${source.join('.*')}$`, 's')
 }
 
+function firstLine(value: unknown): string {
+	return typeof value === 'string' ? value.split('\n')[0]?.trim() || '' : ''
+}
+
 /**
- * One row per name per layer holding it, with the status resolution gave that layer. A `pattern`
- * keeps only the names it matches exactly: no fuzziness, no ranking.
+ * One row per name, with its description and, when not `found`, its status and options; and one row
+ * per name per layer holding it. A `pattern` keeps only the names it matches exactly.
  */
-export function listReferences(layers: readonly ReferenceLayer[], options: ListOptions = {}): ReferenceListing {
-	const rows: ReferenceRow[] = []
-	const warnings = new Set<string>()
-	const matcher = options.pattern === undefined ? undefined : patternMatcher(options.pattern)
-	for (const name of referenceNames(layers)) {
+export function listReferences(source: Source, options: ListOptions = {}): ReferenceListing {
+	const { pattern, ...resolveOptions } = options
+	const matcher = pattern === undefined ? undefined : patternMatcher(pattern)
+	const listing: ReferenceListing = { references: [], layers: [], defaults: defaultsNotListed, warnings: [] }
+	const seen = new Set<string>()
+	for (const name of referenceNames(source)) {
 		if (matcher && !matcher.test(name)) continue
-		const resolved = resolveReference(parseReferenceName(name), layers, options)
-		for (const warning of resolved.warnings) warnings.add(warning)
-		for (const entry of resolved.trace) {
-			if (!entry.found) continue
-			rows.push({
+		const resolved = resolveReference(name, source, resolveOptions)
+		for (const warning of resolved.warnings) {
+			const key = `${warning.code} ${warning.message}`
+			if (!seen.has(key)) listing.warnings.push(warning)
+			seen.add(key)
+		}
+		const row: ReferenceListRow = {
+			name,
+			description: resolved.status === 'found' ? firstLine(resolved.metadata?.['description']) : '',
+			status: resolved.status,
+		}
+		if (resolved.options) row.options = resolved.options
+		listing.references.push(row)
+		for (const entry of resolved.trace.layers) {
+			if (entry.file === undefined) continue
+			const layerRow: ReferenceListLayerRow = {
 				name,
 				tier: entry.tier,
-				plugin: entry.plugin,
 				path: entry.path,
-				status:
-					entry.outcome === 'ambiguous' ? `ambiguous — ask for one of ${resolved.plugins.join(', ')}` : entry.outcome,
-				description: entry.description,
-			})
+				description: firstLine(entry.description),
+				outcome: entry.outcome,
+			}
+			if (entry.plugin !== undefined) layerRow.plugin = entry.plugin
+			if (entry.skill !== undefined) layerRow.skill = entry.skill
+			if (entry.selection) layerRow.selection = true
+			listing.layers.push(layerRow)
 		}
 	}
-	return { rows, warnings: [...warnings] }
+	return listing
 }
 
 export type MatchKind = 'name' | 'prefix' | 'close name' | 'description' | 'heading' | 'body'
 
 const matchOrder: readonly MatchKind[] = ['name', 'prefix', 'close name', 'description', 'heading', 'body']
 
-export type SearchMatch = { name: string; tier: ReferenceTier; match: MatchKind; description: string }
+export type SearchMatch = {
+	name: string
+	description: string
+	match: MatchKind
+	/** The tier of the highest contribution whose text the document holds. */
+	tier: ReferenceTier
+	plugin?: string
+	skill?: string
+}
+
+export type ReferenceSearch = {
+	matches: SearchMatch[]
+	/** Why no skill's default is searched (#114). */
+	defaults: string
+}
 
 function distance(a: string, b: string): number {
 	let previous = Array.from({ length: b.length + 1 }, (_, i) => i)
@@ -100,46 +161,48 @@ function matchKind(name: string, reference: ResolvedReference, query: string): M
 		const lower = text.toLowerCase()
 		return terms.every((term) => lower.includes(term))
 	}
-	const metadata = reference.metadata as Record<string, unknown>
-	const description = typeof metadata['description'] === 'string' ? metadata['description'] : ''
-	if (holds(`${description} ${tagText(metadata['tags'])}`)) return 'description'
-	const content = reference.content as string
+	const metadata = reference.metadata ?? {}
+	if (
+		holds(`${typeof metadata['description'] === 'string' ? metadata['description'] : ''} ${tagText(metadata['tags'])}`)
+	) {
+		return 'description'
+	}
+	const content = reference.content ?? ''
 	if (holds(headings(content))) return 'heading'
 	if (holds(content)) return 'body'
 	return undefined
 }
 
 /**
- * Every name resolves the way `show` would; a name two plugins hold is searched once per plugin, as
- * the qualified name `show` would need.
+ * Every name resolves the way `show` would; a name no extends orders is searched once per plugin, as
+ * the qualified name `show` would need, and a name a `remove` turned off is left out.
  */
-export function searchReferences(
-	query: string,
-	layers: readonly ReferenceLayer[],
-	options: ResolveOptions = {},
-): SearchMatch[] {
+export function searchReferences(query: string, source: Source, options: ResolveOptions = {}): ReferenceSearch {
 	const normalized = query.trim().toLowerCase()
 	const matches: SearchMatch[] = []
-	for (const name of referenceNames(layers)) {
-		const resolved = resolveReference(parseReferenceName(name), layers, options)
+	for (const name of referenceNames(source)) {
+		const resolved = resolveReference(name, source, options)
 		const candidates =
 			resolved.status === 'ambiguous'
-				? resolved.plugins.map((qualified) => resolveReference(parseReferenceName(qualified), layers, options))
+				? (resolved.options ?? [])
+						.filter((option) => option !== 'default')
+						.map((qualified) => resolveReference(qualified, source, options))
 				: [resolved]
-		// Every name listed is backed by a readable file, so each of these resolves as found.
 		for (const reference of candidates.filter(({ status }) => status === 'found')) {
 			const match = matchKind(reference.name, reference, normalized)
 			if (!match) continue
-			const description = (reference.metadata as Record<string, unknown>)['description']
-			matches.push({
+			const top = reference.trace.contributions.at(-1)
+			const row: SearchMatch = {
 				name: reference.name,
-				tier: reference.tier as ReferenceTier,
+				description: firstLine(reference.metadata?.['description']),
 				match,
-				description: typeof description === 'string' ? description.split('\n')[0]?.trim() || '' : '',
-			})
+				tier: top?.tier ?? 'plugin',
+			}
+			if (top?.plugin !== undefined) row.plugin = top.plugin
+			if (top?.skill !== undefined) row.skill = top.skill
+			matches.push(row)
 		}
 	}
-	return matches.sort(
-		(a, b) => matchOrder.indexOf(a.match) - matchOrder.indexOf(b.match) || a.name.localeCompare(b.name),
-	)
+	matches.sort((a, b) => matchOrder.indexOf(a.match) - matchOrder.indexOf(b.match) || a.name.localeCompare(b.name))
+	return { matches, defaults: defaultsNotListed }
 }

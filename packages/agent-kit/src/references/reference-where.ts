@@ -1,93 +1,85 @@
-import { existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import type { ReferenceLayer, ReferenceTier } from './reference-layers.js'
-import { layersFor, type ReferenceName, type ResolvedReference, resolveReference } from './resolve-reference.js'
+import { headingPaths } from './reference-document.js'
+import { projectReferencesDir, type ReferenceLayer, type ReferenceLayers } from './reference-layers.js'
+import type { ReferenceName } from './reference-name.js'
+import type { ReferenceWarning } from './reference-warning.js'
+import {
+	parseReferenceName,
+	type ReferenceStatus,
+	type ReferenceTraceLayer,
+	resolveReference,
+} from './resolve-reference.js'
 
-export type ReferenceWhereSlot = {
-	/** The tier, `plugin <name>` for a plugin's copy, or `caller` for the calling skill's own copy. */
-	layer: string
+/** A file a customization or a selection of the name is written to. */
+export type ReferenceWherePlace = {
+	scope: 'project' | 'user'
+	/** The project path is relative to the root; the user path is shown as the command displays it. */
 	path: string
+	reaches: string
+	/** `used`, `shadowed by ...`, or `not used (...)` when the file exists; `empty` when it does not. */
 	status: string
-	scope: string
+	/** The heading paths of the document below it, which a section operation can target. */
+	sections: string[]
 }
 
 export type ReferenceWhereReport = {
 	name: string
-	/** What a project path is relative to. */
-	root: string
-	slots: ReferenceWhereSlot[]
-	merge: string
-	/** The `<plugin>/<name>` choices when two plugins hold the name. */
-	plugins?: string[]
-	warnings?: string[]
+	status: ReferenceStatus
+	places: ReferenceWherePlace[]
+	/** When `ambiguous`: the options a selection written to a place chooses between. */
+	options?: string[]
+	/** Every layer checked, highest first; a plugin's or a default contribution is read-only. */
+	layers: ReferenceTraceLayer[]
+	warnings: ReferenceWarning[]
 }
 
 export type WhereOptions = {
-	/** Absolute; what a project path in the report is relative to. */
+	/** Absolute; a project write goes to its `.agents/references/`, and a project path is shown relative to it. */
 	root: string
-	/** Absolute folder of the skill that loads the reference, so its own copy is reported as Load reads it. */
-	caller?: string | undefined
 	/** How a path outside the project is shown, such as with the home directory collapsed to `~`. */
 	display?: ((path: string) => string) | undefined
 }
 
-/** Managed is left out: writing there needs an admin, and most of it cannot be read locally. */
-const slotScopes: Partial<Record<ReferenceTier, string>> = {
+const reaches = {
 	project: 'everyone working in this repository',
 	user: 'only you, in every repository',
-	plugin: 'read-only; override it with the project or user file',
-}
+} as const
 
-const callerScope = "read-only; the calling skill's own copy, read only when no layer holds the name"
-
-const mergeNote =
-	'The default, first-wins, makes the override replace the whole document. Set `merge: merge-sections` in its frontmatter to keep the sections it does not redefine.'
-
-function slotStatus(outcome: string): string {
-	if (outcome === 'missing') return 'empty'
-	return outcome.startsWith('shadowed') ? 'shadowed' : outcome
-}
-
-/** Where Load reads the caller's copy when no layer holds the name, in the order it tries them. */
-function callerCopy(caller: string, name: string): string | undefined {
-	return [join(caller, 'references', `${name}.md`), join(caller, 'references', 'governances', `${name}.md`)].find(
-		(path) => existsSync(path),
-	)
-}
-
-function callerStatus(resolved: ResolvedReference): string {
-	if (resolved.status === 'missing') return 'used'
-	return resolved.status === 'ambiguous' ? 'not read — the name is ambiguous' : 'shadowed'
-}
-
-/** The project and user files an override of `name` can be written to, highest precedence first. */
+/** The project and user files a customization of `name` is written to, with the document below each. */
 export function whereReference(
-	name: ReferenceName,
-	layers: readonly ReferenceLayer[],
-	{ root, caller, display = (path) => path }: WhereOptions,
+	input: string | ReferenceName,
+	source: ReferenceLayers | readonly ReferenceLayer[],
+	{ root, display = (path) => path }: WhereOptions,
 ): ReferenceWhereReport {
-	const resolved = resolveReference(name, layers, { display })
-	const traced = layersFor(name, layers)
-	const slots: ReferenceWhereSlot[] = []
-	for (const [index, step] of resolved.trace.entries()) {
-		const layer = traced[index] as ReferenceLayer
-		const scope = slotScopes[step.tier]
-		// A legacy folder or a plugin is never a place to write, so it shows only while it holds a copy.
-		if (!scope || ((layer.status || step.tier === 'plugin') && !step.found)) continue
-		const path = step.found ? step.path : join(layer.dir, `${name.name}.md`)
-		slots.push({
-			layer: step.tier === 'plugin' ? `plugin ${step.plugin}` : step.tier,
-			path: step.tier === 'project' ? relative(root, path) : display(path),
-			status: slotStatus(step.outcome),
+	const name = typeof input === 'string' ? parseReferenceName(input) : input
+	const resolved = resolveReference(name, source, { display })
+	const report: ReferenceWhereReport = {
+		name: name.raw,
+		status: resolved.status,
+		places: [],
+		layers: resolved.trace.layers,
+		warnings: resolved.warnings,
+	}
+	if (resolved.options) report.options = resolved.options
+	if (name.invalid) return report
+	const layers = Array.isArray(source) ? (source as readonly ReferenceLayer[]) : (source as ReferenceLayers).layers
+	const projectDir = projectReferencesDir(root)
+	const userDir = layers.find(({ tier }) => tier === 'user')?.dir
+	const targets: { scope: 'project' | 'user'; dir: string }[] = [
+		{ scope: 'project', dir: projectDir },
+		...(userDir ? [{ scope: 'user' as const, dir: userDir }] : []),
+	]
+	for (const { scope, dir } of targets) {
+		const path = join(dir, `${name.name}.md`)
+		const entry = resolved.trace.layers.find((layer) => layer.path === path)
+		const below = resolveReference(name, source, { display, below: dir })
+		report.places.push({
 			scope,
+			path: scope === 'project' ? relative(root, path) : display(path),
+			reaches: reaches[scope],
+			status: entry?.file ? entry.outcome : 'empty',
+			sections: below.status === 'found' ? headingPaths(below.content ?? '') : [],
 		})
 	}
-	const copy = caller === undefined ? undefined : callerCopy(caller, name.name)
-	if (copy) {
-		slots.push({ layer: 'caller', path: display(copy), status: callerStatus(resolved), scope: callerScope })
-	}
-	const report: ReferenceWhereReport = { name: name.name, root: display(root), slots, merge: mergeNote }
-	if (resolved.status === 'ambiguous') report.plugins = resolved.plugins
-	if (resolved.warnings.length) report.warnings = resolved.warnings
 	return report
 }

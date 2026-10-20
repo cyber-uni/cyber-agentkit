@@ -2,11 +2,10 @@
 "uni-agent-kit": minor
 ---
 
-Add reference interfaces. An `<id>.interface` reference declares a contract in its `interface:` frontmatter: cardinality, version, accepted versions, tiers, and ordered sections, each optional unless marked `required`. A reference implements it with `implements: <id>@<version>`.
+Add reference interfaces. An `<id>.interface` reference declares a contract in its `interface:` frontmatter: cardinality, version, accepted versions, and the implementation's top-level sections in order. Every section is optional, and an implementation may hold sections the interface does not list. A reference implements one interface with `implements: <id>@<version>`.
 
-- `reference implementations <id> [--accept 1,2]` lists the implementations a consumer can load, with each one's pin, tier, description, and unsupported sections, and every one left out with why. The library exports `referenceImplementations`.
-- `reference check [name...]` checks implementations, resolved with every override merged, and interface documents, and exits 1 on any failure. The library exports `checkReferences`. `show` warns when a resolved document fails its interface check.
-- `reference create <id>.<key> --implements <id>` starts an implementation from the interface's sections.
-- A plugin's copy can declare `overrides: [<plugin>]` to sit above another plugin's copy of the same name, instead of making the name ambiguous. A pin to the overridden plugin still applies it.
-- An interface document is not overridable: a higher-tier copy is ignored with a warning.
+- `reference implementations <id> [--accept 1,2]` lists the implementations a consumer can load, with each one's pin, description, and unsupported sections; `--trace` adds the ones left out, with why. The library exports `referenceImplementations`.
+- `reference check [name...]` checks implementations, composed as `show` composes them, and interface documents, and exits 1 on any failure. Its `compose` check fails a document whose composing raised a warning. The library exports `checkReferences`. `show` warns when a document fails its interface check.
+- `reference create <id>.<key> --implements <id>` starts an implementation from the interface's sections, each stubbed `**Unsupported.**`, with `merge: replace`.
+- An interface document is never composed: a higher contribution of it, and an `extends` or `merge` on it, is ignored with a warning.
 - The `reference` skill loads the implementations of an interface, and creates and checks implementations.

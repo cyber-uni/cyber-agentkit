@@ -1,11 +1,8 @@
 import { isRecord } from '../plugins/json-file.js'
 import { parseSections, type Section } from './reference-document.js'
-import type { ReferenceTier } from './reference-layers.js'
 
 /** `one`: the implementation is named `<id>`. `many`: each is named `<id>.<key>`. */
 export type InterfaceCardinality = 'one' | 'many'
-
-export type InterfaceSection = { name: string; required: boolean }
 
 /** The machine-readable part of an interface document, read from its `interface:` frontmatter. */
 export type ReferenceInterface = {
@@ -14,24 +11,14 @@ export type ReferenceInterface = {
 	version: number
 	/** The versions the owner's consumers accept; `[version]` when the document names none. */
 	versions: number[]
-	/** Who may implement it; every tier when the document names none. */
-	tiers?: ReferenceTier[]
-	/** In order. Heading text is API. */
-	sections: InterfaceSection[]
+	/** The implementation's top-level sections, in order. Every one is optional. Heading text is API. */
+	sections: string[]
 }
 
-/** One `implements:` entry, `<id>@<version>`. */
+/** One `implements:` value, `<id>@<version>`. */
 export type ImplementsEntry = { id: string; version: number }
 
-export type InterfaceCheck =
-	| 'interface found'
-	| 'version'
-	| 'name'
-	| 'tier'
-	| 'required'
-	| 'known'
-	| 'order'
-	| 'interface'
+export type InterfaceCheck = 'interface found' | 'version' | 'name' | 'order' | 'interface' | 'compose'
 
 export type InterfaceCheckFailure = {
 	check: InterfaceCheck
@@ -42,7 +29,6 @@ export type InterfaceCheckFailure = {
 
 export const interfaceSuffix = '.interface'
 
-const tiers: readonly ReferenceTier[] = ['managed', 'project', 'user', 'plugin']
 const implementsPattern = /^([a-z0-9]+(?:[-.][a-z0-9]+)*)@(\d+)$/i
 
 /** The interface id an interface document's name declares, or `undefined` for any other name. */
@@ -56,22 +42,24 @@ function isVersion(value: unknown): value is number {
 	return typeof value === 'number' && Number.isInteger(value) && value > 0
 }
 
-function readSection(value: unknown): InterfaceSection | string {
-	if (typeof value === 'string' && value.trim()) return { name: value.trim(), required: false }
+/** A section is its heading text; a `required` mark on one is read and ignored, since every section is optional. */
+function readSection(value: unknown): string | { problem: string } {
+	if (typeof value === 'string' && value.trim()) return value.trim()
 	if (isRecord(value)) {
-		const entries = Object.entries(value)
-		if (entries.length === 1) {
-			const [name, mark] = entries[0] as [string, unknown]
-			if (name.trim() && mark === 'required') return { name: name.trim(), required: true }
-			if (name.trim()) return `section "${name}" is marked "${String(mark)}"; the only mark is required`
-		}
+		const keys = Object.keys(value)
+		const [name] = keys
+		if (keys.length === 1 && name?.trim()) return name.trim()
 	}
-	return `section ${JSON.stringify(value)} is not a heading name, or a heading name marked required`
+	return { problem: `section ${JSON.stringify(value)} is not a heading name` }
+}
+
+function sectionKey(title: string): string {
+	return title.trim().replace(/\s+/g, ' ').toLowerCase()
 }
 
 /**
  * Reads the `interface:` block of an interface document. Problems are what `check` reports as a
- * malformed interface; a document with any problem has no `value`.
+ * malformed interface; a document with any problem has no `value`. A key it does not know is ignored.
  */
 export function readInterface(
 	id: string,
@@ -98,60 +86,51 @@ export function readInterface(
 		if (Array.isArray(versionsValue) && versionsValue.length && versionsValue.every(isVersion)) versions = versionsValue
 		else problems.push('versions is not a list of positive integers')
 	}
-	const tiersValue = block['tiers']
-	if (
-		tiersValue !== undefined &&
-		!(
-			Array.isArray(tiersValue) &&
-			tiersValue.length &&
-			tiersValue.every((tier) => tiers.includes(tier as ReferenceTier))
-		)
-	) {
-		problems.push(`tiers is not a list of ${tiers.join(', ')}`)
-	}
 	const sectionsValue = block['sections']
-	const sections: InterfaceSection[] = []
+	const sections: string[] = []
 	if (!Array.isArray(sectionsValue) || !sectionsValue.length) problems.push('sections is not a list of headings')
 	else {
 		const seen = new Set<string>()
 		for (const item of sectionsValue) {
 			const section = readSection(item)
-			if (typeof section === 'string') {
-				problems.push(section)
+			if (typeof section !== 'string') {
+				problems.push(section.problem)
 				continue
 			}
-			const key = sectionKey(section.name)
-			if (seen.has(key)) problems.push(`section "${section.name}" is listed more than once`)
+			const key = sectionKey(section)
+			if (seen.has(key)) problems.push(`section "${section}" is listed more than once`)
 			seen.add(key)
 			sections.push(section)
 		}
 	}
 	if (problems.length) return { problems }
-	const value: ReferenceInterface = {
-		id,
-		cardinality: cardinality as InterfaceCardinality,
-		version: version as number,
-		versions,
-		sections,
+	return {
+		value: { id, cardinality: cardinality as InterfaceCardinality, version: version as number, versions, sections },
+		problems,
 	}
-	if (tiersValue !== undefined) value.tiers = tiersValue as ReferenceTier[]
-	return { value, problems }
 }
 
-/** Reads `implements:`, a string or a list of `<id>@<version>`. Problems name each malformed entry. */
-export function readImplements(metadata: Record<string, unknown>): { entries: ImplementsEntry[]; problems: string[] } {
+/**
+ * Reads `implements:`, one `<id>@<version>`. A list of one is read as that one; a list of more names
+ * more than one interface, which an implementation does not do.
+ */
+export function readImplements(metadata: Record<string, unknown>): { entry?: ImplementsEntry; problems: string[] } {
 	const value = metadata['implements']
-	if (value === undefined) return { entries: [], problems: [] }
+	if (value === undefined) return { problems: [] }
 	const list: unknown[] = Array.isArray(value) ? value : [value]
-	const entries: ImplementsEntry[] = []
-	const problems: string[] = []
-	for (const item of list) {
-		const match = typeof item === 'string' ? implementsPattern.exec(item.trim()) : null
-		if (match) entries.push({ id: match[1] as string, version: Number(match[2]) })
-		else problems.push(`implements ${JSON.stringify(item)} is not <id>@<version>`)
+	if (list.length !== 1) {
+		return {
+			problems: [
+				list.length
+					? `implements lists ${list.length} interfaces; an implementation implements one`
+					: 'implements is an empty list',
+			],
+		}
 	}
-	if (!list.length) problems.push('implements is an empty list')
-	return { entries, problems }
+	const [item] = list
+	const match = typeof item === 'string' ? implementsPattern.exec(item.trim()) : null
+	if (!match) return { problems: [`implements ${JSON.stringify(item)} is not <id>@<version>`] }
+	return { entry: { id: match[1] as string, version: Number(match[2]) }, problems: [] }
 }
 
 /** Whether a name fits an interface's cardinality: `<id>` for one, `<id>.<key>` for many. */
@@ -160,18 +139,14 @@ export function fitsName(iface: Pick<ReferenceInterface, 'id' | 'cardinality'>, 
 	return name.startsWith(`${iface.id}.`) && name.length > iface.id.length + 1 && !name.endsWith(interfaceSuffix)
 }
 
-function sectionKey(title: string): string {
-	return title.trim().replace(/\s+/g, ' ').toLowerCase()
-}
-
 export type DocumentSection = { title: string; unsupported: boolean }
 
-/** Every `##` heading outside a code fence, in order, and whether its first line is `**Unsupported.**`. */
+/** Every top-level heading outside a code fence, in order, and whether its first line is `**Unsupported.**`. */
 export function documentSections(content: string): DocumentSection[] {
 	const found: DocumentSection[] = []
 	const visit = (section: Section) => {
-		if (section.level === 2) {
-			const first = section.body.find((line) => line.trim())
+		if (section.depth === 0) {
+			const first = section.text.find((line) => line.trim())
 			found.push({ title: section.title, unsupported: first?.trim().startsWith('**Unsupported.**') ?? false })
 		}
 		for (const child of section.children) visit(child)
@@ -183,21 +158,20 @@ export function documentSections(content: string): DocumentSection[] {
 export type ImplementationFacts = {
 	name: string
 	version: number
-	/** The tier of each layer the resolved document used. */
-	tiers: readonly ReferenceTier[]
-	/** The resolved document, after every override is merged. */
+	/** The composed document. */
 	content: string
 	/** The versions to accept; the interface's own `versions` when omitted. */
 	accept?: readonly number[] | undefined
 }
 
 /**
- * Checks one resolved implementation against its interface. `unsupported` lists the optional
- * sections it marks `**Unsupported.**` or leaves out, in the interface's order.
+ * Checks one composed implementation against its interface. Every section is optional, and a
+ * section the interface does not list may sit anywhere; `order` compares only the listed ones.
+ * `unsupported` lists the listed sections it marks `**Unsupported.**` or leaves out, in order.
  */
 export function checkImplementation(
 	iface: ReferenceInterface,
-	{ name, version, tiers: used, content, accept = iface.versions }: ImplementationFacts,
+	{ name, version, content, accept = iface.versions }: ImplementationFacts,
 ): { failures: InterfaceCheckFailure[]; unsupported: string[] } {
 	const failures: InterfaceCheckFailure[] = []
 	const fail = (check: InterfaceCheck, message: string) => failures.push({ check, interface: iface.id, message })
@@ -205,31 +179,19 @@ export function checkImplementation(
 	if (!fitsName(iface, name)) {
 		fail('name', `name ${name} is not ${iface.cardinality === 'one' ? iface.id : `${iface.id}.<key>`}`)
 	}
-	for (const tier of new Set(used)) {
-		if (iface.tiers && !iface.tiers.includes(tier)) {
-			fail('tier', `the ${tier} tier may not implement ${iface.id} (tiers: ${iface.tiers.join(', ')})`)
-		}
-	}
 	const sections = documentSections(content)
-	const declared = iface.sections.map((section) => sectionKey(section.name))
-	const unsupported: string[] = []
-	for (const section of iface.sections) {
-		const present = sections.find((candidate) => sectionKey(candidate.title) === sectionKey(section.name))
-		if (section.required) {
-			if (!present) fail('required', `missing required section ${section.name}`)
-			else if (present.unsupported) fail('required', `required section ${section.name} is marked **Unsupported.**`)
-		} else if (!present || present.unsupported) unsupported.push(section.name)
-	}
+	const declared = iface.sections.map(sectionKey)
+	const unsupported = iface.sections.filter((section) => {
+		const present = sections.find((candidate) => sectionKey(candidate.title) === sectionKey(section))
+		return !present || present.unsupported
+	})
 	let last = -1
 	let lastTitle = ''
 	const seen = new Set<string>()
 	for (const section of sections) {
 		const key = sectionKey(section.title)
 		const index = declared.indexOf(key)
-		if (index === -1) {
-			fail('known', `unknown section ${section.title}`)
-			continue
-		}
+		if (index === -1) continue
 		if (seen.has(key)) fail('order', `section ${section.title} appears more than once`)
 		else if (index < last) fail('order', `section ${section.title} comes after ${lastTitle}`)
 		seen.add(key)

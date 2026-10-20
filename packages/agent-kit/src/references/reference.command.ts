@@ -1,106 +1,144 @@
-import { mkdirSync, rmdirSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import type { cli } from 'clibuilder'
 import { command, exitCodes, t } from 'clibuilder'
 import { type Answer, CliError, document, encode, type Format, isCliError, printAnswer, result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
-import { implementationTemplate, readTemplate, templateWarnings, withMergeSections } from './create-reference.js'
-import { listReferences, type ReferenceRow, type SearchMatch, searchReferences } from './reference-catalog.js'
-import { checkReferences, checkResolved, interfaceLookup, type ReferenceCheckEntry } from './reference-check.js'
-import { type ReferenceImplementations, referenceImplementations } from './reference-implementations.js'
-import { fitsName, type ReferenceInterface } from './reference-interface.js'
-import {
-	projectReferencesDir,
-	type ReferenceLayer,
-	type ReferencePlugin,
-	type ReferenceTier,
-	referenceLayers,
-} from './reference-layers.js'
+import { listReferences, searchReferences } from './reference-catalog.js'
+import { checkReferences, checkResolved, interfaceLookup } from './reference-check.js'
+import { referenceImplementations } from './reference-implementations.js'
+import { type ReferenceLayers, type ReferencePlugin, referenceLayers } from './reference-layers.js'
+import { parseReferenceName } from './reference-name.js'
+import type { ReferenceWarning } from './reference-warning.js'
 import { whereReference } from './reference-where.js'
 import {
-	parseReferenceName,
-	type ResolvedReference,
-	resolveReference,
-	type TraceEntry,
-	type UsedLayer,
-} from './resolve-reference.js'
+	createContribution,
+	type DeleteResult,
+	deleteContribution,
+	describeAnswer,
+	ReferenceWriteError,
+	selectContribution,
+} from './reference-write.js'
+import { type ReferenceTrace, type ResolvedReference, resolveReference } from './resolve-reference.js'
 
-export type { ReferenceWhereReport, ReferenceWhereSlot } from './reference-where.js'
-
-/** One per name asked, in the order asked — the contract the `reference` skill's Load mode builds on. */
-export type ReferenceShowEntry = {
-	name: string
-	status: ResolvedReference['status']
-	tier?: ReferenceTier
-	plugin?: string
-	path?: string
-	merge?: string
-	metadata?: Record<string, unknown>
-	content?: string
-	layers?: UsedLayer[]
-	warnings: string[]
-	suggestions?: string[]
-	plugins?: string[]
-	trace?: Omit<TraceEntry, 'description'>[]
-}
+/** `show`'s entry for a name: its content alone when `found` with nothing else to say, else a record. */
+export type ReferenceShowEntry =
+	| string
+	| {
+			name: string
+			status: ResolvedReference['status']
+			content?: string
+			code?: string
+			options?: string[]
+			metadata?: Record<string, unknown>
+			warnings?: ReferenceWarning[]
+			trace?: ReferenceTrace
+	  }
 
 export type ReferenceListReport = {
-	layers: { tier: ReferenceTier; plugin: string; path: string; status: string }[]
-	/** Emitted even when empty, so a healthy run states its zero explicitly. */
-	references: ReferenceRow[] | string
-	warnings?: string[]
+	/** A string when nothing matches, so a run states its zero explicitly. */
+	references: { name: string; description?: string; status?: string; options?: string[] }[] | string
+	/** Why no skill's default is listed. */
+	defaults: string
+	layers?: {
+		name: string
+		tier: string
+		plugin?: string
+		skill?: string
+		path: string
+		description?: string
+		outcome: string
+		selection?: boolean
+	}[]
+	warnings?: ReferenceWarning[]
 }
 
-export type ReferenceCreateReport = {
+export type ReferenceSearchReport = {
+	references:
+		| { name: string; description?: string; match: string; tier?: string; plugin?: string; skill?: string }[]
+		| string
+	defaults: string
+}
+
+export type ReferenceCheckReport = {
+	failed?: { name: string; failures: { check: string; message: string }[] }[]
+	passed: number
+	references?: {
+		name: string
+		kind: string
+		status: string
+		failures?: { check: string; message: string }[]
+		unsupported?: string[]
+	}[]
+}
+
+export type ReferenceImplementationsReport = {
+	implementations:
+		| { pin: string; description?: string; unsupported?: string[]; name?: string; tier?: string; version?: number }[]
+		| string
+	interface?: string
+	cardinality?: string
+	accept?: number[]
+	excluded?: { name: string; reasons: string[] }[]
+	warnings?: ReferenceWarning[]
+}
+
+export type ReferenceWhereOutput = {
 	name: string
-	scope: CreateScope
-	path: string
-	dryRun: boolean
-	content: string
-	warnings: string[]
-	/** Only after a write: the name resolved again, the new file's step `used`. */
-	trace?: Omit<TraceEntry, 'description'>[]
+	status: string
+	places: { scope: string; path: string; reaches: string; status: string; sections?: string[] }[]
+	options?: string[]
+	layers?: ReferenceTrace['layers']
+	warnings?: ReferenceWarning[]
 }
 
-/** What answers a name once its copy is gone. */
-export type ReferenceDeleteNext = {
-	status: ResolvedReference['status']
-	tier?: ReferenceTier
-	plugin?: string
-	path?: string
-	plugins?: string[]
+/** The fields of `create`, `select`, and `delete` are not a contract yet (spec Q4). */
+export type ReferenceCreateReport = {
+	path: string
+	hint: string
+	content?: string
+	hints?: string[]
+	trace?: ReferenceTrace
+}
+
+export type ReferenceSelectReport = {
+	path: string
+	extends?: string[]
+	deleted?: boolean
+	status: string
+	stack?: string[]
+	answer: string
 }
 
 export type ReferenceDeleteReport = {
-	name: string
-	scope: CreateScope
 	path: string
-	dryRun: boolean
-	next: ReferenceDeleteNext
-	/** The name resolved without the deleted file. */
-	trace: Omit<TraceEntry, 'description'>[]
-}
-
-export type ReferenceSearchReport = { query: string; references: SearchMatch[] | string }
-
-export type ReferenceImplementationsReport = ReferenceImplementations
-
-export type ReferenceCheckReport = {
-	/** Emitted even when empty, so a healthy run states its zero explicitly. */
-	references: ReferenceCheckEntry[] | string
-	failed: number
+	dryRun?: boolean
+	status: string
+	stack?: string[]
+	answer: string
+	selection?: string
+	options?: string[]
 }
 
 type CommonArgs = { root: string | undefined }
 
 const rootOption = {
 	description:
-		'Directory the project tier is read from, and each folder above it up to the repository root. Defaults to the current directory.',
+		'Directory the project tier is read from, and each folder above it up to the repository root; a project write goes to its `.agents/references/`. Defaults to the current directory.',
 	type: t.string().optional(),
 }
 
-type LayersFor = (args: CommonArgs, home: string) => Promise<ReferenceLayer[]>
+const traceOption = {
+	description: 'Add the trace: every layer checked, with its outcome, and how the result was built.',
+	type: t.boolean().optional(),
+}
+
+const defaultOption = {
+	description: "The calling skill's folder: its `references/<name>.default.md` joins as the `default` tier.",
+	type: t.string().optional(),
+}
+
+type LayersFor = (args: CommonArgs & { default?: string | undefined }, home: string) => Promise<ReferenceLayers>
 
 function layerSource(plugin: ReferencePlugin | undefined): LayersFor {
 	return (args, home) =>
@@ -108,17 +146,35 @@ function layerSource(plugin: ReferencePlugin | undefined): LayersFor {
 			root: args.root ?? process.cwd(),
 			home,
 			platform: process.platform,
-			programData: process.env['ProgramData'],
 			env: process.env,
 			plugin,
+			defaultSkill: args.default,
 		})
+}
+
+/** A field with nothing to say is left out: `undefined`, an empty string, or an empty list. */
+function compact<T extends Record<string, unknown>>(value: T): T {
+	return Object.fromEntries(
+		Object.entries(value).filter(
+			([, field]) => field !== undefined && field !== '' && !(Array.isArray(field) && !field.length),
+		),
+	) as T
 }
 
 /** stderr, not stdout: an agent parses stdout. Rethrows what the cli already reports. */
 function fail(error: unknown, fallback: string): never {
 	if (isCliError(error)) throw error
+	if (error instanceof ReferenceWriteError) {
+		process.stderr.write(`error: ${error.code}: ${error.message}\n`)
+		throw CliError.reported(error.usage ? exitCodes.usage : exitCodes.error)
+	}
 	process.stderr.write(`error: ${error instanceof Error ? error.message : fallback}\n`)
 	throw CliError.reported(exitCodes.error)
+}
+
+function usage(message: string): never {
+	process.stderr.write(`error: usage: ${message}\n`)
+	throw CliError.reported(exitCodes.usage)
 }
 
 /** An answer with a failing exit code: the cli prints only what a returned answer holds, so print it first. */
@@ -128,46 +184,63 @@ function answerThenFail(answer: Answer<any>, format: Format): never {
 	throw CliError.reported(exitCodes.error)
 }
 
-/** `text` for a trace or a report: core's text encoding of one keyed value. */
-function textOf(value: object): string {
-	return encode(value, 'text')
+function writeWarnings(warnings: readonly ReferenceWarning[]): void {
+	for (const { code, message } of warnings) process.stderr.write(`warning: ${code}: ${message}\n`)
 }
 
-function traceOf(resolved: ResolvedReference, home: string): Omit<TraceEntry, 'description'>[] {
-	return resolved.trace.map(({ description: _, ...step }) => ({ ...step, path: collapseHome(home, step.path) }))
-}
-
-function showEntry(
-	resolved: ResolvedReference,
-	home: string,
-	suggestions: string[],
-	trace: boolean,
-): ReferenceShowEntry {
-	const entry: ReferenceShowEntry = { name: resolved.name, status: resolved.status, warnings: [] }
-	if (resolved.status === 'found') {
-		Object.assign(entry, {
-			tier: resolved.tier,
-			plugin: resolved.plugin,
-			path: collapseHome(home, resolved.path as string),
-			merge: resolved.merge,
-			metadata: resolved.metadata,
-			content: resolved.content,
-			layers: resolved.layers.map((layer) => ({ ...layer, path: collapseHome(home, layer.path) })),
-		})
+function displayTrace(trace: ReferenceTrace, home: string): ReferenceTrace {
+	const show = (path: string) => collapseHome(home, path)
+	return {
+		...trace,
+		contributions: trace.contributions.map((row) => ({ ...row, path: show(row.path) })),
+		layers: trace.layers.map((layer) => ({ ...layer, path: show(layer.path) })),
 	}
-	if (resolved.status === 'missing') entry.suggestions = suggestions
-	if (resolved.status === 'ambiguous') entry.plugins = resolved.plugins
-	entry.warnings = resolved.warnings
-	if (trace) entry.trace = traceOf(resolved, home)
-	return entry
 }
 
-function missReason(entry: ReferenceShowEntry): string {
-	if (entry.status === 'ambiguous') {
-		return `"${entry.name}" is held by more than one plugin; ask for one of ${(entry.plugins as string[]).join(', ')}.`
+/** The text trace: a summary line, then each section with its contributions, then each layer. */
+export function traceText(resolved: ResolvedReference, home: string): string {
+	const trace = displayTrace(resolved.trace, home)
+	const lines = [
+		`${resolved.name}: ${resolved.status}; stack: ${trace.stack.join(' → ') || 'none'}; built by ${trace.builtBy}; harnesses: ${trace.harnesses.join(', ') || 'none detected'}`,
+	]
+	if (resolved.message) lines.push(`  ${resolved.message}`)
+	if (trace.sections.length) {
+		lines.push('sections:')
+		for (const section of trace.sections) {
+			const how = section.removedBy
+				? `removed by ${section.removedBy}`
+				: section.contributions.map(({ contribution, operation }) => `${contribution} (${operation})`).join(', ') ||
+					'no text'
+			lines.push(`  ${section.path}: ${how}`)
+		}
 	}
-	const hint = entry.suggestions?.length ? ` Did you mean: ${entry.suggestions.join(', ')}?` : ''
-	return `no reference named "${entry.name}" in any tier.${hint}`
+	lines.push('layers:')
+	for (const layer of trace.layers) {
+		const who = layer.plugin ? ` ${layer.plugin}` : layer.skill ? ` ${layer.skill}` : ''
+		const how = layer.operation ? `; ${layer.operation} from ${layer.operationFrom}` : ''
+		const extendsNote = layer.extendsOutcome ? `; extends ${layer.extendsOutcome}` : ''
+		const selection = layer.selection ? '; selection' : ''
+		const frontmatter =
+			layer.frontmatter && Object.keys(layer.frontmatter).length ? ` ${JSON.stringify(layer.frontmatter)}` : ''
+		lines.push(`  ${layer.tier}${who} ${layer.path}: ${layer.outcome}${how}${extendsNote}${selection}${frontmatter}`)
+	}
+	return `${lines.join('\n')}\n`
+}
+
+type ShowFlags = { metadata: boolean; trace: boolean }
+
+function showEntry(resolved: ResolvedReference, home: string, { metadata, trace }: ShowFlags): ReferenceShowEntry {
+	if (resolved.status === 'found' && !resolved.warnings.length && !metadata && !trace) return resolved.content as string
+	return compact({
+		name: resolved.name,
+		status: resolved.status,
+		content: resolved.content,
+		code: resolved.code,
+		options: resolved.options,
+		metadata: metadata ? resolved.metadata : undefined,
+		warnings: resolved.warnings,
+		trace: trace ? displayTrace(resolved.trace, home) : undefined,
+	})
 }
 
 /** One entry per name asked, as the array itself rather than under a `result` key. */
@@ -176,76 +249,82 @@ const bareArray = {
 	json: (entries: ReferenceShowEntry[]) => encode(entries, 'json'),
 }
 
-function showText(entries: readonly ReferenceShowEntry[]): Answer<string> | undefined {
-	if (entries.length === 1) {
-		const [entry] = entries as [ReferenceShowEntry]
-		return entry.content === undefined ? undefined : document(entry.content)
+function showText(resolved: readonly ResolvedReference[]): Answer<string> | undefined {
+	if (resolved.length === 1) {
+		const [only] = resolved as [ResolvedReference]
+		return only.content === undefined ? undefined : document(only.content)
 	}
-	const blocks = entries.map((entry) =>
+	const blocks = resolved.map((entry) =>
 		entry.content === undefined
 			? `<reference name="${entry.name}" status="${entry.status}" />`
-			: `<reference name="${entry.name}" tier="${entry.tier}">\n${entry.content}</reference>`,
+			: `<reference name="${entry.name}">\n${entry.content}</reference>`,
 	)
 	return document(blocks.join('\n\n'))
-}
-
-function writeShowStderr(entries: readonly ReferenceShowEntry[], format: Format): void {
-	for (const entry of entries) {
-		if (format === 'text') {
-			for (const warning of entry.warnings) process.stderr.write(`warning: ${warning}\n`)
-			if (entry.trace) process.stderr.write(`${textOf({ [`trace ${entry.name}`]: entry.trace })}\n`)
-		}
-		if (entry.status !== 'found') process.stderr.write(`error: ${missReason(entry)}\n`)
-	}
 }
 
 function showCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'show',
-		description: 'Print one or more references, each resolved through the tiers and combined as its layers ask.',
+		description:
+			'Print one or more references, each composed from its contributions as their extends and merge declare.',
 		arguments: [
 			{
 				name: 'names',
-				description: 'Reference names, without the `.md` extension; `<plugin>/<name>` picks one plugin.',
+				description: 'Reference names, without the `.md` extension; `<plugin>/<name>` builds that plugin’s own stack.',
 				type: t.array(t.string()),
 			},
 		],
 		options: {
 			root: rootOption,
-			trace: {
-				description: 'Report every path checked, the file that matched, the merge mode, and why a layer was dropped.',
+			default: defaultOption,
+			metadata: {
+				description: 'Make every entry a record with its status and composed frontmatter.',
 				type: t.boolean().optional(),
 			},
+			trace: traceOption,
 		},
-		async run(args: CommonArgs & { names: string[]; trace: boolean | undefined }) {
+		async run(
+			args: CommonArgs & {
+				names: string[]
+				default: string | undefined
+				metadata: boolean | undefined
+				trace: boolean | undefined
+			},
+		) {
 			const format = this.format
+			if (!args.names.length) usage('name at least one reference.')
 			try {
-				const names = args.names.map(parseReferenceName)
-				if (!names.length) throw new Error('Name at least one reference.')
 				const home = homedir()
 				const layers = await layersFor(args, home)
 				const display = (path: string) => collapseHome(home, path)
 				const lookup = interfaceLookup(layers, { display })
-				const entries = names.map((name) => {
-					const resolved = resolveReference(name, layers, { display })
-					for (const failure of checkResolved(resolved, lookup)) {
-						resolved.warnings.push(`${resolved.name} fails its interface check (${failure.check}): ${failure.message}`)
+				const resolved = args.names.map((name) => {
+					const entry = resolveReference(parseReferenceName(name), layers, { display })
+					for (const failure of checkResolved(entry, lookup).failures) {
+						if (failure.check === 'compose') continue
+						entry.warnings.push({
+							code: 'interface-check',
+							message: `it fails its interface check (${failure.check}): ${failure.message}`,
+						})
 					}
-					const suggestions =
-						resolved.status === 'missing'
-							? searchReferences(name.name, layers, { display })
-									.slice(0, 3)
-									.map((match) => match.name)
-							: []
-					return showEntry(resolved, home, suggestions, Boolean(args.trace))
+					return entry
 				})
-				const answer = format === 'text' ? showText(entries) : result(entries, { render: bareArray })
-				writeShowStderr(entries, format)
-				const ok = entries.every((entry) => entry.status === 'found')
-				if (answer === undefined) {
-					if (ok) return undefined
-					throw CliError.reported(exitCodes.error)
+				const ok = resolved.every((entry) => entry.status === 'found')
+				if (format === 'text') {
+					for (const entry of resolved) {
+						writeWarnings(entry.warnings)
+						if (entry.status !== 'found') process.stderr.write(`error: ${entry.code}: ${entry.message}\n`)
+						if (args.trace) process.stderr.write(traceText(entry, home))
+					}
+					const answer = showText(resolved)
+					if (answer === undefined) throw CliError.reported(exitCodes.error)
+					return ok ? answer : answerThenFail(answer, format)
 				}
+				const flags = { metadata: Boolean(args.metadata), trace: Boolean(args.trace) }
+				const answer = result(
+					resolved.map((entry) => showEntry(entry, home, flags)),
+					{ render: bareArray },
+				)
 				return ok ? answer : answerThenFail(answer, format)
 			} catch (error) {
 				return fail(error, 'Reference lookup failed.')
@@ -258,7 +337,7 @@ function listCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'list',
 		description:
-			'List every layer, and every reference at every layer that holds it, marked used or shadowed. A pattern keeps only the names it matches exactly.',
+			'List every reference name, one row each, with its description, and its status when not found. A pattern keeps only the names it matches exactly.',
 		arguments: [
 			{
 				name: 'pattern',
@@ -267,29 +346,32 @@ function listCommand(layersFor: LayersFor): cli.Command {
 				type: t.string().optional(),
 			},
 		],
-		options: { root: rootOption },
-		async run(args: CommonArgs & { pattern?: string | undefined }) {
+		options: {
+			root: rootOption,
+			trace: { ...traceOption, description: 'Add one row per name per layer holding it, with its outcome.' },
+		},
+		async run(args: CommonArgs & { pattern?: string | undefined; trace: boolean | undefined }) {
 			try {
 				const home = homedir()
-				const layers = await layersFor(args, home)
-				const { rows, warnings } = listReferences(layers, {
-					display: (path) => collapseHome(home, path),
-					...(args.pattern ? { pattern: args.pattern } : {}),
-				})
+				const display = (path: string) => collapseHome(home, path)
+				const listing = listReferences(await layersFor(args, home), { display, pattern: args.pattern })
 				const report: ReferenceListReport = {
-					layers: layers.map(({ tier, plugins, dir, status }) => ({
-						tier,
-						plugin: plugins[0] ?? '',
-						path: collapseHome(home, dir),
-						status,
-					})),
-					references: rows.length
-						? rows.map((row) => ({ ...row, path: collapseHome(home, row.path) }))
+					references: listing.references.length
+						? listing.references.map((row) =>
+								compact({
+									name: row.name,
+									description: row.description,
+									status: row.status === 'found' ? undefined : row.status,
+									options: row.options,
+								}),
+							)
 						: args.pattern
 							? `0 references match "${args.pattern}"`
 							: '0 references — no layer holds one',
+					defaults: listing.defaults,
 				}
-				if (warnings.length) report.warnings = warnings
+				if (args.trace) report.layers = listing.layers.map((row) => compact({ ...row, path: display(row.path) }))
+				if (listing.warnings.length) report.warnings = listing.warnings
 				return result(report)
 			} catch (error) {
 				return fail(error, 'Reference listing failed.')
@@ -303,18 +385,25 @@ function searchCommand(layersFor: LayersFor): cli.Command {
 		name: 'search',
 		description: 'Find references by name, description, tags, headings, or body, best match first.',
 		arguments: [{ name: 'query', description: 'What the reference is about.', type: t.string() }],
-		options: { root: rootOption },
-		async run(args: CommonArgs & { query: string }) {
+		options: {
+			root: rootOption,
+			trace: { ...traceOption, description: 'Add the tier and plugin or skill of each match.' },
+		},
+		async run(args: CommonArgs & { query: string; trace: boolean | undefined }) {
+			const query = args.query.trim()
+			if (!query) usage('search needs a query.')
 			try {
-				const query = args.query.trim()
-				if (!query) throw new Error('Search needs a query.')
 				const home = homedir()
-				const matches = searchReferences(query, await layersFor(args, home), {
+				const { matches, defaults } = searchReferences(query, await layersFor(args, home), {
 					display: (path) => collapseHome(home, path),
 				})
 				const report: ReferenceSearchReport = {
-					query,
-					references: matches.length ? matches : `0 references match "${query}"`,
+					references: matches.length
+						? matches.map(({ name, description, match, tier, plugin, skill }) =>
+								compact(args.trace ? { name, description, match, tier, plugin, skill } : { name, description, match }),
+							)
+						: `0 references match "${query}"`,
+					defaults,
 				}
 				return result(report)
 			} catch (error) {
@@ -328,38 +417,40 @@ function whereCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'where',
 		description:
-			'List the project and user files an override of a reference can be written to, highest precedence first, with the copy each overrides and who it applies to.',
+			'Give the project and user files a customization or a selection of a reference is written to, who each reaches, and the heading paths of the document below each.',
 		arguments: [
 			{
 				name: 'name',
-				description: 'Reference name, without the `.md` extension; `<plugin>/<name>` picks one plugin.',
+				description: 'Reference name, without the `.md` extension.',
 				type: t.string(),
 			},
 		],
 		options: {
 			root: rootOption,
-			caller: {
-				description:
-					"Folder of the skill that loads the reference, so its own copy is reported as the reference skill's Load mode reads it.",
-				type: t.string().optional(),
-			},
+			default: defaultOption,
+			trace: { ...traceOption, description: 'Add every layer checked, with its outcome.' },
 		},
-		async run(args: CommonArgs & { name: string; caller: string | undefined }) {
+		async run(args: CommonArgs & { name: string; default: string | undefined; trace: boolean | undefined }) {
 			const format = this.format
 			try {
-				const name = parseReferenceName(args.name)
 				const home = homedir()
-				const layers = await layersFor(args, home)
-				const report = whereReference(name, layers, {
+				const display = (path: string) => collapseHome(home, path)
+				const report = whereReference(args.name, await layersFor(args, home), {
 					root: resolve(args.root ?? process.cwd()),
-					caller: args.caller === undefined ? undefined : resolve(args.caller),
-					display: (path) => collapseHome(home, path),
+					display,
 				})
-				const answer = result(report)
-				if (!report.plugins) return answer
-				process.stderr.write(
-					`error: ${missReason({ name: name.raw, status: 'ambiguous', plugins: report.plugins, warnings: [] })}\n`,
-				)
+				const output: ReferenceWhereOutput = compact({
+					name: report.name,
+					status: report.status,
+					places: report.places.map((place) => compact(place)),
+					options: report.options,
+					layers: args.trace ? report.layers.map((layer) => ({ ...layer, path: display(layer.path) })) : undefined,
+					warnings: report.warnings,
+				})
+				if (format === 'text') writeWarnings(report.warnings)
+				const answer = result(output)
+				if (report.status !== 'invalid') return answer
+				process.stderr.write(`error: reference-invalid: ${parseReferenceName(args.name).invalid}\n`)
 				return answerThenFail(answer, format)
 			} catch (error) {
 				return fail(error, 'Reference placement lookup failed.')
@@ -372,7 +463,7 @@ function parseAccept(value: string | undefined): number[] | undefined {
 	if (value === undefined) return undefined
 	const versions = value.split(',').map((part) => part.trim())
 	if (!versions.length || versions.some((part) => !/^[1-9]\d*$/.test(part))) {
-		throw new Error(`--accept is a comma-separated list of versions, such as 1,2; got "${value}".`)
+		usage(`--accept is a comma-separated list of versions, such as 1,2; got "${value}".`)
 	}
 	return versions.map(Number)
 }
@@ -381,7 +472,7 @@ function implementationsCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'implementations',
 		description:
-			'List the implementations of an interface a consumer can load, each with its pin, tier, description, and unsupported sections, and the ones left out with why.',
+			'List the implementations of an interface a consumer can load, each with its pin, description, and unsupported sections.',
 		arguments: [
 			{
 				name: 'id',
@@ -396,15 +487,40 @@ function implementationsCommand(layersFor: LayersFor): cli.Command {
 					"Versions the consumer knows, comma-separated, such as 1,2. Defaults to the interface's `versions`.",
 				type: t.string().optional(),
 			},
+			trace: {
+				...traceOption,
+				description:
+					"Add each one's name, tier, and version, the interface's cardinality and accepted versions, and the ones left out with why.",
+			},
 		},
-		async run(args: CommonArgs & { id: string; accept: string | undefined }) {
+		async run(args: CommonArgs & { id: string; accept: string | undefined; trace: boolean | undefined }) {
+			const accept = parseAccept(args.accept)
 			try {
-				const accept = parseAccept(args.accept)
 				const home = homedir()
-				const report: ReferenceImplementationsReport = referenceImplementations(args.id, await layersFor(args, home), {
+				const found = referenceImplementations(args.id, await layersFor(args, home), {
 					accept,
 					display: (path) => collapseHome(home, path),
 				})
+				const rows = found.implementations.map(({ pin, description, unsupported, name, tier, version }) =>
+					compact(
+						args.trace ? { pin, description, unsupported, name, tier, version } : { pin, description, unsupported },
+					),
+				)
+				const report: ReferenceImplementationsReport = {
+					implementations: rows.length ? rows : `0 implementations of ${args.id}`,
+				}
+				if (args.trace) {
+					Object.assign(
+						report,
+						compact({
+							interface: found.interface,
+							cardinality: found.cardinality,
+							accept: found.accept,
+							excluded: found.excluded,
+							warnings: found.warnings,
+						}),
+					)
+				}
 				return result(report)
 			} catch (error) {
 				return fail(error, 'Implementation lookup failed.')
@@ -417,32 +533,45 @@ function checkCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'check',
 		description:
-			'Check interface documents and their implementations, each resolved with every override merged. With no names, checks every one found. Exits 1 on any failure.',
+			'Check interface documents and their implementations, each composed as `show` composes it. With no names, checks every one found. Exits 1 on any failure.',
 		arguments: [
 			{
 				name: 'names',
-				description: 'Reference names, without the `.md` extension; `<plugin>/<name>` picks one plugin.',
+				description: 'Reference names, without the `.md` extension; `<plugin>/<name>` builds that plugin’s own stack.',
 				type: t.array(t.string()).optional(),
 			},
 		],
-		options: { root: rootOption },
-		async run(args: CommonArgs & { names?: string[] | undefined }) {
+		options: {
+			root: rootOption,
+			trace: { ...traceOption, description: 'Add every entry checked, with its kind and unsupported sections.' },
+		},
+		async run(args: CommonArgs & { names?: string[] | undefined; trace: boolean | undefined }) {
 			const format = this.format
 			try {
-				const names = (args.names ?? []).map((name) => parseReferenceName(name).raw)
 				const home = homedir()
 				const entries = checkReferences(await layersFor(args, home), {
-					names,
+					names: args.names ?? [],
 					display: (path) => collapseHome(home, path),
 				})
-				const failed = entries.filter((entry) => entry.status !== 'passed').length
-				const report: ReferenceCheckReport = {
-					references: entries.length ? entries : '0 references — no interface document or implementation found',
-					failed,
-				}
+				const failing = entries.filter((entry) => entry.status !== 'passed')
+				const strip = (failures: { check: string; message: string }[]) =>
+					failures.map(({ check, message }) => ({ check, message }))
+				const report: ReferenceCheckReport = compact({
+					failed: failing.map(({ name, failures }) => ({ name, failures: strip(failures) })),
+					passed: entries.length - failing.length,
+					references: args.trace
+						? entries.map(({ name, kind, status, failures, unsupported }) =>
+								compact({ name, kind, status, failures: strip(failures), unsupported }),
+							)
+						: undefined,
+				})
 				const answer = result(report)
-				if (!failed) return answer
-				process.stderr.write(`error: ${failed} of ${entries.length} references fail their interface check.\n`)
+				if (!failing.length) return answer
+				if (format === 'text') {
+					process.stderr.write(
+						`error: interface-check: ${failing.length} of ${entries.length} references fail their check.\n`,
+					)
+				}
 				return answerThenFail(answer, format)
 			} catch (error) {
 				return fail(error, 'Reference check failed.')
@@ -451,137 +580,101 @@ function checkCommand(layersFor: LayersFor): cli.Command {
 	})
 }
 
-type CreateScope = 'project' | 'user'
+const scopeOption = {
+	description: 'Tier to write: project (default), `.agents/references/` at the root, or user, `~/.agents/references/`.',
+	type: t.string().optional(),
+}
 
-function parseScope(value: string | undefined): CreateScope {
-	if (value !== 'project' && value !== 'user') throw new Error('--scope must be project or user.')
-	return value
+const pluginOption = {
+	description: "A plugin's source folder in this repository: acts on its `references/<name>.md`.",
+	type: t.string().optional(),
+}
+
+const skillOption = {
+	description: "A skill's source folder in this repository: acts on its `references/<name>.default.md`.",
+	type: t.string().optional(),
 }
 
 type CreateArgs = CommonArgs & {
 	name: string
+	scope: string | undefined
+	plugin: string | undefined
+	default: string | undefined
+	merge: string | undefined
 	template: string | undefined
 	implements: string | undefined
-	scope: string | undefined
 	'dry-run': boolean | undefined
-}
-
-/** The interface `create --implements` starts an implementation of, once the new name and tier fit it. */
-function interfaceFor(
-	id: string,
-	name: string,
-	scope: CreateScope,
-	layers: readonly ReferenceLayer[],
-	display: (path: string) => string,
-): ReferenceInterface {
-	parseReferenceName(id)
-	const iface = interfaceLookup(layers, { display })(id)
-	if (!iface.value) throw new Error(iface.failure?.message ?? `no interface ${id}`)
-	if (!fitsName(iface.value, name)) {
-		throw new Error(
-			`an implementation of ${id} is named ${iface.value.cardinality === 'one' ? id : `${id}.<key>`}, not "${name}".`,
-		)
-	}
-	if (iface.value.tiers && !iface.value.tiers.includes(scope)) {
-		throw new Error(`the ${scope} tier may not implement ${id} (tiers: ${iface.value.tiers.join(', ')}).`)
-	}
-	return iface.value
+	trace: boolean | undefined
 }
 
 function createCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'create',
 		description:
-			'Start a new reference in the project or user tier from a template, marked merge-sections when it overrides a copy below, or an implementation of an interface. Never overwrites.',
+			"Start a contribution in the project or user tier, or in a plugin's or a skill's source folder, from a template or an interface. Never overwrites a file with a body.",
 		arguments: [{ name: 'name', description: 'Reference name, without the `.md` extension.', type: t.string() }],
 		options: {
 			root: rootOption,
+			scope: scopeOption,
+			plugin: pluginOption,
+			default: skillOption,
+			merge: {
+				description:
+					'How it applies over what is below: replace, patch (default), combine, or remove. remove writes no body.',
+				type: t.string().optional(),
+			},
 			template: {
 				description:
-					'File whose text is written as it is, frontmatter included. Defaults to a built-in template of top-level `##` sections with no `#` title.',
+					'File whose text is written as it is, frontmatter included. Defaults to a built-in template of top-level `##` sections.',
 				type: t.string().optional(),
 			},
 			implements: {
 				description:
-					"Interface id to implement: the interface's sections become the `##` headings, each optional one stubbed `**Unsupported.**`, and `implements` is set. Not with --template.",
+					"Interface id to implement: the interface's sections become `##` headings, each stubbed `**Unsupported.**`, with `merge: replace`. Not with --template.",
 				type: t.string().optional(),
-			},
-			scope: {
-				description:
-					'Tier to write: project (default), `.agents/references/` at the root, or user, `~/.agents/references/`.',
-				type: t.string().optional(),
-				default: 'project',
 			},
 			'dry-run': {
 				description: 'Print the target path and the exact content, and write nothing.',
 				type: t.boolean().optional(),
 			},
+			trace: { ...traceOption, description: 'After the write, add the trace, in which the new file applies.' },
 		},
 		async run(args: CreateArgs) {
 			const format = this.format
 			try {
-				const name = parseReferenceName(args.name)
-				if (name.plugin !== undefined) {
-					throw new Error(
-						`an override is written under the bare name, which every tier resolves; ask for "${name.name}".`,
-					)
-				}
-				const scope = parseScope(args.scope)
-				if (args.implements !== undefined && args.template !== undefined) {
-					throw new Error('pass --template or --implements, not both.')
-				}
 				const home = homedir()
-				const dir = scopeDir(scope, args.root, home)
-				const target = join(dir, `${name.name}.md`)
+				const root = resolve(args.root ?? process.cwd())
 				const display = (path: string) => collapseHome(home, path)
-				const layers = await layersFor(args, home)
-				const template =
-					args.implements === undefined
-						? readTemplate(args.template === undefined ? undefined : resolve(args.template))
-						: implementationTemplate(interfaceFor(args.implements, name.name, scope, layers, display))
-				const { trace } = resolveReference(name, layers, { display })
-				const at = layers.findIndex((layer) => layer.dir === dir)
-				if (trace[at]?.found) {
-					throw new Error(
-						`${display(trace[at].path)} already holds "${name.name}"; change it with the reference skill's Update mode.`,
-					)
-				}
-				const shadow = trace.slice(0, at).find((step) => step.found && step.merge === 'first-wins')
-				if (shadow) {
-					throw new Error(
-						`the ${shadow.tier} copy ${display(shadow.path)} is first-wins, so nothing would read a new ${scope} file; change that copy instead.`,
-					)
-				}
-				const below = trace.slice(at + 1).find((step) => step.found)
-				// A whole implementation replaces the copy below: merged, its stubs would mark that copy's sections unsupported.
-				const content =
-					below && args.implements === undefined && template.metadata['merge'] === undefined
-						? withMergeSections(template.content)
-						: template.content
-				const warnings = templateWarnings(template)
-				if (below && args.implements !== undefined) {
-					warnings.push(
-						`the new file replaces the ${below.tier} copy ${display(below.path)} whole; to change only some of its sections, write an override with the reference skill's Update mode.`,
-					)
-				}
-				const report: ReferenceCreateReport = {
-					name: name.name,
-					scope,
-					path: display(target),
-					dryRun: Boolean(args['dry-run']),
-					content,
-					warnings,
-				}
-				if (!report.dryRun) {
-					mkdirSync(dir, { recursive: true })
-					writeFileSync(target, content, { flag: 'wx' })
-					report.trace = traceOf(resolveReference(name, layers, { display }), home)
-				}
-				if (format !== 'text') return result(report)
-				for (const warning of warnings) process.stderr.write(`warning: ${warning}\n`)
-				return document(
-					report.trace ? `${report.path}\n\n${textOf({ trace: report.trace })}` : `${report.path}\n\n${content}`,
+				const layers = await layersFor({ root, default: args.default }, home)
+				const created = createContribution(
+					layers,
+					{
+						root,
+						home,
+						name: args.name,
+						scope: args.scope,
+						plugin: args.plugin,
+						default: args.default,
+						merge: args.merge,
+						template: args.template,
+						implements: args.implements,
+						dryRun: args['dry-run'],
+					},
+					{ display },
 				)
+				const report: ReferenceCreateReport = compact({
+					path: display(created.path),
+					hint: created.dryRun
+						? 'Nothing was written. Run again without --dry-run to write it.'
+						: `Run \`show ${created.name}\` for the composed document.`,
+					content: created.dryRun ? created.content : undefined,
+					hints: created.hints,
+					trace: args.trace && created.after ? displayTrace(created.after.trace, home) : undefined,
+				})
+				if (format !== 'text') return result(report)
+				for (const hint of created.hints) process.stderr.write(`hint: ${hint}\n`)
+				if (args.trace && created.after) process.stderr.write(traceText(created.after, home))
+				return document(created.dryRun ? `${report.path}\n\n${created.content}` : `${report.path}\n\n${report.hint}\n`)
 			} catch (error) {
 				return fail(error, 'Reference creation failed.')
 			}
@@ -589,99 +682,130 @@ function createCommand(layersFor: LayersFor): cli.Command {
 	})
 }
 
-function scopeDir(scope: CreateScope, root: string | undefined, home: string): string {
-	return scope === 'project'
-		? projectReferencesDir(resolve(root ?? process.cwd()))
-		: join(home, '.agents', 'references')
+function selectCommand(layersFor: LayersFor): cli.Command {
+	return command({
+		name: 'select',
+		description:
+			'Choose what a name builds on: write an `extends` listing the options, bottom first, in the project or user file. Its body and other keys are kept.',
+		arguments: [
+			{ name: 'name', description: 'Reference name, without the `.md` extension.', type: t.string() },
+			{
+				name: 'options',
+				description: 'Bottom first: each a plugin holding the name (or `<plugin>/<name>`), or `default`.',
+				type: t.array(t.string()).optional(),
+			},
+		],
+		options: {
+			root: rootOption,
+			scope: scopeOption,
+			clear: {
+				description: 'Remove the selection; a file left with nothing in it is deleted.',
+				type: t.boolean().optional(),
+			},
+		},
+		async run(
+			args: CommonArgs & {
+				name: string
+				options?: string[] | undefined
+				scope: string | undefined
+				clear: boolean | undefined
+			},
+		) {
+			const format = this.format
+			try {
+				const home = homedir()
+				const root = resolve(args.root ?? process.cwd())
+				const display = (path: string) => collapseHome(home, path)
+				const selected = selectContribution(
+					await layersFor({ root }, home),
+					{ root, home, name: args.name, options: args.options ?? [], scope: args.scope, clear: args.clear },
+					{ display },
+				)
+				const report: ReferenceSelectReport = compact({
+					path: display(selected.path),
+					extends: selected.extends,
+					deleted: selected.deleted || undefined,
+					status: selected.after.status,
+					stack: selected.after.trace.stack,
+					answer: describeAnswer(selected.after),
+				})
+				if (format !== 'text') return result(report)
+				writeWarnings(selected.after.warnings)
+				const what = args.clear
+					? selected.deleted
+						? 'selection cleared; the file was left empty and deleted'
+						: 'selection cleared'
+					: `extends: [${selected.extends.join(', ')}]`
+				return document(`${report.path}\n\n${what}. ${report.answer}\n`)
+			} catch (error) {
+				return fail(error, 'Reference selection failed.')
+			}
+		},
+	})
 }
 
-function nextOf(resolved: ResolvedReference, home: string): ReferenceDeleteNext {
-	const next: ReferenceDeleteNext = { status: resolved.status }
-	if (resolved.status === 'found') {
-		Object.assign(next, {
-			tier: resolved.tier,
-			plugin: resolved.plugin,
-			path: collapseHome(home, resolved.path as string),
-		})
-	}
-	if (resolved.status === 'ambiguous') next.plugins = resolved.plugins
-	return next
+function deleteReport(deleted: DeleteResult, home: string): ReferenceDeleteReport {
+	const selection = deleted.selection
+		? `the selection extends: [${deleted.selection.join(', ')}] went with it; run \`reference select ${deleted.name} <option>...\` to restore it`
+		: undefined
+	return compact({
+		path: collapseHome(home, deleted.path),
+		dryRun: deleted.dryRun || undefined,
+		status: deleted.after.status,
+		stack: deleted.after.trace.stack,
+		answer: describeAnswer(deleted.after),
+		selection,
+		options: deleted.after.options,
+	})
 }
-
-function describeNext(name: string, next: ReferenceDeleteNext): string {
-	if (next.status === 'found') return `"${name}" is then answered by the ${next.tier} copy ${next.path}.`
-	if (next.status === 'ambiguous') {
-		return `"${name}" is then held by more than one plugin: ${(next.plugins as string[]).join(', ')}.`
-	}
-	return `no copy of "${name}" is left in any tier.`
-}
-
-type DeleteArgs = CommonArgs & { name: string; scope: string | undefined; 'dry-run': boolean | undefined }
 
 function deleteCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'delete',
 		description:
-			'Delete the project or user copy of a reference, and report which copy answers the name afterwards. Never deletes a plugin-shipped or managed copy.',
+			"Delete a project or user contribution, or one in a plugin's or a skill's source folder, and report what answers the name afterwards. Never deletes an installed or managed one.",
 		arguments: [{ name: 'name', description: 'Reference name, without the `.md` extension.', type: t.string() }],
 		options: {
 			root: rootOption,
-			scope: {
-				description:
-					'Tier to delete from: project (default), `.agents/references/` at the root, or user, `~/.agents/references/`.',
-				type: t.string().optional(),
-				default: 'project',
-			},
+			scope: { ...scopeOption, description: 'Tier to delete from: project (default) or user.' },
+			plugin: pluginOption,
+			default: skillOption,
 			'dry-run': {
 				description: 'Print the file that would be deleted and what would answer the name then, and delete nothing.',
 				type: t.boolean().optional(),
 			},
 		},
-		async run(args: DeleteArgs) {
+		async run(
+			args: CommonArgs & {
+				name: string
+				scope: string | undefined
+				plugin: string | undefined
+				default: string | undefined
+				'dry-run': boolean | undefined
+			},
+		) {
 			const format = this.format
 			try {
-				const name = parseReferenceName(args.name)
-				if (name.plugin !== undefined) {
-					throw new Error(
-						`a project or user copy is held under the bare name; ask for "${name.name}". A plugin's copy is never deleted.`,
-					)
-				}
-				const scope = parseScope(args.scope)
 				const home = homedir()
-				const dir = scopeDir(scope, args.root, home)
-				const display = (path: string) => collapseHome(home, path)
-				const layers = await layersFor(args, home)
-				const before = resolveReference(name, layers, { display })
-				const step = before.trace[layers.findIndex((layer) => layer.dir === dir)]
-				if (!step?.found) {
-					const answer = before.status === 'found' ? ` ${describeNext(name.name, nextOf(before, home))}` : ''
-					throw new Error(
-						`${display(join(dir, `${name.name}.md`))} does not exist, so there is no ${scope} copy of "${name.name}" to delete.${answer} Delete never removes a plugin-shipped or managed copy.`,
-					)
-				}
-				const target = step.path
-				const dryRun = Boolean(args['dry-run'])
-				if (!dryRun) {
-					rmSync(target)
-					// A folder-form copy leaves its folder behind; remove it only when nothing else is in it.
-					if (dirname(target) !== dir) {
-						try {
-							rmdirSync(dirname(target))
-						} catch {}
-					}
-				}
-				const after = resolveReference(name, layers, { display, without: dryRun ? target : undefined })
-				const report: ReferenceDeleteReport = {
-					name: name.name,
-					scope,
-					path: display(target),
-					dryRun,
-					next: nextOf(after, home),
-					trace: traceOf(after, home),
-				}
+				const root = resolve(args.root ?? process.cwd())
+				const deleted = deleteContribution(
+					await layersFor({ root, default: args.default }, home),
+					{
+						root,
+						home,
+						name: args.name,
+						scope: args.scope,
+						plugin: args.plugin,
+						default: args.default,
+						dryRun: args['dry-run'],
+					},
+					{ display: (path) => collapseHome(home, path) },
+				)
+				const report = deleteReport(deleted, home)
 				if (format !== 'text') return result(report)
+				const selection = report.selection ? ` Also, ${report.selection}.` : ''
 				return document(
-					`${report.path}\n\n${dryRun ? 'would delete' : 'deleted'}. ${describeNext(report.name, report.next)}\n\n${textOf({ trace: report.trace })}`,
+					`${report.path}\n\n${deleted.dryRun ? 'would delete' : 'deleted'}. ${report.answer}${selection}\n`,
 				)
 			} catch (error) {
 				return fail(error, 'Reference deletion failed.')
@@ -701,6 +825,7 @@ export type ReferenceCommands = {
 	search: cli.Command
 	where: cli.Command
 	create: cli.Command
+	select: cli.Command
 	delete: cli.Command
 	check: cli.Command
 	implementations: cli.Command
@@ -715,6 +840,7 @@ export function createReferenceCommands({ plugin }: ReferenceCommandOptions = {}
 		search: searchCommand(layersFor),
 		where: whereCommand(layersFor),
 		create: createCommand(layersFor),
+		select: selectCommand(layersFor),
 		delete: deleteCommand(layersFor),
 		check: checkCommand(layersFor),
 		implementations: implementationsCommand(layersFor),
@@ -722,11 +848,21 @@ export function createReferenceCommands({ plugin }: ReferenceCommandOptions = {}
 }
 
 export function createReferenceCommand(options: ReferenceCommandOptions = {}): cli.Command {
-	const { show, list, search, where, create, delete: remove, check, implementations } = createReferenceCommands(options)
+	const {
+		show,
+		list,
+		search,
+		where,
+		create,
+		select,
+		delete: remove,
+		check,
+		implementations,
+	} = createReferenceCommands(options)
 	return command({
 		name: 'reference',
 		description:
-			'Read on-demand reference documents by name, layered across the managed, project, user, and plugin tiers, and start or delete one in the project or user tier.',
-		commands: [show, list, search, where, create, remove, implementations, check],
+			'Read reference documents by name, composed from the managed, project, user, plugin, and default tiers, and write, select, or delete a contribution.',
+		commands: [show, list, search, where, create, select, remove, implementations, check],
 	})
 }
