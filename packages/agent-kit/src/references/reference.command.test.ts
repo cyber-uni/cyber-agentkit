@@ -1,7 +1,6 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import { type cli, exitCodes } from 'clibuilder'
 import { isCliError, printAnswer } from 'clibuilder/axi'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,8 +13,8 @@ import {
 	type ReferenceImplementationsReport,
 	type ReferenceListReport,
 	type ReferenceSearchReport,
-	type ReferenceShowEntry,
-	type ReferenceWhereReport,
+	type ReferenceSelectReport,
+	type ReferenceWhereOutput,
 } from './reference.command.js'
 import {
 	githubCapabilities,
@@ -23,7 +22,7 @@ import {
 	routingInterface,
 	typescriptRecipe,
 } from './reference-interface.fixtures.js'
-import { deprecatedManagedGovernancesDir, managedGovernancesDir, managedReferencesDir } from './reference-layers.js'
+import type { ReferenceTrace } from './resolve-reference.js'
 
 /** The command reads the home directory itself; a fixture per test needs its own fake one. */
 const fakeHome = vi.hoisted(() => ({ value: '' }))
@@ -35,8 +34,7 @@ vi.mock('node:os', async (importOriginal) => {
 
 /**
  * What the resolver throws on the next call, so the commands' own failure path — including the
- * branch where the thrown value is not an `Error` — can be reached. A layered file lookup has no
- * input that makes it throw on its own; the layers swallow what they cannot read.
+ * branch where the thrown value is not an `Error` — can be reached.
  */
 const failure = vi.hoisted(() => ({ value: undefined as unknown }))
 
@@ -58,8 +56,6 @@ vi.mock('./resolve-reference.js', async (importOriginal) => {
 const harness = vi.hoisted(() => ({
 	candidates: [] as string[],
 	managed: undefined as { kind: string; location: string; description: string; research: string }[] | undefined,
-	/** Every policy source that can enable a plugin was read — true of no harness on record today. */
-	allPolicyRead: false,
 }))
 
 vi.mock('../detection/detect-harness.js', () => ({
@@ -79,46 +75,17 @@ vi.mock('../managed-policy/managed-policy-locations.js', async (importOriginal) 
 	}
 })
 
-vi.mock('../plugins/enabled-plugins.js', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('../plugins/enabled-plugins.js')>()
-	return {
-		...actual,
-		enabledPlugins: async (...args: Parameters<typeof actual.enabledPlugins>) => {
-			const result = await actual.enabledPlugins(...args)
-			return harness.allPolicyRead ? { ...result, unread: [] } : result
-		},
-	}
-})
+function tempDir(prefix = 'reference-'): string {
+	return mkdtempSync(join(tmpdir(), prefix))
+}
 
-const {
-	show: referenceShowCommand,
-	list: referenceListCommand,
-	search: referenceSearchCommand,
-	where: referenceWhereCommand,
-	create: referenceCreateCommand,
-	delete: referenceDeleteCommand,
-	check: referenceCheckCommand,
-	implementations: referenceImplementationsCommand,
-} = createReferenceCommands({
-	plugin: { name: 'uni-agent-kit', root: dirname(dirname(dirname(fileURLToPath(import.meta.url)))) },
-})
+/** The plugin running the command; its `references/` is emptied before each test. */
+const hostRoot = tempDir('reference-host-')
+
+const commands = createReferenceCommands({ plugin: { name: 'host', root: hostRoot } })
 
 const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-
-type ShowArgs = { root?: string; format?: string; trace?: boolean }
-type ListArgs = { root?: string; format?: string; pattern?: string }
-type SearchArgs = { root?: string; format?: string }
-type WhereArgs = { root?: string; caller?: string; format?: string }
-type DeleteArgs = { root?: string; scope?: string; 'dry-run'?: boolean; format?: string }
-type CreateArgs = {
-	root?: string
-	template?: string
-	implements?: string
-	scope?: string
-	'dry-run'?: boolean
-	format?: string
-}
 
 /**
  * Runs a command the way the cli does: with the resolved `format` on `this`, printing what `run()`
@@ -140,49 +107,30 @@ async function exec(command: cli.Command, args: Record<string, unknown> & { form
 	}
 }
 
-function show(names: string[], args: ShowArgs = {}): Promise<number> {
-	return exec(referenceShowCommand, { format: 'text', names, ...args })
-}
+type Args = Record<string, unknown>
 
-function list(args: ListArgs = {}): Promise<number> {
-	return exec(referenceListCommand, { format: 'json', ...args })
-}
-
-function search(query: string, args: SearchArgs = {}): Promise<number> {
-	return exec(referenceSearchCommand, { format: 'json', query, ...args })
-}
-
-function where(name: string, args: WhereArgs = {}): Promise<number> {
-	return exec(referenceWhereCommand, { format: 'json', name, ...args })
-}
-
-function check(names: string[] | undefined, args: { root?: string; format?: string } = {}): Promise<number> {
-	return exec(referenceCheckCommand, { format: 'json', names, ...args })
-}
-
-function implementations(id: string, args: { root?: string; format?: string; accept?: string } = {}): Promise<number> {
-	return exec(referenceImplementationsCommand, { format: 'json', id, ...args })
-}
-
-function create(name: string, args: CreateArgs = {}): Promise<number> {
-	return exec(referenceCreateCommand, { format: 'text', scope: 'project', name, ...args })
-}
-
-function remove(name: string, args: DeleteArgs = {}): Promise<number> {
-	return exec(referenceDeleteCommand, { format: 'text', scope: 'project', name, ...args })
-}
+const show = (names: string[], args: Args = {}) => exec(commands.show, { format: 'text', names, ...args })
+const list = (args: Args = {}) => exec(commands.list, { format: 'json', ...args })
+const search = (query: string, args: Args = {}) => exec(commands.search, { format: 'json', query, ...args })
+const where = (name: string, args: Args = {}) => exec(commands.where, { format: 'json', name, ...args })
+const check = (names: string[] | undefined, args: Args = {}) => exec(commands.check, { format: 'json', names, ...args })
+const implementations = (id: string, args: Args = {}) => exec(commands.implementations, { format: 'json', id, ...args })
+const create = (name: string, args: Args = {}) => exec(commands.create, { format: 'text', name, ...args })
+const select = (name: string, options: string[], args: Args = {}) =>
+	exec(commands.select, { format: 'text', name, options, ...args })
+const remove = (name: string, args: Args = {}) => exec(commands.delete, { format: 'text', name, ...args })
 
 /** Everything the last run put on stdout, concatenated. */
 function written(): string {
 	return stdout.mock.calls.map(([value]: unknown[]) => String(value)).join('')
 }
 
-function stderrLines(): string[] {
-	return stderr.mock.calls.map(([value]: unknown[]) => String(value))
+function json<T>(): T {
+	return JSON.parse(written()) as T
 }
 
-function tempDir(prefix = 'reference-'): string {
-	return mkdtempSync(join(tmpdir(), prefix))
+function errors(): string {
+	return stderr.mock.calls.map(([value]: unknown[]) => String(value)).join('')
 }
 
 /** Writes a file, creating its parent directories. */
@@ -193,48 +141,63 @@ function write(root: string, relPath: string, content: string): string {
 	return path
 }
 
-/** A workspace marker — the project tier must not climb to it. */
-function markRoot(dir: string): void {
-	writeFileSync(join(dir, 'pnpm-workspace.yaml'), '')
-}
-
+/** A repository root: the project tier reads up to it, and a source-folder write must stay inside it. */
 function repo(): string {
-	return tempDir('reference-repo-')
+	const root = tempDir('reference-repo-')
+	writeFileSync(join(root, 'pnpm-workspace.yaml'), '')
+	return root
 }
 
-/** Declares `dependencies` in a manifest at `root`, so the plugin tier picks it up. */
-function declareDependency(root: string, pkg: string, version = '1.0.0'): void {
-	write(root, 'package.json', JSON.stringify({ name: 'fixture', dependencies: { [pkg]: version } }))
-}
+type PluginSpec = { manifest?: string | undefined; documents?: Record<string, string> }
 
-/** A dependency installed under `root/node_modules`, shipping its own `references/`. */
-function installDependency(root: string, pkg: string, documents: Record<string, string> = {}): void {
-	write(root, join('node_modules', pkg, 'package.json'), JSON.stringify({ name: pkg, version: '1.0.0' }))
-	for (const [name, content] of Object.entries(documents)) {
-		write(root, join('node_modules', pkg, 'references', `${name}.md`), content)
+/**
+ * Declares each package as a dependency of `root` and installs it under `node_modules`; a package
+ * with a `manifest` name is a plugin, named by it.
+ */
+function dependencies(root: string, packages: Record<string, PluginSpec>): void {
+	const declared = Object.fromEntries(Object.keys(packages).map((pkg) => [pkg, '1.0.0']))
+	write(root, 'package.json', JSON.stringify({ name: 'fixture', dependencies: declared }))
+	for (const [pkg, { manifest, documents = {} }] of Object.entries(packages)) {
+		const dir = join('node_modules', pkg)
+		write(root, join(dir, 'package.json'), JSON.stringify({ name: pkg, version: '1.0.0' }))
+		if (manifest) write(root, join(dir, 'plugin.json'), JSON.stringify({ name: manifest }))
+		mkdirSync(join(root, dir, 'references'), { recursive: true })
+		for (const [name, content] of Object.entries(documents)) write(root, join(dir, 'references', `${name}.md`), content)
 	}
 }
 
-async function withPlatform(platform: NodeJS.Platform, programData: string, run: () => Promise<void>): Promise<void> {
-	const originalPlatform = process.platform
-	const originalProgramData = process.env['ProgramData']
-	Object.defineProperty(process, 'platform', { value: platform, configurable: true })
-	process.env['ProgramData'] = programData
-	try {
-		await run()
-	} finally {
-		Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true })
-		if (originalProgramData === undefined) delete process.env['ProgramData']
-		else process.env['ProgramData'] = originalProgramData
-	}
+/** Plugins named as their packages. */
+function plugins(root: string, documents: Record<string, Record<string, string>>): void {
+	dependencies(
+		root,
+		Object.fromEntries(Object.entries(documents).map(([name, docs]) => [name, { manifest: name, documents: docs }])),
+	)
 }
+
+/** A skill folder holding `SKILL.md` and its defaults. */
+function skill(root: string, folder: string, defaults: Record<string, string> = {}, name = folder): string {
+	const dir = join(root, folder)
+	write(dir, 'SKILL.md', `---\nname: ${name}\ndescription: a skill\n---\n\n# Skill\n`)
+	for (const [ref, content] of Object.entries(defaults)) write(dir, `references/${ref}.default.md`, content)
+	return dir
+}
+
+function managed(documents: Record<string, string>): string {
+	const dir = tempDir('reference-managed-')
+	harness.candidates = ['claude-code']
+	harness.managed = [{ kind: 'file', location: join(dir, 'managed-settings.json'), description: '', research: '' }]
+	for (const [name, content] of Object.entries(documents)) write(dir, `references/${name}.md`, content)
+	return dir
+}
+
+const base = '## Create\n\nbase create\n\n## Close\n\nbase close\n'
 
 beforeEach(() => {
 	fakeHome.value = tempDir('reference-home-')
+	rmSync(join(hostRoot, 'references'), { recursive: true, force: true })
 	failure.value = undefined
 	harness.candidates = []
 	harness.managed = undefined
-	harness.allPolicyRead = false
 	stdout.mockClear()
 	stderr.mockClear()
 	process.exitCode = undefined
@@ -244,1819 +207,1040 @@ afterEach(() => {
 	process.exitCode = undefined
 })
 
-// ── tiers ──
-
-describe('tiers', () => {
-	it('resolves managed over project over user over plugin', async () => {
-		const programData = tempDir('reference-programdata-')
-		await withPlatform('win32', programData, async () => {
-			const root = repo()
-			declareDependency(root, 'dep-a')
-			installDependency(root, 'dep-a', { name: 'plugin\n' })
-			write(root, '.agents/references/name.md', 'project\n')
-			write(fakeHome.value, '.agents/references/name.md', 'user\n')
-			const managedPath = write(managedReferencesDir('win32', programData), 'name.md', 'managed\n')
-
-			expect(await show(['name'], { root })).toBe(0)
-			expect(written()).toBe('managed\n')
-
-			rmSync(managedPath)
-			stdout.mockClear()
-			expect(await show(['name'], { root })).toBe(0)
-			expect(written()).toBe('project\n')
-
-			rmSync(join(root, '.agents/references/name.md'))
-			stdout.mockClear()
-			expect(await show(['name'], { root })).toBe(0)
-			expect(written()).toBe('user\n')
-
-			rmSync(join(fakeHome.value, '.agents/references/name.md'))
-			stdout.mockClear()
-			expect(await show(['name'], { root })).toBe(0)
-			expect(written()).toBe('plugin\n')
-		})
-	})
-
-	it("reads references beside each detected harness's managed files, above the project tier", async () => {
-		const claude = tempDir('reference-claude-managed-')
-		const codex = tempDir('reference-codex-managed-')
-		harness.candidates = ['claude-code', 'codex']
-		harness.managed = [
-			{ kind: 'file', location: join(claude, 'managed-settings.json'), description: '', research: '' },
-			{ kind: 'directory', location: join(claude, 'managed-settings.d'), description: '', research: '' },
-			{ kind: 'file', location: join(codex, 'requirements.toml'), description: '', research: '' },
-		]
-		const root = repo()
-		const projectPath = write(root, '.agents/references/name.md', 'project\n')
-		const claudePath = write(claude, 'references/name.md', 'claude\n')
-		const codexPath = write(codex, 'references/name.md', 'codex\n')
-		write(claude, 'managed-settings.d/references/name.md', 'drop-in\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe('claude\n')
-
-		rmSync(claudePath)
-		stdout.mockClear()
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe('codex\n')
-
-		rmSync(codexPath)
-		stdout.mockClear()
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe('project\n')
-
-		rmSync(projectPath)
-		stdout.mockClear()
-		expect(await show(['name'], { root })).toBe(1)
-	})
-
-	it('skips managed policy that cannot be read locally, and says so in the trace', async () => {
-		harness.candidates = ['claude-code']
-		harness.managed = [
-			{ kind: 'macos-managed-preferences', location: 'com.anthropic.claudecode', description: '', research: '' },
-			{ kind: 'server', location: 'claude.ai admin console', description: '', research: '' },
-		]
-		const root = repo()
-		write(root, '.agents/references/name.md', 'project\n')
-
-		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		const skipped = entry?.trace?.filter((step) => step.outcome.startsWith('not read'))
-		expect(skipped?.map((step) => step.path)).toEqual(
-			expect.arrayContaining(['com.anthropic.claudecode', 'claude.ai admin console']),
-		)
-		expect(skipped?.find((step) => step.path === 'com.anthropic.claudecode')?.outcome).toMatch(
-			/claude-code keeps this policy in a macOS managed-preferences domain delivered by MDM, which cannot be read locally/,
-		)
-		expect(skipped?.every((step) => !step.found)).toBe(true)
-	})
-
-	it('says in the trace that no harness was detected', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', 'project\n')
-
-		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry?.trace?.find((step) => step.path === '(no harness detected)')?.outcome).toMatch(
-			/^not read — no harness detected/,
-		)
-	})
-
-	it('reads references from each plugin the harness has enabled', async () => {
-		harness.candidates = ['claude-code']
-		const alpha = tempDir('reference-alpha-')
-		const beta = tempDir('reference-beta-')
-		write(alpha, 'references/testing.md', 'alpha\n')
-		write(beta, 'references/style.md', 'beta\n')
-		write(fakeHome.value, '.claude/settings.json', JSON.stringify({ enabledPlugins: { 'alpha@market': true } }))
-		write(
-			fakeHome.value,
-			'.claude/plugins/installed_plugins.json',
-			JSON.stringify({
-				version: 2,
-				plugins: {
-					'alpha@market': [{ scope: 'user', installPath: alpha }],
-					'beta@market': [{ scope: 'user', installPath: beta }],
-				},
-			}),
-		)
-		const root = repo()
-
-		expect(await show(['testing'], { root, format: 'json' })).toBe(0)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry).toMatchObject({ tier: 'plugin', plugin: 'alpha', content: 'alpha\n' })
-
-		stdout.mockClear()
-		expect(await show(['alpha/testing'], { root })).toBe(0)
-		expect(written()).toBe('alpha\n')
-	})
-
-	it('never reads a plugin the harness has installed but not enabled', async () => {
-		harness.candidates = ['claude-code']
-		const beta = tempDir('reference-beta-')
-		write(beta, 'references/style.md', 'beta\n')
-		write(fakeHome.value, '.claude/settings.json', JSON.stringify({ enabledPlugins: { 'gamma@market': false } }))
-		write(
-			fakeHome.value,
-			'.claude/plugins/installed_plugins.json',
-			JSON.stringify({ version: 2, plugins: { 'beta@market': [{ scope: 'user', installPath: beta }] } }),
-		)
-		const root = repo()
-
-		expect(await list({ root, format: 'json' })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceListReport
-		expect(report.layers.some((layer) => layer.plugin === 'beta')).toBe(false)
-		expect(JSON.stringify(report.references)).not.toContain('style')
-
-		stdout.mockClear()
-		expect(await show(['style'], { root })).toBe(1)
-	})
-
-	it('adds no policy layer when every source that can enable a plugin was read', async () => {
-		harness.candidates = ['claude-code']
-		harness.allPolicyRead = true
-		const root = repo()
-
-		expect(await list({ root, format: 'json' })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceListReport
-		expect(report.layers.some((layer) => layer.path === '(claude-code plugin policy)')).toBe(false)
-	})
-
-	it('skips an enabled plugin with no install folder, and says so in the trace', async () => {
-		harness.candidates = ['claude-code']
-		write(fakeHome.value, '.claude/settings.json', JSON.stringify({ enabledPlugins: { 'alpha@market': true } }))
-		const root = repo()
-
-		expect(await show(['alpha/testing'], { root, format: 'json', trace: true })).toBe(1)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry?.trace?.find((step) => step.plugin === 'alpha')).toMatchObject({
-			path: '(alpha@market)',
-			found: false,
-			outcome: 'not read — enabled in claude-code, but no install folder for this project is recorded',
-		})
-	})
-
-	it('falls through to the highest tier that holds the name', async () => {
-		const root = repo()
-		declareDependency(root, 'dep-a')
-		installDependency(root, 'dep-a', { name: 'plugin\n' })
-		write(fakeHome.value, '.agents/references/name.md', 'user\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe('user\n')
-	})
-
-	it('orders the managed layers references, then governances, then the deprecated one', async () => {
-		const programData = tempDir('reference-programdata-')
-		await withPlatform('win32', programData, async () => {
-			const root = repo()
-			const referencesPath = write(managedReferencesDir('win32', programData), 'name.md', 'references-tier\n')
-			const governancesPath = write(managedGovernancesDir('win32', programData), 'name.md', 'governances-tier\n')
-			write(deprecatedManagedGovernancesDir('win32', programData), 'name.md', 'deprecated-tier\n')
-
-			expect(await show(['name'], { root })).toBe(0)
-			expect(written()).toBe('references-tier\n')
-
-			rmSync(referencesPath)
-			stdout.mockClear()
-			expect(await show(['name'], { root })).toBe(0)
-			expect(written()).toBe('governances-tier\n')
-
-			rmSync(governancesPath)
-			stdout.mockClear()
-			expect(await show(['name'], { root })).toBe(0)
-			expect(written()).toBe('deprecated-tier\n')
-		})
-	})
-
-	it('passes over a layer that is not a folder and asks the next', async () => {
-		const root = repo()
-		mkdirSync(join(root, '.agents'), { recursive: true })
-		writeFileSync(join(root, '.agents', 'references'), 'not a directory')
-		write(fakeHome.value, '.agents/references/name.md', 'user\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe('user\n')
-	})
-
-	it('walks the project tier up to the workspace root, the nearest layer first', async () => {
-		const outside = tempDir('reference-outside-')
-		const base = join(outside, 'repo')
-		mkdirSync(base)
-		markRoot(base)
-		const root = join(base, 'packages', 'pkg-a')
-		write(outside, '.agents/references/name.md', 'outside\n')
-		write(outside, '.agents/references/outside-only.md', 'outside\n')
-		write(base, '.agents/references/name.md', 'workspace\n')
-		const nearest = write(root, '.agents/references/name.md', 'package\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe('package\n')
-
-		rmSync(nearest)
-		stdout.mockClear()
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe('workspace\n')
-
-		stdout.mockClear()
-		expect(await list({ root, format: 'json' })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceListReport
-		expect(report.layers.filter((layer) => layer.tier === 'project').map((layer) => layer.path)).toEqual([
-			join(root, '.agents', 'references'),
-			join(root, '.agents', 'governances'),
-			join(base, 'packages', '.agents', 'references'),
-			join(base, 'packages', '.agents', 'governances'),
-			join(base, '.agents', 'references'),
-			join(base, '.agents', 'governances'),
-		])
-		expect(JSON.stringify(report.references)).not.toContain('outside-only')
-	})
-
-	it('stops the walk at the git root or a package.json declaring workspaces', async () => {
-		for (const mark of [
-			(dir: string) => mkdirSync(join(dir, '.git')),
-			(dir: string) => write(dir, 'package.json', JSON.stringify({ workspaces: ['packages/*'] })),
-		]) {
-			const outside = tempDir('reference-outside-')
-			const base = join(outside, 'repo')
-			mkdirSync(base)
-			mark(base)
-			const root = join(base, 'pkg')
-			mkdirSync(root)
-			write(outside, '.agents/references/outside-only.md', 'outside\n')
-			write(base, '.agents/references/name.md', 'repository\n')
-
-			stdout.mockClear()
-			expect(await show(['name'], { root })).toBe(0)
-			expect(written()).toBe('repository\n')
-			stdout.mockClear()
-			expect(await show(['outside-only'], { root })).toBe(1)
-		}
-	})
-
-	it('reads the root alone when no repository root is above it', async () => {
-		const outside = tempDir('reference-outside-')
-		const root = join(outside, 'pkg')
-		mkdirSync(root)
-		write(outside, '.agents/references/name.md', 'outside\n')
-
-		expect(await show(['name'], { root })).toBe(1)
-		expect(written()).toBe('')
-	})
-
-	it("reads a declared dependency's references as a plugin", async () => {
-		const root = repo()
-		declareDependency(root, 'dep-a')
-		installDependency(root, 'dep-a', { testing: '# Testing\n' })
-
-		expect(await show(['testing'], { root, format: 'json' })).toBe(0)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry?.status).toBe('found')
-		expect(entry?.tier).toBe('plugin')
-		expect(entry?.plugin).toBe('dep-a')
-		expect(entry?.content).toBe('# Testing\n')
-	})
-
-	it('never reads a package the repository did not declare', async () => {
-		const root = repo()
-		declareDependency(root, 'dep-a')
-		installDependency(root, 'dep-a', { testing: '# dep-a\n' })
-		installDependency(root, 'dep-b', { testing: '# dep-b\n' })
-
-		expect(await list({ root, format: 'json' })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceListReport
-		expect(JSON.stringify(report.references)).not.toContain('dep-b')
-	})
-
-	it('reports a name two plugins hold as ambiguous, naming both', async () => {
-		const root = repo()
-		declareDependency(root, 'dep-a')
-		write(root, 'package.json', JSON.stringify({ dependencies: { 'dep-a': '1.0.0', 'dep-b': '1.0.0' } }))
-		installDependency(root, 'dep-a', { testing: '# dep-a\n' })
-		installDependency(root, 'dep-b', { testing: '# dep-b\n' })
-
-		expect(await show(['testing'], { root, format: 'json' })).toBe(1)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry?.status).toBe('ambiguous')
-		expect(entry?.plugins).toEqual(['dep-a/testing', 'dep-b/testing'])
-	})
-
-	it('resolves a qualified name at that plugin, with the tiers above still overriding it', async () => {
-		const root = repo()
-		write(root, 'package.json', JSON.stringify({ dependencies: { 'dep-a': '1.0.0', 'dep-b': '1.0.0' } }))
-		installDependency(root, 'dep-a', { testing: '# dep-a\n' })
-		installDependency(root, 'dep-b', { testing: '# dep-b\n' })
-
-		expect(await show(['dep-a/testing'], { root })).toBe(0)
-		expect(written()).toBe('# dep-a\n')
-
-		write(root, '.agents/references/testing.md', '# project\n')
-		stdout.mockClear()
-		expect(await show(['dep-a/testing'], { root })).toBe(0)
-		expect(written()).toBe('# project\n')
-	})
-
-	it('answers a qualified name from the tiers above when the plugin is not a dependency', async () => {
-		const root = repo()
-		write(root, '.agents/references/testing.md', '# project\n')
-
-		expect(await show(['other/testing'], { root, format: 'json', trace: true })).toBe(0)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry?.status).toBe('found')
-		expect(entry?.content).toBe('# project\n')
-		const pluginStep = entry?.trace?.find((step) => step.plugin === 'other')
-		expect(pluginStep?.found).toBe(false)
-	})
-})
-
-// ── file names ──
-
-describe('file names', () => {
-	it('resolves each file-name candidate', async () => {
-		const forms: [string, string][] = [
-			['name.md', 'name.md'],
-			['name/README.md', 'name/README.md'],
-			['name/index.md', 'name/index.md'],
-			['name/SKILL.md', 'name/SKILL.md'],
-		]
-		for (const [relPath, candidate] of forms) {
-			const root = repo()
-			write(root, join('.agents', 'references', relPath), '# doc\n')
-
-			expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
-			const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-			expect(entry?.content).toBe('# doc\n')
-			const step = entry?.trace?.find((s) => s.found)
-			expect(step?.candidate).toBe(candidate)
-			stdout.mockClear()
-		}
-	})
-
-	it('prefers the earlier candidate in one layer and warns', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# top level\n')
-		write(root, '.agents/references/name/README.md', '# folder form\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe('# top level\n')
-		expect(stderrLines().some((line) => line.includes('is ignored'))).toBe(true)
-
-		stdout.mockClear()
-		stderr.mockClear()
-		expect(await list({ root, format: 'json' })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceListReport
-		expect(report.warnings?.some((warning) => warning.includes('is ignored'))).toBe(true)
-	})
-})
-
-// ── merge modes ──
-
-describe('merge modes', () => {
-	it('returns the highest document whole and shadows the rest', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# project\n')
-		write(fakeHome.value, '.agents/references/name.md', '# user\n')
-
-		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry?.content).toBe('# project\n')
-		const userStep = entry?.trace?.find((step) => step.tier === 'user' && step.found)
-		expect(userStep?.outcome).toBe('shadowed by project (first-wins)')
-	})
-
-	it('returns every layer whole, labeled, highest first', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '---\nmerge: combine\n---\n# project\n')
-		write(fakeHome.value, '.agents/references/name.md', '# user\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		const content = written()
-		expect(content).toContain(
-			'Combined from 2 layers, highest precedence first. Where they conflict, the first layer wins.',
-		)
-		const projectIndex = content.indexOf('# project')
-		const userIndex = content.indexOf('# user')
-		expect(projectIndex).toBeGreaterThan(-1)
-		expect(userIndex).toBeGreaterThan(projectIndex)
-		expect(content).toMatch(/<!-- layer: project .*-->/)
-		expect(content).toMatch(/<!-- layer: user .*-->/)
-	})
-
-	it('replaces a matched section and its subsections', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '---\nmerge: merge-sections\n---\n## Testing\n\nproject body\n')
-		write(
-			fakeHome.value,
-			'.agents/references/name.md',
-			'## Testing\n\nuser body\n\n### Fixtures\n\nuser fixture\n\n## Other\n\nkept\n',
-		)
-
-		expect(await show(['name'], { root })).toBe(0)
-		const content = written()
-		expect(content).toContain('project body')
-		expect(content).not.toContain('user body')
-		expect(content).not.toContain('Fixtures')
-		expect(content).toContain('## Other')
-	})
-
-	it('keeps both bodies and merges subsections when a section says combine', async () => {
-		const root = repo()
-		write(
-			root,
-			'.agents/references/name.md',
-			'---\nmerge: merge-sections\n---\n## Testing\n<!-- merge: combine -->\n\nproject body\n\n### Fixtures\n\nproject fixtures\n\n### Mocks\n<!-- merge: remove -->\n',
-		)
-		write(
-			fakeHome.value,
-			'.agents/references/name.md',
-			'## Testing\n\nuser body\n\n### Fixtures\n\nuser fixtures\n\n### Mocks\n\nuser mocks\n\n### Coverage\n\nuser coverage\n',
-		)
-
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe(
-			'## Testing\n\nuser body\n\nproject body\n\n### Fixtures\n\nproject fixtures\n\n### Coverage\n\nuser coverage\n',
-		)
-	})
-
-	it('drops a section marked remove', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '---\nmerge: merge-sections\n---\n## Legacy\n<!-- merge: remove -->\n')
-		write(fakeHome.value, '.agents/references/name.md', '## Legacy\n\nold content\n\n## Keep\n\nstays\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		const content = written()
-		expect(content).not.toContain('## Legacy')
-		expect(content).toContain('## Keep')
-	})
-
-	it('appends a new section after its last sibling, keeping base order', async () => {
-		const root = repo()
-		write(
-			root,
-			'.agents/references/name.md',
-			'---\nmerge: merge-sections\n---\n## Testing\n<!-- merge: combine -->\n\n### New\n\nadded\n',
-		)
-		write(
-			fakeHome.value,
-			'.agents/references/name.md',
-			'## Testing\n\nbase\n\n### Existing\n\nkept\n\n## Later\n\nafter\n',
-		)
-
-		expect(await show(['name'], { root })).toBe(0)
-		const content = written()
-		const existingIndex = content.indexOf('### Existing')
-		const newIndex = content.indexOf('### New')
-		const laterIndex = content.indexOf('## Later')
-		expect(existingIndex).toBeGreaterThan(-1)
-		expect(newIndex).toBeGreaterThan(existingIndex)
-		expect(laterIndex).toBeGreaterThan(newIndex)
-	})
-
-	it('ignores headings inside code fences', async () => {
-		const root = repo()
-		write(
-			root,
-			'.agents/references/name.md',
-			'---\nmerge: merge-sections\n---\n## Testing\n\n```\n## not a heading\n```\n\nproject body\n',
-		)
-		write(fakeHome.value, '.agents/references/name.md', '## Testing\n\nbase body\n\n## Not a heading\n\nbase kept\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		const content = written()
-		expect(content).toContain('```\n## not a heading\n```\n\nproject body')
-		expect(content).toContain('## Not a heading\n\nbase kept')
-		expect(content).not.toContain('base body')
-	})
-
-	it('matches headings regardless of case and surrounding whitespace', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '---\nmerge: merge-sections\n---\n##   testing  \n\noverlay body\n')
-		write(fakeHome.value, '.agents/references/name.md', '## Testing\n\nbase body\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		const content = written()
-		expect(content).toContain('overlay body')
-		expect(content).not.toContain('base body')
-	})
-
-	it('treats text before the first heading as its own section', async () => {
-		const root = repo()
-		write(
-			root,
-			'.agents/references/name.md',
-			'---\nmerge: merge-sections\n---\noverlay preamble\n\n## Testing\n\nbody\n',
-		)
-		write(fakeHome.value, '.agents/references/name.md', 'base preamble\n\n## Testing\n\nbase body\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toContain('overlay preamble')
-		expect(written()).not.toContain('base preamble')
-
-		stdout.mockClear()
-		const root2 = repo()
-		write(root2, '.agents/references/name.md', '---\nmerge: merge-sections\n---\n## Testing\n\nbody\n')
-		write(fakeHome.value, '.agents/references/name.md', 'base preamble\n\n## Testing\n\nbase body\n')
-
-		expect(await show(['name'], { root: root2 })).toBe(0)
-		expect(written()).toContain('base preamble')
-	})
-
-	it('warns when a merge comment matches nothing or a heading path repeats', async () => {
-		const root = repo()
-		write(
-			root,
-			'.agents/references/name.md',
-			'---\nmerge: merge-sections\n---\n## Testing\n\noverlay body\n\n## Missing\n<!-- merge: remove -->\n',
-		)
-		write(fakeHome.value, '.agents/references/name.md', '## Testing\n\nfirst\n\n## Testing\n\nsecond\n')
-
-		expect(await show(['name'], { root, format: 'json' })).toBe(0)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		const warnings = (entry?.warnings ?? []).join(' ')
-		expect(warnings).toContain('matches no section below')
-		expect(warnings).toContain('appears more than once')
-		expect(entry?.content).toBe('## Testing\n\noverlay body\n\n## Testing\n\nsecond\n')
-	})
-
-	it('applies layers bottom-up', async () => {
-		const root = repo()
-		declareDependency(root, 'dep-a')
-		installDependency(root, 'dep-a', { name: '## Testing\n\nplugin body\n' })
-		write(fakeHome.value, '.agents/references/name.md', '---\nmerge: merge-sections\n---\n## Testing\n\nuser body\n')
-		write(root, '.agents/references/name.md', '---\nmerge: merge-sections\n---\n## Testing\n\nproject body\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		const content = written()
-		expect(content).toContain('project body')
-		expect(content).not.toContain('plugin body')
-		expect(content).not.toContain('user body')
-	})
-
-	it('adds a trailing newline when the document has none', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# project')
-
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe('# project\n')
-	})
-
-	it('adds no second newline when the document has one', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# project\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe('# project\n')
-	})
-
-	it('strips frontmatter and merge comments from text output and returns frontmatter as metadata', async () => {
-		const root = repo()
-		write(
-			root,
-			'.agents/references/name.md',
-			'---\ndescription: about testing\n---\n## Testing\n<!-- merge: replace -->\n\nbody\n',
-		)
-
-		expect(await show(['name'], { root })).toBe(0)
-		const text = written()
-		expect(text).not.toContain('description: about testing')
-		expect(text).not.toContain('merge: replace')
-
-		stdout.mockClear()
-		expect(await show(['name'], { root, format: 'json' })).toBe(0)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry?.metadata).toEqual({ description: 'about testing' })
-	})
-
-	it('treats an unknown merge mode as first-wins, with a warning', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '---\nmerge: overlay\n---\n# project\n')
-		write(fakeHome.value, '.agents/references/name.md', '# user\n')
-
-		expect(await show(['name'], { root, format: 'json' })).toBe(0)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry?.content).toBe('# project\n')
-		expect((entry?.warnings ?? []).some((warning) => warning.includes('unknown merge mode'))).toBe(true)
-	})
-})
-
-describe('the monorepo walk', () => {
-	it('merges project layers farthest first', async () => {
-		const base = repo()
-		markRoot(base)
-		const root = join(base, 'pkg')
-		write(base, '.agents/references/name.md', '## A\n\nworkspace A\n\n## B\n\nworkspace B\n\n## C\n\nworkspace C\n')
-		write(
-			root,
-			'.agents/references/name.md',
-			'---\nmerge: merge-sections\n---\n## A\n\npackage A\n\n## B\n\npackage B\n',
-		)
-
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe('## A\n\npackage A\n\n## B\n\npackage B\n\n## C\n\nworkspace C\n')
-	})
-})
-
-// ── show output ──
-
-describe('show output', () => {
-	it('writes a single document and nothing else', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# doc\n')
-
-		expect(await show(['name'], { root })).toBe(0)
-		expect(written()).toBe('# doc\n')
-	})
-
-	it('writes several documents between delimiters in the order asked', async () => {
-		const root = repo()
-		write(root, '.agents/references/a.md', '# a\n')
-		write(root, '.agents/references/b.md', '# b\n')
-		write(root, '.agents/references/c.md', '# c\n')
-
-		expect(await show(['c', 'a', 'b'], { root })).toBe(0)
-		const content = written()
-		expect(content.indexOf('name="c"')).toBeLessThan(content.indexOf('name="a"'))
-		expect(content.indexOf('name="a"')).toBeLessThan(content.indexOf('name="b"'))
-	})
-
-	it('reports a missing name in place and exits non-zero', async () => {
-		const root = repo()
-		write(root, '.agents/references/a.md', '# a\n')
-		write(root, '.agents/references/b.md', '# b\n')
-
-		expect(await show(['a', 'missing', 'b'], { root })).toBe(1)
-		const content = written()
-		expect(content).toContain('name="a"')
-		expect(content).toContain('name="b"')
-		expect(content).toContain('name="missing" status="missing"')
-		expect(content.indexOf('name="a"')).toBeLessThan(content.indexOf('name="missing"'))
-		expect(content.indexOf('name="missing"')).toBeLessThan(content.indexOf('name="b"'))
-		expect(stderrLines().some((line) => line.includes('no reference named "missing"'))).toBe(true)
-	})
-
-	it('returns an array in the order asked', async () => {
-		const root = repo()
-		write(root, '.agents/references/a.md', '# a\n')
-
-		expect(await show(['a', 'missing'], { root, format: 'json' })).toBe(1)
-		const entries = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entries.map((entry) => entry.status)).toEqual(['found', 'missing'])
-	})
-
-	it('suggests close names on a miss and never answers with one', async () => {
-		const root = repo()
-		write(root, '.agents/references/testing.md', '# testing\n')
-
-		expect(await show(['testin'], { root, format: 'json' })).toBe(1)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry?.status).toBe('missing')
-		expect(entry?.content).toBeUndefined()
-		expect(entry?.suggestions).toContain('testing')
-	})
-
-	it('traces every path checked, the candidate, the merge mode, and why a layer was dropped', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# project\n')
-		write(fakeHome.value, '.agents/references/name.md', '# user\n')
-
-		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry?.trace?.length).toBeGreaterThan(1)
-		const userStep = entry?.trace?.find((step) => step.tier === 'user' && step.found)
-		expect(userStep?.outcome).toBe('shadowed by project (first-wins)')
-		const projectStep = entry?.trace?.find((step) => step.tier === 'project' && step.found)
-		expect(projectStep?.candidate).toBe('name.md')
-		expect(projectStep?.merge).toBe('first-wins')
-		expect(projectStep?.outcome).toBe('used')
-		const emptyStep = entry?.trace?.find((step) => !step.found)
-		expect(emptyStep).toBeDefined()
-	})
-
-	it('writes the trace to stderr in text so stdout stays the document', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# doc\n')
-
-		expect(await show(['name'], { root, trace: true })).toBe(0)
-		expect(written()).toBe('# doc\n')
-		expect(stderrLines().some((line) => line.includes('trace name'))).toBe(true)
-	})
-
-	it('rejects a name that is a path', async () => {
-		const root = repo()
-
-		expect(await show(['../escape'], { root })).toBe(1)
-		expect(stdout).not.toHaveBeenCalled()
-		expect(stderrLines().some((line) => line.includes('is not a reference name'))).toBe(true)
-
-		stderr.mockClear()
-		expect(await show(['a\\b'], { root })).toBe(1)
-		expect(stderrLines().some((line) => line.includes('is not a reference name'))).toBe(true)
-
-		stderr.mockClear()
-		expect(await show(['name.md'], { root })).toBe(1)
-		expect(stderrLines().some((line) => line.includes('names a file'))).toBe(true)
-	})
-})
-
-// ── list ──
-
-describe('list', () => {
-	it('keeps only the names a pattern matches, and says so when none do', async () => {
-		const root = repo()
-		write(root, '.agents/references/tracker.capabilities.github.md', '# github\n')
-		write(root, '.agents/references/other.md', '# other\n')
-
-		expect(await list({ root, pattern: 'tracker.capabilities.*' })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceListReport
-		expect((report.references as { name: string }[]).map(({ name }) => name)).toEqual(['tracker.capabilities.github'])
-
-		stdout.mockClear()
-		expect(await list({ root, pattern: 'nothing.*' })).toBe(0)
-		expect((JSON.parse(written()) as ReferenceListReport).references).toBe('0 references match "nothing.*"')
-	})
-
-	it('lists every layer in precedence order, with the legacy layers marked', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# project\n')
-
-		expect(await list({ root, format: 'json' })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceListReport
-		const tiers = report.layers.map((layer) => layer.tier)
-		const firstUser = tiers.indexOf('user')
-		const firstPlugin = tiers.indexOf('plugin')
-		expect(tiers[0]).toBe('managed')
-		expect(tiers.indexOf('project')).toBeGreaterThan(tiers.lastIndexOf('managed'))
-		expect(firstUser).toBeGreaterThan(tiers.lastIndexOf('project'))
-		expect(firstPlugin).toBeGreaterThan(tiers.lastIndexOf('user'))
-
-		for (const layer of report.layers) {
-			if (layer.path.endsWith('universal-plugin/governances') || layer.path.endsWith('UniPlugin/governances')) {
-				expect(layer.status).toContain('deprecated')
-			} else if (layer.path.endsWith('governances')) expect(layer.status).toContain('legacy')
-			else if (layer.path === '(no harness detected)') expect(layer.status).toMatch(/^not read/)
-			else expect(layer.status).toBe('')
-		}
-		expect(report.layers.filter((layer) => layer.status.includes('legacy')).map((layer) => layer.tier)).toEqual(
-			expect.arrayContaining(['managed', 'project', 'user', 'plugin']),
-		)
-		expect(report.layers.filter((layer) => layer.status.includes('deprecated'))).toHaveLength(1)
-	})
-
-	it('marks shadowed layers in the listing', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# project\n')
-		write(fakeHome.value, '.agents/references/name.md', '# user\n')
-
-		expect(await list({ root, format: 'json' })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceListReport
-		const rows = report.references as { tier: string; status: string }[]
-		expect(rows.find((row) => row.tier === 'project')?.status).toBe('used')
-		expect(rows.find((row) => row.tier === 'user')?.status).toBe('shadowed by project (first-wins)')
-	})
-
-	it('states the zero when no layer holds a reference', async () => {
-		const root = repo()
-		// This package ships references of its own, so list from a plugin with none.
-		const empty = createReferenceCommands({ plugin: { name: 'empty', root: tempDir('reference-empty-plugin-') } }).list
-
-		expect(await exec(empty, { format: 'json', root })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceListReport
-		expect(report.references).toBe('0 references — no layer holds one')
-	})
-})
-
-// ── search ──
-
-describe('search', () => {
-	it('ranks exact name, prefix, close name, description, heading, then body', async () => {
-		const root = repo()
-		write(root, '.agents/references/test.md', '# exact\n')
-		write(root, '.agents/references/testing.md', '# prefix\n')
-		write(root, '.agents/references/best.md', '# close name\n')
-		write(root, '.agents/references/alpha.md', '---\ndescription: covers test coverage\n---\n# alpha\n')
-		write(root, '.agents/references/beta.md', '# Testing checklist\n\nnothing else relevant here\n')
-		write(root, '.agents/references/gamma.md', '# gamma\n\nthis paragraph mentions a test in passing\n')
-
-		expect(await search('test', { root, format: 'json' })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceSearchReport
-		const matches = report.references as { name: string; tier: string; match: string; description: string }[]
-		expect(matches.every((match) => match.tier === 'project')).toBe(true)
-		expect(matches.map((match) => match.description)).toEqual(['', '', '', 'covers test coverage', '', ''])
-		expect(matches.map((match) => match.name)).toEqual(['test', 'testing', 'best', 'alpha', 'beta', 'gamma'])
-		expect(matches.map((match) => match.match)).toEqual([
-			'name',
-			'prefix',
-			'close name',
-			'description',
-			'heading',
-			'body',
-		])
-	})
-
-	it('states the zero when nothing matches', async () => {
-		const root = repo()
-		write(root, '.agents/references/testing.md', '# testing\n\nabout testing\n')
-
-		expect(await search('unrelated-topic', { root, format: 'json' })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceSearchReport
-		expect(report.references).toBe('0 references match "unrelated-topic"')
-	})
-})
-
-// ── legacy ──
-
-describe('legacy', () => {
-	it('reads legacy governances folders below references in the same tier', async () => {
-		const alone = repo()
-		write(alone, '.agents/governances/testing.md', '# governances alone\n')
-
-		expect(await show(['testing'], { root: alone })).toBe(0)
-		expect(written()).toBe('# governances alone\n')
-
-		stdout.mockClear()
-		const both = repo()
-		write(both, '.agents/references/testing.md', '# references wins\n')
-		write(both, '.agents/governances/testing.md', '# governances loses\n')
-
-		expect(await show(['testing'], { root: both })).toBe(0)
-		expect(written()).toBe('# references wins\n')
-	})
-})
-
-// Not scenarios of their own: branches the feature's scenarios don't reach, needed for full
-// statement/branch coverage of reference.command.ts.
-describe('coverage: edge cases outside the feature', () => {
-	it('resolves --root against the working directory when none is named', async () => {
-		expect(await list({ format: 'json' })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceListReport
-		expect(report.layers.length).toBeGreaterThan(0)
-	})
-
-	it('writes nothing to stdout for a single name that resolves to nothing', async () => {
-		const root = repo()
-
-		expect(await show(['missing'], { root })).toBe(1)
-		expect(stdout).not.toHaveBeenCalled()
-	})
-
-	it('rejects an empty name list', async () => {
-		const root = repo()
-
-		expect(await show([], { root })).toBe(1)
-		expect(stderrLines().some((line) => line.includes('Name at least one reference'))).toBe(true)
-	})
-
-	it('rejects a blank search query', async () => {
-		const root = repo()
-
-		expect(await search('   ', { root })).toBe(1)
-		expect(stderrLines().some((line) => line.includes('Search needs a query'))).toBe(true)
-	})
-
-	it('reports a show failure it cannot read a message from', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# doc\n')
-		failure.value = 'unavailable'
-
-		expect(await show(['name'], { root })).toBe(1)
-		expect(stderrLines()).toContain('error: Reference lookup failed.\n')
-	})
-
-	it('reports a list failure it cannot read a message from', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# doc\n')
-		failure.value = 'unavailable'
-
-		expect(await list({ root })).toBe(1)
-		expect(stderrLines()).toContain('error: Reference listing failed.\n')
-	})
-
-	it('reports a search failure it cannot read a message from', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# doc\n')
-		failure.value = 'unavailable'
-
-		expect(await search('name', { root })).toBe(1)
-		expect(stderrLines()).toContain('error: Reference search failed.\n')
-	})
-})
-
-// ── where ──
-
-describe('where', () => {
-	it('lists the project and user slots, in precedence order, marking used and shadowed', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '# project\n')
-		write(fakeHome.value, '.agents/references/name.md', '# user\n')
-
-		expect(await where('name', { root })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceWhereReport
-		expect(report.root).toBe(root)
-		expect(report.slots).toEqual([
-			{
-				layer: 'project',
-				path: '.agents/references/name.md',
-				status: 'used',
-				scope: 'everyone working in this repository',
-			},
-			{
-				layer: 'user',
-				path: '~/.agents/references/name.md',
-				status: 'shadowed',
-				scope: 'only you, in every repository',
-			},
-		])
-		expect(report.merge).toContain('merge-sections')
-	})
-
-	it('names the file in an empty slot and leaves out superseded layers', async () => {
-		const root = repo()
-
-		expect(await where('name', { root })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceWhereReport
-		const empty = report.slots.find((slot) => slot.layer === 'project')
-		expect(empty).toMatchObject({ status: 'empty', path: '.agents/references/name.md' })
-		expect(report.slots.some((slot) => slot.path.includes('governances'))).toBe(false)
-		expect(report.warnings).toBeUndefined()
-	})
-
-	it('shows a legacy folder while a copy there is still read', async () => {
-		const root = repo()
-		const legacy = write(root, '.agents/governances/name.md', '# legacy\n')
-
-		expect(await where('name', { root })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceWhereReport
-		expect(report.slots.find((slot) => slot.path === relative(root, legacy))?.status).toBe('used')
-	})
-
-	it('shows a plugin only while it ships the name, and leaves out the managed tier', async () => {
-		const root = repo()
-		harness.allPolicyRead = false
-		write(root, 'package.json', JSON.stringify({ dependencies: { 'dep-a': '1.0.0', 'dep-b': '1.0.0' } }))
-		installDependency(root, 'dep-a', { name: '# dep-a\n' })
-		installDependency(root, 'dep-b', { other: '# dep-b\n' })
-
-		expect(await where('name', { root })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceWhereReport
-		expect(report.slots.map((slot) => [slot.layer, slot.status])).toEqual([
-			['project', 'empty'],
-			['user', 'empty'],
-			['plugin dep-a', 'used'],
-		])
-	})
-
-	it('reports a name nothing holds as success, and a warning the resolution raised', async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '---\nmerge: bogus\n---\n# doc\n')
-
-		expect(await where('name', { root })).toBe(0)
-		expect((JSON.parse(written()) as ReferenceWhereReport).warnings?.length).toBeGreaterThan(0)
-	})
-
-	it('names the choices and fails for an ambiguous name', async () => {
-		const root = repo()
-		write(root, 'package.json', JSON.stringify({ dependencies: { 'dep-a': '1.0.0', 'dep-b': '1.0.0' } }))
-		installDependency(root, 'dep-a', { testing: '# dep-a\n' })
-		installDependency(root, 'dep-b', { testing: '# dep-b\n' })
-
-		expect(await where('testing', { root })).toBe(1)
-		expect((JSON.parse(written()) as ReferenceWhereReport).plugins).toEqual(['dep-a/testing', 'dep-b/testing'])
-		expect(stderrLines().some((line) => line.includes('dep-a/testing'))).toBe(true)
-	})
-
-	it('accepts a qualified name and rejects a path', async () => {
-		const root = repo()
-		expect(await where('dep-a/testing', { root })).toBe(0)
-		expect((JSON.parse(written()) as ReferenceWhereReport).name).toBe('testing')
-
-		expect(await where('../name', { root })).toBe(1)
-	})
-
-	it("follows each copy's merge metadata: a merging override leaves the copy below it used", async () => {
-		const root = repo()
-		write(root, '.agents/references/name.md', '---\nmerge: merge-sections\n---\n## A\nproject\n')
-		write(fakeHome.value, '.agents/references/name.md', '# user\n')
-		write(root, 'package.json', JSON.stringify({ dependencies: { 'dep-a': '1.0.0' } }))
-		installDependency(root, 'dep-a', { name: '# dep-a\n' })
-
-		expect(await where('name', { root })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceWhereReport
-		expect(report.slots.map((slot) => [slot.layer, slot.status])).toEqual([
-			['project', 'used'],
-			['user', 'used'],
-			['plugin dep-a', 'shadowed'],
-		])
-	})
-
-	it("reports the caller's copy as Load reads it: used only when no layer holds the name", async () => {
-		const root = repo()
-		const caller = join(root, 'skills', 'caller')
-		const own = write(caller, 'references/own.md', '# own\n')
-		const legacy = write(caller, 'references/governances/old.md', '# old\n')
-		write(caller, 'references/held.md', '# held\n')
-		write(root, '.agents/references/held.md', '# project\n')
-		const callerSlot = async (name: string) => {
-			stdout.mockClear()
-			expect(await where(name, { root, caller })).toBe(0)
-			return (JSON.parse(written()) as ReferenceWhereReport).slots.find((slot) => slot.layer === 'caller')
-		}
-
-		expect(await callerSlot('own')).toMatchObject({ path: own, status: 'used' })
-		expect(await callerSlot('old')).toMatchObject({ path: legacy, status: 'used' })
-		expect(await callerSlot('held')).toMatchObject({ path: join(caller, 'references/held.md'), status: 'shadowed' })
-		expect(await callerSlot('none')).toBeUndefined()
-	})
-
-	it("does not read the caller's copy of an ambiguous name", async () => {
-		const root = repo()
-		const caller = join(root, 'skills', 'caller')
-		write(caller, 'references/testing.md', '# own\n')
-		write(root, 'package.json', JSON.stringify({ dependencies: { 'dep-a': '1.0.0', 'dep-b': '1.0.0' } }))
-		installDependency(root, 'dep-a', { testing: '# dep-a\n' })
-		installDependency(root, 'dep-b', { testing: '# dep-b\n' })
-
-		expect(await where('testing', { root, caller })).toBe(1)
-		const report = JSON.parse(written()) as ReferenceWhereReport
-		expect(report.slots.find((slot) => slot.layer === 'caller')?.status).toBe('not read — the name is ambiguous')
-	})
-
-	it('reports a failure it cannot read a message from, and resolves --root against the working directory', async () => {
-		expect(await where('name')).toBe(0)
-		stdout.mockClear()
-		failure.value = 'unavailable'
-
-		expect(await where('name')).toBe(1)
-		expect(stderrLines()).toContain('error: Reference placement lookup failed.\n')
-	})
-})
-
-// ── create ──
-
-describe('create', () => {
-	/** A template file outside every layer, so reading it never changes what resolves. */
-	function template(content: string): string {
-		return write(tempDir('reference-template-'), 'template.md', content)
-	}
-
-	function report(): ReferenceCreateReport {
-		return JSON.parse(written()) as ReferenceCreateReport
-	}
-
-	it('writes a project reference from the default template, with no title and top-level sections', async () => {
-		const root = repo()
-
-		expect(await create('onboarding', { root })).toBe(0)
-		const target = join(root, '.agents/references/onboarding.md')
-		const content = readFileSync(target, 'utf8')
-		const [, frontmatter = '', body = ''] = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(content) ?? []
-		expect(frontmatter).toMatch(/^description: /m)
-		expect(frontmatter).toMatch(/^tags: /m)
-		expect(frontmatter).not.toMatch(/^merge:/m)
-		expect(body).toMatch(/^## /m)
-		expect(body).not.toMatch(/^# /m)
-		expect(stderrLines()).toEqual([])
-	})
-
-	it('writes the user tier file with --scope user', async () => {
-		const root = repo()
-
-		expect(await create('onboarding', { root, scope: 'user' })).toBe(0)
-		expect(existsSync(join(fakeHome.value, '.agents/references/onboarding.md'))).toBe(true)
-		expect(existsSync(join(root, '.agents'))).toBe(false)
-	})
-
-	it('copies a template verbatim, frontmatter included', async () => {
-		const root = repo()
-		const source =
-			'---\ndescription: Payments terms.\ntags: [payments]\nowner: finance\n---\n\n## Terms\n\nA\n\n## Rules\n\nB\n'
-
-		expect(await create('payments.glossary', { root, template: template(source) })).toBe(0)
-		expect(readFileSync(join(root, '.agents/references/payments.glossary.md'), 'utf8')).toBe(source)
-	})
-
-	it('marks the new file merge-sections when a lower layer holds the name', async () => {
-		const root = repo()
-		declareDependency(root, 'ledgerkit')
-		installDependency(root, 'ledgerkit', { 'ledgerkit.glossary': '## Terms\n\nplugin\n' })
-		const source = '---\ndescription: Our terms.\n---\n\n## Terms\n\nours\n'
-
-		expect(await create('ledgerkit.glossary', { root, template: template(source) })).toBe(0)
-		const content = readFileSync(join(root, '.agents/references/ledgerkit.glossary.md'), 'utf8')
-		expect(content).toMatch(/^merge: merge-sections$/m)
-		expect(content.replace('merge: merge-sections\n', '')).toBe(source)
-	})
-
-	it('counts a farther folder of the walk as a layer below', async () => {
-		const workspace = repo()
-		markRoot(workspace)
-		const root = join(workspace, 'packages', 'app')
-		mkdirSync(root, { recursive: true })
-		write(workspace, '.agents/references/release-notes.md', '## Format\n\nworkspace\n')
-
-		expect(
-			await create('release-notes', { root, template: template('---\ndescription: Notes.\n---\n## Format\n') }),
-		).toBe(0)
-		expect(readFileSync(join(root, '.agents/references/release-notes.md'), 'utf8')).toMatch(/^merge: merge-sections$/m)
-	})
-
-	it('puts merge-sections in a frontmatter block of its own when the template has none', async () => {
-		const root = repo()
-		write(fakeHome.value, '.agents/references/release-notes.md', '## Format\n\nuser\n')
-		const source = '## Format\n\nproject\n'
-
-		expect(await create('release-notes', { root, template: template(source) })).toBe(0)
-		expect(readFileSync(join(root, '.agents/references/release-notes.md'), 'utf8')).toBe(
-			`---\nmerge: merge-sections\n---\n\n${source}`,
-		)
-	})
-
-	it('adds merge-sections to empty frontmatter, and keeps its line endings', async () => {
-		const root = repo()
-		write(fakeHome.value, '.agents/references/release-notes.md', '## Format\n\nuser\n')
-		const source = '---\r\n\r\n---\r\n## Format\r\n'
-
-		expect(await create('release-notes', { root, template: template(source) })).toBe(0)
-		expect(readFileSync(join(root, '.agents/references/release-notes.md'), 'utf8')).toBe(
-			'---\r\n\r\nmerge: merge-sections\r\n---\r\n## Format\r\n',
-		)
-	})
-
-	it("keeps the template's own merge value", async () => {
-		const root = repo()
-		write(fakeHome.value, '.agents/references/release-notes.md', '## Format\n\nuser\n')
-		const source = '---\ndescription: Notes.\nmerge: first-wins\n---\n## Format\n'
-
-		expect(await create('release-notes', { root, template: template(source) })).toBe(0)
-		expect(readFileSync(join(root, '.agents/references/release-notes.md'), 'utf8')).toBe(source)
-	})
-
-	it('warns on a heading with one hash and still writes', async () => {
-		const root = repo()
-		const source = '---\ndescription: Payments.\n---\n# Payments\n\n## Terms\n'
-
-		expect(await create('payments', { root, template: template(source) })).toBe(0)
-		expect(stderrLines().some((line) => line.startsWith('warning: ') && line.includes('# Payments'))).toBe(true)
-		expect(existsSync(join(root, '.agents/references/payments.md'))).toBe(true)
-	})
-
-	it('does not warn on a one-hash line inside a code fence', async () => {
-		const root = repo()
-		const source = '---\ndescription: Shell.\n---\n## Usage\n\n```sh\n# a comment\n```\n'
-
-		expect(await create('shell', { root, template: template(source) })).toBe(0)
-		expect(stderrLines()).toEqual([])
-		expect(existsSync(join(root, '.agents/references/shell.md'))).toBe(true)
-	})
-
-	it('warns on a missing description and still writes', async () => {
-		const root = repo()
-
-		expect(await create('bare', { root, template: template('## Only\n') })).toBe(0)
-		expect(stderrLines().some((line) => line.startsWith('warning: ') && line.includes('description'))).toBe(true)
-		expect(existsSync(join(root, '.agents/references/bare.md'))).toBe(true)
-	})
-
-	it('prints the target path and the exact content on --dry-run and writes nothing', async () => {
-		const root = repo()
-		write(fakeHome.value, '.agents/references/release-notes.md', '## Format\n\nuser\n')
-		const path = template('---\ndescription: Notes.\n---\n## Format\n')
-		const target = join(root, '.agents/references/release-notes.md')
-
-		expect(await create('release-notes', { root, template: path, 'dry-run': true })).toBe(0)
-		const [first, blank, ...rest] = written().split('\n')
-		expect(first).toBe(target)
-		expect(blank).toBe('')
-		expect(existsSync(target)).toBe(false)
-		const shown = rest.join('\n')
-
-		stdout.mockClear()
-		expect(await create('release-notes', { root, template: path })).toBe(0)
-		expect(shown).toBe(readFileSync(target, 'utf8'))
-		expect(shown).toContain('merge: merge-sections')
-	})
-
-	it('reports the path, content, warnings, and a trace with the new file used', async () => {
-		const root = repo()
-		const user = write(fakeHome.value, '.agents/references/release-notes.md', '## Format\n\nuser\n')
-		const source = '---\ndescription: Notes.\n---\n# Notes\n\n## Format\n'
-		const target = join(root, '.agents/references/release-notes.md')
-
-		expect(await create('release-notes', { root, template: template(source), format: 'json' })).toBe(0)
-		const created = report()
-		expect(created).toMatchObject({
-			name: 'release-notes',
-			scope: 'project',
-			path: target,
-			dryRun: false,
-			content: readFileSync(target, 'utf8'),
-		})
-		expect(created.warnings).toEqual([expect.stringContaining('# Notes')])
-		expect(created.trace?.find((step) => step.path === target)).toMatchObject({ found: true, outcome: 'used' })
-		expect(created.trace?.find((step) => step.path === `~${user.slice(fakeHome.value.length)}`)).toMatchObject({
-			outcome: 'used',
-		})
-		expect(stderrLines()).toEqual([])
-	})
-
-	it('reports a dry run as JSON without a trace', async () => {
-		const root = repo()
-
-		expect(await create('onboarding', { root, 'dry-run': true, format: 'json' })).toBe(0)
-		expect(report()).toMatchObject({ dryRun: true, warnings: [] })
-		expect(report().trace).toBeUndefined()
-	})
-
-	it('writes the path and then the trace in text, with home collapsed', async () => {
-		const root = repo()
-
-		expect(await create('onboarding', { root, scope: 'user' })).toBe(0)
-		const [first, ...rest] = written().split('\n')
-		expect(first).toBe('~/.agents/references/onboarding.md')
-		const traceLine = rest.find((line) => line.includes('~/.agents/references/onboarding.md'))
-		expect(rest.some((line) => line.startsWith('trace'))).toBe(true)
-		expect(traceLine).toContain('used')
-	})
-
-	it('refuses an existing target, naming Update, with or without --dry-run', async () => {
-		const root = repo()
-		const existing = write(root, '.agents/references/onboarding.md', 'mine\n')
-
-		for (const dryRun of [false, true]) {
-			stdout.mockClear()
-			stderr.mockClear()
-			expect(await create('onboarding', { root, 'dry-run': dryRun })).toBe(1)
-			expect(stderrLines().some((line) => line.startsWith('error: ') && line.includes('Update'))).toBe(true)
-			expect(stdout).not.toHaveBeenCalled()
-		}
-		expect(readFileSync(existing, 'utf8')).toBe('mine\n')
-	})
-
-	it('refuses a folder-form copy of the name in the target folder', async () => {
-		const root = repo()
-		write(root, '.agents/references/onboarding/README.md', 'mine\n')
-
-		expect(await create('onboarding', { root })).toBe(1)
-		expect(existsSync(join(root, '.agents/references/onboarding.md'))).toBe(false)
-	})
-
-	it('refuses when a copy above would shadow the new file', async () => {
-		const root = repo()
-		write(root, '.agents/references/onboarding.md', '## A\n')
-
-		expect(await create('onboarding', { root, scope: 'user' })).toBe(1)
-		expect(stderrLines().some((line) => line.startsWith('error: ') && line.includes('project'))).toBe(true)
-		expect(existsSync(join(fakeHome.value, '.agents'))).toBe(false)
-	})
-
-	it('writes under a copy above that merges', async () => {
-		const root = repo()
-		write(root, '.agents/references/onboarding.md', '---\nmerge: merge-sections\n---\n## A\n')
-
-		expect(await create('onboarding', { root, scope: 'user', format: 'json' })).toBe(0)
-		const target = join(fakeHome.value, '.agents/references/onboarding.md')
-		expect(existsSync(target)).toBe(true)
-		expect(report().trace?.find((step) => step.path === '~/.agents/references/onboarding.md')?.outcome).toBe('used')
-	})
-
-	it('refuses a missing or unreadable template', async () => {
-		const root = repo()
-		const missing = join(tempDir('reference-template-'), 'nope.md')
-		const folder = tempDir('reference-template-')
-
-		for (const path of [missing, folder]) {
-			stderr.mockClear()
-			expect(await create('onboarding', { root, template: path })).toBe(1)
-			expect(stderrLines().some((line) => line.startsWith('error: ') && line.includes(path))).toBe(true)
-		}
-		expect(existsSync(join(root, '.agents'))).toBe(false)
-	})
-
-	it('refuses a template whose frontmatter is not a YAML mapping', async () => {
-		const root = repo()
-
-		expect(await create('onboarding', { root, template: template('---\n- a\n- b\n---\n## A\n') })).toBe(1)
-		expect(stderrLines().some((line) => line.includes('not a YAML mapping'))).toBe(true)
-		expect(existsSync(join(root, '.agents'))).toBe(false)
-	})
-
-	it('refuses a create name that is a path', async () => {
-		const root = repo()
-
-		for (const name of ['../onboarding', 'onboarding.md']) {
-			expect(await create(name, { root })).toBe(1)
-		}
-		expect(existsSync(join(root, '.agents'))).toBe(false)
-	})
-
-	it('refuses a plugin-qualified name', async () => {
-		const root = repo()
-
-		expect(await create('ledgerkit/glossary', { root })).toBe(1)
-		expect(stderrLines().some((line) => line.includes('bare name'))).toBe(true)
-		expect(existsSync(join(root, '.agents'))).toBe(false)
-	})
-
-	it('refuses a scope other than project or user', async () => {
-		const root = repo()
-
-		for (const scope of ['plugin', 'managed']) {
-			stderr.mockClear()
-			expect(await create('onboarding', { root, scope })).toBe(1)
-			expect(stderrLines().some((line) => line.includes('project') && line.includes('user'))).toBe(true)
-		}
-		expect(existsSync(join(root, '.agents'))).toBe(false)
-	})
-
-	it('refuses when the target folder cannot be created', async () => {
-		const root = repo()
-		write(root, '.agents/references', 'a file\n')
-
-		expect(await create('onboarding', { root })).toBe(1)
-		expect(stderrLines().some((line) => line.startsWith('error: '))).toBe(true)
-	})
-
-	it('reports a failure it cannot read a message from, and resolves --root against the working directory', async () => {
-		expect(await create('never-created', { 'dry-run': true })).toBe(0)
-		stdout.mockClear()
-		failure.value = 'unavailable'
-
-		expect(await create('never-created', { 'dry-run': true })).toBe(1)
-		expect(stderrLines()).toContain('error: Reference creation failed.\n')
-	})
-})
-
-describe('delete', () => {
-	function report(): ReferenceDeleteReport {
-		return JSON.parse(written()) as ReferenceDeleteReport
-	}
-
-	it('deletes the project copy and reports that nothing answers the name then', async () => {
-		const root = repo()
-		const target = write(root, '.agents/references/onboarding.md', '## A\n')
-
-		expect(await remove('onboarding', { root, format: 'json' })).toBe(0)
-		expect(existsSync(target)).toBe(false)
-		expect(report()).toMatchObject({
-			name: 'onboarding',
-			scope: 'project',
-			path: target,
-			dryRun: false,
-			next: { status: 'missing' },
-		})
-		expect(report().trace.some((step) => step.found)).toBe(false)
-	})
-
-	it("reports the plugin's copy as answering once a project override is deleted", async () => {
-		const root = repo()
-		declareDependency(root, 'ledgerkit')
-		installDependency(root, 'ledgerkit', { 'ledgerkit.glossary': '## Terms\n\nplugin\n' })
-		const plugin = join(root, 'node_modules/ledgerkit/references/ledgerkit.glossary.md')
-		write(root, '.agents/references/ledgerkit.glossary.md', '---\nmerge: merge-sections\n---\n## Terms\n\nours\n')
-
-		expect(await remove('ledgerkit.glossary', { root, format: 'json' })).toBe(0)
-		expect(report().next).toEqual({ status: 'found', tier: 'plugin', plugin: 'ledgerkit', path: plugin })
-		expect(report().trace.find((step) => step.path === plugin)).toMatchObject({ outcome: 'used' })
-		expect(existsSync(plugin)).toBe(true)
-	})
-
-	it('deletes the user copy with --scope user, leaving the project copy', async () => {
-		const root = repo()
-		const project = write(root, '.agents/references/onboarding.md', '---\nmerge: merge-sections\n---\n## A\n')
-		const user = write(fakeHome.value, '.agents/references/onboarding.md', '## A\n')
-
-		expect(await remove('onboarding', { root, scope: 'user', format: 'json' })).toBe(0)
-		expect(existsSync(user)).toBe(false)
-		expect(existsSync(project)).toBe(true)
-		expect(report()).toMatchObject({
-			scope: 'user',
-			path: '~/.agents/references/onboarding.md',
-			next: { status: 'found', tier: 'project', path: project },
-		})
-	})
-
-	it('reports the file and what would answer on --dry-run, and deletes nothing', async () => {
-		const root = repo()
-		const target = write(root, '.agents/references/onboarding.md', '## A\n')
-		const user = write(fakeHome.value, '.agents/references/onboarding.md', '## A\n')
-
-		expect(await remove('onboarding', { root, 'dry-run': true, format: 'json' })).toBe(0)
-		expect(existsSync(target)).toBe(true)
-		expect(report()).toMatchObject({
-			dryRun: true,
-			next: { status: 'found', tier: 'user', path: `~${user.slice(fakeHome.value.length)}` },
-		})
-		expect(report().trace.find((step) => step.tier === 'project' && step.path.startsWith(root))).toMatchObject({
-			found: false,
-		})
-	})
-
-	it('says which copy answers in text, after the path', async () => {
-		const root = repo()
-		write(root, '.agents/references/onboarding.md', '## A\n')
-		write(fakeHome.value, '.agents/references/onboarding.md', '## A\n')
-
-		expect(await remove('onboarding', { root, 'dry-run': true })).toBe(0)
-		const [first, blank, summary, ...rest] = written().split('\n')
-		expect(first).toBe(join(root, '.agents/references/onboarding.md'))
-		expect(blank).toBe('')
-		expect(summary).toBe(
-			'would delete. "onboarding" is then answered by the user copy ~/.agents/references/onboarding.md.',
-		)
-		expect(rest.some((line) => line.startsWith('trace'))).toBe(true)
-
-		stdout.mockClear()
-		expect(await remove('onboarding', { root, scope: 'user' })).toBe(0)
-		expect(written().split('\n')[2]).toBe(
-			'deleted. "onboarding" is then answered by the project copy ' +
-				join(root, '.agents/references/onboarding.md') +
-				'.',
-		)
-	})
-
-	it('reports the plugins left holding an ambiguous name', async () => {
-		const root = repo()
-		write(root, 'package.json', JSON.stringify({ name: 'fixture', dependencies: { alpha: '1.0.0', beta: '1.0.0' } }))
-		installDependency(root, 'alpha', { glossary: '## A\n' })
-		installDependency(root, 'beta', { glossary: '## B\n' })
-		write(root, '.agents/references/glossary.md', '## Mine\n')
-
-		expect(await remove('glossary', { root, format: 'json' })).toBe(0)
-		expect(report().next).toEqual({ status: 'ambiguous', plugins: ['alpha/glossary', 'beta/glossary'] })
-
-		write(root, '.agents/references/glossary.md', '## Mine\n')
-		stdout.mockClear()
-		expect(await remove('glossary', { root, 'dry-run': true })).toBe(0)
-		expect(written()).toContain('held by more than one plugin: alpha/glossary, beta/glossary.')
-	})
-
-	it('deletes a folder-form copy and its folder once empty', async () => {
-		const root = repo()
-		const target = write(root, '.agents/references/onboarding/README.md', '## A\n')
-
-		expect(await remove('onboarding', { root, format: 'json' })).toBe(0)
-		expect(report().path).toBe(target)
-		expect(existsSync(dirname(target))).toBe(false)
-	})
-
-	it("keeps a folder-form copy's folder that still holds other files", async () => {
-		const root = repo()
-		const target = write(root, '.agents/references/onboarding/README.md', '## A\n')
-		const index = write(root, '.agents/references/onboarding/index.md', '## B\n')
-
-		expect(await remove('onboarding', { root, 'dry-run': true, format: 'json' })).toBe(0)
-		expect(report().next).toMatchObject({ status: 'found', tier: 'project', path: index })
-
-		stdout.mockClear()
-		expect(await remove('onboarding', { root, format: 'json' })).toBe(0)
-		expect(existsSync(target)).toBe(false)
-		expect(report().next).toMatchObject({ path: index })
-	})
-
-	it('refuses a name with no copy in the scope, naming the copy that answers and leaving it', async () => {
-		const root = repo()
-		declareDependency(root, 'ledgerkit')
-		installDependency(root, 'ledgerkit', { 'ledgerkit.glossary': '## Terms\n' })
-		const plugin = join(root, 'node_modules/ledgerkit/references/ledgerkit.glossary.md')
-
-		for (const dryRun of [false, true]) {
-			stderr.mockClear()
-			expect(await remove('ledgerkit.glossary', { root, 'dry-run': dryRun })).toBe(1)
-			const [line = ''] = stderrLines()
-			expect(line).toMatch(/^error: /)
-			expect(line).toContain(`answered by the plugin copy ${plugin}`)
-			expect(line).toContain('never removes a plugin-shipped or managed copy')
-		}
-		expect(stdout).not.toHaveBeenCalled()
-		expect(existsSync(plugin)).toBe(true)
-	})
-
-	it('refuses a name nothing holds', async () => {
-		const root = repo()
-
-		expect(await remove('onboarding', { root })).toBe(1)
-		expect(stderrLines()[0]).toContain('no project copy of "onboarding" to delete')
-	})
-
-	it('refuses a managed copy, which no scope reaches', async () => {
-		const root = repo()
-		const programData = tempDir('reference-programdata-')
-		await withPlatform('win32', programData, async () => {
-			const managed = write(managedReferencesDir('win32', programData), 'onboarding.md', '## A\n')
-
-			expect(await remove('onboarding', { root })).toBe(1)
-			expect(stderrLines()[0]).toContain('answered by the managed copy')
-			expect(existsSync(managed)).toBe(true)
-		})
-	})
-
-	it('refuses a plugin-qualified name, a path, and a scope other than project or user', async () => {
-		const root = repo()
-		write(root, '.agents/references/onboarding.md', '## A\n')
-
-		expect(await remove('ledgerkit/onboarding', { root })).toBe(1)
-		expect(stderrLines()[0]).toContain('bare name')
-		expect(await remove('../onboarding', { root })).toBe(1)
-		expect(await remove('onboarding', { root, scope: 'plugin' })).toBe(1)
-		expect(existsSync(join(root, '.agents/references/onboarding.md'))).toBe(true)
-	})
-
-	it('reports a failure it cannot read a message from, and resolves --root against the working directory', async () => {
-		failure.value = 'unavailable'
-
-		expect(await remove('never-deleted', { 'dry-run': true })).toBe(1)
-		expect(stderrLines()).toContain('error: Reference deletion failed.\n')
-	})
-})
-
-describe('createReferenceCommand', () => {
+describe('reference command', () => {
 	it('groups every subcommand under `reference`', () => {
-		const group = createReferenceCommand() as unknown as { name: string; commands: { name: string }[] }
+		const command = createReferenceCommand() as unknown as { name: string; commands: { name: string }[] }
 
-		expect(group.name).toBe('reference')
-		expect(group.commands.map(({ name }) => name)).toEqual([
+		expect(command.name).toBe('reference')
+		expect(command.commands.map(({ name }) => name)).toEqual([
 			'show',
 			'list',
 			'search',
 			'where',
 			'create',
+			'select',
 			'delete',
 			'implementations',
 			'check',
 		])
 	})
+})
 
-	it('reads no plugin layer of its own when no plugin runs it', async () => {
-		const { list: listAlone } = createReferenceCommands()
+describe('show: tiers', () => {
+	it('applies managed over project over user over the plugins, each patching what is below', async () => {
 		const root = repo()
+		plugins(root, { a: { name: '## A\n\nplugin\n' } })
+		write(fakeHome.value, '.agents/references/name.md', '## U\n\nuser\n')
+		write(root, '.agents/references/name.md', '## A\n\nproject\n')
+		managed({ name: '## M\n\nmanaged\n' })
 
-		expect(await exec(listAlone, { root, format: 'json' })).toBe(0)
-		const report = JSON.parse(written()) as ReferenceListReport
-		expect(report.layers.some(({ plugin }) => plugin === 'uni-agent-kit')).toBe(false)
+		expect(await show(['name'], { root })).toBe(0)
+		expect(written()).toBe('## A\n\nproject\n\n## U\n\nuser\n\n## M\n\nmanaged\n')
+	})
+
+	it('puts the nearer project folder above the repository root', async () => {
+		const root = repo()
+		const sub = join(root, 'packages', 'app')
+		write(root, '.agents/references/name.md', '## A\n\nroot\n\n## B\n\nroot b\n')
+		write(sub, '.agents/references/name.md', '## A\n\nnear\n')
+
+		expect(await show(['name'], { root: sub })).toBe(0)
+		expect(written()).toBe('## A\n\nnear\n\n## B\n\nroot b\n')
+	})
+
+	it('reads no governances folder in any tier', async () => {
+		const root = repo()
+		write(root, '.agents/governances/name.md', 'legacy\n')
+		write(fakeHome.value, '.agents/governances/name.md', 'legacy\n')
+
+		expect(await show(['name'], { root })).toBe(1)
+		expect(errors()).toContain('error: reference-missing:')
+	})
+
+	it("reads the running plugin's own references once", async () => {
+		const root = repo()
+		write(hostRoot, 'references/name.md', 'host\n')
+
+		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
+		const [entry] = json<{ trace: ReferenceTrace }[]>()
+		expect(entry?.trace.layers.filter(({ plugin }) => plugin === 'host')).toHaveLength(1)
+	})
+
+	it('names a dependency plugin by its manifest, never by its package name', async () => {
+		const root = repo()
+		dependencies(root, { '@scope/pkg': { manifest: 'house', documents: { name: 'house\n' } } })
+
+		expect(await show(['house/name'], { root })).toBe(0)
+		expect(written()).toBe('house\n')
+		stdout.mockClear()
+		expect(await show(['@scope/pkg/name'], { root })).toBe(1)
+		expect(errors()).toContain('error: reference-invalid:')
+	})
+
+	it('reads no layer for a dependency that is not a plugin, and the trace says so', async () => {
+		const root = repo()
+		dependencies(root, { lib: { documents: { name: 'lib\n' } } })
+
+		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(1)
+		const [entry] = json<{ status: string; trace: ReferenceTrace }[]>()
+		expect(entry?.status).toBe('missing')
+		expect(entry?.trace.layers.find(({ path }) => path.includes('lib'))?.outcome).toBe('not read (not a plugin)')
+	})
+
+	it('skips managed policy that cannot be read locally, and names the detected harnesses', async () => {
+		harness.candidates = ['claude-code']
+		harness.managed = [
+			{ kind: 'macos-managed-preferences', location: 'com.anthropic.claudecode', description: '', research: '' },
+		]
+		const root = repo()
+		write(root, '.agents/references/name.md', 'project\n')
+
+		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
+		const [entry] = json<{ trace: ReferenceTrace }[]>()
+		expect(entry?.trace.harnesses).toEqual(['claude-code'])
+		expect(entry?.trace.layers.find(({ path }) => path === 'com.anthropic.claudecode')?.outcome).toMatch(
+			/^not read \(claude-code keeps this policy in a macOS managed-preferences domain/,
+		)
+	})
+
+	it('shows no managed folder when no harness is detected', async () => {
+		const root = repo()
+		write(root, '.agents/references/name.md', 'project\n')
+
+		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
+		const [entry] = json<{ trace: ReferenceTrace }[]>()
+		expect(entry?.trace.layers[0]).toMatchObject({
+			tier: 'managed',
+			outcome: expect.stringMatching(/^not read \(no harness/),
+		})
+	})
+})
+
+describe('show: the default tier', () => {
+	it("reads <skill>/references/<name>.default.md with --default, under a plugin's contribution", async () => {
+		const root = repo()
+		const folder = skill(root, 'skills/tracker', { name: base })
+
+		expect(await show(['name'], { root, default: folder })).toBe(0)
+		expect(written()).toBe(base)
+	})
+
+	it('does not read the old references/<name>.md copy as a default', async () => {
+		const root = repo()
+		const folder = skill(root, 'skills/tracker')
+		write(folder, 'references/name.md', 'old layout\n')
+
+		expect(await show(['name'], { root, default: folder })).toBe(1)
+	})
+
+	it('warns when the skill folder does not exist, and resolves without it', async () => {
+		const root = repo()
+		write(root, '.agents/references/name.md', 'project\n')
+
+		expect(await show(['name'], { root, default: join(root, 'nowhere') })).toBe(0)
+		expect(written()).toBe('project\n')
+		expect(errors()).toMatch(/^warning: default-folder-missing: /m)
+	})
+
+	it('warns, naming reference select, when a plugin answers over the default with no extends naming either', async () => {
+		const root = repo()
+		plugins(root, { a: { name: '## Create\n\nplugin\n' } })
+		const folder = skill(root, 'skills/tracker', { name: base })
+
+		expect(await show(['name'], { root, default: folder })).toBe(0)
+		expect(written()).toBe('## Create\n\nplugin\n\n## Close\n\nbase close\n')
+		expect(errors()).toMatch(/warning: default-not-selected: .*reference select name/)
+	})
+})
+
+describe('show: text output', () => {
+	it('prints one document alone, and several as <reference> blocks in the order asked', async () => {
+		const root = repo()
+		write(root, '.agents/references/a.md', 'alpha\n')
+		write(root, '.agents/references/b.md', 'beta\n')
+
+		expect(await show(['b', 'a'], { root })).toBe(0)
+		expect(written()).toBe('<reference name="b">\nbeta\n</reference>\n\n<reference name="a">\nalpha\n</reference>\n')
+		expect(errors()).toBe('')
+	})
+
+	it('marks a name not found in place, writes its coded error to stderr, and exits 1', async () => {
+		const root = repo()
+		write(root, '.agents/references/a.md', 'alpha\n')
+
+		expect(await show(['a', 'gone', 'x.md'], { root })).toBe(1)
+		expect(written()).toBe(
+			'<reference name="a">\nalpha\n</reference>\n\n<reference name="gone" status="missing" />\n\n<reference name="x.md" status="invalid" />\n',
+		)
+		expect(errors()).toMatch(/^error: reference-missing: /m)
+		expect(errors()).toMatch(/^error: reference-invalid: /m)
+	})
+
+	it('exits 1 with nothing on stdout when the one name is not found', async () => {
+		expect(await show(['gone'], { root: repo() })).toBe(1)
+		expect(written()).toBe('')
+	})
+
+	it('exits 2 when no name is given', async () => {
+		expect(await show([], { root: repo() })).toBe(2)
+		expect(errors()).toMatch(/^error: usage: /)
+	})
+
+	it('writes a warning to stderr with its code, leaving stdout and the exit code alone', async () => {
+		const root = repo()
+		write(root, '.agents/references/name.md', '---\nmerge: first-wins\n---\n\nbody\n')
+
+		expect(await show(['name'], { root })).toBe(0)
+		expect(written()).toBe('body\n')
+		expect(errors()).toMatch(/^warning: merge-unknown: .*read as patch$/m)
+	})
+
+	it('reports an ambiguous name with its error, exit 1', async () => {
+		const root = repo()
+		plugins(root, { a: { name: 'a\n' }, b: { name: 'b\n' } })
+
+		expect(await show(['name'], { root })).toBe(1)
+		expect(errors()).toMatch(
+			/^error: reference-ambiguous: name: the plugins a, b hold it, and no extends orders them; options: a\/name, b\/name$/m,
+		)
+	})
+
+	it('writes the trace to stderr: a summary line, the sections, then the layers', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		write(root, '.agents/references/name.md', '---\nextends: [a]\n---\n\n## Create\n\nmine\n')
+
+		expect(await show(['name'], { root, trace: true })).toBe(0)
+		expect(written()).toBe('## Create\n\nmine\n\n## Close\n\nbase close\n')
+		const trace = errors()
+		expect(trace).toMatch(/^name: found; stack: a; built by project .*; harnesses: none detected$/m)
+		expect(trace).toMatch(/^sections:\n {2}Create: project .* \(patch\)\n {2}Close: plugin a \(patch\)$/m)
+		expect(trace).toMatch(/^layers:$/m)
+		expect(trace).toMatch(/^ {2}project .*name\.md: used; patch from default {"extends":\["a"\]}$/m)
+	})
+
+	it('shows a removed section and the shadowed layers in the text trace', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		write(root, '.agents/references/name.md', '---\nmerge: replace\n---\n\n## Only\n\nmine\n')
+
+		expect(await show(['name'], { root, trace: true })).toBe(0)
+		expect(errors()).toMatch(/plugin a .*: shadowed by project .* \(replace\)/)
+	})
+
+	it('names the reason in the text trace of a name not found', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		write(root, '.agents/references/name.md', '---\nmerge: remove\n---\n')
+
+		expect(await show(['name'], { root, trace: true })).toBe(1)
+		expect(errors()).toMatch(/^ {2}"name" is turned off by project .* \(remove\)$/m)
+	})
+})
+
+describe('show: structured output (R38, R47)', () => {
+	it('gives a found name with no warnings as its content string', async () => {
+		const root = repo()
+		write(root, '.agents/references/name.md', 'body\n')
+
+		expect(await show(['name'], { root, format: 'json' })).toBe(0)
+		expect(json()).toEqual(['body\n'])
+	})
+
+	it('gives a found name with warnings as a record, and keeps the warnings off stderr', async () => {
+		const root = repo()
+		write(root, '.agents/references/name.md', '---\nmerge: bogus\n---\n\nbody\n')
+
+		expect(await show(['name'], { root, format: 'json' })).toBe(0)
+		expect(json()).toEqual([
+			{
+				name: 'name',
+				status: 'found',
+				content: 'body\n',
+				warnings: [{ code: 'merge-unknown', message: expect.stringContaining('read as patch') }],
+			},
+		])
+		expect(errors()).toBe('')
+	})
+
+	it('gives a name not found as a record of name, status, and code; options when ambiguous', async () => {
+		const root = repo()
+		plugins(root, { a: { amb: 'a\n' }, b: { amb: 'b\n' } })
+
+		expect(await show(['gone', 'amb', 'a/b/c'], { root, format: 'json' })).toBe(1)
+		expect(json()).toEqual([
+			{ name: 'gone', status: 'missing', code: 'reference-missing' },
+			{ name: 'amb', status: 'ambiguous', code: 'reference-ambiguous', options: ['a/amb', 'b/amb'] },
+			{ name: 'a/b/c', status: 'invalid', code: 'reference-invalid' },
+		])
+	})
+
+	it('makes every entry a record with status and metadata under --metadata, without merge and extends', async () => {
+		const root = repo()
+		write(root, '.agents/references/name.md', '---\ndescription: d\ncontract: 2\nmerge: patch\n---\n\nbody\n')
+
+		expect(await show(['name'], { root, format: 'json', metadata: true })).toBe(0)
+		expect(json()).toEqual([
+			{ name: 'name', status: 'found', content: 'body\n', metadata: { description: 'd', contract: 2 } },
+		])
+	})
+
+	it('adds the trace under --trace, with the home directory collapsed', async () => {
+		const root = repo()
+		write(fakeHome.value, '.agents/references/name.md', 'user\n')
+
+		expect(await show(['name'], { root, format: 'toon', trace: true })).toBe(0)
+		expect(written()).toContain('~/.agents/references/name.md')
+		stdout.mockClear()
+		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
+		const [entry] = json<{ trace: ReferenceTrace }[]>()
+		expect(entry?.trace.contributions).toEqual([
+			{ tier: 'user', path: '~/.agents/references/name.md', operation: 'patch' },
+		])
+		expect(entry?.trace.stack).toEqual([])
+	})
+
+	it('warns when a document fails its interface check (R37)', async () => {
+		const root = repo()
+		plugins(root, { repobuddy: { 'scaffold.recipe.interface': recipeInterface } })
+		write(root, '.agents/references/scaffold.recipe.bad.md', '---\nimplements: scaffold.recipe@9\n---\n\n## Recipe\n')
+
+		expect(await show(['scaffold.recipe.bad'], { root, format: 'json' })).toBe(0)
+		const [entry] = json<{ warnings: { code: string; message: string }[] }[]>()
+		expect(entry?.warnings).toEqual([{ code: 'interface-check', message: expect.stringContaining('(version)') }])
+	})
+
+	it('reports a thrown failure as an error, exit 1', async () => {
+		const root = repo()
+		failure.value = new Error('boom')
+		expect(await show(['name'], { root })).toBe(1)
+		expect(errors()).toBe('error: boom\n')
+
+		stderr.mockClear()
+		failure.value = 'not an error'
+		expect(await show(['name'], { root })).toBe(1)
+		expect(errors()).toBe('error: Reference lookup failed.\n')
+	})
+})
+
+describe('list', () => {
+	it('gives one row per name, its status and options when not found, and a defaults note', async () => {
+		const root = repo()
+		plugins(root, { a: { amb: 'a\n', gone: base }, b: { amb: 'b\n' } })
+		write(root, '.agents/references/doc.md', '---\ndescription: |\n  First line.\n  Second.\n---\n\nbody\n')
+		write(root, '.agents/references/gone.md', '---\nmerge: remove\n---\n')
+
+		expect(await list({ root })).toBe(0)
+		const report = json<ReferenceListReport>()
+		expect(report.references).toEqual([
+			{ name: 'amb', status: 'ambiguous', options: ['a/amb', 'b/amb'] },
+			{ name: 'doc', description: 'First line.' },
+			{ name: 'gone', status: 'missing' },
+		])
+		expect(report.defaults).toMatch(/no harness detected/)
+		expect(report.layers).toBeUndefined()
+	})
+
+	it('adds one row per name per layer under --trace, marking a selection', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		write(root, '.agents/references/name.md', '---\nextends: [a]\n---\n')
+
+		expect(await list({ root, trace: true })).toBe(0)
+		expect(json<ReferenceListReport>().layers).toEqual([
+			{
+				name: 'name',
+				tier: 'project',
+				path: join(root, '.agents/references/name.md'),
+				outcome: 'used',
+				selection: true,
+			},
+			{ name: 'name', tier: 'plugin', plugin: 'a', path: expect.stringContaining('name.md'), outcome: 'used' },
+		])
+	})
+
+	it('shows a name a remove turned off as missing, and each row below it shadowed', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		write(root, '.agents/references/name.md', '---\nmerge: remove\n---\n')
+
+		expect(await list({ root, trace: true })).toBe(0)
+		const report = json<ReferenceListReport>()
+		expect(report.references).toEqual([{ name: 'name', status: 'missing' }])
+		expect(report.layers?.map(({ outcome }) => outcome)).toEqual([
+			'used',
+			expect.stringMatching(/^shadowed by project .*\(remove\)$/),
+		])
+	})
+
+	it('keeps exactly the names a pattern matches', async () => {
+		const root = repo()
+		write(root, '.agents/references/tracker.capabilities.github.md', 'x\n')
+		write(root, '.agents/references/tracker.capabilities.jira.md', 'x\n')
+		write(root, '.agents/references/tracker.routing.md', 'x\n')
+
+		expect(await list({ root, pattern: 'tracker.capabilities.*' })).toBe(0)
+		expect((json<ReferenceListReport>().references as { name: string }[]).map(({ name }) => name)).toEqual([
+			'tracker.capabilities.github',
+			'tracker.capabilities.jira',
+		])
+	})
+
+	it('states an explicit zero', async () => {
+		const root = repo()
+		expect(await list({ root })).toBe(0)
+		expect(json<ReferenceListReport>().references).toBe('0 references — no layer holds one')
+
+		stdout.mockClear()
+		write(root, '.agents/references/a.md', 'x\n')
+		expect(await list({ root, pattern: 'zzz*' })).toBe(0)
+		expect(json<ReferenceListReport>().references).toBe('0 references match "zzz*"')
+	})
+
+	it('gives the warnings resolving raised', async () => {
+		const root = repo()
+		write(root, '.agents/references/a.md', '---\nmerge: bogus\n---\n\nx\n')
+
+		expect(await list({ root })).toBe(0)
+		expect(json<ReferenceListReport>().warnings).toEqual([{ code: 'merge-unknown', message: expect.any(String) }])
+	})
+
+	it('reports a thrown failure', async () => {
+		const root = repo()
+		write(root, '.agents/references/a.md', 'x\n')
+		failure.value = 'nope'
+		expect(await list({ root })).toBe(1)
+		expect(errors()).toBe('error: Reference listing failed.\n')
+	})
+})
+
+describe('search', () => {
+	it('gives matches of name, description, and match, best first, with no echoed query', async () => {
+		const root = repo()
+		write(root, '.agents/references/testing.md', '---\ndescription: How to test.\n---\n\nbody\n')
+		write(root, '.agents/references/other.md', '---\ndescription: About testing things.\n---\n\nbody\n')
+
+		expect(await search('testing', { root })).toBe(0)
+		const report = json<ReferenceSearchReport>()
+		expect(report).toEqual({
+			references: [
+				{ name: 'testing', description: 'How to test.', match: 'name' },
+				{ name: 'other', description: 'About testing things.', match: 'description' },
+			],
+			defaults: expect.any(String),
+		})
+	})
+
+	it('adds the tier and plugin under --trace, and searches an unordered name once per plugin', async () => {
+		const root = repo()
+		plugins(root, { a: { guide: 'alpha guide\n' }, b: { guide: 'beta guide\n' } })
+
+		expect(await search('guide', { root, trace: true })).toBe(0)
+		expect(json<ReferenceSearchReport>().references).toEqual([
+			{ name: 'a/guide', match: 'name', tier: 'plugin', plugin: 'a' },
+			{ name: 'b/guide', match: 'name', tier: 'plugin', plugin: 'b' },
+		])
+	})
+
+	it('leaves out a name a remove turned off, and states an explicit zero', async () => {
+		const root = repo()
+		plugins(root, { a: { guide: 'guide\n' } })
+		write(root, '.agents/references/guide.md', '---\nmerge: remove\n---\n')
+
+		expect(await search('guide', { root })).toBe(0)
+		expect(json<ReferenceSearchReport>().references).toBe('0 references match "guide"')
+	})
+
+	it('exits 2 on an empty query', async () => {
+		expect(await search('  ', { root: repo() })).toBe(2)
+	})
+
+	it('reports a thrown failure', async () => {
+		const root = repo()
+		write(root, '.agents/references/a.md', 'x\n')
+		failure.value = 'nope'
+		expect(await search('a', { root })).toBe(1)
+		expect(errors()).toBe('error: Reference search failed.\n')
+	})
+})
+
+describe('where', () => {
+	it('gives the project and user files, who each reaches, and the heading paths below each', async () => {
+		const root = repo()
+		plugins(root, { a: { name: '## Create\n\n### Steps\n\nsteps\n' } })
+		write(fakeHome.value, '.agents/references/name.md', '## Close\n\nuser\n')
+
+		expect(await where('name', { root })).toBe(0)
+		expect(json<ReferenceWhereOutput>()).toEqual({
+			name: 'name',
+			status: 'found',
+			places: [
+				{
+					scope: 'project',
+					path: '.agents/references/name.md',
+					reaches: 'everyone working in this repository',
+					status: 'empty',
+					sections: ['Create', 'Create > Steps', 'Close'],
+				},
+				{
+					scope: 'user',
+					path: '~/.agents/references/name.md',
+					reaches: 'only you, in every repository',
+					status: 'used',
+					sections: ['Create', 'Create > Steps'],
+				},
+			],
+		})
+	})
+
+	it('exits 0 on an ambiguous name, giving the options a selection chooses between', async () => {
+		const root = repo()
+		plugins(root, { a: { name: 'a\n' }, b: { name: 'b\n' } })
+
+		expect(await where('name', { root })).toBe(0)
+		const report = json<ReferenceWhereOutput>()
+		expect(report.status).toBe('ambiguous')
+		expect(report.options).toEqual(['a/name', 'b/name'])
+		expect(report.places.map(({ scope }) => scope)).toEqual(['project', 'user'])
+	})
+
+	it('takes --default, so the sections below include the default', async () => {
+		const root = repo()
+		const folder = skill(root, 'skills/tracker', { name: '## Default\n\nd\n' })
+
+		expect(await where('name', { root, default: folder })).toBe(0)
+		expect(json<ReferenceWhereOutput>().places[0]?.sections).toEqual(['Default'])
+	})
+
+	it('adds the layers under --trace, a plugin read-only among them', async () => {
+		const root = repo()
+		plugins(root, { a: { name: 'a\n' } })
+
+		expect(await where('name', { root, trace: true })).toBe(0)
+		expect(json<ReferenceWhereOutput>().layers?.find(({ plugin }) => plugin === 'a')?.outcome).toBe('used')
+	})
+
+	it('exits 1 on an invalid name', async () => {
+		expect(await where('a/b/c', { root: repo() })).toBe(1)
+		expect(errors()).toMatch(/^error: reference-invalid: /)
+	})
+
+	it('writes warnings to stderr in text', async () => {
+		const root = repo()
+		write(root, '.agents/references/name.md', '---\nmerge: bogus\n---\n\nx\n')
+		expect(await where('name', { root, format: 'text' })).toBe(0)
+		expect(errors()).toMatch(/^warning: merge-unknown: /)
+	})
+
+	it('reports a thrown failure', async () => {
+		failure.value = 'nope'
+		expect(await where('name', { root: repo() })).toBe(1)
+		expect(errors()).toBe('error: Reference placement lookup failed.\n')
 	})
 })
 
 describe('check', () => {
-	function report(): ReferenceCheckReport {
-		return JSON.parse(written()) as ReferenceCheckReport
-	}
-
-	it('checks every interface document and implementation, and exits 0 when all pass', async () => {
+	it('gives only the failures and the count that pass', async () => {
 		const root = repo()
+		plugins(root, { repobuddy: { 'scaffold.recipe.interface': recipeInterface } })
 		write(root, '.agents/references/scaffold.recipe.typescript-lib.md', typescriptRecipe)
-		declareDependency(root, 'repobuddy')
-		installDependency(root, 'repobuddy', { 'scaffold.recipe.interface': recipeInterface })
+		write(root, '.agents/references/scaffold.recipe.bad.md', '---\nimplements: scaffold.recipe@9\n---\n\n## Recipe\n')
 
-		expect(await check(undefined, { root })).toBe(0)
-		expect(report()).toEqual({
+		expect(await check(undefined, { root })).toBe(1)
+		expect(json<ReferenceCheckReport>()).toEqual({
+			failed: [{ name: 'scaffold.recipe.bad', failures: [{ check: 'version', message: 'unknown version 9' }] }],
+			passed: 2,
+		})
+	})
+
+	it('exits 0 when every check passes, and adds every entry under --trace', async () => {
+		const root = repo()
+		plugins(root, {
+			repobuddy: {
+				'project-tracker.capabilities.interface': (await import('./reference-interface.fixtures.js'))
+					.capabilitiesInterface,
+				'project-tracker.capabilities.github': githubCapabilities,
+			},
+		})
+
+		expect(await check(['project-tracker.capabilities.github'], { root, trace: true })).toBe(0)
+		expect(json<ReferenceCheckReport>()).toEqual({
+			passed: 1,
 			references: [
-				{ name: 'scaffold.recipe.interface', kind: 'interface', status: 'passed', tier: 'plugin', failures: [] },
 				{
-					name: 'scaffold.recipe.typescript-lib',
+					name: 'project-tracker.capabilities.github',
 					kind: 'implementation',
 					status: 'passed',
-					tier: 'project',
-					failures: [],
+					unsupported: ['Retype'],
 				},
 			],
-			failed: 0,
 		})
 	})
 
-	it('states the zero when nothing declares an interface', async () => {
-		expect(await check([], { root: repo() })).toBe(0)
-		expect(report()).toEqual({
-			references: '0 references — no interface document or implementation found',
-			failed: 0,
-		})
-	})
-
-	it('prints the report and exits 1 when a named reference fails', async () => {
+	it('fails a name not found with its status code, and writes the summary error in text', async () => {
 		const root = repo()
-		write(root, '.agents/references/scaffold.recipe.a.md', '---\nimplements: scaffold.recipe@1\n---\n\n## Files\n')
-
-		expect(await check(['scaffold.recipe.a'], { root })).toBe(1)
-		expect(report().failed).toBe(1)
-		expect(stderrLines()).toContain('error: 1 of 1 references fail their interface check.\n')
-	})
-
-	it('rejects a name that is a path', async () => {
-		expect(await check(['../x.md'], { root: repo() })).toBe(1)
-	})
-})
-
-describe('show and interfaces', () => {
-	it('warns when the resolved document fails its interface check, and still prints it', async () => {
-		const root = repo()
-		write(
-			root,
-			'.agents/references/project-tracker.capabilities.github.md',
-			githubCapabilities.replace(
-				'implements: project-tracker.capabilities@1',
-				'implements: project-tracker.capabilities@2',
-			),
-		)
-		write(
-			root,
-			'.agents/references/project-tracker.capabilities.interface.md',
-			'---\ninterface:\n  cardinality: many\n  version: 1\n  sections: [Tracker, Detect, Kinds, Search, Create, Link, Retype, Close, Url]\n---\n',
-		)
-
-		expect(await show(['project-tracker.capabilities.github'], { root, format: 'json' })).toBe(0)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry?.warnings).toEqual([
-			'project-tracker.capabilities.github fails its interface check (version): unknown version 2',
-		])
-	})
-})
-
-describe('cross-plugin overrides', () => {
-	it('stacks a house plugin above the plugin it overrides, and traces it', async () => {
-		const root = repo()
-		write(
-			root,
-			'package.json',
-			JSON.stringify({ dependencies: { '@repobuddy/buddy': '1.0.0', 'house-skills': '1.0.0' } }),
-		)
-		installDependency(root, '@repobuddy/buddy', {
-			'project-tracker.capabilities.github': githubCapabilities,
-		})
-		write(root, 'node_modules/@repobuddy/buddy/plugin.json', JSON.stringify({ name: 'repobuddy' }))
-		installDependency(root, 'house-skills', {
-			'project-tracker.capabilities.github':
-				'---\noverrides: [repobuddy]\nmerge: merge-sections\n---\n\n## Create\n\nThe house way to file an issue.\n',
-		})
-
-		expect(await show(['project-tracker.capabilities.github'], { root, format: 'json', trace: true })).toBe(0)
-		const [entry] = JSON.parse(written()) as ReferenceShowEntry[]
-		expect(entry?.content).toContain('The house way to file an issue.')
-		expect(entry?.content).toContain('## Retype')
-		expect(entry?.trace?.filter(({ found }) => found).map(({ plugin, outcome }) => `${plugin} ${outcome}`)).toEqual([
-			'@repobuddy/buddy used',
-			'house-skills used (overrides repobuddy)',
-		])
-
+		expect(await check(['gone'], { root, format: 'text' })).toBe(1)
+		expect(errors()).toMatch(/^error: interface-check: 1 of 1 references fail their check\.$/m)
 		stdout.mockClear()
-		expect(await show(['repobuddy/project-tracker.capabilities.github'], { root })).toBe(0)
-		expect(written()).toContain('The house way to file an issue.')
+		expect(await check(['gone'], { root })).toBe(1)
+		expect(json<ReferenceCheckReport>().failed).toEqual([
+			{ name: 'gone', failures: [{ check: 'reference-missing', message: expect.any(String) }] },
+		])
+	})
+
+	it('fails the compose check when composing raised a warning', async () => {
+		const root = repo()
+		plugins(root, { repobuddy: { 'project-tracker.routing.interface': routingInterface } })
+		write(root, '.agents/references/project-tracker.routing.interface.md', '---\nmerge: patch\n---\n\nhigher\n')
+
+		expect(await check(['project-tracker.routing.interface'], { root })).toBe(1)
+		expect(json<ReferenceCheckReport>().failed?.[0]?.failures.map(({ check }) => check)).toEqual(['compose'])
+	})
+
+	it('reports a thrown failure', async () => {
+		failure.value = 'nope'
+		expect(await check(['x'], { root: repo() })).toBe(1)
+		expect(errors()).toBe('error: Reference check failed.\n')
 	})
 })
 
 describe('implementations', () => {
-	function report(): ReferenceImplementationsReport {
-		return JSON.parse(written()) as ReferenceImplementationsReport
-	}
-
-	it('lists the compatible implementations and the excluded ones', async () => {
+	function fixture(): string {
 		const root = repo()
+		plugins(root, { repobuddy: { 'scaffold.recipe.interface': recipeInterface } })
 		write(root, '.agents/references/scaffold.recipe.typescript-lib.md', typescriptRecipe)
-		write(root, '.agents/references/scaffold.recipe.next.md', typescriptRecipe.replace('@1', '@2'))
-		declareDependency(root, 'repobuddy')
-		installDependency(root, 'repobuddy', { 'scaffold.recipe.interface': recipeInterface })
-
-		expect(await implementations('scaffold.recipe', { root })).toBe(0)
-		expect(report()).toMatchObject({
-			interface: 'scaffold.recipe',
-			accept: [1],
-			implementations: [{ pin: 'scaffold.recipe.typescript-lib', tier: 'project' }],
-			excluded: [{ name: 'scaffold.recipe.next', reasons: ['unknown version 2'] }],
-		})
-
-		stdout.mockClear()
-		expect(await implementations('scaffold.recipe', { root, accept: '1, 2' })).toBe(0)
-		expect(report().implementations.map(({ name }) => name)).toEqual([
-			'scaffold.recipe.next',
-			'scaffold.recipe.typescript-lib',
-		])
-	})
-
-	it('fails on a malformed --accept or a missing interface', async () => {
-		const root = repo()
-
-		expect(await implementations('scaffold.recipe', { root, accept: '1,x' })).toBe(1)
-		expect(stderrLines()).toContain('error: --accept is a comma-separated list of versions, such as 1,2; got "1,x".\n')
-		expect(await implementations('scaffold.recipe', { root })).toBe(1)
-		expect(stderrLines()).toContain('error: no interface document scaffold.recipe.interface\n')
-	})
-})
-
-describe('create --implements', () => {
-	function report(): ReferenceCreateReport {
-		return JSON.parse(written()) as ReferenceCreateReport
-	}
-
-	function withInterfaces(): string {
-		const root = repo()
-		declareDependency(root, 'repobuddy')
-		installDependency(root, 'repobuddy', {
-			'scaffold.recipe.interface': recipeInterface,
-			'project-tracker.routing.interface': routingInterface,
-		})
+		write(root, '.agents/references/scaffold.recipe.bad.md', '---\nimplements: scaffold.recipe@9\n---\n\n## Recipe\n')
 		return root
 	}
 
-	it("starts an implementation from the interface's sections, optional ones stubbed unsupported", async () => {
-		const root = withInterfaces()
-
-		expect(
-			await create('scaffold.recipe.typescript-lib', { root, implements: 'scaffold.recipe', format: 'json' }),
-		).toBe(0)
-		expect(report().warnings).toEqual([])
-		expect(report().content).toBe(`---
-description: What this scaffold.recipe implementation covers, and when an agent should read it.
-implements: scaffold.recipe@1
----
-
-## Recipe
-
-Write this section. The scaffold.recipe interface requires it.
-
-## Inputs
-
-**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.
-
-## Files
-
-**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.
-
-## Config
-
-**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.
-
-## Verify
-
-**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.
-
-## Post
-
-**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.
-`)
-
-		stdout.mockClear()
-		expect(await check(['scaffold.recipe.typescript-lib'], { root })).toBe(0)
+	it('gives each pin, description, and unsupported sections', async () => {
+		expect(await implementations('scaffold.recipe', { root: fixture() })).toBe(0)
+		expect(json<ReferenceImplementationsReport>()).toEqual({
+			implementations: [
+				{
+					pin: 'scaffold.recipe.typescript-lib',
+					description: 'A TypeScript library.',
+					unsupported: ['Inputs', 'Config', 'Verify', 'Post'],
+				},
+			],
+		})
 	})
 
-	it('replaces a copy below whole, with a warning, rather than merging stubs over it', async () => {
-		const root = withInterfaces()
-		installDependency(root, 'repobuddy', {
-			'scaffold.recipe.interface': recipeInterface,
-			'scaffold.recipe.typescript-lib': typescriptRecipe,
+	it('adds the name, tier, version, the interface, and the ones left out under --trace', async () => {
+		expect(await implementations('scaffold.recipe', { root: fixture(), trace: true })).toBe(0)
+		const report = json<ReferenceImplementationsReport>()
+		expect(report).toMatchObject({
+			interface: 'scaffold.recipe',
+			cardinality: 'many',
+			accept: [1],
+			excluded: [{ name: 'scaffold.recipe.bad', reasons: ['version: unknown version 9'] }],
 		})
-
-		expect(
-			await create('scaffold.recipe.typescript-lib', {
-				root,
-				implements: 'scaffold.recipe',
-				format: 'json',
-				'dry-run': true,
-			}),
-		).toBe(0)
-		expect(report().content).not.toContain('merge:')
-		expect(report().warnings).toEqual([
-			expect.stringMatching(/^the new file replaces the plugin copy .* whole; to change only some of its sections/),
+		expect(report.implementations).toEqual([
+			expect.objectContaining({ name: 'scaffold.recipe.typescript-lib', tier: 'project', version: 1 }),
 		])
 	})
 
-	it('refuses a name or a tier the interface does not allow, a missing interface, and --template with it', async () => {
-		const root = withInterfaces()
+	it('states an explicit zero, and takes --accept', async () => {
+		const root = repo()
+		plugins(root, { repobuddy: { 'scaffold.recipe.interface': recipeInterface } })
+		expect(await implementations('scaffold.recipe', { root, accept: '1, 2' })).toBe(0)
+		expect(json<ReferenceImplementationsReport>().implementations).toBe('0 implementations of scaffold.recipe')
+	})
 
-		expect(await create('scaffold.recipe', { root, implements: 'scaffold.recipe' })).toBe(1)
-		expect(stderrLines()).toContain(
-			'error: an implementation of scaffold.recipe is named scaffold.recipe.<key>, not "scaffold.recipe".\n',
+	it('exits 2 on a malformed --accept, and 1 on an unknown interface', async () => {
+		expect(await implementations('scaffold.recipe', { root: repo(), accept: 'one' })).toBe(2)
+		expect(await implementations('nope', { root: repo() })).toBe(1)
+		expect(errors()).toMatch(/error: no interface document nope\.interface/)
+	})
+})
+
+describe('create', () => {
+	it('writes the project file with merge: patch by default, and points to show', async () => {
+		const root = repo()
+
+		expect(await create('name', { root })).toBe(0)
+		const content = readFileSync(join(root, '.agents/references/name.md'), 'utf8')
+		expect(content).toMatch(/^---\ndescription: .*\ntags: \[topic\]\nmerge: patch\n---\n\n## Overview\n/)
+		expect(written()).toContain('Run `show name` for the composed document.')
+	})
+
+	it('writes to the user tier with --scope user', async () => {
+		expect(await create('name', { root: repo(), scope: 'user' })).toBe(0)
+		expect(existsSync(join(fakeHome.value, '.agents/references/name.md'))).toBe(true)
+	})
+
+	it('writes --merge, else the template’s own merge', async () => {
+		const root = repo()
+		const template = write(root, 't.md', '---\ndescription: d\nmerge: combine\n---\n\n## A\n\na\n')
+
+		expect(await create('one', { root, merge: 'replace' })).toBe(0)
+		expect(readFileSync(join(root, '.agents/references/one.md'), 'utf8')).toContain('merge: replace')
+		expect(await create('two', { root, template })).toBe(0)
+		expect(readFileSync(join(root, '.agents/references/two.md'), 'utf8')).toBe(
+			'---\ndescription: d\nmerge: combine\n---\n\n## A\n\na\n',
 		)
-		expect(
-			await create('project-tracker.routing', { root, implements: 'project-tracker.routing', scope: 'user' }),
-		).toBe(1)
-		expect(stderrLines()).toContain(
-			'error: the user tier may not implement project-tracker.routing (tiers: project).\n',
+	})
+
+	it('writes no body with --merge remove, and refuses it with --template', async () => {
+		const root = repo()
+		expect(await create('name', { root, merge: 'remove' })).toBe(0)
+		expect(readFileSync(join(root, '.agents/references/name.md'), 'utf8')).toBe('---\nmerge: remove\n---\n')
+
+		const template = write(root, 't.md', '## A\n')
+		expect(await create('other', { root, merge: 'remove', template })).toBe(1)
+		expect(errors()).toMatch(/error: options-conflict: --merge remove/)
+	})
+
+	it('exits 2 on an unknown --merge', async () => {
+		expect(await create('name', { root: repo(), merge: 'first-wins' })).toBe(2)
+	})
+
+	it('writes an implementation with merge: replace and every section stubbed', async () => {
+		const root = repo()
+		plugins(root, { repobuddy: { 'scaffold.recipe.interface': recipeInterface } })
+
+		expect(await create('scaffold.recipe.go', { root, implements: 'scaffold.recipe' })).toBe(0)
+		const content = readFileSync(join(root, '.agents/references/scaffold.recipe.go.md'), 'utf8')
+		expect(content).toContain('implements: scaffold.recipe@1\nmerge: replace\n')
+		for (const section of ['Recipe', 'Inputs', 'Files', 'Config', 'Verify', 'Post']) {
+			expect(content).toContain(`## ${section}\n\n**Unsupported.**`)
+		}
+	})
+
+	it('refuses an unknown interface, a name that does not fit, and --implements with --template', async () => {
+		const root = repo()
+		plugins(root, { repobuddy: { 'scaffold.recipe.interface': recipeInterface } })
+		const template = write(root, 't.md', '## A\n')
+
+		expect(await create('x', { root, implements: 'nope' })).toBe(1)
+		expect(await create('wrong', { root, implements: 'scaffold.recipe' })).toBe(1)
+		expect(errors()).toMatch(/is named scaffold\.recipe\.<key>, not "wrong"/)
+		expect(await create('scaffold.recipe.x', { root, implements: 'scaffold.recipe', template })).toBe(1)
+		expect(await create('scaffold.recipe.x', { root, implements: 'a/b/c' })).toBe(1)
+	})
+
+	it('refuses a title template and writes nothing', async () => {
+		const root = repo()
+		const template = write(root, 't.md', '---\ndescription: d\n---\n\n# Title\n\n## A\n\na\n')
+
+		expect(await create('name', { root, template })).toBe(1)
+		expect(errors()).toMatch(/error: template-title: .*"# Title"/)
+		expect(existsSync(join(root, '.agents/references/name.md'))).toBe(false)
+	})
+
+	it('writes a template with no description, with a hint on stderr rather than a warning', async () => {
+		const root = repo()
+		const template = write(root, 't.md', '## A\n\na\n')
+
+		expect(await create('name', { root, template })).toBe(0)
+		expect(errors()).toMatch(/^hint: it has no `description`/)
+		expect(errors()).not.toMatch(/warning:/)
+		expect(readFileSync(join(root, '.agents/references/name.md'), 'utf8')).toBe('---\nmerge: patch\n---\n\n## A\n\na\n')
+	})
+
+	it('refuses an unreadable template, and one whose frontmatter is not a mapping', async () => {
+		const root = repo()
+		expect(await create('name', { root, template: join(root, 'missing.md') })).toBe(1)
+		expect(errors()).toMatch(/cannot read the template/)
+		const list = write(root, 'l.md', '---\n- a\n---\n\n## A\n')
+		expect(await create('name', { root, template: list })).toBe(1)
+		expect(errors()).toMatch(/not a YAML mapping/)
+	})
+
+	it('adds a body and merge to a selection-only file, keeping its extends', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		const path = write(root, '.agents/references/name.md', '---\nextends: [a]\n---\n')
+		const template = write(root, 't.md', '---\ndescription: mine\n---\n\n## Create\n\nmine\n')
+
+		expect(await create('name', { root, template })).toBe(0)
+		expect(readFileSync(path, 'utf8')).toBe(
+			'---\nextends: [a]\ndescription: mine\nmerge: patch\n---\n\n## Create\n\nmine\n',
 		)
-		expect(await create('project-tracker.routing.x', { root, implements: 'project-tracker.routing' })).toBe(1)
-		expect(stderrLines()).toContain(
-			'error: an implementation of project-tracker.routing is named project-tracker.routing, not "project-tracker.routing.x".\n',
+	})
+
+	it('refuses a file that already has a body', async () => {
+		const root = repo()
+		write(root, '.agents/references/name.md', 'body\n')
+
+		expect(await create('name', { root })).toBe(1)
+		expect(errors()).toMatch(/error: file-exists: .*Update mode/)
+	})
+
+	it('refuses when a replace or a remove above would hide the new file, naming it', async () => {
+		const root = repo()
+		managed({ name: '---\nmerge: replace\n---\n\nmanaged\n' })
+
+		expect(await create('name', { root })).toBe(1)
+		expect(errors()).toMatch(/error: hidden: managed .*name\.md \(replace\) applies above it/)
+
+		stderr.mockClear()
+		harness.managed = undefined
+		harness.candidates = []
+		write(root, '.agents/references/other.md', '---\nmerge: remove\n---\n')
+		expect(await create('other', { root, scope: 'user' })).toBe(1)
+		expect(errors()).toMatch(/error: hidden: project .*\(remove\)/)
+	})
+
+	it('is not hidden by a replace with no body', async () => {
+		const root = repo()
+		write(root, '.agents/references/name.md', '---\nmerge: replace\nextends: []\n---\n')
+		expect(await create('name', { root, scope: 'user' })).toBe(0)
+	})
+
+	it('refuses a qualified name, naming the bare one', async () => {
+		expect(await create('a/name', { root: repo() })).toBe(1)
+		expect(errors()).toMatch(/error: reference-qualified: .*ask for "name"/)
+		expect(await create('x.md', { root: repo() })).toBe(1)
+		expect(errors()).toMatch(/error: reference-invalid:/)
+	})
+
+	it('exits 2 when more than one of --scope, --plugin, and --default is given, or --scope is unknown', async () => {
+		const root = repo()
+		expect(await create('name', { root, scope: 'user', plugin: root })).toBe(2)
+		expect(await create('name', { root, plugin: root, default: root })).toBe(2)
+		expect(await create('name', { root, scope: 'machine' })).toBe(2)
+	})
+
+	it('writes <plugin>/references/<name>.md with --plugin, with merge only when --merge is given', async () => {
+		const root = repo()
+		const folder = join(root, 'plugins/house')
+		write(folder, 'plugin.json', JSON.stringify({ name: 'house' }))
+		const template = write(root, 't.md', '---\ndescription: d\n---\n\n## A\n\na\n')
+
+		expect(await create('name', { root, plugin: folder, template })).toBe(0)
+		expect(readFileSync(join(folder, 'references/name.md'), 'utf8')).toBe('---\ndescription: d\n---\n\n## A\n\na\n')
+		expect(await create('other', { root, plugin: folder, template, merge: 'combine' })).toBe(0)
+		expect(readFileSync(join(folder, 'references/other.md'), 'utf8')).toContain('merge: combine')
+	})
+
+	it('refuses a --plugin folder with no manifest, outside the repository, or under node_modules', async () => {
+		const root = repo()
+		expect(await create('name', { root, plugin: join(root, 'plain') })).toBe(1)
+		expect(errors()).toMatch(/error: folder-invalid: .*no plugin manifest/)
+
+		const outside = tempDir('reference-outside-')
+		write(outside, 'plugin.json', JSON.stringify({ name: 'out' }))
+		expect(await create('name', { root, plugin: outside })).toBe(1)
+		expect(errors()).toMatch(/outside the repository/)
+
+		const installed = join(root, 'node_modules/house')
+		write(installed, 'plugin.json', JSON.stringify({ name: 'house' }))
+		expect(await create('name', { root, plugin: installed })).toBe(1)
+	})
+
+	it('writes <skill>/references/<name>.default.md with --default, with no merge', async () => {
+		const root = repo()
+		const folder = skill(root, 'skills/tracker')
+		const template = write(root, 't.md', '---\ndescription: d\nmerge: replace\n---\n\n## A\n\na\n')
+
+		expect(await create('name', { root, default: folder, template })).toBe(0)
+		expect(readFileSync(join(folder, 'references/name.default.md'), 'utf8')).toBe(
+			'---\ndescription: d\n---\n\n## A\n\na\n',
 		)
-		expect(await create('nothing.a', { root, implements: 'nothing' })).toBe(1)
-		expect(stderrLines()).toContain('error: no interface document nothing.interface\n')
-		expect(await create('scaffold.recipe.a', { root, implements: 'scaffold.recipe', template: 'x.md' })).toBe(1)
-		expect(stderrLines()).toContain('error: pass --template or --implements, not both.\n')
-		expect(existsSync(join(root, '.agents/references/project-tracker.routing.md'))).toBe(false)
+		expect(await create('other', { root, default: folder, merge: 'patch' })).toBe(1)
+	})
+
+	it('refuses a --default folder with no SKILL.md, or outside the repository', async () => {
+		const root = repo()
+		expect(await create('name', { root, default: join(root, 'plain') })).toBe(1)
+		expect(errors()).toMatch(/no SKILL\.md/)
+		const outside = skill(tempDir('reference-outside-'), 'tracker')
+		expect(await create('name', { root, default: outside })).toBe(1)
+	})
+
+	it('prints the trace under --trace, the new file used', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+
+		expect(await create('name', { root, trace: true })).toBe(0)
+		expect(errors()).toMatch(/project .*name\.md: used/)
+
+		stdout.mockClear()
+		expect(await create('other', { root, trace: true, format: 'json' })).toBe(0)
+		const report = json<ReferenceCreateReport>()
+		expect(report.trace?.layers.find(({ tier }) => tier === 'project')?.outcome).toBe('used')
+	})
+
+	it('prints the path and content with --dry-run, and writes nothing', async () => {
+		const root = repo()
+
+		expect(await create('name', { root, 'dry-run': true })).toBe(0)
+		expect(written()).toMatch(/^.*\.agents\/references\/name\.md\n\n---\n/)
+		expect(existsSync(join(root, '.agents/references/name.md'))).toBe(false)
+
+		stdout.mockClear()
+		expect(await create('name', { root, 'dry-run': true, format: 'json' })).toBe(0)
+		expect(json<ReferenceCreateReport>()).toMatchObject({
+			hint: expect.stringMatching(/Nothing was written/),
+			content: expect.any(String),
+		})
+	})
+})
+
+describe('select', () => {
+	it('writes extends listing the options bottom first, and reports what answers', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base }, b: { name: '## Create\n\nb\n' } })
+
+		expect(await select('name', ['a', 'b/name'], { root })).toBe(0)
+		expect(readFileSync(join(root, '.agents/references/name.md'), 'utf8')).toBe('---\nextends: [a, b]\n---\n')
+		expect(written()).toMatch(/extends: \[a, b\]\. "name" is answered by plugin b, on the stack a → b\./)
+	})
+
+	it('keeps the body and other keys, changing only extends', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base }, b: { name: base } })
+		const path = write(
+			root,
+			'.agents/references/name.md',
+			'---\ndescription: mine\nextends: [a]\n---\n\n## Create\n\nmine\n',
+		)
+
+		expect(await select('name', ['b', 'default'], { root, format: 'json' })).toBe(0)
+		expect(readFileSync(path, 'utf8')).toBe('---\ndescription: mine\nextends: [b, default]\n---\n\n## Create\n\nmine\n')
+		expect(json<ReferenceSelectReport>()).toMatchObject({ extends: ['b', 'default'], status: 'found', stack: ['b'] })
+	})
+
+	it('writes to the user tier with --scope user', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		expect(await select('name', ['a'], { root, scope: 'user' })).toBe(0)
+		expect(existsSync(join(fakeHome.value, '.agents/references/name.md'))).toBe(true)
+	})
+
+	it('refuses an option that is neither default nor a plugin holding the name, writing nothing', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base }, b: { other: 'x\n' } })
+
+		expect(await select('name', ['b'], { root })).toBe(1)
+		expect(errors()).toMatch(
+			/error: option-invalid: b is neither default nor a plugin holding "name"; the plugins holding it are a\./,
+		)
+		expect(existsSync(join(root, '.agents/references/name.md'))).toBe(false)
+	})
+
+	it('refuses a qualified name, and exits 2 with no option', async () => {
+		const root = repo()
+		expect(await select('a/name', ['a'], { root })).toBe(1)
+		expect(await select('name', [], { root })).toBe(2)
+	})
+
+	it('removes extends with --clear, deleting a file left with nothing in it', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		const empty = write(root, '.agents/references/name.md', '---\nextends: [a]\n---\n')
+		const kept = write(root, '.agents/references/other.md', '---\nextends: [a]\n---\n\nbody\n')
+
+		expect(await select('name', [], { root, clear: true })).toBe(0)
+		expect(existsSync(empty)).toBe(false)
+		expect(written()).toMatch(/selection cleared; the file was left empty and deleted/)
+		expect(await select('other', [], { root, clear: true, format: 'json' })).toBe(0)
+		expect(readFileSync(kept, 'utf8')).toBe('body\n')
+	})
+
+	it('fails --clear with no selection, stating what answers the name now', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+
+		expect(await select('name', [], { root, clear: true })).toBe(1)
+		expect(errors()).toMatch(
+			/error: no-selection: the project tier holds no selection of "name"\. "name" is answered by plugin a/,
+		)
+		expect(await select('name', ['a'], { root, clear: true })).toBe(2)
+	})
+})
+
+describe('delete', () => {
+	it('deletes the project file and reports the status and stack afterwards', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		const path = write(root, '.agents/references/name.md', '## Create\n\nmine\n')
+
+		expect(await remove('name', { root, format: 'json' })).toBe(0)
+		expect(existsSync(path)).toBe(false)
+		expect(json<ReferenceDeleteReport>()).toEqual({
+			path,
+			status: 'found',
+			stack: ['a'],
+			answer: '"name" is answered by plugin a, on the stack a.',
+		})
+	})
+
+	it('says when a selection went with the file, naming reference select, and gives the options it leaves', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base }, b: { name: base } })
+		write(root, '.agents/references/name.md', '---\nextends: [a]\n---\n\n## Create\n\nmine\n')
+
+		expect(await remove('name', { root })).toBe(0)
+		expect(written()).toMatch(
+			/deleted\. "name" is ambiguous: .* Also, the selection extends: \[a\] went with it; run `reference select name <option>\.\.\.` to restore it\./,
+		)
+	})
+
+	it('fails with no file there, stating what answers the name now', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+
+		expect(await remove('name', { root })).toBe(1)
+		expect(errors()).toMatch(/error: no-file: .*does not exist.*"name" is answered by plugin a/)
+	})
+
+	it('prints the answer afterwards with --dry-run, deleting nothing', async () => {
+		const root = repo()
+		const path = write(fakeHome.value, '.agents/references/name.md', 'user\n')
+		write(root, '.agents/references/name.md', 'project\n')
+
+		expect(await remove('name', { root, scope: 'user', 'dry-run': true })).toBe(0)
+		expect(existsSync(path)).toBe(true)
+		expect(written()).toMatch(/would delete\. "name" is answered by the project file/)
+	})
+
+	it('deletes a folder-form file and its emptied folder', async () => {
+		const root = repo()
+		const path = write(root, '.agents/references/name/README.md', 'folder\n')
+
+		expect(await remove('name', { root })).toBe(0)
+		expect(existsSync(dirname(path))).toBe(false)
+	})
+
+	it('acts on a plugin or a skill source folder with --plugin or --default', async () => {
+		const root = repo()
+		const plugin = join(root, 'plugins/house')
+		write(plugin, 'plugin.json', JSON.stringify({ name: 'house' }))
+		const pluginFile = write(plugin, 'references/name.md', 'x\n')
+		const folder = skill(root, 'skills/tracker', { name: 'd\n' })
+
+		expect(await remove('name', { root, plugin })).toBe(0)
+		expect(existsSync(pluginFile)).toBe(false)
+		expect(await remove('name', { root, default: folder })).toBe(0)
+		expect(existsSync(join(folder, 'references/name.default.md'))).toBe(false)
+	})
+
+	it('refuses a qualified name, and exits 2 on conflicting places', async () => {
+		const root = repo()
+		expect(await remove('a/name', { root })).toBe(1)
+		expect(await remove('name', { root, scope: 'user', default: root })).toBe(2)
+	})
+
+	it('reports a thrown failure', async () => {
+		const root = repo()
+		write(root, '.agents/references/name.md', 'x\n')
+		failure.value = 'nope'
+		expect(await remove('name', { root })).toBe(1)
+		expect(errors()).toBe('error: Reference deletion failed.\n')
+	})
+})
+
+describe('symlinked skill folders', () => {
+	it('reads a default through a symlinked skill folder given to --default', async () => {
+		const root = repo()
+		const real = skill(root, 'store/tracker', { name: 'linked\n' })
+		const link = join(root, '.agents/skills/pnpm-pkg-tracker')
+		mkdirSync(dirname(link), { recursive: true })
+		symlinkSync(real, link)
+
+		expect(await show(['name'], { root, default: link })).toBe(0)
+		expect(written()).toBe('linked\n')
 	})
 })

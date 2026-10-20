@@ -1,30 +1,20 @@
 import { checkResolved, interfaceLookup } from './reference-check.js'
-import {
-	checkImplementation,
-	fitsName,
-	type InterfaceCardinality,
-	interfaceSuffix,
-	readImplements,
-} from './reference-interface.js'
-import type { ReferenceLayer, ReferenceTier } from './reference-layers.js'
-import {
-	parseReferenceName,
-	type ResolvedReference,
-	type ResolveOptions,
-	referenceNames,
-	resolveReference,
-} from './resolve-reference.js'
+import { fitsName, type InterfaceCardinality, interfaceSuffix, readImplements } from './reference-interface.js'
+import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
+import { parseReferenceName } from './reference-name.js'
+import type { ReferenceWarning } from './reference-warning.js'
+import { type ResolvedReference, type ResolveOptions, referenceNames, resolveReference } from './resolve-reference.js'
 
 export type ReferenceImplementation = {
-	/** What a consumer loads: `<plugin>/<name>` when a plugin's copy is the base, else the bare name. */
+	/** What a consumer loads: the name as it resolved, `<plugin>/<name>` when no extends orders the plugins holding it. */
 	pin: string
+	description: string
+	/** The listed sections it marks `**Unsupported.**` or leaves out, in the interface's order. */
+	unsupported: string[]
 	name: string
-	/** The tier of the highest layer used. */
+	/** The tier of the highest contribution whose text it holds. */
 	tier: ReferenceTier
 	version: number
-	description: string
-	/** The optional sections it marks `**Unsupported.**` or leaves out, in the interface's order. */
-	unsupported: string[]
 }
 
 export type ExcludedImplementation = { name: string; reasons: string[] }
@@ -36,8 +26,7 @@ export type ReferenceImplementations = {
 	accept: number[]
 	implementations: ReferenceImplementation[]
 	excluded: ExcludedImplementation[]
-	/** Only when resolving a candidate raised one. */
-	warnings?: string[]
+	warnings: ReferenceWarning[]
 }
 
 export type ImplementationsOptions = ResolveOptions & {
@@ -45,90 +34,90 @@ export type ImplementationsOptions = ResolveOptions & {
 	accept?: readonly number[] | undefined
 }
 
-function implementedIds(resolved: ResolvedReference): string[] {
-	return readImplements(resolved.metadata ?? {}).entries.map(({ id }) => id)
+type Source = ReferenceLayers | readonly ReferenceLayer[]
+
+function firstLine(value: unknown): string {
+	return typeof value === 'string' ? value.split('\n')[0]?.trim() || '' : ''
 }
 
 /** Whether a name is in the interface's namespace but declares another interface that its name fits. */
-function belongsElsewhere(name: string, ids: readonly string[], id: string): boolean {
-	return ids.some((other) => other !== id && (name === other || name.startsWith(`${other}.`)))
-}
-
-function pinOf(resolved: ResolvedReference, name: string): string {
-	const lowest = resolved.layers.at(-1)
-	return lowest?.tier === 'plugin' ? `${lowest.plugin}/${name}` : name
+function belongsElsewhere(name: string, declared: string | undefined, id: string): boolean {
+	return declared !== undefined && declared !== id && (name === declared || name.startsWith(`${declared}.`))
 }
 
 /**
  * The implementations of interface `id` a consumer may load, each checked as `check` would on its
- * resolved document, and every candidate left out with why. A candidate is a name in the interface's
- * namespace (`<id>` or `<id>.<key>`) or a reference that declares `implements: <id>@<n>`.
+ * composed document, and every candidate left out with why. A candidate is a name in the interface's
+ * namespace (`<id>` or `<id>.<key>`) or a reference that declares `implements: <id>@<n>`. A skill's
+ * default is never listed: it has no qualified name to pin. An unknown interface throws.
  */
 export function referenceImplementations(
 	id: string,
-	layers: readonly ReferenceLayer[],
+	source: Source,
 	options: ImplementationsOptions = {},
 ): ReferenceImplementations {
 	const { accept: acceptOption, ...resolveOptions } = options
-	parseReferenceName(`${id}${interfaceSuffix}`)
-	const lookup = interfaceLookup(layers, resolveOptions)
+	const ifaceName = parseReferenceName(`${id}${interfaceSuffix}`)
+	if (ifaceName.invalid || ifaceName.plugin !== undefined) throw new Error(`"${id}" is not an interface id.`)
+	const lookup = interfaceLookup(source, resolveOptions)
 	const iface = lookup(id)
-	if (!iface.value) throw new Error(iface.failure?.message ?? `no interface ${id}`)
-	const accept = [...(acceptOption?.length ? acceptOption : iface.value.versions)]
+	const value = iface.value
+	if (!value) throw new Error(iface.failure?.message ?? `no interface ${id}`)
+	const accept = [...(acceptOption?.length ? acceptOption : value.versions)]
 	const report: ReferenceImplementations = {
 		interface: id,
-		cardinality: iface.value.cardinality,
+		cardinality: value.cardinality,
 		accept,
 		implementations: [],
 		excluded: [],
+		warnings: [],
 	}
-	const warnings = new Set<string>()
-	for (const name of referenceNames(layers)) {
-		if (name === `${id}${interfaceSuffix}`) continue
-		const resolved = resolveReference(parseReferenceName(name), layers, resolveOptions)
+	const seen = new Set<string>()
+	const consider = (name: string, resolved: ResolvedReference) => {
+		if (resolved.status !== 'found') return
+		const declared = readImplements(resolved.metadata ?? {}).entry
 		const inNamespace = name === id || name.startsWith(`${id}.`)
-		if (resolved.status === 'ambiguous') {
-			if (!inNamespace) continue
-			report.excluded.push({ name, reasons: [`ambiguous between ${resolved.plugins.join(' and ')}`] })
-			continue
+		const declares = declared?.id === id
+		if (!declares && (!inNamespace || name.endsWith(interfaceSuffix) || belongsElsewhere(name, declared?.id, id)))
+			return
+		for (const warning of resolved.warnings) {
+			const key = `${warning.code} ${warning.message}`
+			if (!seen.has(key)) report.warnings.push(warning)
+			seen.add(key)
 		}
-		if (resolved.status !== 'found') continue
-		const ids = implementedIds(resolved)
-		const declares = ids.includes(id)
-		if (!declares && (!inNamespace || name.endsWith(interfaceSuffix) || belongsElsewhere(name, ids, id))) continue
-		for (const warning of resolved.warnings) warnings.add(warning)
 		if (!declares) {
-			const shape = fitsName(iface.value, name)
-				? ''
-				: ` and is not named ${iface.value.cardinality === 'one' ? id : `${id}.<key>`}`
-			report.excluded.push({ name, reasons: [`declares no implements ${id}@<version>${shape}`] })
-			continue
+			const shape = fitsName(value, name) ? '' : ` and is not named ${value.cardinality === 'one' ? id : `${id}.<key>`}`
+			report.excluded.push({ name: resolved.name, reasons: [`declares no implements ${id}@<version>${shape}`] })
+			return
 		}
-		const failures = checkResolved(resolved, lookup, { id, versions: accept }).filter(
-			(failure) => failure.interface === id || failure.interface === undefined,
-		)
+		const { failures, unsupported } = checkResolved(resolved, lookup, { id, versions: accept })
 		if (failures.length) {
-			report.excluded.push({ name, reasons: failures.map(({ message }) => message) })
-			continue
+			report.excluded.push({
+				name: resolved.name,
+				reasons: failures.map(({ check, message }) => `${check}: ${message}`),
+			})
+			return
 		}
-		const version = readImplements(resolved.metadata ?? {}).entries.find((entry) => entry.id === id)?.version as number
-		const { unsupported } = checkImplementation(iface.value, {
-			name,
-			version,
-			tiers: resolved.layers.map(({ tier }) => tier),
-			content: resolved.content ?? '',
-			accept,
-		})
-		const description = resolved.metadata?.['description']
+		const top = resolved.trace.contributions.at(-1)
 		report.implementations.push({
-			pin: pinOf(resolved, name),
-			name,
-			tier: resolved.tier as ReferenceTier,
-			version,
-			description: typeof description === 'string' ? description.split('\n')[0]?.trim() || '' : '',
+			pin: resolved.name,
+			description: firstLine(resolved.metadata?.['description']),
 			unsupported,
+			name,
+			tier: top?.tier ?? 'plugin',
+			version: (declared as { version: number }).version,
 		})
 	}
-	if (warnings.size) report.warnings = [...warnings]
+	for (const name of referenceNames(source)) {
+		if (name === `${id}${interfaceSuffix}`) continue
+		const resolved = resolveReference(name, source, resolveOptions)
+		if (resolved.status !== 'ambiguous') {
+			consider(name, resolved)
+			continue
+		}
+		for (const option of resolved.options ?? []) {
+			if (option !== 'default') consider(name, resolveReference(option, source, resolveOptions))
+		}
+	}
 	return report
 }

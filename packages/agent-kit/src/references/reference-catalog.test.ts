@@ -5,129 +5,172 @@ import { describe, expect, it } from 'vitest'
 import { listReferences, searchReferences } from './reference-catalog.js'
 import type { ReferenceLayer } from './reference-layers.js'
 
-function tempDir(prefix = 'reference-catalog-'): string {
-	return mkdtempSync(join(tmpdir(), prefix))
+function layer(tier: ReferenceLayer['tier'], documents: Record<string, string>, plugin?: string): ReferenceLayer {
+	const dir = mkdtempSync(join(tmpdir(), 'reference-catalog-'))
+	for (const [file, content] of Object.entries(documents)) {
+		mkdirSync(dirname(join(dir, file)), { recursive: true })
+		writeFileSync(join(dir, file), content)
+	}
+	return plugin === undefined ? { tier, dir } : { tier, dir, plugin }
 }
 
-function write(root: string, relPath: string, content: string): string {
-	const path = join(root, relPath)
-	mkdirSync(dirname(path), { recursive: true })
-	writeFileSync(path, content)
-	return path
-}
-
-function layer(tier: ReferenceLayer['tier'], dir: string, plugins: string[] = []): ReferenceLayer {
-	return { tier, dir, plugins, status: '' }
-}
+const doc = (description: string, body = '## A\n\nbody\n') => `---\ndescription: ${description}\n---\n\n${body}`
 
 describe('listReferences', () => {
-	it('keeps only the names a pattern matches exactly, with their tier, plugin, and status', () => {
-		const dirA = tempDir()
-		const dirB = tempDir()
-		write(dirA, 'tracker.capabilities.github.md', '# github\n')
-		write(dirA, 'tracker.capabilities.linear.md', '# linear\n')
-		write(dirA, 'tracker.capabilitiesx.md', '# near miss\n')
-		write(dirA, 'tracker-capabilities-asana.md', '# dot is literal\n')
-		write(dirB, 'tracker.capabilities.linear.md', '# linear again\n')
+	it('gives one row per name, with its status and options when not found', () => {
+		const layers = [
+			layer('project', { 'testing.md': doc('project testing') }),
+			layer('plugin', { 'testing.md': doc('plugin testing'), 'shared.md': doc('a') }, 'a'),
+			layer('plugin', { 'shared.md': doc('b') }, 'b'),
+		]
 
-		const { rows } = listReferences([layer('plugin', dirA, ['dep-a']), layer('plugin', dirB, ['dep-b'])], {
-			pattern: 'tracker.capabilities.*',
-		})
+		const listing = listReferences(layers)
 
-		expect(rows.map(({ name, plugin }) => [name, plugin])).toEqual([
-			['tracker.capabilities.github', 'dep-a'],
-			['tracker.capabilities.linear', 'dep-a'],
-			['tracker.capabilities.linear', 'dep-b'],
+		expect(listing.references).toEqual([
+			{ name: 'shared', description: '', status: 'ambiguous', options: ['a/shared', 'b/shared'] },
+			{ name: 'testing', description: 'project testing', status: 'found' },
 		])
-		expect(rows[0]?.tier).toBe('plugin')
-		expect(rows[1]?.status).toContain('ambiguous')
+		expect(listing.defaults).toBeUndefined()
 	})
 
-	it('treats a pattern without a star as an exact name', () => {
-		const dir = tempDir()
-		write(dir, 'alpha.md', '# a\n')
-		write(dir, 'alpha-two.md', '# b\n')
+	it('gives one layer row per name per layer holding it, with its outcome, marking a selection', () => {
+		const layers = [
+			layer('project', { 'shared.md': '---\nextends: [b]\n---\n' }),
+			layer('plugin', { 'shared.md': doc('a') }, 'a'),
+			layer('plugin', { 'shared.md': doc('b') }, 'b'),
+		]
 
-		expect(listReferences([layer('project', dir)], { pattern: 'alpha' }).rows.map(({ name }) => name)).toEqual([
-			'alpha',
+		const { layers: rows, references } = listReferences(layers)
+
+		expect(references).toEqual([{ name: 'shared', description: 'b', status: 'found' }])
+		expect(rows.map(({ tier, plugin, outcome, selection }) => [tier, plugin, outcome, selection])).toEqual([
+			['project', undefined, 'used', true],
+			['plugin', 'a', 'not used (not in extends)', undefined],
+			['plugin', 'b', 'used', undefined],
 		])
 	})
 
-	it('reports an ambiguous name with the plugins it names, not the bare "ambiguous" outcome', () => {
-		const dirA = tempDir()
-		const dirB = tempDir()
-		write(dirA, 'testing.md', '# dep-a testing\n')
-		write(dirB, 'testing.md', '# dep-b testing\n')
+	it('shows a name a remove turned off as missing, and the rows below as shadowed', () => {
+		const layers = [
+			layer('project', { 'x.md': '---\nmerge: remove\n---\n' }),
+			layer('plugin', { 'x.md': doc('x') }, 'a'),
+		]
 
-		const { rows } = listReferences([layer('plugin', dirA, ['dep-a']), layer('plugin', dirB, ['dep-b'])])
+		const listing = listReferences(layers)
 
-		expect(rows.every((row) => row.status.startsWith('ambiguous — ask for one of dep-a/testing, dep-b/testing'))).toBe(
-			true,
-		)
+		expect(listing.references).toEqual([{ name: 'x', description: '', status: 'missing' }])
+		expect(listing.layers[1]?.outcome).toMatch(/^shadowed by project .*\(remove\)$/)
+	})
+
+	it('keeps exactly the names a pattern matches, * standing for any run of characters', () => {
+		const layers = [
+			layer('project', { 'tracker.github.md': doc('g'), 'tracker.jira.md': doc('j'), 'trackers.md': doc('t') }),
+		]
+
+		expect(listReferences(layers, { pattern: 'tracker.*' }).references.map(({ name }) => name)).toEqual([
+			'tracker.github',
+			'tracker.jira',
+		])
+	})
+
+	it('collects each warning once', () => {
+		const layers = [layer('project', { 'x.md': '---\nmerge: bogus\n---\n\n## A\n' })]
+
+		expect(listReferences(layers).warnings.map(({ code }) => code)).toEqual(['merge-unknown'])
 	})
 })
 
 describe('searchReferences', () => {
-	it('does not read a heading fenced as code, and tags an array frontmatter value into the description text', () => {
-		const dir = tempDir()
-		write(dir, 'beta.md', '# beta\n\n```\n## test inside fence\n```\n\n## Testing checklist\n\nnothing else here\n')
-		write(dir, 'delta.md', '---\ntags:\n  - foo\n  - test\n---\n# delta\n\nnothing relevant in the body\n')
+	const layers = () => [
+		layer('project', {
+			'testing.md': doc('How to write tests', '## Fixtures\n\nUse a temp folder.\n'),
+			'release.md': doc('Release steps', '## Changelog\n\nWrite a changeset.\n'),
+			'gone.md': '---\nmerge: remove\n---\n',
+		}),
+		layer('user', { 'gone.md': doc('testing gone') }),
+	]
 
-		const matches = searchReferences('test', [layer('project', dir)])
-
-		const beta = matches.find((match) => match.name === 'beta')
-		expect(beta?.match).toBe('heading')
-		const delta = matches.find((match) => match.name === 'delta')
-		expect(delta?.match).toBe('description')
+	it('ranks match kinds name, prefix, close name, description, heading, body, then by name', () => {
+		expect(searchReferences('testing', layers()).matches.map(({ name, match }) => `${name} ${match}`)).toEqual([
+			'testing name',
+		])
+		expect(searchReferences('test', layers()).matches.map(({ match }) => match)).toEqual(['prefix'])
+		expect(searchReferences('fixtures', layers()).matches.map(({ match }) => match)).toEqual(['heading'])
+		expect(searchReferences('changeset', layers()).matches.map(({ match }) => match)).toEqual(['body'])
+		expect(searchReferences('release steps', layers()).matches.map(({ match }) => match)).toEqual(['description'])
 	})
 
-	it('reads neither an array nor a string tags value as tag text', () => {
-		const dir = tempDir()
-		write(dir, 'epsilon.md', '---\ndescription: mentions test directly\ntags: 5\n---\n# epsilon\n')
-
-		const [match] = searchReferences('test', [layer('project', dir)])
-
-		expect(match?.name).toBe('epsilon')
-		expect(match?.match).toBe('description')
+	it('leaves out a name a remove turned off', () => {
+		expect(searchReferences('gone', layers()).matches).toEqual([])
 	})
 
-	it('reads a bare string tags value as tag text', () => {
-		const dir = tempDir()
-		write(dir, 'zeta.md', '---\ntags: test\n---\n# zeta\n\nnothing relevant in the body\n')
+	it('searches a name no extends orders once per plugin, as its qualified name', () => {
+		const plugins = [
+			layer('plugin', { 'shared.md': doc('one') }, 'a'),
+			layer('plugin', { 'shared.md': doc('two') }, 'b'),
+		]
 
-		const [match] = searchReferences('test', [layer('project', dir)])
-
-		expect(match?.name).toBe('zeta')
-		expect(match?.match).toBe('description')
+		expect(searchReferences('shared', plugins).matches).toEqual([
+			{ name: 'a/shared', description: 'one', match: 'name', tier: 'plugin', plugin: 'a' },
+			{ name: 'b/shared', description: 'two', match: 'name', tier: 'plugin', plugin: 'b' },
+		])
 	})
 
-	it('falls back to an empty description when its first line is blank', () => {
-		const dir = tempDir()
-		write(dir, 'alpha.md', '---\ndescription: "\\nsecond line mentions test"\n---\n# alpha\n')
+	it('matches tags as description', () => {
+		const tagged = [layer('project', { 'x.md': '---\ntags: [deploy, ci]\n---\n\n## A\n' })]
 
-		const [match] = searchReferences('test', [layer('project', dir)])
+		expect(searchReferences('deploy', tagged).matches.map(({ match }) => match)).toEqual(['description'])
+	})
+})
 
-		expect(match?.description).toBe('')
+describe("a skill's default", () => {
+	function skill(name: string, documents: Record<string, string>) {
+		const folder = mkdtempSync(join(tmpdir(), 'reference-catalog-skill-'))
+		writeFileSync(join(folder, 'SKILL.md'), `---\nname: ${name}\n---\n`)
+		mkdirSync(join(folder, 'references'))
+		for (const [file, content] of Object.entries(documents)) writeFileSync(join(folder, 'references', file), content)
+		return { name, folder }
+	}
+
+	it('lists a name only defaults hold, with a row per skill noting the default step reaches it', () => {
+		const tracker = skill('tracker', { 'x.default.md': doc('from tracker') })
+		const other = skill('tracker', { 'x.default.md': doc('same name, another folder') })
+		const source = { layers: [layer('project', {})], harnesses: [], skills: { skills: [tracker, other] } }
+
+		const listing = listReferences(source)
+
+		expect(listing.references).toEqual([{ name: 'x', description: 'from tracker', status: 'found' }])
+		expect(listing.layers.map(({ tier, skill: who, outcome, reachedBy }) => [tier, who, outcome, reachedBy])).toEqual([
+			['default', 'tracker', 'used', 'the default step, when tracker loads x'],
+			['default', 'tracker', 'used', 'the default step, when tracker loads x'],
+		])
+		expect(listing.defaults).toBeUndefined()
 	})
 
-	it('reports every plugin that holds an ambiguous name as its own match', () => {
-		const dirA = tempDir()
-		const dirB = tempDir()
-		write(dirA, 'testing.md', '# dep-a testing\n')
-		write(dirB, 'testing.md', '# dep-b testing\n')
+	it("adds each skill's default to an ambiguous name's options", () => {
+		const tracker = skill('tracker', { 'shared.default.md': doc('d') })
+		const source = {
+			layers: [layer('plugin', { 'shared.md': doc('a') }, 'a'), layer('plugin', { 'shared.md': doc('b') }, 'b')],
+			harnesses: [],
+			skills: { skills: [tracker] },
+		}
 
-		const matches = searchReferences('testing', [layer('plugin', dirA, ['dep-a']), layer('plugin', dirB, ['dep-b'])])
-
-		expect(matches.map((match) => match.name).sort()).toEqual(['dep-a/testing', 'dep-b/testing'])
+		expect(listReferences(source).references[0]?.options).toEqual(['a/shared', 'b/shared', 'default of tracker'])
 	})
 
-	it('breaks a tie between same-kind matches by name', () => {
-		const dir = tempDir()
-		write(dir, 'zzz.md', '# zzz\n\nthis paragraph happens to mention test material\n')
-		write(dir, 'aaa.md', '# aaa\n\nthis paragraph happens to mention test material too\n')
+	it('searches a default as its skill loads it, naming the skill, and gives why some are not listed', () => {
+		const tracker = skill('tracker', { 'x.default.md': doc('tracker steps', '## Close\n\nclose it\n') })
+		const source = {
+			layers: [layer('plugin', { 'x.md': doc('plugin', '## Open\n\nopen it\n') }, 'a')],
+			harnesses: [],
+			skills: { skills: [tracker], unverified: 'kilo is not verified' },
+		}
 
-		const matches = searchReferences('test material', [layer('project', dir)])
+		const { matches, defaults } = searchReferences('close it', source)
 
-		expect(matches.map((match) => match.name)).toEqual(['aaa', 'zzz'])
+		expect(matches).toEqual([
+			{ name: 'x', description: 'plugin', match: 'body', tier: 'plugin', plugin: 'a', loadedBy: 'tracker' },
+		])
+		expect(defaults).toBe('kilo is not verified')
 	})
 })

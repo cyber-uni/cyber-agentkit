@@ -1,102 +1,203 @@
 import { describe, expect, it, vi } from 'vitest'
-import { mergeSections, parseDocument, parseSections, renderSections } from './reference-document.js'
+import {
+	applyContribution,
+	composedSections,
+	emptyComposed,
+	hasBody,
+	headingPaths,
+	type MergeOperation,
+	parseDocument,
+	parseSections,
+	readMergeOperation,
+	renderComposed,
+	stripMergeMarkers,
+} from './reference-document.js'
 
-function noWarn() {
-	return vi.fn()
+function compose(...documents: [string, Exclude<MergeOperation, 'remove'>][]) {
+	const warn = vi.fn()
+	let composed = emptyComposed()
+	for (const [index, [body, operation]] of documents.entries()) {
+		composed = applyContribution(composed, body, operation, `doc${index}`, warn)
+	}
+	return { output: renderComposed(composed), composed, warn }
 }
 
 describe('parseDocument', () => {
 	it('reads frontmatter that parses to nothing as no metadata', () => {
-		const warn = noWarn()
+		const warn = vi.fn()
 
-		const { metadata, body } = parseDocument('---\n\n---\nbody\n', warn)
-
-		expect(metadata).toEqual({})
-		expect(body).toBe('body\n')
+		expect(parseDocument('---\n\n---\nbody\n', warn)).toEqual({ metadata: {}, body: 'body\n' })
 		expect(warn).not.toHaveBeenCalled()
 	})
 
-	it('drops frontmatter that parses to something other than a mapping, with a warning', () => {
-		const warn = noWarn()
+	it.each([
+		['a list', '---\n- a\n- b\n---\nbody\n'],
+		['invalid YAML', '---\nfoo: [unclosed\n---\nbody\n'],
+	])('drops frontmatter that is %s, with a warning', (_, raw) => {
+		const warn = vi.fn()
 
-		const { metadata, body } = parseDocument('---\n- a\n- b\n---\nbody\n', warn)
-
-		expect(metadata).toEqual({})
-		expect(body).toBe('body\n')
-		expect(warn).toHaveBeenCalledWith('frontmatter is not a YAML mapping; it is ignored')
+		expect(parseDocument(raw, warn)).toEqual({ metadata: {}, body: 'body\n' })
+		expect(warn).toHaveBeenCalledWith('frontmatter-invalid', 'frontmatter is not a YAML mapping; it is ignored')
 	})
 
-	it('drops frontmatter that is not valid YAML, with a warning', () => {
-		const warn = noWarn()
+	it('reads a document with no frontmatter as all body', () => {
+		expect(parseDocument('## A\n', vi.fn())).toEqual({ metadata: {}, body: '## A\n' })
+	})
+})
 
-		const { metadata, body } = parseDocument('---\nfoo: [unclosed\n---\nbody\n', warn)
+describe('readMergeOperation', () => {
+	it('reads none when merge is not written, and an unknown value as patch with a warning', () => {
+		const warn = vi.fn()
 
-		expect(metadata).toEqual({})
-		expect(body).toBe('body\n')
-		expect(warn).toHaveBeenCalledWith('frontmatter is not a YAML mapping; it is ignored')
+		expect(readMergeOperation({}, warn)).toBeUndefined()
+		expect(readMergeOperation({ merge: 'combine' }, warn)).toBe('combine')
+		expect(readMergeOperation({ merge: 'merge-sections' }, warn)).toBe('patch')
+		expect(warn).toHaveBeenCalledWith('merge-unknown', 'unknown merge "merge-sections"; read as patch')
+	})
+})
+
+describe('hasBody and stripMergeMarkers', () => {
+	it('reads a body of blank lines and markers as no body', () => {
+		expect(hasBody('\n<!-- merge: remove -->\n\n')).toBe(false)
+		expect(hasBody('text\n')).toBe(true)
+	})
+
+	it('keeps a marker inside a code fence', () => {
+		expect(stripMergeMarkers('```\n<!-- merge: patch -->\n```\n<!-- merge: patch -->\n')).toBe(
+			'```\n<!-- merge: patch -->\n```\n',
+		)
 	})
 })
 
 describe('parseSections', () => {
-	it('treats a heading with no title text as an empty title', () => {
-		const tree = parseSections('##\n\nbody\n', noWarn())
+	it('reads depth from the document’s own top heading level', () => {
+		const tree = parseSections('## A\n\n### B\n', vi.fn())
 
-		expect(tree.children[0]?.title).toBe('')
+		expect(tree.top).toBe(2)
+		expect(tree.children[0]).toMatchObject({ title: 'A', depth: 0 })
+		expect(tree.children[0]?.children[0]).toMatchObject({ title: 'B', depth: 1 })
 	})
 
-	it('warns on an unknown section merge comment and keeps the default op', () => {
-		const warn = noWarn()
+	it('treats a heading with no title text as an empty title', () => {
+		expect(parseSections('##\n\nbody\n', vi.fn()).children[0]?.title).toBe('')
+	})
 
-		const tree = parseSections('## Testing\n<!-- merge: bogus -->\n\nbody\n', warn)
+	it('reads a patch marker, and an unknown one as patch with a warning', () => {
+		const warn = vi.fn()
 
-		expect(tree.children[0]?.op).toBe('replace')
-		expect(warn).toHaveBeenCalledWith(expect.stringContaining('unknown section merge "bogus"'))
+		const tree = parseSections('## A\n<!-- merge: patch -->\n\n## B\n<!-- merge: bogus -->\n', warn)
+
+		expect(tree.children.map(({ marker }) => marker)).toEqual(['patch', 'patch'])
+		expect(warn).toHaveBeenCalledWith('marker-unknown', 'unknown merge "bogus" on "B"; read as patch')
 	})
 
 	it('tracks a tilde fence the same as a backtick fence', () => {
-		const tree = parseSections('~~~\n## not a heading\n~~~\n\n## Real\n\nbody\n', noWarn())
+		const tree = parseSections('~~~\n## not a heading\n~~~\n\n## Real\n\nbody\n', vi.fn())
 
-		expect(tree.children).toHaveLength(1)
-		expect(tree.children[0]?.title).toBe('Real')
+		expect(tree.children.map(({ title }) => title)).toEqual(['Real'])
 	})
 })
 
-describe('renderSections', () => {
-	it('renders a section with no body as its heading alone', () => {
-		const tree = parseSections('## Empty\n', noWarn())
+describe('applyContribution', () => {
+	it('renders a section with no text as its heading alone', () => {
+		expect(compose(['## Empty\n', 'patch']).output).toBe('## Empty\n')
+	})
 
-		expect(renderSections(tree)).toBe('## Empty\n')
+	it('renders a section at the level of the document below, keeping skipped levels', () => {
+		const { output } = compose(['## A\n\na\n', 'patch'], ['# A\n\n### Deep\n\ndeep\n', 'patch'])
+
+		expect(output).toBe('## A\n\na\n\n#### Deep\n\ndeep\n')
+	})
+
+	it('replaces a matched subsection whole under patch, and keeps the ones it does not name', () => {
+		const below = '## A\n\n### B\n\nold b\n\n#### C\n\nold c\n\n### D\n\nd\n'
+
+		expect(compose([below, 'patch'], ['## A\n\n### B\n\nnew b\n', 'patch']).output).toBe(
+			'## A\n\n### B\n\nnew b\n\n### D\n\nd\n',
+		)
+	})
+
+	it('combines subsections recursively, lower text first', () => {
+		const { output, composed } = compose(['## A\n\na\n\n### B\n\nb\n', 'patch'], ['## A\n\n### B\n\nmore\n', 'combine'])
+
+		expect(output).toBe('> Where combined text conflicts, the later text wins.\n\n## A\n\na\n\n### B\n\nb\n\nmore\n')
+		expect(composed.joined).toBe(true)
+	})
+
+	it('does not say text was joined when one side is empty', () => {
+		expect(compose(['## A\n', 'patch'], ['## A\n\nmore\n', 'combine']).output).toBe('## A\n\nmore\n')
+	})
+
+	it('replaces the preamble under patch, and joins it under combine', () => {
+		expect(compose(['intro\n\n## A\n', 'patch'], ['mine\n', 'patch']).output).toBe('mine\n\n## A\n')
+		expect(compose(['intro\n', 'patch'], ['mine\n', 'combine']).output).toBe(
+			'> Where combined text conflicts, the later text wins.\n\nintro\n\nmine\n',
+		)
+	})
+
+	it('drops a section marked remove and records which contribution dropped it', () => {
+		const { output, composed } = compose(
+			['## A\n\na\n\n## B\n\nb\n', 'patch'],
+			['## B\n<!-- merge: remove -->\n', 'patch'],
+		)
+
+		expect(output).toBe('## A\n\na\n')
+		expect(composed.removed).toEqual([{ path: 'B', by: 'doc1' }])
+	})
+
+	it('warns on an explicit marker that matches nothing, and adds its text at the end, or nothing for remove', () => {
+		const { output, warn } = compose(
+			['## A\n\na\n', 'patch'],
+			[
+				'## New\n<!-- merge: combine -->\n\nnew\n\n### Gone\n<!-- merge: remove -->\n\n## Other\n<!-- merge: remove -->\n',
+				'patch',
+			],
+		)
+
+		expect(output).toBe('## A\n\na\n\n## New\n\nnew\n')
+		expect(warn.mock.calls.map(([code, message]) => `${code}: ${message}`)).toEqual([
+			'marker-unmatched: "<!-- merge: combine -->" on "New" matches no section below',
+			'marker-unmatched: "<!-- merge: remove -->" on "New > Gone" matches no section below',
+			'marker-unmatched: "<!-- merge: remove -->" on "Other" matches no section below',
+		])
+	})
+
+	it('warns on a repeated heading, matches the first, and adds the second at the end', () => {
+		const { output, warn } = compose(['## A\n\na\n', 'patch'], ['## A\n\none\n\n## A\n\ntwo\n', 'patch'])
+
+		expect(output).toBe('## A\n\none\n\n## A\n\ntwo\n')
+		expect(warn).toHaveBeenCalledWith(
+			'heading-repeated',
+			'heading path "A" appears more than once; the first is matched',
+		)
+	})
+
+	it('replaces everything below with replace', () => {
+		expect(compose(['## A\n\na\n', 'patch'], ['## B\n\nb\n', 'replace']).output).toBe('## B\n\nb\n')
+	})
+
+	it('gives each section the contributions that supplied its text', () => {
+		const { composed } = compose(['intro\n\n## A\n\na\n', 'patch'], ['## A\n\nmore\n', 'combine'])
+
+		expect(composedSections(composed)).toEqual([
+			{ path: '(before the first heading)', sources: [{ contribution: 'doc0', operation: 'patch' }] },
+			{
+				path: 'A',
+				sources: [
+					{ contribution: 'doc0', operation: 'patch' },
+					{ contribution: 'doc1', operation: 'combine' },
+				],
+			},
+		])
+	})
+
+	it('renders nothing for an empty composition', () => {
+		expect(renderComposed(emptyComposed())).toBe('')
 	})
 })
 
-describe('mergeSections', () => {
-	function merge(base: string, overlay: string, warn = noWarn()) {
-		return renderSections(mergeSections(parseSections(base, warn), parseSections(overlay, warn), 'overlay', warn))
-	}
-
-	it('drops a section marked remove inside a section that replaces, with a warning', () => {
-		const warn = noWarn()
-
-		const output = merge(
-			'# Testing\n\n## Mocks\n\nbase mocks\n',
-			'# Testing\n\n## Fixtures\n\nfixtures\n\n## Mocks\n<!-- merge: remove -->\n',
-			warn,
-		)
-
-		expect(output).toBe('# Testing\n\n## Fixtures\n\nfixtures\n')
-		expect(warn).toHaveBeenCalledWith(
-			'"<!-- merge: remove -->" on "# Testing > ## Mocks" in overlay matches no section below',
-		)
-	})
-
-	it('keeps a section marked combine inside an appended section, with a warning', () => {
-		const warn = noWarn()
-
-		const output = merge('# Base\n', '# New\n\n## Part\n<!-- merge: combine -->\n\npart\n', warn)
-
-		expect(output).toBe('# Base\n\n# New\n\n## Part\n\npart\n')
-		expect(warn).toHaveBeenCalledWith(
-			'"<!-- merge: combine -->" on "# New > ## Part" in overlay matches no section below',
-		)
+describe('headingPaths', () => {
+	it('lists every heading path, top first', () => {
+		expect(headingPaths('# A\n\n## B\n\n# C\n')).toEqual(['A', 'A > B', 'C'])
 	})
 })

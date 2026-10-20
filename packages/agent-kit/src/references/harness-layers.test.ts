@@ -43,8 +43,7 @@ describe('harnessManagedLayers', () => {
 		const layers = harnessManagedLayers(['claude-code'], 'linux', {})
 		const skipped = layers.filter(({ skipped }) => skipped)
 		expect(skipped).toHaveLength(1)
-		expect(skipped[0]?.skipped).toMatch(/^not read — claude-code keeps this policy in server-side settings/)
-		expect(skipped[0]?.status).toBe(skipped[0]?.skipped)
+		expect(skipped[0]?.skipped).toMatch(/^claude-code keeps this policy in server-side settings/)
 	})
 
 	it('skips the macOS managed-preferences domain', () => {
@@ -121,7 +120,17 @@ describe('enabledPluginLayers', () => {
 			{ 'alpha@market': [{ scope: 'user', installPath: '/plugins/alpha/1.0.0' }] },
 		)
 		const layers = (await claudeLayers(home)).filter(({ skipped }) => !skipped)
-		expect(layers).toEqual([{ tier: 'plugin', dir: '/plugins/alpha/1.0.0/references', plugins: ['alpha'], status: '' }])
+		expect(layers).toEqual([{ tier: 'plugin', dir: '/plugins/alpha/1.0.0/references', plugin: 'alpha' }])
+	})
+
+	it("names an installed plugin by its manifest's name when its folder holds one", async () => {
+		const install = tempDir('harness-layers-install-')
+		write(install, '.claude-plugin/plugin.json', JSON.stringify({ name: 'alpha-plugin' }))
+		const home = claudeHome({ 'alpha@market': true }, { 'alpha@market': [{ scope: 'user', installPath: install }] })
+
+		const layers = (await claudeLayers(home)).filter(({ skipped }) => !skipped)
+
+		expect(layers).toEqual([{ tier: 'plugin', dir: join(install, 'references'), plugin: 'alpha-plugin' }])
 	})
 
 	it('never reads a plugin that is installed but not enabled', async () => {
@@ -134,7 +143,7 @@ describe('enabledPluginLayers', () => {
 		)
 		const layers = await claudeLayers(home)
 		expect(layers.some(({ dir }) => dir.startsWith('/plugins/'))).toBe(false)
-		expect(layers.some(({ plugins }) => plugins.includes('alpha') || plugins.includes('beta'))).toBe(false)
+		expect(layers.some(({ plugin }) => plugin === 'alpha' || plugin === 'beta')).toBe(false)
 	})
 
 	it('reads the install scoped to the nearest folder of the walk', async () => {
@@ -151,7 +160,7 @@ describe('enabledPluginLayers', () => {
 			},
 		)
 		const layers = await claudeLayers(home, [near, far])
-		expect(layers.find(({ plugins }) => plugins.includes('alpha'))?.dir).toBe('/plugins/alpha/near/references')
+		expect(layers.find(({ plugin }) => plugin === 'alpha')?.dir).toBe('/plugins/alpha/near/references')
 	})
 
 	it('skips an enabled plugin installed only for another project, and says why', async () => {
@@ -159,7 +168,7 @@ describe('enabledPluginLayers', () => {
 			{ 'alpha@market': true },
 			{ 'alpha@market': [{ scope: 'project', installPath: '/plugins/alpha', projectPath: '/elsewhere' }] },
 		)
-		const layer = (await claudeLayers(home)).find(({ plugins }) => plugins.includes('alpha'))
+		const layer = (await claudeLayers(home)).find(({ plugin }) => plugin === 'alpha')
 		expect(layer).toMatchObject({ tier: 'plugin', dir: '(alpha@market)' })
 		expect(layer?.skipped).toMatch(/enabled in claude-code, but no install folder/)
 	})
@@ -182,7 +191,7 @@ describe('enabledPluginLayers', () => {
 			cwd: root,
 			platform: 'linux',
 		})
-		expect(layers.find(({ plugins }) => plugins.includes('alpha'))?.dir).toBe(
+		expect(layers.find(({ plugin }) => plugin === 'alpha')?.dir).toBe(
 			join(home, '.codex/plugins/cache/market/alpha/2.0.0/references'),
 		)
 	})
@@ -194,9 +203,7 @@ describe('enabledPluginLayers', () => {
 			{
 				tier: 'plugin',
 				dir: '(cursor enabled plugins)',
-				plugins: [],
-				status: 'not read — cursor keeps no readable record of enabled plugins',
-				skipped: 'not read — cursor keeps no readable record of enabled plugins',
+				skipped: 'cursor keeps no readable record of enabled plugins',
 			},
 		])
 	})

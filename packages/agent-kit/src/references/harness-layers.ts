@@ -6,6 +6,7 @@ import type { Platform } from '../harness/platform.js'
 import { type ManagedPolicyKind, managedPolicyLocations } from '../managed-policy/managed-policy-locations.js'
 import { enabledPlugins } from '../plugins/enabled-plugins.js'
 import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plugins.js'
+import { pluginManifestName } from '../plugins/plugin-manifest.js'
 import type { ReferenceLayer } from './reference-layers.js'
 
 type Env = Readonly<Record<string, string | undefined>>
@@ -21,13 +22,8 @@ const unreadableKind: Partial<Record<ManagedPolicyKind, string>> = {
 	server: 'server-side settings',
 }
 
-function skippedLayer(
-	tier: ReferenceLayer['tier'],
-	dir: string,
-	skipped: string,
-	plugins: string[] = [],
-): ReferenceLayer {
-	return { tier, dir, plugins, status: skipped, skipped }
+function skippedLayer(tier: ReferenceLayer['tier'], dir: string, skipped: string, plugin?: string): ReferenceLayer {
+	return plugin === undefined ? { tier, dir, skipped } : { tier, dir, plugin, skipped }
 }
 
 /**
@@ -51,7 +47,7 @@ function managedFolders(harness: HarnessId, platform: Platform, env: Env) {
 		unread: locations.flatMap(({ kind, location }) => {
 			const where = unreadableKind[kind]
 			return where
-				? [{ location, reason: `not read — ${harness} keeps this policy in ${where}, which cannot be read locally` }]
+				? [{ location, reason: `${harness} keeps this policy in ${where}, which cannot be read locally` }]
 				: []
 		}),
 	}
@@ -59,14 +55,12 @@ function managedFolders(harness: HarnessId, platform: Platform, env: Env) {
 
 export function harnessManagedLayers(harnesses: readonly HarnessId[], platform: Platform, env: Env): ReferenceLayer[] {
 	if (!harnesses.length) {
-		return [
-			skippedLayer('managed', '(no harness detected)', 'not read — no harness detected, so no harness managed folder'),
-		]
+		return [skippedLayer('managed', '(no harness detected)', 'no harness detected, so no managed folder')]
 	}
 	return harnesses.flatMap((harness) => {
 		const { read, unread } = managedFolders(harness, platform, env)
 		return [
-			...read.map((dir): ReferenceLayer => ({ tier: 'managed', dir, plugins: [], status: '' })),
+			...read.map((dir): ReferenceLayer => ({ tier: 'managed', dir })),
 			...unread.map(({ location, reason }) => skippedLayer('managed', location, reason)),
 		]
 	})
@@ -104,7 +98,7 @@ export async function enabledPluginLayers(
 				skippedLayer(
 					'plugin',
 					`(${harness} enabled plugins)`,
-					`not read — ${harness} keeps no readable record of enabled plugins`,
+					`${harness} keeps no readable record of enabled plugins`,
 				),
 			)
 			continue
@@ -114,27 +108,28 @@ export async function enabledPluginLayers(
 				skippedLayer(
 					'plugin',
 					`(${harness} plugin policy)`,
-					`not read — ${enabled.unread.join('; ')} may also enable or disable ${harness} plugins`,
+					`${enabled.unread.join('; ')} may also enable or disable ${harness} plugins`,
 				),
 			)
 		}
 		for (const { id, enabled: on } of enabled.plugins) {
 			if (!on) continue
-			const plugin = id.split('@')[0] as string
+			const recorded = id.split('@')[0] as string
 			const install = activeInstall(
 				installed.plugins.filter((candidate) => candidate.id === id),
 				chain,
 			)
 			if (install) {
-				layers.push({ tier: 'plugin', dir: join(install.path, 'references'), plugins: [plugin], status: '' })
+				const plugin = pluginManifestName(install.path) ?? recorded
+				layers.push({ tier: 'plugin', dir: join(install.path, 'references'), plugin })
 				continue
 			}
 			layers.push(
 				skippedLayer(
 					'plugin',
 					`(${id})`,
-					`not read — enabled in ${harness}, but no install folder for this project is recorded`,
-					[plugin],
+					`enabled in ${harness}, but no install folder for this project is recorded`,
+					recorded,
 				),
 			)
 		}

@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs'
-import { frontmatterPattern, parseDocument, titleHeadings } from './reference-document.js'
+import { parseDocument as parseYaml } from 'yaml'
+import { frontmatterPattern, parseDocument, parseSections } from './reference-document.js'
 import type { ReferenceInterface } from './reference-interface.js'
 
-/** No `#` title: `merge-sections` matches by heading path, so a title would hold every section under it. */
+/** No `#` title: `patch` matches by heading path, so a title would hold every section under it. */
 export const defaultTemplate: string = `---
 description: What this reference covers, and when an agent should read it.
 tags: [topic]
@@ -13,20 +14,19 @@ tags: [topic]
 Write the guidance here. Give each topic its own top-level \`##\` section.
 `
 
-/** The interface's sections as `##` headings, in order, each optional one stubbed `**Unsupported.**`. */
+export type Template = { content: string; metadata: Record<string, unknown>; body: string }
+
+/** The interface's sections as `##` headings, in order, each stubbed `**Unsupported.**`. */
 export function implementationTemplate(iface: ReferenceInterface): Template {
-	const sections = iface.sections.map(({ name, required }) =>
-		required
-			? `## ${name}\n\nWrite this section. The ${iface.id} interface requires it.\n`
-			: `## ${name}\n\n**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.\n`,
+	const sections = iface.sections.map(
+		(name) =>
+			`## ${name}\n\n**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.\n`,
 	)
 	return parseTemplate(
 		`---\ndescription: What this ${iface.id} implementation covers, and when an agent should read it.\nimplements: ${iface.id}@${iface.version}\n---\n\n${sections.join('\n')}`,
 		`the ${iface.id} interface`,
 	)
 }
-
-export type Template = { content: string; metadata: Record<string, unknown>; body: string }
 
 export function readTemplate(path: string | undefined): Template {
 	if (path === undefined) return parseTemplate(defaultTemplate, 'the default template')
@@ -49,23 +49,37 @@ function parseTemplate(content: string, label: string): Template {
 	return { content, metadata, body }
 }
 
-/** Adds one line and changes nothing else, so the result still reads as the template it came from. */
-export function withMergeSections(content: string): string {
-	const match = frontmatterPattern.exec(content)
-	if (!match) return `---\nmerge: merge-sections\n---\n\n${content}`
-	const open = match[0].indexOf('\n') + 1
-	const newline = match[0][open - 2] === '\r' ? '\r\n' : '\n'
-	const end = open + (match[1] as string).length
-	return `${content.slice(0, end)}${newline}merge: merge-sections${content.slice(end)}`
+/**
+ * A title: the top level is a single heading holding every other one. `patch` matches by heading
+ * path, so it would add the whole document under the title instead of patching its sections.
+ */
+export function titleOf({ body }: Pick<Template, 'body'>): string | undefined {
+	const tree = parseSections(body, () => {})
+	const [only] = tree.children
+	return tree.children.length === 1 && only?.children.length ? only.heading.trim() : undefined
 }
 
-export function templateWarnings({ metadata, body }: Template): string[] {
-	const warnings = titleHeadings(body).map(
-		(heading) =>
-			`"${heading.trim()}" is a heading with one hash; merge-sections matches by heading path, so an override would replace or duplicate the whole document. Use top-level ## sections.`,
-	)
-	if (typeof metadata['description'] !== 'string' || !metadata['description'].trim()) {
-		warnings.push('the reference has no `description` in its frontmatter; `list` and `search` show it blank.')
+export function hasDescription({ metadata }: Pick<Template, 'metadata'>): boolean {
+	return typeof metadata['description'] === 'string' && metadata['description'].trim().length > 0
+}
+
+/**
+ * Sets or removes frontmatter keys and keeps the rest of the file as written: other keys, comments,
+ * and the body. A file left with no key and no body is empty.
+ */
+export function editFrontmatter(raw: string, keys: Record<string, unknown>): string {
+	const match = frontmatterPattern.exec(raw)
+	const body = match ? raw.slice(match[0].length) : raw
+	const doc = parseYaml(match ? (match[1] as string) : '')
+	for (const [key, value] of Object.entries(keys)) {
+		if (value === undefined) doc.delete(key)
+		else {
+			const node = doc.createNode(value, { flow: Array.isArray(value) })
+			doc.set(key, node)
+		}
 	}
-	return warnings
+	const contents = doc.contents as { items?: unknown[] } | null
+	if (!contents?.items?.length) return body.replace(/^(?:[ \t]*\r?\n)+/, '')
+	const gap = !match && body.trim() ? '\n' : ''
+	return `---\n${doc.toString({ lineWidth: 0, flowCollectionPadding: false })}---\n${gap}${body}`
 }

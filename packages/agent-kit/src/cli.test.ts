@@ -59,7 +59,9 @@ describe('run', () => {
 	})
 
 	it('names its own plugin layer after the plugin, not the npm package', async () => {
-		expect(await run(['node', 'uni-agent-kit', 'reference', 'list', '--format', 'json', '--root', tempRoot()])).toBe(0)
+		expect(
+			await run(['node', 'uni-agent-kit', 'reference', 'list', '--trace', '--format', 'json', '--root', tempRoot()]),
+		).toBe(0)
 		const { layers } = JSON.parse(String(stdout.mock.calls[0]?.[0])) as { layers: { plugin: string }[] }
 		expect(layers.map(({ plugin }) => plugin)).toContain('uni-agent-kit')
 	})
@@ -78,6 +80,7 @@ describe('run', () => {
 		['search', 'anything'],
 		['where', 'name'],
 		['create', 'name'],
+		['select', 'name', 'a'],
 		['delete', 'name'],
 	])('rejects an unsupported --format on %s as a usage error, before the command runs', async (...subcommand) => {
 		const argv = ['node', 'uni-agent-kit', 'reference', ...subcommand, '--format', 'yaml', '--root', tempRoot()]
