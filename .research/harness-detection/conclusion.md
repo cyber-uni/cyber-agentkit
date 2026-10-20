@@ -186,8 +186,8 @@ project config override it, so it sets defaults, not policy.
 | --- | --- | --- | --- | --- |
 | Claude Code | `/<plugin>:<skill>`; bare `/<skill>` also works when no other command has the name | — | Yes | E-CC-S1 |
 | Cursor | `/<skill>` | — | No | E-CUR-S1 |
-| Codex | `/skills` opens a picker | `$<skill>` | No; skills are bare names (Medium) | E-CODEX-S1–S3 |
-| Copilot CLI | `/<skill>` | — | No; first skill found with the name wins | E-COPILOT-S2, E-COPILOT-S5, E-COPILOT-S6 |
+| Codex | `/skills` opens a picker | `$<skill>`; a plugin skill is `$<plugin>:<skill>` | Yes, for plugin skills (`<plugin>:<skill>`); other skills are bare names | E-CODEX-S1–S3, `skill-resolution` E-SR-CODEX-5, E-SR-CODEX-9 |
+| Copilot CLI | `/<skill>` | — | Only when two enabled plugins share a skill name (`<plugin>:<skill>`); otherwise the first skill found with the name wins | E-COPILOT-S2, E-COPILOT-S5, E-COPILOT-S6, `skill-resolution` E-SR-COPILOT-8 |
 | OpenCode | None; the model calls a `skill` tool | — | No | E-OC-S1, E-OC-S2 |
 | Kilo Code | `/<skill>`; `/<skill>:skill` when a command or MCP prompt has the name | Ask in prose ("use the api-design skill") | No | E-KILO-S1, E-KILO-S3 |
 | Gemini CLI | None; the model calls `activate_skill`, and `/skills` only manages skills | — | Extension commands take an `<extension>:` prefix on collision | E-GEM-S1–S3 |
@@ -200,9 +200,8 @@ project config override it, so it sets defaults, not policy.
 
 The skill's frontmatter `name` supplies the skill segment in every harness.
 
-Corrections from `skill-resolution` (2026-10-20): Codex plugin skills are `<plugin>:<skill>`, and Copilot CLI
-namespaces plugin skills as `<plugin>:<skill>` when two enabled plugins share a skill name. In R6, Cursor also reads
-`.grok/skills`, and Copilot CLI reads `~/.agents/skills` only when `COPILOT_HOME` is the default.
+The Codex and Copilot CLI rows, and the Cursor and Copilot CLI rows of R6, carry the corrections from
+`skill-resolution` (2026-10-20).
 
 ## R5. Plugin-to-plugin dependencies
 
@@ -222,9 +221,9 @@ paths to the home directory. Admin, bundled, and plugin skills are left out.
 | Harness | Project | User | Reads `.agents/skills`? | Evidence |
 | --- | --- | --- | --- | --- |
 | Claude Code | `.claude/skills` | `.claude/skills` | No | E-CC-L1 |
-| Cursor | `.agents/skills`, `.cursor/skills`, `.claude/skills`, `.codex/skills` | same | Yes | E-CUR-L1 |
+| Cursor | `.cursor/skills`, `.claude/skills`, `.codex/skills`, `.grok/skills`, `.agents/skills` (that order within a tier) | same | Yes | E-CUR-L1, `skill-resolution` E-SR-CUR-10, E-SR-CUR-12 |
 | Codex | `.agents/skills`, from the working directory up to the repository root | `.agents/skills` | Yes | E-CODEX-L1 |
-| Copilot CLI | `.github/skills`, `.agents/skills`, `.claude/skills` | `.copilot/skills`, `.agents/skills` | Yes | E-COPILOT-S5 |
+| Copilot CLI | `.github/skills`, `.agents/skills`, `.claude/skills` | `.copilot/skills`, `.agents/skills`, only while `COPILOT_HOME` is the default; else `$COPILOT_HOME/skills` | Yes | E-COPILOT-S5, `skill-resolution` E-SR-COPILOT-9 |
 | Copilot in VS Code | `.github/skills`, `.claude/skills`, `.agents/skills` | `.copilot/skills`, `.claude/skills`, `.agents/skills` | Yes | E-VSC-P1 |
 | OpenCode | `.opencode/skills`, `.claude/skills`, `.agents/skills` | `.config/opencode/skills`, `.claude/skills`, `.agents/skills` | Yes | E-OC-S1 |
 | Gemini CLI | `.agents/skills`, `.gemini/skills` (the alias wins a name clash) | same | Yes | E-GEM-L1 |

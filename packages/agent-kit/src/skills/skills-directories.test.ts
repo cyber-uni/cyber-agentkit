@@ -33,6 +33,20 @@ describe('skillsDirectories', () => {
 		expect(directories?.user).not.toContain('.agents/skills')
 	})
 
+	it("lists Cursor's five directories in the order it reads them, .grok/skills included", () => {
+		expect(skillsDirectories('cursor')?.project).toEqual([
+			'.cursor/skills',
+			'.claude/skills',
+			'.codex/skills',
+			'.grok/skills',
+			'.agents/skills',
+		])
+	})
+
+	it('says Copilot CLI reads $COPILOT_HOME/skills instead of its user directories when COPILOT_HOME moves', () => {
+		expect(skillsDirectories('copilot-cli')?.relocatedBy).toEqual({ variable: 'COPILOT_HOME', skills: 'skills' })
+	})
+
 	it('lists the Auggie CLI directories in their documented precedence', () => {
 		expect(skillsDirectories('augment')).toEqual({
 			project: ['.augment/skills', '.claude/skills', '.agents/skills'],
