@@ -98,8 +98,9 @@ IDs are shared across the parent and its children.
     and each skill's default); `search` returns it once per plugin.
   - UC3.4 A name a `remove` turned off: `list` shows it `missing`, and with `--trace` the `remove` row and each row
     below it as `shadowed by <contribution> (remove)`; `search` leaves the name out.
-  - UC3.5 The detected harness's skill folders are not verified (Q12): `list` and `search` show no defaults, and the
-    answer says so and why. It is a limit of the harness, not a warning.
+  - UC3.5 The detected harness's skill folders are not verified (`.research/skill-resolution` covers six harnesses; Q12
+    holds what stays open): `list` and `search` show no defaults, and the answer says so and why. It is a limit of the
+    harness, not a warning.
 
 ### UC7 — Build on other contributions (A5.1, A6.2)
 
@@ -206,14 +207,17 @@ Edge IDs are in [graph.md](./graph.md).
   `dependencies` and `devDependencies` of the nearest `package.json` that are plugins and ship one, each named by its
   plugin manifest's `name`, never by its package name; never a transitive package. Any other dependency adds no plugin
   layer: a standalone skill's defaults are found with the skills (R58), and the trace shows the rest `not read (not a
-  plugin)`. The plugin running the command is read once.
+  plugin)`. The plugin running the command is read once. A plugin-root `references/` is this library's convention, not
+  part of the Agent Plugins spec, and no harness reads it (`.research/skill-resolution`).
 - R14 (UC1, E16): An interface document is never composed: `extends` and `merge` on it are ignored with a warning, a
   higher contribution of it is ignored with a warning, and the lowest answers; two plugins holding it make it
   `ambiguous`.
 - R15 (UC2, E17): A layer skipped for a reason appears in the trace with that reason and adds no contribution.
 - R20 (UC1, UC2, E22): No `governances/` folder is read, in any tier or skill folder.
 - R41 (UC1, UC2, UC4, E43): `--default <skill folder>` reads `<skill folder>/references/<name>.default.md` as the
-  `default` tier; the old `references/<name>.md` copy is not read as a default. `where` takes `--default`.
+  `default` tier; the old `references/<name>.md` copy is not read as a default. `where` takes `--default`. Every
+  detected harness tells a loaded skill its folder, but none hands it to a script, so the skill passes it
+  (`.research/skill-resolution` D).
 
 **Finding**
 
@@ -228,4 +232,5 @@ Edge IDs are in [graph.md](./graph.md).
 - R58 (UC3, E48): Defaults are found in the skill folders the detected harness reads: its project and user skill
   folders, its machine-wide admin skill folders, and each enabled plugin's skills. On a harness whose skill folders are
   not verified, no defaults are listed, and the answer says so. A skill is known by the `name` in its `SKILL.md`, not by
-  its folder's name, and a symlinked skill folder is followed.
+  its folder's name, and a symlinked skill folder is followed. Where each harness keeps a plugin's skills and how an
+  installed plugin maps to its folder: `.research/skill-resolution` A and B.
