@@ -92,7 +92,7 @@ then `.cursor-plugin/plugin.json` (E-SR-CODEX-4).
 | --- | --- | --- | --- |
 | Claude Code | Enterprise > personal > project; reads `.claude/skills` only, never `.agents/skills` | Always | E-SR-CC-4, -11 |
 | Cursor | Within a tier, first of `.cursor`, `.claude`, `.codex`, `.grok`, `.agents`; user and project copies both listed; plugin copies listed too | No | E-SR-CUR-10, -12, -13 |
-| Codex | No merge by name; every copy is listed; a bare `$name` that is not unique selects nothing | Always | E-SR-CODEX-8, -9 |
+| Codex | No merge by name; every copy is listed; a bare `$name` that is not unique selects nothing; a plugin skill is typed `$<plugin>:<skill>` | Always | E-SR-CODEX-8, -9, -18 |
 | Copilot CLI | First found: project `.github`, `.agents`, `.claude`; parents; `~/.copilot/skills`; `~/.agents/skills`; plugins; custom; built-ins last | Only when two plugins collide; a project or user skill drops both | E-SR-COPILOT-6–8 |
 | OpenCode | No rule; last write wins under unbounded concurrency, so the winner varies | No | E-SR-OC-6 |
 | Gemini CLI | Last loaded wins: built-in, extensions, `~/.gemini/skills`, `~/.agents/skills`, `.gemini/skills`, `.agents/skills` | No; extension order is `readdir` order | E-SR-GEM-8–11 |
@@ -161,7 +161,7 @@ across tiers is from its docs alone.
 ## Contradictions with `harness-detection`
 
 - R4 says Codex skills are bare names. That holds for non-plugin skills; plugin skills are `<plugin>:<skill>`
-  (E-SR-CODEX-5). It also settles the open question whether two Codex plugins' same-named skills are disambiguated:
+  (E-SR-CODEX-5), and a user types one as `$<plugin>:<skill>` (E-SR-CODEX-18), contrary to E-CODEX-S3. It also settles the open question whether two Codex plugins' same-named skills are disambiguated:
   yes, by that prefix (E-SR-CODEX-9).
 - R4 says Copilot CLI does not namespace; it does when two enabled plugins collide (E-SR-COPILOT-8).
 - R6 lists four Cursor skill folders; Cursor also reads `.grok/skills` (E-SR-CUR-10). R6 lists `~/.agents/skills` for
@@ -187,6 +187,8 @@ across tiers is from its docs alone.
 - The text a loaded skill gets was not seen live for OpenCode, Gemini CLI, or Codex's explicit-mention block; each is
   from source.
 - Codex: whether a trusted project's `.codex/config.toml` can enable a plugin (E-SR-CODEX-7).
+- Copilot CLI: whether a user can type `/<plugin>:<skill>` for a plugin skill. E-SR-COPILOT-8 saw that name only in
+  the skill list, and only while two enabled plugins shared the skill's name; no run typed it.
 - Gemini CLI: which home `~/.agents/skills` follows when `GEMINI_CLI_HOME` and `HOME` differ (E-SR-GEM-16).
 
 ## Check again later

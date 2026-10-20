@@ -37,7 +37,7 @@ A skill written for one harness only may add that harness's typed form after the
 | --- | --- | --- |
 | `claude-code` | `/uni-agent-kit:reference` (pnpm install: `pnpm-uni-agent-kit-reference`) | yes |
 | `cursor` | `/reference` | no |
-| `codex` | `$reference` | no |
+| `codex` | `$uni-agent-kit:reference` | yes |
 | `copilot-cli` | `/reference` | no |
 | `opencode` | no typed form recorded | — |
 | `kilo` | `/reference` | no |

@@ -172,7 +172,7 @@ import { skillInvocation } from 'uni-agent-kit'
 
 skillInvocation('claude-code', { plugin: 'my-plugin', skill: 'review' })?.text // '/my-plugin:review'
 skillInvocation('copilot-cli', { plugin: 'my-plugin', skill: 'review' })?.text // '/review'
-skillInvocation('codex', { plugin: 'my-plugin', skill: 'review' })?.text // '$review'
+skillInvocation('codex', { plugin: 'my-plugin', skill: 'review' })?.text // '$my-plugin:review'
 skillInvocation('gemini-cli', { plugin: 'my-plugin', skill: 'review' }) // undefined: the model loads skills itself
 ```
 

@@ -16,10 +16,11 @@ describe('skillInvocation', () => {
 		expect(skillInvocation('copilot-cli', { plugin: 'p', skill: 'review' })?.text).toBe('/review')
 	})
 
-	it('mentions a Codex skill with $', () => {
-		expect(skillInvocation('codex', { plugin: 'p', skill: 'review' })).toMatchObject({
-			text: '$review',
-			namespaced: false,
+	it('mentions a Codex plugin skill with $ and its plugin-qualified name', () => {
+		expect(skillInvocation('codex', { plugin: 'my-plugin', skill: 'review' })).toEqual({
+			text: '$my-plugin:review',
+			namespaced: true,
+			research: 'E-SR-CODEX-18',
 		})
 	})
 

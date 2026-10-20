@@ -87,6 +87,7 @@ Pinned sources:
 | E-SR-CODEX-15 | No environment or substitution variable names a skill's folder. | grep for `SKILL_DIR` and `CODEX_SKILL` over `codex-rs` at the pinned commit | Search record | verified | Medium |
 | E-SR-CODEX-16 | A plugin from a local-path marketplace is copied into the cache on install; no load-in-place mode was found. | CX/core-plugins/src/store.rs (`copy_dir_recursive`); CX/core-plugins/src/marketplace.rs (`MarketplacePluginSource::Local`). No install run | Source | verified | Medium |
 | E-SR-CODEX-17 | A plugin-root `references/` folder has no effect on loading; no `references` handling exists in the loader. | Experiment with `references/x.md` in two scratch plugins; source grep | Direct experiment and search record | verified | Medium |
+| E-SR-CODEX-18 | A user types a plugin skill as `$<plugin>:<skill>`. The `$` mention parser takes `:` as a name character, so `$slack:search` yields the name `slack:search`, and a text mention selects the enabled skill whose full name equals it. The TUI's `$` popup inserts `$<name>`, which for a plugin skill is `$<plugin>:<skill>`. Supersedes `harness-detection` E-CODEX-S3. | CX/skills/src/mentions.rs#L226-L228 (`is_mention_name_char`); CX/skills/src/mentions_tests.rs#L54-L61 (`keeps_plugin_skill_namespaces`); CX/ext/skills/src/selection.rs#L65-L76; CX/tui/src/bottom_pane/chat_composer.rs#L4233-L4254 and its test at #L7323-L7344 | Source | verified | High |
 
 ## GitHub Copilot CLI
 
