@@ -535,7 +535,7 @@ describe('list', () => {
 			{ name: 'doc', description: 'First line.' },
 			{ name: 'gone', status: 'missing' },
 		])
-		expect(report.defaults).toMatch(/not verified/)
+		expect(report.defaults).toMatch(/no harness detected/)
 		expect(report.layers).toBeUndefined()
 	})
 

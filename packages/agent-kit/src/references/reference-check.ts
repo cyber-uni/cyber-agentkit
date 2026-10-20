@@ -16,6 +16,7 @@ import {
 	referenceNames,
 	resolveReference,
 } from './resolve-reference.js'
+import { skillHoldings, withDefault } from './skill-defaults.js'
 
 export type ReferenceCheckKind = 'interface' | 'implementation' | 'none'
 
@@ -35,6 +36,8 @@ export type ReferenceCheckEntry = {
 	failures: ReferenceCheckFailure[]
 	/** For an implementation: the listed sections it marks `**Unsupported.**` or leaves out. */
 	unsupported: string[]
+	/** Checked as this skill loads the name, its default joined. */
+	loadedBy?: string
 }
 
 export type CheckOptions = ResolveOptions & {
@@ -173,7 +176,8 @@ function pluginCopies(name: string, resolved: ResolvedReference): string[] {
 
 /**
  * Checks each named reference, or, with no names, every interface document and implementation found.
- * A name several plugins hold is also checked as each `<plugin>/<name>`, so each author sees their own result.
+ * A name several plugins hold is also checked as each `<plugin>/<name>`, so each author sees their own
+ * result, and each skill's default as its skill loads it.
  */
 export function checkReferences(source: Source, options: CheckOptions = {}): ReferenceCheckEntry[] {
 	const { names, ...resolveOptions } = options
@@ -181,12 +185,21 @@ export function checkReferences(source: Source, options: CheckOptions = {}): Ref
 	const resolve = (name: string) => resolveReference(parseReferenceName(name), source, resolveOptions)
 	if (names?.length) return names.map((name) => entryOf(resolve(name), lookup))
 	const entries: ReferenceCheckEntry[] = []
+	const plain = new Map<string, string | undefined>()
 	for (const name of referenceNames(source)) {
 		const resolved = resolve(name)
+		plain.set(name, resolved.content)
 		const copies = [...(resolved.status === 'found' ? [resolved] : []), ...pluginCopies(name, resolved).map(resolve)]
 		for (const copy of copies) {
 			if (copy.status === 'found' && kindOf(copy) !== 'none') entries.push(entryOf(copy, lookup))
 		}
+	}
+	// Each skill's default as its skill loads it, where the default changes what the name composes to.
+	for (const { name, skill } of skillHoldings(source)) {
+		const loaded = resolveReference(name, withDefault(source, skill.folder), resolveOptions)
+		const used = loaded.trace.layers.some(({ tier, outcome }) => tier === 'default' && outcome === 'used')
+		if (loaded.status !== 'found' || !used || kindOf(loaded) === 'none' || loaded.content === plain.get(name)) continue
+		entries.push({ ...entryOf(loaded, lookup), loadedBy: skill.name })
 	}
 	return entries
 }

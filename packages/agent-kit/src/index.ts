@@ -99,6 +99,7 @@ export type {
 	ReferenceLayers,
 	ReferencePlugin,
 	ReferenceTier,
+	SkillDefaults,
 } from './references/reference-layers.js'
 export {
 	defaultLayer,
@@ -123,6 +124,13 @@ export type {
 	ResolveOptions,
 } from './references/resolve-reference.js'
 export { parseReferenceName, referenceNames, resolveReference } from './references/resolve-reference.js'
+export type { SkillFolderOptions } from './skills/harness-skill-folders.js'
+export {
+	adminSkillFolders,
+	harnessSkillFolders,
+	pluginSkillFolders,
+	skillFoldersVerified,
+} from './skills/harness-skill-folders.js'
 export type { FoundSkill } from './skills/skill-folder.js'
 export { skillName, skillsIn } from './skills/skill-folder.js'
 export type { PluginSkill, SkillInvocation } from './skills/skill-invocation.js'

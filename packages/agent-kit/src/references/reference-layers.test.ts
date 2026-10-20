@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -194,5 +194,55 @@ describe('the repository root', () => {
 
 		expect(projectChain(root)).toEqual([root])
 		expect(repositoryRoot(root)).toBeUndefined()
+	})
+})
+
+describe('the skills holding a default', () => {
+	it("finds them in the detected harness's skill folders and enabled plugins, known by their SKILL.md name", async () => {
+		const repo = tempDir()
+		write(repo, '.git/HEAD', 'ref: refs/heads/main\n')
+		write(repo, '.claude/skills/pnpm-pkg-tracker/SKILL.md', '---\nname: tracker\n---\n')
+		write(repo, '.claude/skills/pnpm-pkg-tracker/references/x.default.md', '## A\n')
+		write(repo, '.claude/skills/plain/SKILL.md', '---\nname: plain\n---\n')
+		write(repo, '.agents/skills/ignored/SKILL.md', '---\nname: ignored\n---\n')
+		write(repo, '.agents/skills/ignored/references/x.default.md', '## A\n')
+		const own = tempDir()
+		write(own, 'skills/reference/SKILL.md', '---\nname: reference\n---\n')
+		write(own, 'skills/reference/references/y.default.md', '## B\n')
+
+		const { skills } = await referenceLayers({
+			root: repo,
+			home: tempDir(),
+			platform: 'linux',
+			env: claudeCode,
+			plugin: { name: 'host', root: own },
+		})
+
+		expect(skills).toEqual({
+			skills: [
+				{ name: 'tracker', folder: join(realpathSync(repo), '.claude/skills/pnpm-pkg-tracker') },
+				{ name: 'reference', folder: join(realpathSync(own), 'skills/reference') },
+			],
+		})
+	})
+
+	it('says why none is listed when no harness is detected', async () => {
+		const { skills } = await referenceLayers({ root: tempDir(), home: tempDir(), platform: 'linux', env: {} })
+
+		expect(skills).toEqual({ skills: [], unverified: expect.stringMatching(/^no harness detected/) })
+	})
+
+	it('says which detected harness has skill folders that are not verified', async () => {
+		const { skills, harnesses } = await referenceLayers({
+			root: tempDir(),
+			home: tempDir(),
+			platform: 'linux',
+			env: { AGENT: '1', OPENCODE: '1', KILO: '1', KILO_PID: '4242' },
+		})
+
+		expect(harnesses).toEqual(['kilo'])
+		expect(skills?.unverified).toBe(
+			"the skill folders kilo reads are not verified, so its skills' defaults are not listed",
+		)
 	})
 })

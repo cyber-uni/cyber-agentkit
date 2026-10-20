@@ -198,3 +198,28 @@ describe('checkReferences', () => {
 		])
 	})
 })
+
+describe("checking a skill's default", () => {
+	it('checks each default as its skill loads it, when it changes what the name composes to', () => {
+		const folder = mkdtempSync(join(tmpdir(), 'reference-check-skill-'))
+		writeFileSync(join(folder, 'SKILL.md'), '---\nname: scaffold\n---\n')
+		mkdirSync(join(folder, 'references'))
+		writeFileSync(
+			join(folder, 'references', 'scaffold.recipe.lib.default.md'),
+			recipe('## Recipe\n\n## Bogus\n<!-- merge: remove -->\n'),
+		)
+		const source = {
+			layers: [layer('plugin', { 'scaffold.recipe.interface': recipeInterface }, 'repobuddy')],
+			harnesses: [],
+			skills: { skills: [{ name: 'scaffold', folder }] },
+		}
+
+		const entries = checkReferences(source)
+
+		expect(entries.map(({ name, loadedBy, status }) => `${name} ${loadedBy} ${status}`)).toEqual([
+			'scaffold.recipe.interface undefined passed',
+			'scaffold.recipe.lib scaffold failed',
+		])
+		expect(entries[1]?.failures.map(({ check }) => check)).toEqual(['compose'])
+	})
+})

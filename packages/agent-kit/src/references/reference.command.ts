@@ -38,8 +38,8 @@ export type ReferenceShowEntry =
 export type ReferenceListReport = {
 	/** A string when nothing matches, so a run states its zero explicitly. */
 	references: { name: string; description?: string; status?: string; options?: string[] }[] | string
-	/** Why no skill's default is listed. */
-	defaults: string
+	/** Why some skills' defaults are not listed; left out when every detected harness's skill folders were read. */
+	defaults?: string
 	layers?: {
 		name: string
 		tier: string
@@ -49,22 +49,33 @@ export type ReferenceListReport = {
 		description?: string
 		outcome: string
 		selection?: boolean
+		reachedBy?: string
 	}[]
 	warnings?: ReferenceWarning[]
 }
 
 export type ReferenceSearchReport = {
 	references:
-		| { name: string; description?: string; match: string; tier?: string; plugin?: string; skill?: string }[]
+		| {
+				name: string
+				description?: string
+				match: string
+				loadedBy?: string
+				tier?: string
+				plugin?: string
+				skill?: string
+		  }[]
 		| string
-	defaults: string
+	/** Why some skills' defaults are not searched. */
+	defaults?: string
 }
 
 export type ReferenceCheckReport = {
-	failed?: { name: string; failures: { check: string; message: string }[] }[]
+	failed?: { name: string; loadedBy?: string; failures: { check: string; message: string }[] }[]
 	passed: number
 	references?: {
 		name: string
+		loadedBy?: string
 		kind: string
 		status: string
 		failures?: { check: string; message: string }[]
@@ -355,7 +366,7 @@ function listCommand(layersFor: LayersFor): cli.Command {
 				const home = homedir()
 				const display = (path: string) => collapseHome(home, path)
 				const listing = listReferences(await layersFor(args, home), { display, pattern: args.pattern })
-				const report: ReferenceListReport = {
+				const report: ReferenceListReport = compact({
 					references: listing.references.length
 						? listing.references.map((row) =>
 								compact({
@@ -369,7 +380,7 @@ function listCommand(layersFor: LayersFor): cli.Command {
 							? `0 references match "${args.pattern}"`
 							: '0 references — no layer holds one',
 					defaults: listing.defaults,
-				}
+				})
 				if (args.trace) report.layers = listing.layers.map((row) => compact({ ...row, path: display(row.path) }))
 				if (listing.warnings.length) report.warnings = listing.warnings
 				return result(report)
@@ -397,14 +408,18 @@ function searchCommand(layersFor: LayersFor): cli.Command {
 				const { matches, defaults } = searchReferences(query, await layersFor(args, home), {
 					display: (path) => collapseHome(home, path),
 				})
-				const report: ReferenceSearchReport = {
+				const report: ReferenceSearchReport = compact({
 					references: matches.length
-						? matches.map(({ name, description, match, tier, plugin, skill }) =>
-								compact(args.trace ? { name, description, match, tier, plugin, skill } : { name, description, match }),
+						? matches.map(({ name, description, match, tier, plugin, skill, loadedBy }) =>
+								compact(
+									args.trace
+										? { name, description, match, loadedBy, tier, plugin, skill }
+										: { name, description, match, loadedBy },
+								),
 							)
 						: `0 references match "${query}"`,
 					defaults,
-				}
+				})
 				return result(report)
 			} catch (error) {
 				return fail(error, 'Reference search failed.')
@@ -557,11 +572,11 @@ function checkCommand(layersFor: LayersFor): cli.Command {
 				const strip = (failures: { check: string; message: string }[]) =>
 					failures.map(({ check, message }) => ({ check, message }))
 				const report: ReferenceCheckReport = compact({
-					failed: failing.map(({ name, failures }) => ({ name, failures: strip(failures) })),
+					failed: failing.map(({ name, loadedBy, failures }) => compact({ name, loadedBy, failures: strip(failures) })),
 					passed: entries.length - failing.length,
 					references: args.trace
-						? entries.map(({ name, kind, status, failures, unsupported }) =>
-								compact({ name, kind, status, failures: strip(failures), unsupported }),
+						? entries.map(({ name, loadedBy, kind, status, failures, unsupported }) =>
+								compact({ name, loadedBy, kind, status, failures: strip(failures), unsupported }),
 							)
 						: undefined,
 				})

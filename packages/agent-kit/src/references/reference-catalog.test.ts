@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { defaultsNotListed, listReferences, searchReferences } from './reference-catalog.js'
+import { listReferences, searchReferences } from './reference-catalog.js'
 import type { ReferenceLayer } from './reference-layers.js'
 
 function layer(tier: ReferenceLayer['tier'], documents: Record<string, string>, plugin?: string): ReferenceLayer {
@@ -30,7 +30,7 @@ describe('listReferences', () => {
 			{ name: 'shared', description: '', status: 'ambiguous', options: ['a/shared', 'b/shared'] },
 			{ name: 'testing', description: 'project testing', status: 'found' },
 		])
-		expect(listing.defaults).toBe(defaultsNotListed)
+		expect(listing.defaults).toBeUndefined()
 	})
 
 	it('gives one layer row per name per layer holding it, with its outcome, marking a selection', () => {
@@ -120,5 +120,57 @@ describe('searchReferences', () => {
 		const tagged = [layer('project', { 'x.md': '---\ntags: [deploy, ci]\n---\n\n## A\n' })]
 
 		expect(searchReferences('deploy', tagged).matches.map(({ match }) => match)).toEqual(['description'])
+	})
+})
+
+describe("a skill's default", () => {
+	function skill(name: string, documents: Record<string, string>) {
+		const folder = mkdtempSync(join(tmpdir(), 'reference-catalog-skill-'))
+		writeFileSync(join(folder, 'SKILL.md'), `---\nname: ${name}\n---\n`)
+		mkdirSync(join(folder, 'references'))
+		for (const [file, content] of Object.entries(documents)) writeFileSync(join(folder, 'references', file), content)
+		return { name, folder }
+	}
+
+	it('lists a name only defaults hold, with a row per skill noting the default step reaches it', () => {
+		const tracker = skill('tracker', { 'x.default.md': doc('from tracker') })
+		const other = skill('tracker', { 'x.default.md': doc('same name, another folder') })
+		const source = { layers: [layer('project', {})], harnesses: [], skills: { skills: [tracker, other] } }
+
+		const listing = listReferences(source)
+
+		expect(listing.references).toEqual([{ name: 'x', description: 'from tracker', status: 'found' }])
+		expect(listing.layers.map(({ tier, skill: who, outcome, reachedBy }) => [tier, who, outcome, reachedBy])).toEqual([
+			['default', 'tracker', 'used', 'the default step, when tracker loads x'],
+			['default', 'tracker', 'used', 'the default step, when tracker loads x'],
+		])
+		expect(listing.defaults).toBeUndefined()
+	})
+
+	it("adds each skill's default to an ambiguous name's options", () => {
+		const tracker = skill('tracker', { 'shared.default.md': doc('d') })
+		const source = {
+			layers: [layer('plugin', { 'shared.md': doc('a') }, 'a'), layer('plugin', { 'shared.md': doc('b') }, 'b')],
+			harnesses: [],
+			skills: { skills: [tracker] },
+		}
+
+		expect(listReferences(source).references[0]?.options).toEqual(['a/shared', 'b/shared', 'default of tracker'])
+	})
+
+	it('searches a default as its skill loads it, naming the skill, and gives why some are not listed', () => {
+		const tracker = skill('tracker', { 'x.default.md': doc('tracker steps', '## Close\n\nclose it\n') })
+		const source = {
+			layers: [layer('plugin', { 'x.md': doc('plugin', '## Open\n\nopen it\n') }, 'a')],
+			harnesses: [],
+			skills: { skills: [tracker], unverified: 'kilo is not verified' },
+		}
+
+		const { matches, defaults } = searchReferences('close it', source)
+
+		expect(matches).toEqual([
+			{ name: 'x', description: 'plugin', match: 'body', tier: 'plugin', plugin: 'a', loadedBy: 'tracker' },
+		])
+		expect(defaults).toBe('kilo is not verified')
 	})
 })

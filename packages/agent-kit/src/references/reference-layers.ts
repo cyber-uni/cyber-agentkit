@@ -1,11 +1,12 @@
-import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import type { HarnessId } from '../harness/harness-id.js'
 import type { Platform } from '../harness/platform.js'
 import { isRecord } from '../plugins/json-file.js'
 import { declaredDependencies, packageDir } from '../plugins/package-dependencies.js'
 import { pluginManifestName } from '../plugins/plugin-manifest.js'
-import { skillName } from '../skills/skill-folder.js'
+import { harnessSkillFolders, pluginSkillFolders } from '../skills/harness-skill-folders.js'
+import { type FoundSkill, skillName, skillsIn } from '../skills/skill-folder.js'
 import { detectedHarnesses, enabledPluginLayers, harnessManagedLayers } from './harness-layers.js'
 import type { ReferenceWarning } from './reference-warning.js'
 
@@ -53,6 +54,15 @@ export type ReferenceLayers = {
 	layers: ReferenceLayer[]
 	/** The harnesses detected, whose managed folders and enabled plugins were read. */
 	harnesses: readonly HarnessId[]
+	/** The installed skills that hold a default, which `list`, `search`, and `check` reach. */
+	skills?: SkillDefaults | undefined
+}
+
+/** The installed skills holding a default contribution, found in the skill folders the detected harnesses read. */
+export type SkillDefaults = {
+	skills: FoundSkill[]
+	/** Why some skills' defaults are not listed: no harness detected, or one whose skill folders are not verified. */
+	unverified?: string | undefined
 }
 
 export function projectReferencesDir(root: string): string {
@@ -152,6 +162,66 @@ function dependencyLayers(root: string, skip: ReadonlySet<string>): ReferenceLay
 	return layers
 }
 
+/** The declared dependencies that are plugins, with or without a `references/` folder, for their skills. */
+function dependencyPluginRoots(root: string): string[] {
+	const manifestPath = nearestManifest(root)
+	if (!manifestPath) return []
+	return declaredDependencies(readJson(manifestPath)).flatMap((pkg) => {
+		const dir = packageDir(pkg, manifestPath)
+		return dir && pluginManifestName(dir) ? [dir] : []
+	})
+}
+
+function holdsDefault(folder: string): boolean {
+	try {
+		return readdirSync(join(folder, 'references')).some((file) => file.endsWith('.default.md'))
+	} catch {
+		return false
+	}
+}
+
+/**
+ * The skills holding a default, in the project, user, and admin skill folders of each detected
+ * harness whose folders are verified, and in each enabled plugin's skills. A skill is known by its
+ * `SKILL.md` name; two skills of one name in different folders are both kept, since the harnesses
+ * disagree on which one runs (`.research/skill-resolution` C).
+ */
+function skillDefaults(
+	harnesses: readonly HarnessId[],
+	options: {
+		chain: readonly string[]
+		home: string
+		platform: Platform
+		env: Readonly<Record<string, string | undefined>>
+	},
+	pluginRoots: readonly string[],
+): SkillDefaults {
+	if (!harnesses.length) {
+		return {
+			skills: [],
+			unverified: "no harness detected, so no skill folder is read and no skill's default is listed",
+		}
+	}
+	const folders: string[] = []
+	const unverified: string[] = []
+	for (const harness of harnesses) {
+		const own = harnessSkillFolders(harness, options)
+		if (!own) {
+			unverified.push(harness)
+			continue
+		}
+		folders.push(...own, ...pluginRoots.flatMap((root) => pluginSkillFolders(harness, root)))
+	}
+	const roots = pluginRoots.filter((root) => skillName(root) !== undefined)
+	const skills = folders.length ? skillsIn([...folders, ...roots]).filter(({ folder }) => holdsDefault(folder)) : []
+	return unverified.length
+		? {
+				skills,
+				unverified: `the skill folders ${unverified.join(', ')} ${unverified.length === 1 ? 'reads are' : 'read are'} not verified, so ${unverified.length === 1 ? 'its' : 'their'} skills' defaults are not listed`,
+			}
+		: { skills }
+}
+
 /** The `default` tier for the skill at `folder`; a folder that does not exist warns and adds no contribution. */
 export function defaultLayer(folder: string): ReferenceLayer {
 	const dir = join(folder, 'references')
@@ -182,6 +252,12 @@ export async function referenceLayers({
 	const chain = projectChain(root)
 	const ownRoot = plugin && canonical(plugin.root)
 	const enabled = await enabledPluginLayers(harnesses, chain, { env, homedir: home, cwd: resolve(root), platform })
+	const pluginRoots = [
+		...(plugin ? [plugin.root] : []),
+		...enabled.flatMap(({ dir, skipped }) => (skipped ? [] : [dirname(dir)])),
+		...dependencyPluginRoots(root),
+	]
+	const skills = skillDefaults(harnesses, { chain, home, platform, env }, pluginRoots)
 	const layers: ReferenceLayer[] = [
 		...harnessManagedLayers(harnesses, platform, env),
 		...chain.map((dir): ReferenceLayer => ({ tier: 'project', dir: projectReferencesDir(dir) })),
@@ -193,5 +269,5 @@ export async function referenceLayers({
 	]
 	// A repository checked out at the home directory would read the same folder as project and user.
 	const seen = new Set<string>()
-	return { layers: layers.filter(({ dir }) => !seen.has(dir) && seen.add(dir)), harnesses }
+	return { layers: layers.filter(({ dir }) => !seen.has(dir) && seen.add(dir)), harnesses, skills }
 }

@@ -43,14 +43,28 @@ function isDirectory(path: string): boolean {
 }
 
 /**
- * The skills directly under each folder, one level deep. A symlinked skill folder is followed, since
- * pnpm and `npx skills` link skills rather than copy them (E-PM-SK-2, E-PM-SK-7); one real folder
- * reached twice is listed once.
+ * The skills in each folder: the folder itself when it holds a `SKILL.md`, else each skill directly
+ * under it, one level deep. A symlinked skill folder is followed, since pnpm and `npx skills` link
+ * skills rather than copy them (E-PM-SK-2, E-PM-SK-7); one real folder reached twice is listed once.
  */
 export function skillsIn(folders: readonly string[]): FoundSkill[] {
 	const found: FoundSkill[] = []
 	const seen = new Set<string>()
+	const add = (path: string, name: string) => {
+		let real = path
+		try {
+			real = realpathSync(path)
+		} catch {}
+		if (seen.has(real)) return
+		seen.add(real)
+		found.push({ name, folder: real })
+	}
 	for (const folder of folders) {
+		const own = skillName(folder)
+		if (own !== undefined) {
+			add(folder, own)
+			continue
+		}
 		let entries: string[]
 		try {
 			entries = readdirSync(folder)
@@ -61,14 +75,7 @@ export function skillsIn(folders: readonly string[]): FoundSkill[] {
 			const path = join(folder, entry)
 			if (!isDirectory(path)) continue
 			const name = skillName(path)
-			if (name === undefined) continue
-			let real = path
-			try {
-				real = realpathSync(path)
-			} catch {}
-			if (seen.has(real)) continue
-			seen.add(real)
-			found.push({ name, folder: real })
+			if (name !== undefined) add(path, name)
 		}
 	}
 	return found
