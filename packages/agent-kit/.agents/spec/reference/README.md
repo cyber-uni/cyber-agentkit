@@ -184,11 +184,12 @@ Edge IDs are in [graph.md](./graph.md).
 
 - **Q4.** The codes for warnings and refused writes, and the fields of `where`, `create`, `select`, and `delete` (R38,
   R39). Needs the owner and a check with repobuddy, which parses the output today.
-- **Q12.** For each harness: where a plugin's skills sit in its folder, how an installed plugin maps to its folder
-  beyond the three in `.research/harness-detection` R7, which copy of a skill runs when several folders hold it, and
-  whether the harness gives a running skill its own folder. Machine-wide admin skill folders are known for Claude Code,
-  Codex, and OpenCode (`.research/machine-wide-content`). It blocks building the `default` tier and UC3's defaults, not
-  the spec. Also: is a plugin-root `references/` folder part of the Agent Plugins spec, or a convention of ours?
+- **Q12.** (#114) For each harness: where a plugin's skills sit in its folder, how an installed plugin maps to its
+  folder beyond the three in `.research/harness-detection` R7, which copy of a skill runs when several folders hold it,
+  and whether the harness gives a running skill its own folder. Machine-wide admin skill folders are known for Claude
+  Code, Codex, and OpenCode (`.research/machine-wide-content`). It blocks building the `default` tier and UC3's
+  defaults, not the spec. Also: is a plugin-root `references/` folder part of the Agent Plugins spec, or a convention of
+  ours?
 
 ## References
 
