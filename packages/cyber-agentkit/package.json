@@ -42,7 +42,7 @@
 		"./package.json": "./package.json"
 	},
 	"bin": {
-		"cyber-agentkit": "./bin/cyber-agentkit.mjs"
+		"cyber-agentkit": "bin/cyber-agentkit.mjs"
 	},
 	"files": [
 		"LICENSE",
