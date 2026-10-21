@@ -377,8 +377,8 @@ you approve it. It runs the command from its bundled `scripts/reference.mjs`, wh
 `node_modules`.
 
 ```text
-/plugin marketplace add cyberuni/cyberplace
-/plugin install cyber-agentkit@cyberplace
+/plugin marketplace add cyber-uni/marketplace
+/plugin install cyber-agentkit@cyber-uni
 ```
 
 A skill that needs a reference names it in one line, as the skill's

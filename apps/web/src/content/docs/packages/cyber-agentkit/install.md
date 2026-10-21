@@ -31,11 +31,10 @@ The plugin is named `cyber-agentkit`. Its `plugin.json` declares four harnesses:
 `cursor`, `codex`, and `copilot-cli`. In Claude Code, add the marketplace and install it:
 
 ```text
-/plugin marketplace add cyberuni/cyberplace
-/plugin install cyber-agentkit@cyberplace
+/plugin marketplace add cyber-uni/marketplace
+/plugin install cyber-agentkit@cyber-uni
 ```
 
-Those two lines come from the [package readme](https://github.com/cyber-uni/cyber-agentkit/tree/main/packages/cyber-agentkit#the-reference-skill).
 For Cursor, Codex, and Copilot CLI, install the plugin with that harness's own plugin command. The
 package ships a manifest for each: `.claude-plugin`, `.cursor-plugin`, and `.codex-plugin`.
 
