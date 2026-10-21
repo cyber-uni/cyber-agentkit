@@ -49,18 +49,8 @@ the repository. They never write to a managed folder or an installed copy of a p
 ## The reference skill
 
 The package is also an agent plugin, `cyber-agentkit`, that ships a `reference` skill. Type
-`/reference` (`/cyber-agentkit:reference` in Claude Code) to run it.
-
-| Mode | When |
-| --- | --- |
-| Load | another skill names references to load with this skill |
-| Create | writing a new contribution for a project, for the user, or for a plugin or skill to ship |
-| Update | changing what a name says: editing your own contribution, or adding one above a plugin's |
-| Select | choosing which plugins, or the default, a name builds on, which settles an ambiguous name |
-| Delete | removing a project or user contribution, after saying what answers the name then |
-| Find | `search` for a topic, or `list` every reference |
-| Inspect | `show`, `show --trace`, or `where` |
-| Wire a skill | giving a skill the line that loads a reference |
+`/reference` to run it. Installed as a Claude Code plugin, it is `/cyber-agentkit:reference`. The
+[skill page](/cyber-agentkit/packages/cyber-agentkit/skills/reference/) lists every kind of request it handles.
 
 The skill shows each file and its path, and writes or deletes it only on your approval. It never
 edits a contribution a plugin ships; it writes one above it instead. Load runs only the skill's
