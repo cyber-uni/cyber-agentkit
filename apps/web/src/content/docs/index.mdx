@@ -24,6 +24,17 @@ import { Card, CardGrid } from '@astrojs/starlight/components'
 
 ## Install
 
+In Claude Code, add the marketplace and install the plugin:
+
+```text
+/plugin marketplace add cyberuni/cyberplace
+/plugin install cyber-agentkit@cyberplace
+```
+
+For Cursor, Codex, and Copilot CLI, see [Install](/cyber-agentkit/packages/cyber-agentkit/install/).
+
+To use it as a library instead:
+
 ```sh
 npm install cyber-agentkit
 ```
@@ -36,7 +47,7 @@ if (harness !== 'unknown') skillsDirectories(harness)
 ```
 
 The package depends on no other agent tool, so any of them can build on it. It also ships as the
-`cyber-agentkit` agent plugin and as the `cyber-agentkit` command; see the
+`cyber-agentkit` command; see the
 [package overview](/cyber-agentkit/packages/cyber-agentkit/).
 
 ## What it answers

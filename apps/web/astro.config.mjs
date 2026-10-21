@@ -1,15 +1,22 @@
 // @ts-check
 
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import starlight from '@astrojs/starlight'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'astro/config'
 
-// One sidebar group per package under `src/content/docs/packages/`, each laid out the same way
-// (overview, install, skills, CLI, library API) through `autogenerate`, so a new package needs no entry here.
-const packages = readdirSync(new URL('./src/content/docs/packages/', import.meta.url), { withFileTypes: true })
+// One sidebar group per package under `src/content/docs/packages/`, laid out the same way: overview, install,
+// the plugin (skills, requires), the CLI, then the library API. A new package needs no entry here.
+const docs = new URL('./src/content/docs/packages/', import.meta.url)
+const packages = readdirSync(docs, { withFileTypes: true })
 	.filter((entry) => entry.isDirectory())
-	.map((entry) => ({ label: entry.name, items: [{ autogenerate: { directory: `packages/${entry.name}` } }] }))
+	.map(({ name }) => {
+		const dir = `packages/${name}`
+		const items = [{ slug: dir }, { slug: `${dir}/install` }, { label: 'Skills', items: [{ autogenerate: { directory: `${dir}/skills` } }] }]
+		if (existsSync(new URL(`${name}/requires.md`, docs))) items.push({ slug: `${dir}/requires` })
+		items.push({ label: 'CLI', items: [{ autogenerate: { directory: `${dir}/cli` } }] }, { slug: `${dir}/library` })
+		return { label: name, items }
+	})
 
 export default defineConfig({
 	site: 'https://cyber-uni.github.io',
@@ -28,7 +35,7 @@ export default defineConfig({
 			customCss: ['./src/styles/global.css'],
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/cyber-uni/cyber-agentkit' }],
 			sidebar: [
-				{ label: 'Packages', items: packages },
+				...packages,
 				{
 					label: 'Concepts',
 					items: [
