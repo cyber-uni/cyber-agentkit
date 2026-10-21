@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="apps/web/src/assets/logo-dark.svg">
+    <img src="apps/web/src/assets/logo-light.svg" alt="cyber-agentkit logo" width="96" height="96">
+  </picture>
+</p>
+
 # cyber-agentkit
 
 [![npm](https://img.shields.io/npm/v/cyber-agentkit.svg)](https://www.npmjs.com/package/cyber-agentkit)
