@@ -1,16 +1,26 @@
-# 0002 — The plugin-manager extension key is org.cyberuni.plugin-manager
+# 0002 — The plugin-manager extension key is io.github.cyber-uni.plugin-manager
 
 **Status:** accepted (2026-10-20). Supersedes the extension key in
 [0001](0001-dependency-listing-and-doctor.md); the rest of 0001 stands.
 
 - A plugin authors its dependency list in its root `plugin.json` under
-  `extensions["org.cyberuni.plugin-manager"]`, replacing `org.spikyuni.plugin-manager`.
-- The agent line moved from the spikyuni org to cyber-uni, so the key leaves the spikyuni namespace.
-- The key shares the `org.cyberuni` prefix with `org.cyberuni.universal-plugin`, the fallback this library
-  already reads, so the agent line's extension keys sit under one prefix.
-- `io.github.cyber-uni.plugin-manager` was rejected. It reverses `cyber-uni.github.io`, which the org
-  controls, as Agent Plugins 1.0.0 section 8 asks, but it would split the keys across two prefixes. Whether
-  the owner controls `cyberuni.org` is unverified.
+  `extensions["io.github.cyber-uni.plugin-manager"]`, replacing `org.spikyuni.plugin-manager`.
+- The agent line moved from the spikyuni org to cyber-uni, so the key follows the org.
+- Agent Plugins 1.0.0 section 8 asks for a namespace on a domain the client controls. The key reverses
+  `cyber-uni.github.io`, which the org controls, and adds the client name, as the spec's own example
+  turns `example.com` into `com.example.client`.
+- The last segment names the feature, not the package. The package has been renamed several times, and the
+  spec asks a namespace to stay stable, so a feature name outlives the next rename.
+- One key per feature. Each tool replaces its own key without touching another's, and the spec's rule that
+  a client ignores namespaces it does not implement keeps working.
+- Rejected:
+  - `org.cyberuni.plugin-manager` and `org.cyber-uni.plugin-manager`: no one has verified that the org owns
+    `cyberuni.org` or `cyber-uni.org`.
+  - `io.github.cyber-uni.cyber-agentkit`: names the package, so it breaks when the package is renamed.
+  - One shared `io.github.cyber-uni` key with a sub-object per feature (`plugin-manager`,
+    `project-tracker`). The spec defines no merge, so every tool that writes the manifest would have to
+    merge two levels deep, and one that replaces the shared object drops the other features. It also makes
+    the whole org one client that must own the list of sub-keys.
 - `org.spikyuni.plugin-manager` is not read as a fallback: no release shipped it.
   `org.cyberuni.universal-plugin` stays the fallback, as 0001 says.
-- The spec asks a namespace to stay stable, so this key is expensive to change once a release ships it.
+- This key is expensive to change once a release ships it.

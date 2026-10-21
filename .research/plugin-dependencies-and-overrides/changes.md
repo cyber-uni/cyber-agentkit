@@ -7,5 +7,5 @@
   marker, a pin) and dropped `overrides: [<plugin>]`. Re-verified what the resolver has today (E-OVR-8 to
   E-OVR-11) and listed what `uni-agent-kit` must add. Q2 gains the default marker, alias, and pin before the
   website references; the children follow.
-- 2026-10-20. The plugin-manager namespace is now `org.cyberuni.plugin-manager` (E-DEP-8), replacing
+- 2026-10-20. The plugin-manager namespace is now `io.github.cyber-uni.plugin-manager` (E-DEP-8), replacing
   `org.spikyuni.plugin-manager` after the move to the cyber-uni org. The old key never shipped.

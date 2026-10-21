@@ -89,7 +89,7 @@ same functions as A2; they need no use case beyond UC2. A2's goal comes from the
   `checkPluginDependencies(harness, { dependencies, declaringMarketplace })`.
 - **Trigger:** `universal-plugin` build or validate needs the list, or needs to compare it to installed plugins.
 - **Outcome:** a list of `{ name, marketplace?, version? }`, read from the first source that lists any, in this
-  order: `extensions["org.cyberuni.plugin-manager"]`, then `extensions["org.cyberuni.universal-plugin"]`, then
+  order: `extensions["io.github.cyber-uni.plugin-manager"]`, then `extensions["org.cyberuni.universal-plugin"]`, then
   `.claude-plugin/plugin.json`.
 - **Extensions:**
   - An entry is not a name or a named object: it is skipped and the valid ones are kept.
