@@ -1,7 +1,7 @@
 {
 	"$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
 	"name": "cyber-agentkit",
-	"version": "0.7.1",
+	"version": "1.0.0",
 	"description": "An agent-harness-agnostic toolkit: the fundamental features agent tools need, working the same on every harness. Detect the running harness, check plugin dependencies, resolve layered reference documents, and lease git worktrees.",
 	"author": {
 		"name": "unional"

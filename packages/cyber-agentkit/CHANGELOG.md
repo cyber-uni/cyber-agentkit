@@ -1,5 +1,51 @@
 # cyber-agentkit
 
+## 1.0.0
+
+### Major Changes
+
+- 0cba7aa: Bump to 1.0.0 release
+
+### Minor Changes
+
+- 8055a97: Add the plugin dependency domain. `declaredPluginDependencies` and `readPluginDependencies` read the `dependencies` a Claude Code `plugin.json` declares. `checkPluginDependencies(harness, { pluginRoot })` reports each as `enabled`, `installed`, `disabled`, `missing`, or `unknown` using `installedPlugins` and `enabledPlugins`, and returns install steps: Claude Code's own commands, or manual steps on every harness without a dependency field, with a note that nothing is resolved for you.
+  
+  The package now ships a `plugin-dependencies` reference, generated from the same facts, that the `reference` skill loads.
+- 8f9e83a: Add reference interfaces. An `<id>.interface` reference declares a contract in its `interface:` frontmatter: cardinality, version, accepted versions, and the implementation's top-level sections in order. Every section is optional, and an implementation may hold sections the interface does not list. A reference implements one interface with `implements: <id>@<version>`.
+  
+  - `reference implementations <id> [--accept 1,2]` lists the implementations a consumer can load, with each one's pin, description, and unsupported sections; `--trace` adds the ones left out, with why. The library exports `referenceImplementations`.
+  - `reference check [name...]` checks implementations, composed as `show` composes them, and interface documents, and exits 1 on any failure. Its `compose` check fails a document whose composing raised a warning. The library exports `checkReferences`. `show` warns when a document fails its interface check.
+  - `reference create <id>.<key> --implements <id>` starts an implementation from the interface's sections, each stubbed `**Unsupported.**`, with `merge: replace`.
+  - An interface document is never composed: a higher contribution of it, and an `extends` or `merge` on it, is ignored with a warning.
+  - The `reference` skill loads the implementations of an interface, and creates and checks implementations.
+- 5650ac4: `reference list`, `search`, and `check` find skills' defaults (`<skill>/references/<name>.default.md`) in the skill folders the detected harness reads: its project and user folders, its machine-wide admin folders, and each enabled plugin's skills, on Claude Code, Cursor, Codex, Copilot CLI, OpenCode, and Gemini CLI. A skill is known by its `SKILL.md` name, and symlinked skill folders are followed, so skills pnpm or `npx skills` linked are found. `list --trace` gives a row per skill holding a default, noting that the `default` step reaches it when that skill loads the name; `search` and `check` take each default as its skill loads it, naming the skill as `loadedBy`. On another harness, or with none detected, the answer's `defaults` field says why no default is listed. The library exports `harnessSkillFolders`, `pluginSkillFolders`, `adminSkillFolders`, `skillsIn`, and `skillName`.
+- 968bb1e: The `reference` skill follows the stack design. Load passes the calling skill's folder as `--default`, so a skill's defaults now live at `references/<name>.default.md` and sit below every customization; it reads a default by itself only when the command cannot run, and no longer reads `references/<name>.md` or `governances/`. On an ambiguous name with a user present, it lists every option, asks for a pick, and writes it with `reference select`. An invalid name is reported as a fault for the calling skill's author. A new Select mode chooses what a name builds on, and Update writes customizations that patch, instead of `merge-sections` overrides. The load line reads "with the `reference` skill of `cyber-agentkit`".
+- f467991: Rebuild reference resolution around a stack. Breaking.
+  
+  Contributions compose bottom first: the plugins and the calling skill's default (the stack), then user, then project, then managed. Each applies over everything below it with one of four operations, written as frontmatter `merge`, on a step of `extends`, or on one section as `<!-- merge: <operation> -->`:
+  
+  - `patch`, the default: keeps what is below and puts each section's text in place of the text it matches by heading path. **A file with no `merge` used to be `first-wins` and replace everything below; it now patches.** Write `merge: replace` to keep the old behavior.
+  - `combine`: keeps what is below and adds each section's text after the text it matches. **Lower text now comes first, and where combined text conflicts, the later (higher) text wins**; the document says so once at the top. It used to put the higher layer first and let the first one win.
+  - `replace`: drops everything below.
+  - `remove`: drops everything below. With nothing above it, the name is `missing`.
+  
+  `merge-sections` and `first-wins` are gone (an unknown `merge` is read as `patch`, with a warning), and so is `overrides:`. Frontmatter `extends` lists what a contribution builds on, bottom first: plugins by their manifest name, and `default`. The highest written `extends` in the managed, project, or user tier builds the stack; otherwise the plugins' own `extends` order them, and plugins nothing orders make the name `ambiguous`. A qualified `<plugin>/<name>` builds that plugin's own stack.
+  
+  - New `reference select <name> <option>... [--scope user] [--clear]` writes the `extends` that settles an ambiguous name or picks a stack.
+  - A skill ships its default as `<skill>/references/<name>.default.md`; `show --default <skill folder>` (and `where --default`) reads it as the `default` tier. `create` and `delete` take `--plugin <plugin folder>` and `--default <skill folder>` for a plugin's or a skill's source in the repository, and `create` takes `--merge <operation>`.
+  - Output is agent-first. In `--format json`, `show` gives each found name's content as a string, and a record only for a failure or warnings; `--metadata` adds `status` and `metadata` (which leaves out `merge` and `extends`), and `--trace` adds the trace. `list` gives one row per name (`--trace` adds the rows per layer). `search` no longer echoes the query. `check` gives the failures and a pass count. `implementations` gives each `pin`, `description`, and `unsupported`. Empty fields are left out.
+  - Every warning is `{code, message}`; a name not found carries `reference-missing`, `reference-ambiguous`, or `reference-invalid`, and an ambiguous name's choices are `options` (was `plugins`). In text, failures and warnings print as `error: <code>: <message>` and `warning: <code>: <message>`. `<reference>` blocks no longer carry `tier`. `where` on an ambiguous name exits 0.
+  - A bad name is a status (`invalid`) in its own entry instead of an error that fails the whole call, and the library never throws for one. A name ending `.default`, or qualified by an npm package name, is invalid.
+  - Only `<name>.md` and `<name>/README.md` answer a name; `<name>/index.md` and `<name>/SKILL.md` no longer do. The library's own managed folders (`/etc/buddy-agent-harness/...` and equivalents) and every `governances/` folder are no longer read. A dependency joins the plugin tier only when it has a plugin manifest, named by the manifest's `name`.
+- 13b64c2: Rename the package from `@cyberuni/agent-harness` to `cyber-agentkit`. The `agent-harness` command is now `cyber-agentkit`, and the `cyber-agent-harness` agent plugin is now `cyber-agentkit`, so the skill is `/cyber-agentkit:reference`. The package is now described as an agent-harness-agnostic toolkit. Worktree leases written by the old name are no longer recognized as this library's own.
+
+### Patch Changes
+
+- 238796e: `skillInvocation('codex', …)` now returns `$<plugin>:<skill>` with `namespaced: true`, instead of the bare `$<skill>`. Codex names a plugin's skill `<plugin>:<skill>`, and its `$` mention takes the whole name.
+- f58bc44: Point `repository`, `homepage`, and `bugs` at the repository's new home, `cyber-uni/cyber-agentkit` (the package now lives at `packages/cyber-agentkit`), and the documentation at https://cyber-uni.github.io/cyber-agentkit/.
+- 057b182: `skillInvocation('opencode', …)` now returns `/<skill>` (not namespaced by plugin) instead of `undefined`. Through v1.19.3, OpenCode registers every loaded skill as a slash command, unless a built-in, config command, or MCP prompt already has the name.
+- d89c33b: `skillsDirectories('cursor')` adds `.grok/skills` and lists Cursor's folders in the order it reads them. `skillsDirectories('copilot-cli')` gains `relocatedBy`: when `COPILOT_HOME` names another folder, Copilot CLI reads `$COPILOT_HOME/skills` instead of its user folders.
+
 ## 0.7.1
 
 ### Patch Changes
