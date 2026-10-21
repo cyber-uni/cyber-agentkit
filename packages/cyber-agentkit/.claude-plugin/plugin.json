@@ -1,0 +1,19 @@
+{
+	"name": "cyber-agentkit",
+	"version": "0.7.1",
+	"description": "An agent-harness-agnostic toolkit: the fundamental features agent tools need, working the same on every harness. Detect the running harness, check plugin dependencies, resolve layered reference documents, and lease git worktrees.",
+	"author": {
+		"name": "unional"
+	},
+	"homepage": "https://github.com/cyber-uni/cyber-agentkit",
+	"repository": "https://github.com/cyber-uni/cyber-agentkit",
+	"license": "MIT",
+	"keywords": [
+		"agent-harness",
+		"claude-code",
+		"cursor",
+		"codex",
+		"copilot-cli"
+	],
+	"skills": "./skills/"
+}

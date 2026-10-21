@@ -178,7 +178,7 @@ forms from `@cyberuni/agent-harness`, so the two move together.
 
 ## 2026-10-20 — Codex plugin skill mentions
 
-For [#118](https://github.com/spikyuni/uni-agent-kit/issues/118). E-CODEX-S3, which found no `plugin:skill` mention
+For [#118](https://github.com/cyber-uni/cyber-agentkit/issues/118). E-CODEX-S3, which found no `plugin:skill` mention
 syntax, is superseded by `skill-resolution` E-SR-CODEX-18: Codex's `$` mention parser accepts `:`, so a user types a
 plugin skill as `$<plugin>:<skill>`. `skillInvocation('codex')` now returns that form. Copilot CLI keeps `/<skill>`:
 it lists a plugin skill as `<plugin>:<skill>` only while two plugins collide (E-SR-COPILOT-8), and typing that form
@@ -186,7 +186,7 @@ is not verified.
 
 ## 2026-10-20 — OpenCode skills are slash commands
 
-For [#59](https://github.com/spikyuni/uni-agent-kit/issues/59). The lead from Kilo (E-KILO-S3) holds upstream. In
+For [#59](https://github.com/cyber-uni/cyber-agentkit/issues/59). The lead from Kilo (E-KILO-S3) holds upstream. In
 OpenCode's source at v1.18.34 and at the latest release, v1.19.3, every loaded skill is also a `/<skill>` command. A
 built-in, config command, or MCP prompt with the same name wins, and the skill then gets no command. A run of 1.18.34
 listed a project skill among the server's commands (E-OC-S3). That supersedes E-OC-S2's invocation claim, whose

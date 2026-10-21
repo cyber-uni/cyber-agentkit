@@ -1,0 +1,93 @@
+{
+	"name": "cyber-agentkit",
+	"version": "0.7.1",
+	"description": "An agent-harness-agnostic toolkit: the fundamental features agent tools need, working the same on every harness. Detect the running harness, check plugin dependencies, resolve layered reference documents, and lease git worktrees.",
+	"keywords": [
+		"agent-harness",
+		"claude-code",
+		"cursor",
+		"codex",
+		"copilot-cli",
+		"opencode",
+		"kilo-code",
+		"gemini-cli",
+		"qwen-code",
+		"vscode",
+		"cline",
+		"crush",
+		"openhands",
+		"auggie"
+	],
+	"homepage": "https://cyber-uni.github.io/cyber-agentkit/",
+	"bugs": {
+		"url": "https://github.com/cyber-uni/cyber-agentkit/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/cyber-uni/cyber-agentkit.git",
+		"directory": "packages/cyber-agentkit"
+	},
+	"license": "MIT",
+	"author": "unional <homawong@gmail.com>",
+	"type": "module",
+	"sideEffects": [
+		"./bin/*.mjs",
+		"./dist/cli.js",
+		"./skills/*/scripts/*.mjs"
+	],
+	"exports": {
+		".": "./dist/index.js",
+		"./commands": "./dist/commands.js",
+		"./worktrees": "./dist/worktrees.js",
+		"./package.json": "./package.json"
+	},
+	"bin": {
+		"cyber-agentkit": "./bin/cyber-agentkit.mjs"
+	},
+	"files": [
+		"LICENSE",
+		"bin",
+		"dist",
+		"skills",
+		"references",
+		"plugin.json",
+		".claude-plugin",
+		".cursor-plugin",
+		".codex-plugin"
+	],
+	"scripts": {
+		"build": "tsdown",
+		"generate:references": "tsx scripts/generate-references.ts",
+		"dev": "tsx src/index.ts",
+		"lint": "biome check .",
+		"prepack": "pnpm build",
+		"test": "pnpm build && vitest run src",
+		"test:watch": "vitest",
+		"typecheck": "tsc --noEmit",
+		"verify": "pnpm typecheck && pnpm lint && pnpm test"
+	},
+	"peerDependencies": {
+		"clibuilder": "^12.0.0"
+	},
+	"peerDependenciesMeta": {
+		"clibuilder": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@types/node": "^24.10.1",
+		"clibuilder": "^12.0.0",
+		"tsdown": "^0.23.0",
+		"tsx": "^4.22.3",
+		"typescript": "^7.0.0",
+		"vitest": "^5.0.0",
+		"yaml": "^2.9.0"
+	},
+	"engines": {
+		"node": ">=22"
+	},
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	}
+}

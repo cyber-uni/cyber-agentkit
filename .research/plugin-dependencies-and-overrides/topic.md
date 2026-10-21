@@ -1,12 +1,12 @@
 # Topic — Reference overrides and plugin dependencies
 
-Investigation record for [#107](https://github.com/spikyuni/uni-agent-kit/issues/107). The answers are in
+Investigation record for [#107](https://github.com/cyber-uni/cyber-agentkit/issues/107). The answers are in
 [conclusion.md](./conclusion.md); each claim's source is in [evidence.md](./evidence.md).
 
 ## Question
 
 Website work becomes layered: `repobuddy:website` stays a router whose `init`, `deploy`, and `update`
-instructions are references; `unional-skills` and `uni-agent-kit` override them; `repobuddy` hard-depends on
+instructions are references; `unional-skills` and `cyber-agentkit` override them; `repobuddy` hard-depends on
 the plugin that carries the `reference` skill. What must be true of the reference resolver, the dependency
 manifests, the rename, and the docs for that to work?
 
@@ -50,7 +50,7 @@ this epic is reachable by enabling plugins, writing a project or user copy, or q
 
 Claude Code is the only one of the four main harnesses with a dependency field, and its install flow
 resolves a bare name in the declaring plugin's marketplace. Other harnesses ignore or reject the field, so
-`repobuddy` there depends on the user following the docs. `uni-agent-kit` holds the harness facts, so a
+`repobuddy` there depends on the user following the docs. `cyber-agentkit` holds the harness facts, so a
 reference generated from its dependency domain is the right home for the how-to-install text.
 
 ### Migration (Q2)

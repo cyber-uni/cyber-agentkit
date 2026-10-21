@@ -4,7 +4,7 @@
 October 2026 (draft, not saved to any repo)
 
 ## Question
-Are there existing systems close to uni-agent-kit's dependency declaration, doctor, neutral-name resolution, and namespaced extension key?
+Are there existing systems close to cyber-agentkit's dependency declaration, doctor, neutral-name resolution, and namespaced extension key?
 
 ## Verdict
 1. Dependencies across harnesses: only Claude Code has a native field. Microsoft APM is the one close cross-harness system, but as an installer with its own manifest. No agent-plugin system found that reads one neutral declaration and reports per-harness support. Nothing close to that exists, to the extent searched.

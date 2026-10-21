@@ -3,7 +3,7 @@ title: Reference interfaces
 description: How a reference declares an interface, how other references implement it, how a skill loads the implementations, and how one plugin's implementation builds on another's.
 ---
 
-An interface is a named contract. A skill consumes it, and a [reference](/uni-agent-kit/concepts/reference-documents/)
+An interface is a named contract. A skill consumes it, and a [reference](/cyber-agentkit/concepts/reference-documents/)
 in any tier implements it. The resolver lists the implementations of an interface, and checks that
 each one has the shape the interface describes.
 
@@ -81,7 +81,7 @@ implements: project-tracker.capabilities@1
 Start one from the interface's sections:
 
 ```sh
-npx -y uni-agent-kit reference create scaffold.recipe.typescript-lib --implements scaffold.recipe
+npx -y cyber-agentkit reference create scaffold.recipe.typescript-lib --implements scaffold.recipe
 ```
 
 It writes each section as a `##` heading stubbed `**Unsupported.**`, sets `implements`, and writes
@@ -92,7 +92,7 @@ It writes each section as a `##` heading stubbed `**Unsupported.**`, sets `imple
 A consumer names the interface in one line:
 
 ```text
-Load the implementations of the `scaffold.recipe` interface with the `reference` skill of `uni-agent-kit`.
+Load the implementations of the `scaffold.recipe` interface with the `reference` skill of `cyber-agentkit`.
 ```
 
 The skill runs:
@@ -116,7 +116,7 @@ A consumer that reads one known implementation, such as a `one` slot, loads it b
 
 ```ts
 import { homedir } from 'node:os'
-import { referenceImplementations, referenceLayers } from 'uni-agent-kit'
+import { referenceImplementations, referenceLayers } from 'cyber-agentkit'
 
 const layers = await referenceLayers({ root: process.cwd(), home: homedir(), platform: process.platform })
 const { implementations, excluded } = referenceImplementations('scaffold.recipe', layers)

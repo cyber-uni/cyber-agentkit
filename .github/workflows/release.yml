@@ -7,7 +7,7 @@ permissions: {}
 
 jobs:
   code:
-    uses: spikyuni/.github/.github/workflows/pnpm-verify.yml@v1
+    uses: cyber-uni/.github/.github/workflows/pnpm-verify.yml@v1
     permissions:
       contents: read
       id-token: write
@@ -18,7 +18,7 @@ jobs:
   # npm trusted publishing names this file, release.yml. Keep the filename.
   release:
     needs: code
-    uses: spikyuni/.github/.github/workflows/pnpm-release.yml@v1
+    uses: cyber-uni/.github/.github/workflows/pnpm-release.yml@v1
     permissions:
       contents: write
       pull-requests: write

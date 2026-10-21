@@ -12,21 +12,21 @@ const packages = readdirSync(new URL('./src/content/docs/packages/', import.meta
 	.map((entry) => ({ label: entry.name, items: [{ autogenerate: { directory: `packages/${entry.name}` } }] }))
 
 export default defineConfig({
-	site: 'https://spikyuni.github.io',
-	base: '/uni-agent-kit',
+	site: 'https://cyber-uni.github.io',
+	base: '/cyber-agentkit',
 	vite: { plugins: [tailwindcss()] },
 	integrations: [
 		starlight({
-			title: 'uni-agent-kit',
+			title: 'cyber-agentkit',
 			description:
 				'Detect which AI agent harness is running, such as Claude Code, Cursor, Codex, or Copilot CLI, and query what it holds.',
 			// The cyber-* family mark: a shared command reticle around a per-package glyph. The favicon
 			// self-themes under `prefers-color-scheme`. The header logo cannot, because Starlight switches
 			// on `data-theme`, so it ships as a light and dark pair.
 			favicon: '/img/logo.svg',
-			logo: { light: './src/assets/logo-light.svg', dark: './src/assets/logo-dark.svg', alt: 'uni-agent-kit' },
+			logo: { light: './src/assets/logo-light.svg', dark: './src/assets/logo-dark.svg', alt: 'cyber-agentkit' },
 			customCss: ['./src/styles/global.css'],
-			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/spikyuni/uni-agent-kit' }],
+			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/cyber-uni/cyber-agentkit' }],
 			sidebar: [
 				{ label: 'Packages', items: packages },
 				{

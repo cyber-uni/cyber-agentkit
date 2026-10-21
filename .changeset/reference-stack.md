@@ -1,5 +1,5 @@
 ---
-"uni-agent-kit": minor
+"cyber-agentkit": minor
 ---
 
 Rebuild reference resolution around a stack. Breaking.

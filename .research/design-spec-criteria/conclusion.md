@@ -188,7 +188,7 @@ the two that catch what is missing; the rest catch what is wrong or surplus.
 
 ### 6. Example: how the finished node spec maps
 
-packages/agent-kit/.agents/spec/dependencies/README.md has: What + Non-goals + Key terms; Use Cases with an actors
+packages/cyber-agentkit/.agents/spec/dependencies/README.md has: What + Non-goals + Key terms; Use Cases with an actors
 table and per-UC entry points, inputs, outcome, extensions; Control Flow; Scenario map; References. Extension lists
 are long (UC1 has about 11), showing C6 in practice and C9 pressure. It adds a decision graph and scenario map
 beyond the minimal list because the capability branches. It states exit codes and stable error codes as outcome (D3).

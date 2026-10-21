@@ -1,5 +1,5 @@
 ---
-title: uni-agent-kit
+title: cyber-agentkit
 description: An agent-harness-agnostic toolkit. The fundamental features agent tools need, working the same way on every harness.
 template: splash
 hero:
@@ -10,13 +10,13 @@ hero:
     # breaks whenever the home page is reached without its trailing slash. Keep these
     # absolute, and keep the prefix in step with `base` in astro.config.mjs.
     - text: Install the plugin
-      link: /uni-agent-kit/packages/agent-kit/install/
+      link: /cyber-agentkit/packages/cyber-agentkit/install/
       icon: right-arrow
     - text: Harness detection
-      link: /uni-agent-kit/concepts/harness-detection/
+      link: /cyber-agentkit/concepts/harness-detection/
       variant: secondary
     - text: Reference documents
-      link: /uni-agent-kit/concepts/reference-documents/
+      link: /cyber-agentkit/concepts/reference-documents/
       variant: minimal
 ---
 
@@ -25,19 +25,19 @@ import { Card, CardGrid } from '@astrojs/starlight/components'
 ## Install
 
 ```sh
-npm install uni-agent-kit
+npm install cyber-agentkit
 ```
 
 ```ts
-import { detectHarness, skillsDirectories } from 'uni-agent-kit'
+import { detectHarness, skillsDirectories } from 'cyber-agentkit'
 
 const { harness } = detectHarness() // 'claude-code', 'codex', …, or 'unknown'
 if (harness !== 'unknown') skillsDirectories(harness)
 ```
 
 The package depends on no other agent tool, so any of them can build on it. It also ships as the
-`uni-agent-kit` agent plugin and as the `uni-agent-kit` command; see the
-[package overview](/uni-agent-kit/packages/agent-kit/).
+`cyber-agentkit` agent plugin and as the `cyber-agentkit` command; see the
+[package overview](/cyber-agentkit/packages/cyber-agentkit/).
 
 ## What it answers
 
@@ -65,6 +65,6 @@ The package depends on no other agent tool, so any of them can build on it. It a
 </CardGrid>
 
 Every answer rests on a vendor source recorded in
-[`.research/harness-detection`](https://github.com/spikyuni/uni-agent-kit/tree/main/.research/harness-detection).
-The [package readme](https://github.com/spikyuni/uni-agent-kit/tree/main/packages/agent-kit#readme)
+[`.research/harness-detection`](https://github.com/cyber-uni/cyber-agentkit/tree/main/.research/harness-detection).
+The [package readme](https://github.com/cyber-uni/cyber-agentkit/tree/main/packages/cyber-agentkit#readme)
 documents each function.
