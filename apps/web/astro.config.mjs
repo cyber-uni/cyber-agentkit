@@ -12,9 +12,23 @@ const packages = readdirSync(docs, { withFileTypes: true })
 	.filter((entry) => entry.isDirectory())
 	.map(({ name }) => {
 		const dir = `packages/${name}`
-		const items = [{ slug: dir }, { slug: `${dir}/install` }, { label: 'Skills', items: [{ autogenerate: { directory: `${dir}/skills` } }] }]
+		const items = [
+			{ slug: dir },
+			{ slug: `${dir}/install` },
+			{ label: 'Skills', items: [{ autogenerate: { directory: `${dir}/skills` } }] },
+		]
 		if (existsSync(new URL(`${name}/requires.md`, docs))) items.push({ slug: `${dir}/requires` })
-		items.push({ label: 'CLI', items: [{ autogenerate: { directory: `${dir}/cli` } }] }, { slug: `${dir}/library` })
+		items.push(
+			{ slug: `${dir}/library` },
+			{
+				label: 'CLI',
+				items: [
+					{
+						autogenerate: { directory: `${dir}/cli` },
+					},
+				],
+			},
+		)
 		return { label: name, items }
 	})
 
