@@ -1,6 +1,6 @@
 # 0001 — Dependencies are listed in the extension key and checked by a read-only doctor
 
-**Status:** accepted (2026-10-18). **Source:** issues #106, #107, #110.
+**Status:** accepted (2026-10-18); the extension key is superseded by [0002](0002-extension-key-on-cyber-uni.md). **Source:** issues #106, #107, #110.
 
 - Only Claude Code enforces plugin dependencies, via `dependencies` in `.claude-plugin/plugin.json`. Cursor, Codex,
   Copilot CLI, and the Agent Plugins 1.0 schema have none.
