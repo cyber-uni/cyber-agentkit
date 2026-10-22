@@ -23,8 +23,11 @@ export type ReferenceLayer = {
 	skill?: string | undefined
 	/** Set when the layer is never read, and why: policy held in MDM, a plugin with no install folder. */
 	skipped?: string | undefined
-	/** The default tier of an assets call: files are `<name>.<ext>` with no `.default` marker. */
-	plain?: boolean | undefined
+	/**
+	 * An `assets/` layer: a file is `<name>.<ext>` with no `.default` marker, read as written. Nothing in it
+	 * merges or extends; the highest layer holding the name answers whole.
+	 */
+	whole?: boolean | undefined
 	/** Raised on every name resolved through this layer, such as a `--default` folder that does not exist. */
 	warning?: ReferenceWarning | undefined
 }
@@ -232,7 +235,7 @@ function skillDefaults(
 function inFolder(layer: ReferenceLayer, folder: ReferenceFolder): ReferenceLayer {
 	if (folder === 'references' || basename(layer.dir) !== 'references') return layer
 	const dir = join(dirname(layer.dir), folder)
-	return layer.tier === 'default' ? { ...layer, dir, plain: true } : { ...layer, dir }
+	return { ...layer, dir, whole: true }
 }
 
 /** The `default` tier for the skill at `folder`; a folder that does not exist warns and adds no contribution. */

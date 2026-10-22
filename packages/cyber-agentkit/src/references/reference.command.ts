@@ -289,7 +289,7 @@ function showText(resolved: readonly ResolvedReference[]): Answer<string> | unde
 	return document(blocks.join('\n\n'))
 }
 
-function showCommand(layersFor: LayersFor, assets = false, name = 'show'): cli.Command {
+function showCommand(layersFor: LayersFor, name = 'show'): cli.Command {
 	return command({
 		name,
 		description:
@@ -360,7 +360,7 @@ function showCommand(layersFor: LayersFor, assets = false, name = 'show'): cli.C
 	})
 }
 
-function listCommand(layersFor: LayersFor, assets = false, name = 'list'): cli.Command {
+function listCommand(layersFor: LayersFor, name = 'list'): cli.Command {
 	return command({
 		name,
 		description:
@@ -715,9 +715,9 @@ function createCommand(layersFor: LayersFor): cli.Command {
 	})
 }
 
-function selectCommand(layersFor: LayersFor, assets = false, name = 'select'): cli.Command {
+function selectCommand(layersFor: LayersFor): cli.Command {
 	return command({
-		name,
+		name: 'select',
 		description:
 			'Choose what a name builds on: write an `extends` listing the options, bottom first, in the project or user file. Its body and other keys are kept.',
 		arguments: [
@@ -758,7 +758,6 @@ function selectCommand(layersFor: LayersFor, assets = false, name = 'select'): c
 						options: args.options ?? [],
 						scope: args.scope,
 						clear: args.clear,
-						assets,
 					},
 					{ display },
 				)
@@ -800,9 +799,9 @@ function deleteReport(deleted: DeleteResult, home: string): ReferenceDeleteRepor
 	})
 }
 
-function deleteCommand(layersFor: LayersFor, assets = false, name = 'delete'): cli.Command {
+function deleteCommand(layersFor: LayersFor): cli.Command {
 	return command({
-		name,
+		name: 'delete',
 		description:
 			"Delete a project or user contribution, or one in a plugin's or a skill's source folder, and report what answers the name afterwards. Never deletes an installed or managed one.",
 		arguments: [{ name: 'name', description: 'Reference name, without the `.md` extension.', type: t.string() }],
@@ -838,7 +837,6 @@ function deleteCommand(layersFor: LayersFor, assets = false, name = 'delete'): c
 						scope: args.scope,
 						plugin: args.plugin,
 						default: args.default,
-						assets,
 						dryRun: args['dry-run'],
 					},
 					{ display: (path) => collapseHome(home, path) },
@@ -909,18 +907,17 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 	})
 }
 
-export type AssetResolveCommands = { load: cli.Command; names: cli.Command; where: cli.Command; select: cli.Command }
+export type AssetResolveCommands = { load: cli.Command; names: cli.Command; where: cli.Command }
 
 /**
  * The tiered, by-name commands over `assets/` folders: the reference engine reading `assets/` where it
- * reads `references/`. `load` is `show`, `names` is `list`; `asset`'s own commands act on a path.
+ * reads `references/`. `load` is `show`, `names` is `list`. Nothing in an `assets/` layer merges or extends, so there is no `select`. `asset`'s own commands act on a path.
  */
 export function createAssetResolveCommands({ plugin }: ReferenceCommandOptions = {}): AssetResolveCommands {
 	const layersFor = layerSource(plugin, 'assets')
 	return {
-		load: showCommand(layersFor, true, 'load'),
-		names: listCommand(layersFor, true, 'names'),
+		load: showCommand(layersFor, 'load'),
+		names: listCommand(layersFor, 'names'),
 		where: whereCommand(layersFor, true),
-		select: selectCommand(layersFor, true),
 	}
 }

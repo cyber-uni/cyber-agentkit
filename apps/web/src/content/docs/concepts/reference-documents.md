@@ -86,17 +86,19 @@ data file by hand.
 ## Assets by name
 
 A skill that ships a data file in its `assets/` folder can let others override which file it loads. The `asset`
-skill does this, not `reference`: `asset load`, `asset names`, `asset where`, and `asset select`, or `loadAsset` in
-the library, run the same tiers over `assets/` folders. They read `.agents/assets/` in the project and under the
+skill does this, not `reference`: `asset load`, `asset names`, and `asset where`, or `loadAsset` in the library, read the same tiers over
+`assets/` folders. They read `.agents/assets/` in the project and under the
 home directory, a plugin's `assets/`, a harness's managed `assets/`, and the skill's own `assets/<name>.<ext>` as
 the default, with no `.default` marker.
 
 ```sh
 npx -y cyber-agentkit asset load permissions --default <skill folder>
-npx -y cyber-agentkit asset select permissions <plugin>
+npx -y cyber-agentkit asset where permissions
 ```
 
-Resolution, statuses, and whole-file replace for data files are the same as for references. The `reference`
+The highest tier holding the name answers with the file as written. Nothing merges or extends, Markdown included,
+so there is no `select`: place a file of the same name in a project or user `assets/` folder to override, or ask for
+`<plugin>/<name>` when two plugins hold it. The `reference`
 commands never read `assets/`. `asset list`, `show`, `create`, `update`, and `delete` act on one skill's files by
 path, with no tiers.
 

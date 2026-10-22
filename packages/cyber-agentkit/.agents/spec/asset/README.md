@@ -12,12 +12,16 @@ The open Agent Skills specification names `assets/` as a skill folder for static
 files such as lookup tables and schemas (agentskills.io/specification). A skill points to an asset by path. A reference
 is fetched by name and composed across tiers; an asset is not, so the `reference` skill never takes it over. This capability gives an author two things: plain file
 operations on one skill's `assets/` folder, by path, with no tiers and no merging; and, separately, loading a file by
-name through the tiers, so another plugin, the project, or the user can change which file a skill loads (a JSON
+name through the tiers, so a plugin, the project, or the user can change which file a skill loads by placing its own (a JSON
 permission allow/deny list, say).
 
 **Non-goals:**
 
-- N1 Merging. A data file answers whole. By-path operations (UC1) have no tiers at all.
+- N1 Merging or extending. Every file in an `assets/` layer is read as written, Markdown included: no frontmatter, no
+  `merge`, no `extends`, no sections. The highest tier holding a name answers whole. By-path operations (UC1) have no
+  tiers.
+- N5 Choosing among plugins by a selection file. With nothing to order plugins, a name two plugins hold is ambiguous
+  until a tier answers or a qualified name picks one.
 - N2 Reading anything outside the skill's `assets/` folder.
 - N3 Parsing or validating content. Text is returned as written.
 - N4 Writing to an installed copy of a skill. A write targets a skill's source folder in the repository.
@@ -51,11 +55,13 @@ permission allow/deny list, say).
 ### UC2 — Override which asset a skill loads (A2: skill author, plugin author, project or user)
 
 - **Entry points:** Skill: `/asset`. Code: `asset load <name> --default <skill folder>`; `asset names`; `asset where
-  <name>`; `asset select <name> <option>...`; `loadAsset(name, {defaultSkill, ...})`.
-- **Outcome:** `load` answers from the highest tier holding the name, whole for a data file. `select` writes a
-  selection (only `extends`) to `.agents/assets/<name>.md`, or the user's, saying which plugin or the skill's file
-  answers. `where` and `names` report as for references.
-- **Extensions:** as the reference extensions (missing, ambiguous, invalid name, absent skill folder).
+  <name>`; `loadAsset(name, {defaultSkill, ...})`.
+- **Outcome:** `load` answers from the highest tier holding the name (managed, project, user, plugin, the skill's
+  own file), with the file as written. `where` shows where an override goes; `names` lists the names held.
+- **Extensions:**
+  - UC2.1 Several plugins hold the name and no tier does: `ambiguous`, naming each `<plugin>/<name>`. A tier file, or a
+    qualified name, answers.
+  - UC2.2 Missing, invalid name, or an absent skill folder: as for references.
 
 ## Criteria
 
@@ -72,8 +78,10 @@ permission allow/deny list, say).
   dependency plugin's `assets/`, each detected harness's managed `assets/`, and the skill's `assets/` as the `default`
   tier (K4).
 - R9 (UC2): The skill's `assets/<name>.<ext>` is the default; a `<name>.default.*` there is not special.
-- R10 (UC2): `select` writes under `.agents/assets/` (or the user's, plugin's, or skill's `assets/`).
+- R10 (UC2): No `select`, `extends`, `merge`, or frontmatter applies to an asset; such text is part of the file.
 - R11 (UC2): `loadAsset` answers as `load` does.
+- R78 (UC2.1): A name two plugins hold, with no tier file, is `ambiguous` with each `<plugin>/<name>` as an option; a
+  tier file or a qualified name resolves it.
 
 ## Open questions
 

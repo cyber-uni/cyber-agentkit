@@ -117,11 +117,11 @@ function deleteCommand(): cli.Command {
 }
 
 export function createAssetCommand(options: ReferenceCommandOptions = {}): cli.Command {
-	const { load, names, where, select } = createAssetResolveCommands(options)
+	const { load, names, where } = createAssetResolveCommands(options)
 	return command({
 		name: 'asset',
 		description:
-			"Manage a skill's assets/ files by path (list, show, create, update, delete), and load one by name through the tiers (load, names, where, select).",
+			"Manage a skill's assets/ files by path (list, show, create, update, delete), and load one by name through the tiers (load, names, where).",
 		commands: [
 			listCommand(),
 			showCommand(),
@@ -131,7 +131,6 @@ export function createAssetCommand(options: ReferenceCommandOptions = {}): cli.C
 			load,
 			names,
 			where,
-			select,
 		],
 	})
 }

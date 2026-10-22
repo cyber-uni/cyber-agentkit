@@ -52,8 +52,6 @@ export type WhereArgs = {
 	scope?: string | undefined
 	plugin?: string | undefined
 	default?: string | undefined
-	/** Act on the `assets/` folders in place of `references/`. */
-	assets?: boolean | undefined
 }
 
 /** A bare, valid name, or a refusal naming the bare name to use. */
@@ -80,9 +78,8 @@ export function insideRepository(folder: string, root: string): boolean {
 /** Resolves `--scope`, `--plugin`, and `--default` to the file a write acts on; more than one is a usage error. */
 export function writeTarget(
 	name: ReferenceName,
-	{ root, home, scope, plugin, default: skill, assets }: WhereArgs,
+	{ root, home, scope, plugin, default: skill }: WhereArgs,
 ): WriteTarget {
-	const folderName = assets ? 'assets' : 'references'
 	const given = [scope, plugin, skill].filter((value) => value !== undefined)
 	if (given.length > 1) {
 		throw new ReferenceWriteError('options-conflict', 'pass one of --scope, --plugin, and --default.', true)
@@ -101,7 +98,7 @@ export function writeTarget(
 				`${folder} is outside the repository, such as an installed copy; write to the plugin's source instead.`,
 			)
 		}
-		const dir = join(folder, folderName)
+		const dir = join(folder, 'references')
 		return { scope: 'plugin', dir, path: join(dir, `${name.name}.md`) }
 	}
 	if (skill !== undefined) {
@@ -115,14 +112,13 @@ export function writeTarget(
 				`${folder} is outside the repository, such as an installed copy; write to the skill's source instead.`,
 			)
 		}
-		const dir = join(folder, folderName)
-		return { scope: 'default', dir, path: join(dir, `${name.name}${assets ? '' : '.default'}.md`) }
+		const dir = join(folder, 'references')
+		return { scope: 'default', dir, path: join(dir, `${name.name}.default.md`) }
 	}
 	if (scope !== undefined && scope !== 'project' && scope !== 'user') {
 		throw new ReferenceWriteError('options-invalid', '--scope is project or user.', true)
 	}
-	const base = scope === 'user' ? userReferencesDir(home) : projectReferencesDir(resolve(root))
-	const dir = assets ? join(dirname(base), 'assets') : base
+	const dir = scope === 'user' ? userReferencesDir(home) : projectReferencesDir(resolve(root))
 	return { scope: scope === 'user' ? 'user' : 'project', dir, path: join(dir, `${name.name}.md`) }
 }
 
@@ -329,7 +325,6 @@ export type SelectArgs = {
 	options: readonly string[]
 	scope?: string | undefined
 	clear?: boolean | undefined
-	assets?: boolean | undefined
 }
 
 export type SelectResult = {
@@ -349,7 +344,7 @@ export function selectContribution(
 	options: ResolveOptions = {},
 ): SelectResult {
 	const name = bareName(args.name)
-	const target = writeTarget(name, { root: args.root, home: args.home, scope: args.scope, assets: args.assets })
+	const target = writeTarget(name, { root: args.root, home: args.home, scope: args.scope })
 	const scope = target.scope as 'project' | 'user'
 	const existing = tryRead(target.path)
 	if (args.clear) {

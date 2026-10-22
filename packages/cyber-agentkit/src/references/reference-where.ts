@@ -79,10 +79,15 @@ export function whereReference(
 		const below = resolveReference(name, source, { display, below: dir })
 		report.places.push({
 			scope,
-			path: scope === 'project' ? relative(root, path) : display(path),
+			path: assets
+				? `${scope === 'project' ? relative(root, dir) : display(dir)}/${name.name}.<ext>`
+				: scope === 'project'
+					? relative(root, path)
+					: display(path),
 			reaches: reaches[scope],
 			status: entry?.file ? entry.outcome : 'empty',
-			sections: below.status === 'found' && below.format === 'markdown' ? headingPaths(below.content ?? '') : [],
+			sections:
+				!assets && below.status === 'found' && below.format === 'markdown' ? headingPaths(below.content ?? '') : [],
 		})
 	}
 	return report
