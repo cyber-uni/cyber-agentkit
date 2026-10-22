@@ -20,7 +20,8 @@
 				"copilot-cli": {}
 			},
 			"scripts": {
-				"skills/reference/scripts/reference.mjs": "src/references/reference.skill-script.ts"
+				"skills/reference/scripts/reference.mjs": "src/references/reference.skill-script.ts",
+				"skills/asset/scripts/asset.mjs": "src/assets/asset.skill-script.ts"
 			}
 		}
 	}
