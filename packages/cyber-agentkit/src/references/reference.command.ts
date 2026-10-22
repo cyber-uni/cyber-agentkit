@@ -133,12 +133,18 @@ export type ReferenceDeleteReport = {
 	options?: string[]
 }
 
-type CommonArgs = { root: string | undefined }
+type CommonArgs = { root: string | undefined; assets?: boolean | undefined }
 
 const rootOption = {
 	description:
 		'Directory the project tier is read from, and each folder above it up to the repository root; a project write goes to its `.agents/references/`. Defaults to the current directory.',
 	type: t.string().optional(),
+}
+
+const assetsOption = {
+	description:
+		"Read and write a skill's `assets/` folders in every tier in place of `references/`: `.agents/assets/`, a plugin's `assets/`, and the skill's own `assets/<name>.<ext>` as its default.",
+	type: t.boolean().optional(),
 }
 
 const traceOption = {
@@ -162,6 +168,7 @@ function layerSource(plugin: ReferencePlugin | undefined): LayersFor {
 			env: process.env,
 			plugin,
 			defaultSkill: args.default,
+			folder: args.assets ? 'assets' : 'references',
 		})
 }
 
@@ -297,6 +304,7 @@ function showCommand(layersFor: LayersFor): cli.Command {
 		],
 		options: {
 			root: rootOption,
+			assets: assetsOption,
 			default: defaultOption,
 			metadata: {
 				description: 'Make every entry a record with its status and composed frontmatter.',
@@ -369,6 +377,7 @@ function listCommand(layersFor: LayersFor): cli.Command {
 		],
 		options: {
 			root: rootOption,
+			assets: assetsOption,
 			trace: { ...traceOption, description: 'Add one row per name per layer holding it, with its outcome.' },
 		},
 		async run(args: CommonArgs & { pattern?: string | undefined; trace: boolean | undefined }) {
@@ -453,6 +462,7 @@ function whereCommand(layersFor: LayersFor): cli.Command {
 		],
 		options: {
 			root: rootOption,
+			assets: assetsOption,
 			default: defaultOption,
 			trace: { ...traceOption, description: 'Add every layer checked, with its outcome.' },
 		},
@@ -464,6 +474,7 @@ function whereCommand(layersFor: LayersFor): cli.Command {
 				const report = whereReference(args.name, await layersFor(args, home), {
 					root: resolve(args.root ?? process.cwd()),
 					display,
+					assets: args.assets,
 				})
 				const output: ReferenceWhereOutput = compact({
 					name: report.name,
@@ -723,6 +734,7 @@ function selectCommand(layersFor: LayersFor): cli.Command {
 		],
 		options: {
 			root: rootOption,
+			assets: assetsOption,
 			scope: scopeOption,
 			clear: {
 				description: 'Remove the selection; a file left with nothing in it is deleted.',
@@ -743,8 +755,16 @@ function selectCommand(layersFor: LayersFor): cli.Command {
 				const root = resolve(args.root ?? process.cwd())
 				const display = (path: string) => collapseHome(home, path)
 				const selected = selectContribution(
-					await layersFor({ root }, home),
-					{ root, home, name: args.name, options: args.options ?? [], scope: args.scope, clear: args.clear },
+					await layersFor({ root, assets: args.assets }, home),
+					{
+						root,
+						home,
+						name: args.name,
+						options: args.options ?? [],
+						scope: args.scope,
+						clear: args.clear,
+						assets: args.assets,
+					},
 					{ display },
 				)
 				const report: ReferenceSelectReport = compact({
@@ -793,6 +813,7 @@ function deleteCommand(layersFor: LayersFor): cli.Command {
 		arguments: [{ name: 'name', description: 'Reference name, without the `.md` extension.', type: t.string() }],
 		options: {
 			root: rootOption,
+			assets: assetsOption,
 			scope: { ...scopeOption, description: 'Tier to delete from: project (default) or user.' },
 			plugin: pluginOption,
 			default: skillOption,
@@ -823,6 +844,7 @@ function deleteCommand(layersFor: LayersFor): cli.Command {
 						scope: args.scope,
 						plugin: args.plugin,
 						default: args.default,
+						assets: args.assets,
 						dryRun: args['dry-run'],
 					},
 					{ display: (path) => collapseHome(home, path) },

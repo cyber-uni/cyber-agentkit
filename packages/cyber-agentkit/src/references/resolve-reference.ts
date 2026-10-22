@@ -152,7 +152,8 @@ function tryRead(path: string): string | undefined {
 }
 
 /** The files that answer a name in a layer, in the order they answer. */
-export function candidateFiles(layer: Pick<ReferenceLayer, 'tier'>, name: string): string[] {
+export function candidateFiles(layer: Pick<ReferenceLayer, 'tier' | 'plain'>, name: string): string[] {
+	if (layer.plain) return [`${name}.md`, ...dataExtensions.map(({ extension }) => `${name}${extension}`)]
 	return layer.tier === 'default'
 		? [`${name}${defaultSuffix}.md`, ...dataExtensions.map(({ extension }) => `${name}${defaultSuffix}${extension}`)]
 		: [`${name}.md`, `${name}/README.md`, ...dataExtensions.map(({ extension }) => `${name}${extension}`)]
@@ -838,7 +839,7 @@ function resolveInterface(
 }
 
 /** Every name a layer holds; empty for a layer that is missing, unreadable, or skipped. */
-export function layerNames(layer: Pick<ReferenceLayer, 'tier' | 'dir' | 'skipped'>): string[] {
+export function layerNames(layer: Pick<ReferenceLayer, 'tier' | 'dir' | 'skipped' | 'plain'>): string[] {
 	if (layer.skipped) return []
 	let entries: Dirent[]
 	try {
@@ -847,7 +848,7 @@ export function layerNames(layer: Pick<ReferenceLayer, 'tier' | 'dir' | 'skipped
 		return []
 	}
 	const names = new Set<string>()
-	const isDefault = layer.tier === 'default'
+	const isDefault = layer.tier === 'default' && !layer.plain
 	for (const entry of entries) {
 		let name: string | undefined
 		if (isDefault) {

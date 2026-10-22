@@ -12,6 +12,7 @@ import {
 } from './create-reference.js'
 import { interfaceLookup } from './reference-check.js'
 import { hasBody, isMergeOperation, type MergeOperation, parseDocument } from './reference-document.js'
+import { dataExtensions } from './reference-format.js'
 import { fitsName, type ReferenceInterface } from './reference-interface.js'
 import {
 	canonical,
@@ -51,6 +52,8 @@ export type WhereArgs = {
 	scope?: string | undefined
 	plugin?: string | undefined
 	default?: string | undefined
+	/** Act on the `assets/` folders in place of `references/`. */
+	assets?: boolean | undefined
 }
 
 /** A bare, valid name, or a refusal naming the bare name to use. */
@@ -77,8 +80,9 @@ export function insideRepository(folder: string, root: string): boolean {
 /** Resolves `--scope`, `--plugin`, and `--default` to the file a write acts on; more than one is a usage error. */
 export function writeTarget(
 	name: ReferenceName,
-	{ root, home, scope, plugin, default: skill }: WhereArgs,
+	{ root, home, scope, plugin, default: skill, assets }: WhereArgs,
 ): WriteTarget {
+	const folderName = assets ? 'assets' : 'references'
 	const given = [scope, plugin, skill].filter((value) => value !== undefined)
 	if (given.length > 1) {
 		throw new ReferenceWriteError('options-conflict', 'pass one of --scope, --plugin, and --default.', true)
@@ -97,7 +101,7 @@ export function writeTarget(
 				`${folder} is outside the repository, such as an installed copy; write to the plugin's source instead.`,
 			)
 		}
-		const dir = join(folder, 'references')
+		const dir = join(folder, folderName)
 		return { scope: 'plugin', dir, path: join(dir, `${name.name}.md`) }
 	}
 	if (skill !== undefined) {
@@ -111,13 +115,14 @@ export function writeTarget(
 				`${folder} is outside the repository, such as an installed copy; write to the skill's source instead.`,
 			)
 		}
-		const dir = join(folder, 'references')
-		return { scope: 'default', dir, path: join(dir, `${name.name}.default.md`) }
+		const dir = join(folder, folderName)
+		return { scope: 'default', dir, path: join(dir, `${name.name}${assets ? '' : '.default'}.md`) }
 	}
 	if (scope !== undefined && scope !== 'project' && scope !== 'user') {
 		throw new ReferenceWriteError('options-invalid', '--scope is project or user.', true)
 	}
-	const dir = scope === 'user' ? userReferencesDir(home) : projectReferencesDir(resolve(root))
+	const base = scope === 'user' ? userReferencesDir(home) : projectReferencesDir(resolve(root))
+	const dir = assets ? join(dirname(base), 'assets') : base
 	return { scope: scope === 'user' ? 'user' : 'project', dir, path: join(dir, `${name.name}.md`) }
 }
 
@@ -324,6 +329,7 @@ export type SelectArgs = {
 	options: readonly string[]
 	scope?: string | undefined
 	clear?: boolean | undefined
+	assets?: boolean | undefined
 }
 
 export type SelectResult = {
@@ -343,7 +349,7 @@ export function selectContribution(
 	options: ResolveOptions = {},
 ): SelectResult {
 	const name = bareName(args.name)
-	const target = writeTarget(name, { root: args.root, home: args.home, scope: args.scope })
+	const target = writeTarget(name, { root: args.root, home: args.home, scope: args.scope, assets: args.assets })
 	const scope = target.scope as 'project' | 'user'
 	const existing = tryRead(target.path)
 	if (args.clear) {
@@ -398,6 +404,11 @@ export function selectContribution(
 	}
 }
 
+/** The data files that can answer a name in a folder. */
+function dataFiles(dir: string, name: string): string[] {
+	return dataExtensions.map(({ extension }) => join(dir, `${name}${extension}`))
+}
+
 export type DeleteArgs = WhereArgs & { name: string; dryRun?: boolean | undefined }
 
 export type DeleteResult = {
@@ -422,7 +433,7 @@ export function deleteContribution(
 	const before = resolveReference(name, layers, options)
 	const candidates =
 		target.scope === 'project' || target.scope === 'user'
-			? [target.path, join(target.dir, name.name, 'README.md')]
+			? [target.path, join(target.dir, name.name, 'README.md'), ...dataFiles(target.dir, name.name)]
 			: [target.path]
 	const path = candidates.find((candidate) => candidate !== options.without && existsSync(candidate))
 	if (!path) {
