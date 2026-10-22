@@ -85,7 +85,9 @@ only; write a data file by hand.
 
 Only the skill's `references/` folder and the tiers are read. The open Agent Skills specification also
 names `assets/`: static files a skill points to by path, with no tiers to layer. A reference is fetched by
-name and composed across tiers, so `assets/` stays outside this skill.
+name and composed across tiers, so `assets/` stays outside this skill. The `asset` skill manages those files
+instead: `list`, `show`, `create`, `update`, and `delete` on one skill's `assets/` folder, by relative path, with
+no tiers and no merging.
 
 ## Where contributions are read from
 
