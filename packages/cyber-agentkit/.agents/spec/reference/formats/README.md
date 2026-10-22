@@ -14,7 +14,7 @@ the file as written, from the same tiers, by the same name.
 specification names `scripts/`, `references/`, and `assets/` as skill folders (agentskills.io/specification): it calls
 `references/` additional documentation an agent reads when needed, with no format restriction, and `assets/` static
 resources a skill points to by path, data files such as lookup tables and schemas among them. This capability reads only
-the `references/` folder and the tiers. It never reads `assets/`, which has no tiers to layer.
+the `references/` folder and the tiers. It never reads `assets/`, which has no tiers to layer; [asset](../../asset/README.md) manages it.
 
 **Non-goals (this child):**
 
@@ -63,7 +63,7 @@ the `references/` folder and the tiers. It never reads `assets/`, which has no t
 - R69 (UC13.4): A name ending in a K19 extension is `invalid`, and nothing is read.
 - R70 (UC13.5): A non-Markdown reference has no metadata but `format`; `where` lists no sections for it.
 - R71 (UC13): Markdown output, trace fields, and codes are unchanged for every name that no non-Markdown file answers.
-- R72 (UC13): `assets/` is never read, and no command accepts an `assets/` path.
+- R72 (UC13): `assets/` is never read, and no reference command accepts an `assets/` path.
 
 ## Open questions
 
