@@ -81,24 +81,24 @@ project or user `permissions.json` decides which one answers. There is no separa
 the command and the library alike.
 
 `show` marks a data answer with its `format`, and `list` does too. `create` writes Markdown only, so write a
-data file by hand; `delete` removes either.
+data file by hand.
 
 ## Assets by name
 
-A skill that ships a data file in its `assets/` folder can let others override which file it loads. Add `--assets`
-to `show`, `list`, `where`, `select`, or `delete`, or pass `folder: 'assets'` to `loadReference`, and every tier reads
-`assets/` where it would read `references/`: `.agents/assets/` in the project and under the home directory, a
-plugin's `assets/`, a harness's managed `assets/`, and the skill's own `assets/<name>.<ext>` as the default, with no
-`.default` marker.
+A skill that ships a data file in its `assets/` folder can let others override which file it loads. The `asset`
+skill does this, not `reference`: `asset load`, `asset names`, `asset where`, and `asset select`, or `loadAsset` in
+the library, run the same tiers over `assets/` folders. They read `.agents/assets/` in the project and under the
+home directory, a plugin's `assets/`, a harness's managed `assets/`, and the skill's own `assets/<name>.<ext>` as
+the default, with no `.default` marker.
 
 ```sh
-npx -y cyber-agentkit reference show permissions --assets --default <skill folder>
-npx -y cyber-agentkit reference select permissions <plugin> --assets
+npx -y cyber-agentkit asset load permissions --default <skill folder>
+npx -y cyber-agentkit asset select permissions <plugin>
 ```
 
-Resolution, `select`, statuses, and whole-file replace for data files are the same as for references. Nothing in
-`assets/` is read without the flag, and an assets call reads no `references/` folder. The `asset` skill manages the
-files themselves by path (`list`, `show`, `create`, `update`, `delete`), with no tiers and no merging.
+Resolution, statuses, and whole-file replace for data files are the same as for references. The `reference`
+commands never read `assets/`. `asset list`, `show`, `create`, `update`, and `delete` act on one skill's files by
+path, with no tiers.
 
 ## Where contributions are read from
 

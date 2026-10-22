@@ -5,7 +5,12 @@ description: Use this skill when listing, reading, adding, changing, or deleting
 
 # Asset
 
-An **asset** is a static file in a skill's `assets/` folder: a template, a schema, a lookup table. A skill points to it by path. It has no tiers and no merging; the file at the path is the file. For a document fetched by name and layered across tiers, use the `reference` skill instead, which also answers JSON, YAML, TOML, and text files.
+An **asset** is a static file in a skill's `assets/` folder: a template, a schema, a lookup table, a JSON permission list. Two kinds of work:
+
+- **By path**: manage the files themselves. No tiers, no merging.
+- **By name**: load a file the way a reference loads, so another plugin, the project, or the user can override which file a skill uses. The managed, project, user, and plugin tiers read `assets/` folders, and the skill's own `assets/<name>.<ext>` is the default. A data file answers whole from the highest tier holding it; it is never merged.
+
+For a Markdown document layered across tiers, use the `reference` skill.
 
 ## Route
 
@@ -16,6 +21,10 @@ An **asset** is a static file in a skill's `assets/` folder: a template, a schem
 | add a new asset | `create <path>` |
 | change an existing asset | `update <path>` |
 | remove an asset | `delete <path>` |
+| read the asset a skill loads by name, after overrides | `load <name> --default <skill folder>` |
+| see which asset names exist | `names --default <skill folder>` |
+| see where an override of a name would go | `where <name> --default <skill folder>` |
+| choose which plugin's file, or the skill's own, answers a name | `select <name> <option>...` |
 
 ## Run
 
@@ -29,7 +38,7 @@ node <this skill's folder>/scripts/asset.mjs <mode> [<path>] --skill <skill fold
 - `create` and `update` take the text with `--content "<text>"` or a local file with `--from <file>`; pass exactly one.
 - Never use `npx`, `pnpm dlx`, or any package runner, and never download anything.
 
-Ask the user before `create`, `update`, or `delete`, and name the file. `create` never overwrites and `update` needs the file to exist.
+`load`, `names`, and `where` read only. Ask the user before `create`, `update`, `delete`, or `select`, and name the file. `select` options are plugin names and `default`; `where` shows what is offered. `create` never overwrites and `update` needs the file to exist.
 
 ## Read the result
 

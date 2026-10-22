@@ -10,13 +10,14 @@ Related to [reference](../reference/README.md), which it deliberately does not s
 
 The open Agent Skills specification names `assets/` as a skill folder for static resources: templates, images, data
 files such as lookup tables and schemas (agentskills.io/specification). A skill points to an asset by path. A reference
-is fetched by name and composed across tiers; an asset is not, so the `reference` skill never takes it over. An author
-still needs to add, change, and remove those files without hand-editing paths. This capability gives that: plain file
-operations on one skill's `assets/` folder, with no tiers and no merging.
+is fetched by name and composed across tiers; an asset is not, so the `reference` skill never takes it over. This capability gives an author two things: plain file
+operations on one skill's `assets/` folder, by path, with no tiers and no merging; and, separately, loading a file by
+name through the tiers, so another plugin, the project, or the user can change which file a skill loads (a JSON
+permission allow/deny list, say).
 
 **Non-goals:**
 
-- N1 Tiers, plugin layering, `extends`, or any merge. A file is the file at its path.
+- N1 Merging. A data file answers whole. By-path operations (UC1) have no tiers at all.
 - N2 Reading anything outside the skill's `assets/` folder.
 - N3 Parsing or validating content. Text is returned as written.
 - N4 Writing to an installed copy of a skill. A write targets a skill's source folder in the repository.
@@ -24,6 +25,10 @@ operations on one skill's `assets/` folder, with no tiers and no merging.
 **Key terms:**
 
 - K1 **skill folder**: a folder holding `SKILL.md`.
+- K3 **by-name call**: `load`, `names`, `where`, or `select`. The reference engine reads `assets/` where references
+  read `references/` (K4); resolution, statuses, and warnings are those of [reference](../reference/README.md).
+- K4 **asset tiers**: the project and user tiers read `.agents/assets/`, a plugin's and a harness's managed tier
+  `assets/`, and the skill's own `assets/<name>.<ext>` is the `default` tier, with no `.default` marker.
 - K2 **asset path**: a relative path inside `<skill folder>/assets/`, with `/` separators, no `..`, no absolute path,
   no backslash.
 
@@ -43,6 +48,15 @@ operations on one skill's `assets/` folder, with no tiers and no merging.
   - UC1.5 `--content` and `--from` both or neither on `create` and `update`: usage error.
   - UC1.6 A symlink under `assets/` that leaves the folder: not listed, not read, not written.
 
+### UC2 — Override which asset a skill loads (A2: skill author, plugin author, project or user)
+
+- **Entry points:** Skill: `/asset`. Code: `asset load <name> --default <skill folder>`; `asset names`; `asset where
+  <name>`; `asset select <name> <option>...`; `loadAsset(name, {defaultSkill, ...})`.
+- **Outcome:** `load` answers from the highest tier holding the name, whole for a data file. `select` writes a
+  selection (only `extends`) to `.agents/assets/<name>.md`, or the user's, saying which plugin or the skill's file
+  answers. `where` and `names` report as for references.
+- **Extensions:** as the reference extensions (missing, ambiguous, invalid name, absent skill folder).
+
 ## Criteria
 
 - R1 (UC1): `list` returns `path` and `bytes` for every regular file under `assets/`, sorted by path; none is zero rows,
@@ -52,7 +66,14 @@ operations on one skill's `assets/` folder, with no tiers and no merging.
 - R4 (UC1): `delete` removes the file and the folders it leaves empty up to `assets/`, never `assets/` itself.
 - R5 (UC1.1): A write needs a skill folder inside the repository and outside `node_modules`.
 - R6 (UC1.3, UC1.4, UC1.5): Refusals exit 1 and misuse exits 2, each with a stable code on stderr.
-- R7: No operation reads or writes a reference tier, and no reference command reads `assets/`.
+- R7: By-path operations read or write no tier, and no by-name call reads a `references/` folder. No reference command
+  reads `assets/`.
+- R8 (UC2): A by-name call reads `.agents/assets/` in the project folders and `~/.agents/assets/`, each enabled or
+  dependency plugin's `assets/`, each detected harness's managed `assets/`, and the skill's `assets/` as the `default`
+  tier (K4).
+- R9 (UC2): The skill's `assets/<name>.<ext>` is the default; a `<name>.default.*` there is not special.
+- R10 (UC2): `select` writes under `.agents/assets/` (or the user's, plugin's, or skill's `assets/`).
+- R11 (UC2): `loadAsset` answers as `load` does.
 
 ## Open questions
 
