@@ -20,6 +20,7 @@ export type ReferenceWarningCode =
 	| 'default-folder-missing'
 	| 'default-in-tier'
 	| 'file-ignored'
+	| 'format-mismatch'
 	| 'interface-not-composed'
 	| 'interface-check'
 

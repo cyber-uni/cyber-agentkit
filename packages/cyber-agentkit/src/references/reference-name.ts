@@ -1,3 +1,5 @@
+import { dataExtensions } from './reference-format.js'
+
 export type ReferenceName = {
 	/** As asked. */
 	raw: string
@@ -22,6 +24,12 @@ export function parseReferenceName(value: string): ReferenceName {
 	const invalid = (reason: string): ReferenceName => ({ raw: value, name: value, invalid: reason })
 	if (value.endsWith('.md')) {
 		return invalid(`"${value}" names a file. Ask for the reference by name, without the .md extension.`)
+	}
+	const extension = dataExtensions.find((item) => value.endsWith(item.extension))
+	if (extension) {
+		return invalid(
+			`"${value}" names a file. Ask for the reference by name, without the ${extension.extension} extension.`,
+		)
 	}
 	const parts = value.split('/')
 	if (parts.length > 2 || value.includes('\\')) {

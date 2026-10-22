@@ -15,6 +15,7 @@ import {
 	type SectionSource,
 	stripMergeMarkers,
 } from './reference-document.js'
+import { dataExtensions, formatOfFile, type ReferenceFormat } from './reference-format.js'
 import { interfaceIdOf } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
 import { defaultSuffix, namePattern, parseReferenceName, type ReferenceName } from './reference-name.js'
@@ -38,7 +39,7 @@ export type ReferenceTraceLayer = {
 	skill?: string
 	/** The file matched, or the folder checked when none matched. */
 	path: string
-	/** The file that answered, relative to the folder: `<name>.md`, `<name>/README.md`, or `<name>.default.md`. */
+	/** The file that answered, relative to the folder: `<name>.md`, `<name>/README.md`, `<name>.default.md`, or the same with a data extension. */
 	file?: string
 	/** Its frontmatter as written. */
 	frontmatter?: Record<string, unknown>
@@ -95,6 +96,8 @@ export type ResolvedReference = {
 	/** Why it is not `found`, for a person. */
 	message?: string
 	content?: string
+	/** Set when `found`: `markdown`, or the format of the data file that answered whole. */
+	format?: ReferenceFormat
 	/** The composed frontmatter, key by key with the higher contribution winning, without `merge` and `extends`. */
 	metadata?: Record<string, unknown>
 	/** When `ambiguous`: each `<plugin>/<name>`, and `default` when the skill has one. */
@@ -126,6 +129,7 @@ type Contribution = {
 	metadata: Record<string, unknown>
 	body: string
 	hasBody: boolean
+	format: ReferenceFormat
 	merge: MergeOperation | undefined
 	/** Its own `extends`, when written and well formed. */
 	steps: ExtendsStep[] | undefined
@@ -149,7 +153,9 @@ function tryRead(path: string): string | undefined {
 
 /** The files that answer a name in a layer, in the order they answer. */
 export function candidateFiles(layer: Pick<ReferenceLayer, 'tier'>, name: string): string[] {
-	return layer.tier === 'default' ? [`${name}${defaultSuffix}.md`] : [`${name}.md`, `${name}/README.md`]
+	return layer.tier === 'default'
+		? [`${name}${defaultSuffix}.md`, ...dataExtensions.map(({ extension }) => `${name}${defaultSuffix}${extension}`)]
+		: [`${name}.md`, `${name}/README.md`, ...dataExtensions.map(({ extension }) => `${name}${extension}`)]
 }
 
 export function contributionLabel(layer: ReferenceLayer, path: string, display: (path: string) => string): string {
@@ -549,8 +555,32 @@ export function resolveReference(
 	let applied: Contribution[] = []
 	let removedBy: Contribution | undefined
 	const used: Contribution[] = []
+	let whole: Contribution | undefined
 	for (const { contribution, operation, from } of order) {
 		const { entry } = contribution
+		if (contribution.format !== 'markdown' && contribution.hasBody) {
+			entry.operation = 'replace'
+			entry.operationFrom = 'default'
+			for (const below of applied) below.entry.outcome = `shadowed by ${contribution.label} (replace)`
+			applied = [contribution]
+			composed = { ...emptyComposed(), removed: composed.removed }
+			whole = contribution
+			removedBy = undefined
+			entry.outcome = 'used'
+			used.push(contribution)
+			continue
+		}
+		if (whole && operation !== 'remove') {
+			entry.operation = operation
+			entry.operationFrom = from
+			entry.outcome = `not used (format differs from ${whole.format})`
+			warnAt(contribution.label)(
+				'format-mismatch',
+				`it is ignored: ${whole.label} is ${whole.format}, which a Markdown contribution cannot compose with`,
+			)
+			continue
+		}
+		if (operation === 'remove') whole = undefined
 		entry.operation = operation
 		entry.operationFrom = from
 		const warnHere = warnAt(contribution.label)
@@ -618,6 +648,15 @@ export function resolveReference(
 		...composedSections(composed).map(({ path, sources }) => ({ path, contributions: sources })),
 		...trace.sections,
 	]
+	if (whole) {
+		return {
+			...result,
+			status: 'found',
+			content: whole.body,
+			format: whole.format,
+			metadata: {},
+		}
+	}
 	// One contribution with no marker reads as written; anything composed is rendered from its sections.
 	const single = applied.length === 1 && !composed.removed.length ? (applied[0] as Contribution).body : undefined
 	const content =
@@ -628,6 +667,7 @@ export function resolveReference(
 		...result,
 		status: 'found',
 		content,
+		format: 'markdown',
 		metadata: composedMetadata(shown),
 	}
 }
@@ -670,6 +710,24 @@ function readContribution(
 	}
 	const label = contributionLabel(layer, hit.path, display)
 	const warn = warnAt(label)
+	const format = formatOfFile(hit.file)
+	if (format !== 'markdown') {
+		Object.assign(entry, { path: hit.path, file: hit.file, outcome: '' })
+		const held = hit.raw.trim().length > 0
+		if (!held) entry.empty = true
+		return {
+			layer,
+			entry,
+			label,
+			path: hit.path,
+			metadata: {},
+			body: hit.raw,
+			hasBody: held,
+			format,
+			merge: 'replace',
+			steps: undefined,
+		}
+	}
 	const { metadata, body } = parseDocument(hit.raw, warn)
 	const merge = readMergeOperation(metadata, warn)
 	const steps = readExtends(metadata['extends'], warn)
@@ -678,7 +736,7 @@ function readContribution(
 	const bodyHeld = hasBody(body)
 	if (!bodyHeld) entry.empty = true
 	if (steps && !bodyHeld && merge !== 'remove') entry.selection = true
-	return { layer, entry, label, path: hit.path, metadata, body, hasBody: bodyHeld, merge, steps }
+	return { layer, entry, label, path: hit.path, metadata, body, hasBody: bodyHeld, format, merge, steps }
 }
 
 /**
@@ -793,9 +851,15 @@ export function layerNames(layer: Pick<ReferenceLayer, 'tier' | 'dir' | 'skipped
 	for (const entry of entries) {
 		let name: string | undefined
 		if (isDefault) {
-			if (entry.name.endsWith(`${defaultSuffix}.md`)) name = entry.name.slice(0, -`${defaultSuffix}.md`.length)
-		} else if (entry.name.endsWith('.md') && !entry.isDirectory()) {
-			name = entry.name.slice(0, -3)
+			const suffix = [`${defaultSuffix}.md`, ...dataExtensions.map((item) => `${defaultSuffix}${item.extension}`)].find(
+				(item) => entry.name.endsWith(item),
+			)
+			if (suffix) name = entry.name.slice(0, -suffix.length)
+		} else if (
+			!entry.isDirectory() &&
+			['.md', ...dataExtensions.map((item) => item.extension)].some((extension) => entry.name.endsWith(extension))
+		) {
+			name = entry.name.slice(0, entry.name.lastIndexOf('.'))
 		} else if (!entry.isFile() && tryRead(join(layer.dir, entry.name, 'README.md')) !== undefined) {
 			name = entry.name
 		}

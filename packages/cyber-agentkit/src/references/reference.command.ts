@@ -28,6 +28,8 @@ export type ReferenceShowEntry =
 			name: string
 			status: ResolvedReference['status']
 			content?: string
+			/** Set when the answer is not Markdown. */
+			format?: string
 			code?: string
 			options?: string[]
 			metadata?: Record<string, unknown>
@@ -37,7 +39,7 @@ export type ReferenceShowEntry =
 
 export type ReferenceListReport = {
 	/** A string when nothing matches, so a run states its zero explicitly. */
-	references: { name: string; description?: string; status?: string; options?: string[] }[] | string
+	references: { name: string; description?: string; format?: string; status?: string; options?: string[] }[] | string
 	/** Why some skills' defaults are not listed; left out when every detected harness's skill folders were read. */
 	defaults?: string
 	layers?: {
@@ -247,11 +249,13 @@ function errorText(entry: ResolvedReference): string {
 type ShowFlags = { metadata: boolean; trace: boolean }
 
 function showEntry(resolved: ResolvedReference, home: string, { metadata, trace }: ShowFlags): ReferenceShowEntry {
-	if (resolved.status === 'found' && !resolved.warnings.length && !metadata && !trace) return resolved.content as string
+	if (resolved.status === 'found' && !resolved.warnings.length && !metadata && !trace && resolved.format === 'markdown')
+		return resolved.content as string
 	return compact({
 		name: resolved.name,
 		status: resolved.status,
 		content: resolved.content,
+		format: resolved.format === 'markdown' ? undefined : resolved.format,
 		code: resolved.code,
 		options: resolved.options,
 		metadata: metadata ? resolved.metadata : undefined,

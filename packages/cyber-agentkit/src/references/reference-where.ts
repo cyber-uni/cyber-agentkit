@@ -1,5 +1,6 @@
 import { join, relative } from 'node:path'
 import { headingPaths } from './reference-document.js'
+import { dataExtensions } from './reference-format.js'
 import { projectReferencesDir, type ReferenceLayer, type ReferenceLayers } from './reference-layers.js'
 import type { ReferenceName } from './reference-name.js'
 import type { ReferenceWarning } from './reference-warning.js'
@@ -71,14 +72,15 @@ export function whereReference(
 	]
 	for (const { scope, dir } of targets) {
 		const path = join(dir, `${name.name}.md`)
-		const entry = resolved.trace.layers.find((layer) => layer.path === path)
+		const held = [path, ...dataExtensions.map(({ extension }) => join(dir, `${name.name}${extension}`))]
+		const entry = resolved.trace.layers.find((layer) => held.includes(layer.path))
 		const below = resolveReference(name, source, { display, below: dir })
 		report.places.push({
 			scope,
 			path: scope === 'project' ? relative(root, path) : display(path),
 			reaches: reaches[scope],
 			status: entry?.file ? entry.outcome : 'empty',
-			sections: below.status === 'found' ? headingPaths(below.content ?? '') : [],
+			sections: below.status === 'found' && below.format === 'markdown' ? headingPaths(below.content ?? '') : [],
 		})
 	}
 	return report
