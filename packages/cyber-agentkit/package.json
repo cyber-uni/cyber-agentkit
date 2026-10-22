@@ -1,6 +1,6 @@
 {
 	"name": "cyber-agentkit",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "An agent-harness-agnostic toolkit: the fundamental features agent tools need, working the same on every harness. Detect the running harness, check plugin dependencies, resolve layered reference documents, and lease git worktrees.",
 	"keywords": [
 		"agent-harness",
