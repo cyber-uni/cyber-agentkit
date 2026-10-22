@@ -911,7 +911,7 @@ export type AssetResolveCommands = { load: cli.Command; names: cli.Command; wher
 
 /**
  * The tiered, by-name commands over `assets/` folders: the reference engine reading `assets/` where it
- * reads `references/`. `load` is `show`, `names` is `list`. Nothing in an `assets/` layer merges or extends, so there is no `select`. `asset`'s own commands act on a path.
+ * reads `references/`. `load` is `show`, `names` is `list`. `asset`'s own commands act on a path.
  */
 export function createAssetResolveCommands({ plugin }: ReferenceCommandOptions = {}): AssetResolveCommands {
 	const layersFor = layerSource(plugin, 'assets')

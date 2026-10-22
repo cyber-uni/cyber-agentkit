@@ -8,7 +8,7 @@ description: Use this skill when listing, reading, adding, changing, or deleting
 An **asset** is a static file in a skill's `assets/` folder: a template, a schema, a lookup table, a JSON permission list. Two kinds of work:
 
 - **By path**: manage the files themselves. No tiers, no merging.
-- **By name**: load a file the way a reference loads, so a plugin, the project, or the user can override which file a skill uses by placing its own. The managed, project (`.agents/assets/`), user (`~/.agents/assets/`), and plugin tiers read `assets/` folders, and the skill's own `assets/<name>.<ext>` is the default. The highest tier holding the name answers with the file as written. Nothing merges or extends, Markdown included: frontmatter in an asset is just text.
+- **By name**: load a file the way a reference loads, so a plugin, the project, or the user can override which file a skill uses by placing its own. The managed, project (`.agents/assets/`), user (`~/.agents/assets/`), and plugin tiers read `assets/` folders, and the skill's own `assets/<name>.<ext>` is the default. The highest tier holding the name answers with the file as written. Nothing merges or extends, Markdown included: frontmatter in an asset is just text. Choosing among plugins is a selection, a one-line `<name>.select` file.
 
 For a Markdown document layered across tiers, use the `reference` skill.
 
@@ -24,6 +24,7 @@ For a Markdown document layered across tiers, use the `reference` skill.
 | read the asset a skill loads by name, after overrides | `load <name> --default <skill folder>` |
 | see which asset names exist | `names --default <skill folder>` |
 | see where an override of a name would go | `where <name> --default <skill folder>` |
+| choose which plugin's file, or the skill's own, answers a name | `select <name> <option> --default <skill folder>` |
 
 ## Run
 
@@ -37,9 +38,9 @@ node <this skill's folder>/scripts/asset.mjs <mode> [<path>] --skill <skill fold
 - `create` and `update` take the text with `--content "<text>"` or a local file with `--from <file>`; pass exactly one.
 - Never use `npx`, `pnpm dlx`, or any package runner, and never download anything.
 
-`load`, `names`, and `where` read only. Ask the user before `create`, `update`, or `delete`, and name the file.
+`load`, `names`, and `where` read only. Ask the user before `create`, `update`, `delete`, or `select`, and name the file.
 
-To make a skill use a different file, place one of the same name in a higher tier: `.agents/assets/<name>.<ext>` for the project, `~/.agents/assets/<name>.<ext>` for the user. When two plugins hold a name and no tier does, `load` reports it ambiguous: ask for `<plugin>/<name>`, or place the file in a tier. `where <name>` shows the folders. `create` never overwrites and `update` needs the file to exist.
+To make a skill use a different file, place one of the same name in a higher tier: `.agents/assets/<name>.<ext>` for the project, `~/.agents/assets/<name>.<ext>` for the user. When two plugins hold a name and no tier does, `load` reports it ambiguous and lists the options: run `select <name> <option>` (a plugin name, or `default` for the skill's own file; `--scope user` for yourself, `--clear` to undo), ask for `<plugin>/<name>`, or place the file in a tier. `where <name>` shows the folders. `create` never overwrites and `update` needs the file to exist.
 
 ## Read the result
 

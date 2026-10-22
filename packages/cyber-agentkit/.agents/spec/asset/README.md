@@ -20,8 +20,7 @@ permission allow/deny list, say).
 - N1 Merging or extending. Every file in an `assets/` layer is read as written, Markdown included: no frontmatter, no
   `merge`, no `extends`, no sections. The highest tier holding a name answers whole. By-path operations (UC1) have no
   tiers.
-- N5 Choosing among plugins by a selection file. With nothing to order plugins, a name two plugins hold is ambiguous
-  until a tier answers or a qualified name picks one.
+- N5 `extends` or any ordering of plugins. Choosing among plugins is a selection (K5), not a stack.
 - N2 Reading anything outside the skill's `assets/` folder.
 - N3 Parsing or validating content. Text is returned as written.
 - N4 Writing to an installed copy of a skill. A write targets a skill's source folder in the repository.
@@ -33,6 +32,8 @@ permission allow/deny list, say).
   read `references/` (K4); resolution, statuses, and warnings are those of [reference](../reference/README.md).
 - K4 **asset tiers**: the project and user tiers read `.agents/assets/`, a plugin's and a harness's managed tier
   `assets/`, and the skill's own `assets/<name>.<ext>` is the `default` tier, with no `.default` marker.
+- K5 **selection**: a one-line file `<name>.select` in the managed, project, or user `assets/` folder naming a
+  plugin or `default`. The highest one wins. It is not an asset and holds nothing else.
 - K2 **asset path**: a relative path inside `<skill folder>/assets/`, with `/` separators, no `..`, no absolute path,
   no backslash.
 
@@ -55,12 +56,14 @@ permission allow/deny list, say).
 ### UC2 — Override which asset a skill loads (A2: skill author, plugin author, project or user)
 
 - **Entry points:** Skill: `/asset`. Code: `asset load <name> --default <skill folder>`; `asset names`; `asset where
-  <name>`; `loadAsset(name, {defaultSkill, ...})`.
+  <name>`; `asset select <name> <option> [--scope project|user] [--clear]`; `loadAsset(name, {defaultSkill, ...})`.
 - **Outcome:** `load` answers from the highest tier holding the name (managed, project, user, plugin, the skill's
   own file), with the file as written. `where` shows where an override goes; `names` lists the names held.
 - **Extensions:**
-  - UC2.1 Several plugins hold the name and no tier does: `ambiguous`, naming each `<plugin>/<name>`. A tier file, or a
-    qualified name, answers.
+  - UC2.1 Several plugins hold the name and no tier does and no selection names one: `ambiguous`, naming each
+    option. `select` (K5), a tier file, or a qualified name answers.
+  - UC2.3 `select` with an option that holds no such asset: refused, listing the options. `--clear` removes the file.
+  - UC2.4 A selection naming something that holds no asset: ignored with a warning.
   - UC2.2 Missing, invalid name, or an absent skill folder: as for references.
 
 ## Criteria
@@ -78,10 +81,13 @@ permission allow/deny list, say).
   dependency plugin's `assets/`, each detected harness's managed `assets/`, and the skill's `assets/` as the `default`
   tier (K4).
 - R9 (UC2): The skill's `assets/<name>.<ext>` is the default; a `<name>.default.*` there is not special.
-- R10 (UC2): No `select`, `extends`, `merge`, or frontmatter applies to an asset; such text is part of the file.
+- R10 (UC2): No `extends`, `merge`, or frontmatter applies to an asset; such text is part of the file.
 - R11 (UC2): `loadAsset` answers as `load` does.
-- R78 (UC2.1): A name two plugins hold, with no tier file, is `ambiguous` with each `<plugin>/<name>` as an option; a
-  tier file or a qualified name resolves it.
+- R78 (UC2.1): A name two plugins hold, with no tier file and no selection, is `ambiguous` with each option listed; a
+  selection, a tier file, or a qualified name resolves it.
+- R79 (UC2.3, UC2.4): `select` writes `<name>.select` under `.agents/assets/` (project) or the user's, holding the
+  option and a newline; a selection also lets `default` answer over one plugin. A bad option is refused; a bad file is
+  ignored with a warning.
 
 ## Open questions
 

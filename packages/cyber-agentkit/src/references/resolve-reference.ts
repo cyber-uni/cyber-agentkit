@@ -382,10 +382,12 @@ function plan(
  */
 function planWhole(
 	ref: ReferenceName,
+	layers: readonly ReferenceLayer[],
 	tiered: readonly Contribution[],
 	holders: ReadonlyMap<string, Contribution>,
 	lookup: Lookup,
 	defaultContribution: Contribution | undefined,
+	warn: WarnFn,
 ): Plan | Failure {
 	const entry = (target: string, contribution: Contribution): StackEntry => ({
 		target,
@@ -400,13 +402,25 @@ function planWhole(
 		return { entries: [entry(ref.plugin, found)], builtBy: 'qualified name', replaced: [], replacedBy: '' }
 	}
 	if (tiered.some(({ hasBody }) => hasBody)) return { entries: lowest, builtBy: 'none', replaced: [], replacedBy: '' }
+	const chosen = readAssetSelection(layers, ref.name, warn)
+	if (chosen !== undefined) {
+		if (chosen === 'default' && defaultContribution) {
+			return { entries: lowest, builtBy: 'selection', replaced: [], replacedBy: '' }
+		}
+		const held = holders.get(chosen)
+		if (held) return { entries: [...lowest, entry(chosen, held)], builtBy: 'selection', replaced: [], replacedBy: '' }
+		warn(
+			'selection-invalid',
+			`the selection of "${ref.name}" names ${chosen}, which holds no such asset; it is ignored`,
+		)
+	}
 	const plugins = [...holders.entries()]
 	if (plugins.length > 1) {
 		const names = plugins.map(([plugin]) => plugin)
 		return {
 			status: 'ambiguous',
 			cause: 'unordered',
-			message: `the plugins ${names.join(', ')} hold it; ask for ${names[0]}/${ref.name}, or put the file in a project or user assets folder`,
+			message: `the plugins ${names.join(', ')} hold it; run "asset select ${ref.name} <option>" (options: ${names.join(', ')}${defaultContribution ? ', default' : ''}), ask for ${names[0]}/${ref.name}, or put the file in a project or user assets folder`,
 		}
 	}
 	const [only] = plugins
@@ -416,6 +430,25 @@ function planWhole(
 		replaced: [],
 		replacedBy: '',
 	}
+}
+
+/** The plugin or `default` a managed, project, or user `<name>.select` file names; the highest one wins. */
+function readAssetSelection(layers: readonly ReferenceLayer[], name: string, warn: WarnFn): string | undefined {
+	for (const layer of layers) {
+		if (layer.skipped || !['managed', 'project', 'user'].includes(layer.tier)) continue
+		const raw = tryRead(join(layer.dir, `${name}.select`))
+		if (raw === undefined) continue
+		const value = raw.trim()
+		if (!namePattern.test(value)) {
+			warn(
+				'selection-invalid',
+				`${layer.tier} ${name}.select holds "${value}", which is not a plugin name or default; it is ignored`,
+			)
+			continue
+		}
+		return value
+	}
+	return undefined
 }
 
 function planFromPlugins(
@@ -553,7 +586,7 @@ export function resolveReference(
 	}
 
 	const decided = layers.some(({ whole }) => whole)
-		? planWhole(ref, tiered, holders, lookup, defaultContribution)
+		? planWhole(ref, layers, tiered, holders, lookup, defaultContribution, warn)
 		: plan(ref, tiered, holders, lookup, defaultContribution, warn)
 	if ('status' in decided) {
 		if (decided.status === 'ambiguous') {

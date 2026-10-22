@@ -1,9 +1,12 @@
 import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import type { cli } from 'clibuilder'
 import { command, exitCodes, t } from 'clibuilder'
 import { CliError, document, isCliError, result } from 'clibuilder/axi'
 import { createAssetResolveCommands, type ReferenceCommandOptions } from '../references/reference.command.js'
+import { referenceLayers } from '../references/reference-layers.js'
+import { selectAsset } from './select-asset.js'
 import { AssetError, deleteAsset, listAssets, showAsset, writeAsset } from './skill-assets.js'
 
 type Common = { skill: string; root: string | undefined }
@@ -116,12 +119,72 @@ function deleteCommand(): cli.Command {
 	})
 }
 
+function selectCommand(options: ReferenceCommandOptions): cli.Command {
+	return command({
+		name: 'select',
+		description:
+			'Choose which plugin, or the skill itself, answers an asset name that several hold, by writing `<name>.select` in the project or user assets folder.',
+		arguments: [
+			{ name: 'name', description: 'Asset name, without its extension.', type: t.string() },
+			{
+				name: 'option',
+				description: "A plugin name, or `default` for the skill's own file. Not used with --clear.",
+				type: t.string().optional(),
+			},
+		],
+		options: {
+			root: rootOption,
+			default: {
+				description: "The calling skill's folder: its `assets/<name>.<ext>` is the `default` option.",
+				type: t.string().optional(),
+			},
+			scope: {
+				description: 'Where to write: project (default), `.agents/assets/`, or user, `~/.agents/assets/`.',
+				type: t.string().optional(),
+			},
+			clear: { description: 'Remove the selection.', type: t.boolean().optional() },
+		},
+		async run(args: {
+			name: string
+			option: string | undefined
+			root: string | undefined
+			default: string | undefined
+			scope: string | undefined
+			clear: boolean | undefined
+		}) {
+			try {
+				const home = homedir()
+				const root = resolve(args.root ?? process.cwd())
+				const layers = await referenceLayers({
+					root,
+					home,
+					platform: process.platform,
+					env: process.env,
+					plugin: options.plugin,
+					defaultSkill: args.default,
+					folder: 'assets',
+				})
+				const done = selectAsset(layers, { ...args, root, home })
+				const answer =
+					done.after.status === 'found'
+						? `${args.name} now answers from ${done.after.trace.stack.join(', ') || 'a tier'}.`
+						: `${args.name} is ${done.after.status}: ${done.after.message ?? ''}`
+				return document(
+					`${done.path}\n\n${done.cleared ? 'selection cleared' : `selected ${done.selected}`}. ${answer}\n`,
+				)
+			} catch (error) {
+				return fail(error, 'Asset selection failed.')
+			}
+		},
+	})
+}
+
 export function createAssetCommand(options: ReferenceCommandOptions = {}): cli.Command {
 	const { load, names, where } = createAssetResolveCommands(options)
 	return command({
 		name: 'asset',
 		description:
-			"Manage a skill's assets/ files by path (list, show, create, update, delete), and load one by name through the tiers (load, names, where).",
+			"Manage a skill's assets/ files by path (list, show, create, update, delete), and load one by name through the tiers (load, names, where, select).",
 		commands: [
 			listCommand(),
 			showCommand(),
@@ -131,6 +194,7 @@ export function createAssetCommand(options: ReferenceCommandOptions = {}): cli.C
 			load,
 			names,
 			where,
+			selectCommand(options),
 		],
 	})
 }

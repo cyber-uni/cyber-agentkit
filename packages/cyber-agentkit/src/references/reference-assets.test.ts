@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadAsset } from '../assets/load-asset.js'
+import { selectAsset } from '../assets/select-asset.js'
 import { loadReference } from './load-reference.js'
 import { referenceLayers } from './reference-layers.js'
 import { resolveReference } from './resolve-reference.js'
@@ -92,5 +93,35 @@ describe('assets by name (R73 to R77)', () => {
 			...overridden.layers.slice(-1),
 		]
 		expect(resolveReference('permissions', again).content).toBe('{"from":"project"}\n')
+	})
+
+	it('select chooses among plugins and the skill file, and clear undoes it (R79)', async () => {
+		const { base, root, home } = setup()
+		const a = join(root, 'a')
+		const b = join(root, 'b')
+		put(a, 'assets/permissions.json', '{"from":"a"}\n')
+		put(b, 'assets/permissions.json', '{"from":"b"}\n')
+		const build = async () => {
+			const layers = await referenceLayers(base)
+			return {
+				...layers,
+				layers: [
+					...layers.layers.slice(0, -1),
+					{ tier: 'plugin' as const, dir: join(a, 'assets'), plugin: 'plugin-a', whole: true },
+					{ tier: 'plugin' as const, dir: join(b, 'assets'), plugin: 'plugin-b', whole: true },
+					...layers.layers.slice(-1),
+				],
+			}
+		}
+		const layers = await build()
+		expect(resolveReference('permissions', layers).status).toBe('ambiguous')
+		const chosen = selectAsset(layers, { root, home, name: 'permissions', option: 'plugin-b' })
+		expect(chosen.path).toBe(join(root, '.agents', 'assets', 'permissions.select'))
+		expect(chosen.after.content).toBe('{"from":"b"}\n')
+		expect(selectAsset(layers, { root, home, name: 'permissions', option: 'default' }).after.content).toBe(
+			'{"from":"skill"}\n',
+		)
+		expect(() => selectAsset(layers, { root, home, name: 'permissions', option: 'nope' })).toThrow(/cannot be selected/)
+		expect(selectAsset(layers, { root, home, name: 'permissions', clear: true }).after.status).toBe('ambiguous')
 	})
 })
