@@ -6,7 +6,7 @@ Lists, shows, creates, updates, and deletes the static files in a skill's `asset
 | --- | --- |
 | list | see every file under the skill's `assets/` with its size |
 | show | read a text asset |
-| create | add a new asset; never overwrites |
+| create | add a new asset; never overwrites. With `--copy`, start an override in the project or user tier as a copy of a plugin's, the default, or another tier's file (never managed) |
 | update | replace an existing asset |
 | delete | remove an asset and any folder it leaves empty |
 | load, names, where, select | resolve an asset by name through the tiers, list names, show where an override goes, and choose which plugin's file answers a name several hold |

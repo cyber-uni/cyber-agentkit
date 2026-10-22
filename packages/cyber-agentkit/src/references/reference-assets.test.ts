@@ -1,7 +1,8 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { copyAsset } from '../assets/copy-asset.js'
 import { loadAsset } from '../assets/load-asset.js'
 import { selectAsset } from '../assets/select-asset.js'
 import { loadReference } from './load-reference.js'
@@ -123,5 +124,26 @@ describe('assets by name (R73 to R77)', () => {
 		)
 		expect(() => selectAsset(layers, { root, home, name: 'permissions', option: 'nope' })).toThrow(/cannot be selected/)
 		expect(selectAsset(layers, { root, home, name: 'permissions', clear: true }).after.status).toBe('ambiguous')
+	})
+})
+
+describe('asset create --copy (R80)', () => {
+	it('copies a plugin or default file into the project or user folder, never from managed, never over a file', async () => {
+		const { base, root, home, plugin } = setup()
+		const layers = await referenceLayers({ ...base, plugin: { name: 'plugin-a', root: plugin } })
+		const fromPlugin = copyAsset(layers, { root, home, name: 'permissions', scope: 'project', copy: 'plugin-a' })
+		expect(fromPlugin.path).toBe(join(root, '.agents', 'assets', 'permissions.json'))
+		expect(readFileSync(fromPlugin.path, 'utf8')).toBe('{"from":"plugin-a"}\n')
+		expect(() => copyAsset(layers, { root, home, name: 'permissions', scope: 'project', copy: 'default' })).toThrow(
+			/already exists/,
+		)
+		const toUser = copyAsset(layers, { root, home, name: 'permissions', scope: 'user', copy: 'default' })
+		expect(toUser.path).toBe(join(home, '.agents', 'assets', 'permissions.json'))
+		expect(() => copyAsset(layers, { root, home, name: 'permissions', scope: 'user', copy: 'managed' })).toThrow(
+			/never copied/,
+		)
+		expect(() => copyAsset(layers, { root, home, name: 'permissions', scope: 'user', copy: 'nobody' })).toThrow(
+			/holds no asset/,
+		)
 	})
 })

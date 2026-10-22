@@ -19,6 +19,7 @@ For a Markdown document layered across tiers, use the `reference` skill.
 | see which assets a skill holds | `list` |
 | read a text asset | `show <path>` |
 | add a new asset | `create <path>` |
+| start an override from an existing asset, to edit | `create <name> --copy <plugin\|default\|project\|user> --scope project\|user --default <skill folder>` |
 | change an existing asset | `update <path>` |
 | remove an asset | `delete <path>` |
 | read the asset a skill loads by name, after overrides | `load <name> --default <skill folder>` |
@@ -38,7 +39,9 @@ node <this skill's folder>/scripts/asset.mjs <mode> [<path>] --skill <skill fold
 - `create` and `update` take the text with `--content "<text>"` or a local file with `--from <file>`; pass exactly one.
 - Never use `npx`, `pnpm dlx`, or any package runner, and never download anything.
 
-`load`, `names`, and `where` read only. Ask the user before `create`, `update`, `delete`, or `select`, and name the file.
+`load`, `names`, and `where` read only. `create --copy` never copies from the managed tier: it is policy, a copy would leak it into the repository or home folder and read as in effect when the managed file still wins. If asked, refuse and offer `load` to read it.
+
+Ask the user before `create`, `update`, `delete`, or `select`, and name the file.
 
 To make a skill use a different file, place one of the same name in a higher tier: `.agents/assets/<name>.<ext>` for the project, `~/.agents/assets/<name>.<ext>` for the user. When two plugins hold a name and no tier does, `load` reports it ambiguous and lists the options: run `select <name> <option>` (a plugin name, or `default` for the skill's own file; `--scope user` for yourself, `--clear` to undo), ask for `<plugin>/<name>`, or place the file in a tier. `where <name>` shows the folders. `create` never overwrites and `update` needs the file to exist.
 

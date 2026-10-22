@@ -6,6 +6,7 @@ import { command, exitCodes, t } from 'clibuilder'
 import { CliError, document, isCliError, result } from 'clibuilder/axi'
 import { createAssetResolveCommands, type ReferenceCommandOptions } from '../references/reference.command.js'
 import { referenceLayers } from '../references/reference-layers.js'
+import { copyAsset } from './copy-asset.js'
 import { selectAsset } from './select-asset.js'
 import { AssetError, deleteAsset, listAssets, showAsset, writeAsset } from './skill-assets.js'
 
@@ -37,7 +38,7 @@ function usage(message: string): never {
 }
 
 const pathDescription = 'Asset path inside `assets/`, such as `data/rules.json`.'
-function rootOf(args: Common): string {
+function rootOf(args: { root: string | undefined }): string {
 	return resolve(args.root ?? process.cwd())
 }
 
@@ -73,29 +74,71 @@ function showCommand(): cli.Command {
 	})
 }
 
-type WriteArgs = Common & { path: string; content: string | undefined; from: string | undefined }
+type WriteArgs = Omit<Common, 'skill'> & {
+	skill: string | undefined
+	path: string
+	content: string | undefined
+	from: string | undefined
+}
 
-function writeCommand(mode: 'create' | 'update'): cli.Command {
+function writeCommand(mode: 'create' | 'update', host: ReferenceCommandOptions): cli.Command {
+	const create = mode === 'create'
 	return command({
 		name: mode,
-		description:
-			mode === 'create'
-				? 'Add a new asset from --content or --from. Never overwrites a file.'
-				: 'Replace an existing asset from --content or --from.',
-		arguments: [{ name: 'path', description: pathDescription, type: t.string() }],
+		description: create
+			? 'Add a new asset: by path in a skill from --content or --from, or, with --copy, by name in the project or user assets folder as a copy of what a plugin, the default, or another tier holds (never the managed tier). Never overwrites a file.'
+			: 'Replace an existing asset from --content or --from.',
+		arguments: [{ name: 'path', description: `${pathDescription} With --copy, the asset name.`, type: t.string() }],
 		options: {
-			skill: skillOption,
+			skill: { ...skillOption, type: t.string().optional() },
 			root: rootOption,
 			content: { description: 'The text to write.', type: t.string().optional() },
 			from: { description: 'A local file whose bytes to write.', type: t.string().optional() },
+			...(create
+				? {
+						copy: {
+							description:
+								"Copy the asset of this source: a plugin's name, `default` (the skill's own file), `project`, or `user`. `managed` is refused.",
+							type: t.string().optional(),
+						},
+						scope: {
+							description:
+								'With --copy, where the copy goes: project (default), `.agents/assets/`, or user, `~/.agents/assets/`.',
+							type: t.string().optional(),
+						},
+					}
+				: {}),
 		},
-		async run(args: WriteArgs) {
+		async run(args: WriteArgs & { copy?: string | undefined; scope?: string | undefined }) {
 			try {
+				if (args.copy !== undefined) {
+					if (args.content !== undefined || args.from !== undefined) usage('--copy takes neither --content nor --from.')
+					const home = homedir()
+					const root = rootOf(args)
+					const layers = await referenceLayers({
+						root,
+						home,
+						platform: process.platform,
+						env: process.env,
+						plugin: host.plugin,
+						defaultSkill: args.skill,
+						folder: 'assets',
+					})
+					const done = copyAsset(layers, {
+						root,
+						home,
+						name: args.path,
+						scope: args.scope ?? 'project',
+						copy: args.copy,
+					})
+					return document(`${done.path}\n\ncopied from ${done.from}. Edit it; it now answers over the plugin tier.\n`)
+				}
+				if (!args.skill) usage('pass --skill, or --copy to create an override by name.')
 				if ((args.content === undefined) === (args.from === undefined))
 					usage('pass exactly one of --content and --from.')
 				const content = args.content ?? readFileSync(resolve(args.from as string), 'utf8')
 				const file = writeAsset(mode, args.skill, rootOf(args), args.path, content)
-				return document(`${file}\n\n${mode === 'create' ? 'created' : 'updated'}.\n`)
+				return document(`${file}\n\n${create ? 'created' : 'updated'}.\n`)
 			} catch (error) {
 				return fail(error, `Asset ${mode} failed.`)
 			}
@@ -188,8 +231,8 @@ export function createAssetCommand(options: ReferenceCommandOptions = {}): cli.C
 		commands: [
 			listCommand(),
 			showCommand(),
-			writeCommand('create'),
-			writeCommand('update'),
+			writeCommand('create', options),
+			writeCommand('update', options),
 			deleteCommand(),
 			load,
 			names,

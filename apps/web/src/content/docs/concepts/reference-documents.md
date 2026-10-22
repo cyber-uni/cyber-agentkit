@@ -100,7 +100,12 @@ The highest tier holding the name answers with the file as written. Nothing merg
 so choosing is not an `extends`. When two plugins hold a name the answer is ambiguous: `asset select` writes a
 one-line `<name>.select` file naming the plugin, or `default` for the skill's own file, in the project or user
 `assets/` folder. A file of the same name in a tier, or a request for `<plugin>/<name>`, also answers. The `reference`
-commands never read `assets/`. `asset list`, `show`, `create`, `update`, and `delete` act on one skill's files by
+commands never read `assets/`.
+
+To start an override, `asset create <name> --copy <plugin|default|project|user> --scope project|user` copies that
+source's file into the tier folder to edit. It never copies from the managed tier: that is administrator policy, a
+copy in a shared repository would leak it, and the managed file would still win over the copy. Read it with
+`asset load` instead. `asset list`, `show`, `create`, `update`, and `delete` act on one skill's files by
 path, with no tiers.
 
 ## Where contributions are read from

@@ -34,6 +34,9 @@ permission allow/deny list, say).
   `assets/`, and the skill's own `assets/<name>.<ext>` is the `default` tier, with no `.default` marker.
 - K5 **selection**: a one-line file `<name>.select` in the managed, project, or user `assets/` folder naming a
   plugin or `default`. The highest one wins. It is not an asset and holds nothing else.
+- K6 **managed is not copied**: the managed tier is administrator policy. A copy in a repository or home folder
+  would leak its text there (a repository is often shared), and would read as in effect when the managed file still wins.
+  Read it with `load`; ask the administrator for changes.
 - K2 **asset path**: a relative path inside `<skill folder>/assets/`, with `/` separators, no `..`, no absolute path,
   no backslash.
 
@@ -56,12 +59,16 @@ permission allow/deny list, say).
 ### UC2 — Override which asset a skill loads (A2: skill author, plugin author, project or user)
 
 - **Entry points:** Skill: `/asset`. Code: `asset load <name> --default <skill folder>`; `asset names`; `asset where
-  <name>`; `asset select <name> <option> [--scope project|user] [--clear]`; `loadAsset(name, {defaultSkill, ...})`.
+  <name>`; `asset select <name> <option> [--scope project|user] [--clear]`; `asset create <name> --copy <source>
+  [--scope project|user]`; `loadAsset(name, {defaultSkill, ...})`.
 - **Outcome:** `load` answers from the highest tier holding the name (managed, project, user, plugin, the skill's
   own file), with the file as written. `where` shows where an override goes; `names` lists the names held.
 - **Extensions:**
   - UC2.1 Several plugins hold the name and no tier does and no selection names one: `ambiguous`, naming each
     option. `select` (K5), a tier file, or a qualified name answers.
+  - UC2.5 `create --copy <source>` writes `<name>.<ext>` in the project (default) or user `assets/` folder as a copy of
+    the file `<source>` holds: a plugin's name, `default`, `project`, or `user`. It never overwrites, and a source that
+    holds no such asset is refused, listing what does. `managed` is refused (K6).
   - UC2.3 `select` with an option that holds no such asset: refused, listing the options. `--clear` removes the file.
   - UC2.4 A selection naming something that holds no asset: ignored with a warning.
   - UC2.2 Missing, invalid name, or an absent skill folder: as for references.
@@ -82,6 +89,8 @@ permission allow/deny list, say).
   tier (K4).
 - R9 (UC2): The skill's `assets/<name>.<ext>` is the default; a `<name>.default.*` there is not special.
 - R10 (UC2): No `extends`, `merge`, or frontmatter applies to an asset; such text is part of the file.
+- R80 (UC2.5): `create --copy` copies the bytes of the source's file to `<name>.<ext>` under `.agents/assets/` or the user's,
+  refuses an existing `<name>.*`, and refuses `managed` with `managed-copy-refused` (K6).
 - R11 (UC2): `loadAsset` answers as `load` does.
 - R78 (UC2.1): A name two plugins hold, with no tier file and no selection, is `ambiguous` with each option listed; a
   selection, a tier file, or a qualified name resolves it.
