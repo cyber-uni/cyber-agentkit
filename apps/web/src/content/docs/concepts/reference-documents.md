@@ -75,6 +75,11 @@ turns the name off. When one folder holds several files for a name, the first of
 `.json`, `.yaml`, `.yml`, `.toml`, `.txt` answers and the others are ignored with a warning. The content is
 returned as text and is not parsed.
 
+To change which file a skill uses, override by name: a skill ships `permissions.default.json`, another plugin ships
+`permissions.json`, and `reference select permissions <plugin>` (a Markdown selection with only `extends`) or a
+project or user `permissions.json` decides which one answers. There is no separate mechanism, and it works through
+the command and the library alike.
+
 `show` marks a data answer with its `format`, and `list` does too. `create` and `delete` act on Markdown
 only; write a data file by hand.
 

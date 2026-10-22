@@ -570,7 +570,7 @@ export function resolveReference(
 			used.push(contribution)
 			continue
 		}
-		if (whole && operation !== 'remove') {
+		if (whole && operation !== 'remove' && contribution.hasBody) {
 			entry.operation = operation
 			entry.operationFrom = from
 			entry.outcome = `not used (format differs from ${whole.format})`

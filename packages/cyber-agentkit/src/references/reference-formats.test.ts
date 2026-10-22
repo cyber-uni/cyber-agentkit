@@ -79,4 +79,15 @@ describe('non-Markdown references (R65 to R71)', () => {
 	it('leaves Markdown answers marked markdown (R71)', () => {
 		expect(resolveReference('doc', [layer('project', { 'doc.md': '# Doc\n\nbody\n' })]).format).toBe('markdown')
 	})
+
+	it('lets a selection choose which plugin supplies a data file (inversion of control)', () => {
+		const layers = [
+			layer('user', { 'permissions.md': '---\nextends: [plugin-b]\n---\n' }),
+			{ ...layer('plugin', { 'permissions.json': '{"who":"a"}\n' }), plugin: 'plugin-a' },
+			{ ...layer('plugin', { 'permissions.json': '{"who":"b"}\n' }), plugin: 'plugin-b' },
+		]
+		const resolved = resolveReference('permissions', layers)
+		expect(resolved).toMatchObject({ status: 'found', content: '{"who":"b"}\n', format: 'json' })
+		expect(resolved.warnings).toEqual([])
+	})
 })
