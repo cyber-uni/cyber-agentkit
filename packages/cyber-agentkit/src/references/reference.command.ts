@@ -7,7 +7,12 @@ import { collapseHome } from '../command-output/collapse-home.js'
 import { listReferences, searchReferences } from './reference-catalog.js'
 import { checkReferences, checkResolved, interfaceLookup } from './reference-check.js'
 import { referenceImplementations } from './reference-implementations.js'
-import { type ReferenceLayers, type ReferencePlugin, referenceLayers } from './reference-layers.js'
+import {
+	type ReferenceFolder,
+	type ReferenceLayers,
+	type ReferencePlugin,
+	referenceLayers,
+} from './reference-layers.js'
 import { parseReferenceName } from './reference-name.js'
 import type { ReferenceWarning } from './reference-warning.js'
 import { whereReference } from './reference-where.js'
@@ -133,18 +138,12 @@ export type ReferenceDeleteReport = {
 	options?: string[]
 }
 
-type CommonArgs = { root: string | undefined; assets?: boolean | undefined }
+type CommonArgs = { root: string | undefined }
 
 const rootOption = {
 	description:
 		'Directory the project tier is read from, and each folder above it up to the repository root; a project write goes to its `.agents/references/`. Defaults to the current directory.',
 	type: t.string().optional(),
-}
-
-const assetsOption = {
-	description:
-		"Read and write a skill's `assets/` folders in every tier in place of `references/`: `.agents/assets/`, a plugin's `assets/`, and the skill's own `assets/<name>.<ext>` as its default.",
-	type: t.boolean().optional(),
 }
 
 const traceOption = {
@@ -159,7 +158,7 @@ const defaultOption = {
 
 type LayersFor = (args: CommonArgs & { default?: string | undefined }, home: string) => Promise<ReferenceLayers>
 
-function layerSource(plugin: ReferencePlugin | undefined): LayersFor {
+function layerSource(plugin: ReferencePlugin | undefined, folder: ReferenceFolder = 'references'): LayersFor {
 	return (args, home) =>
 		referenceLayers({
 			root: args.root ?? process.cwd(),
@@ -168,7 +167,7 @@ function layerSource(plugin: ReferencePlugin | undefined): LayersFor {
 			env: process.env,
 			plugin,
 			defaultSkill: args.default,
-			folder: args.assets ? 'assets' : 'references',
+			folder,
 		})
 }
 
@@ -290,9 +289,9 @@ function showText(resolved: readonly ResolvedReference[]): Answer<string> | unde
 	return document(blocks.join('\n\n'))
 }
 
-function showCommand(layersFor: LayersFor): cli.Command {
+function showCommand(layersFor: LayersFor, assets = false, name = 'show'): cli.Command {
 	return command({
-		name: 'show',
+		name,
 		description:
 			'Print one or more references, each composed from its contributions as their extends and merge declare.',
 		arguments: [
@@ -304,7 +303,6 @@ function showCommand(layersFor: LayersFor): cli.Command {
 		],
 		options: {
 			root: rootOption,
-			assets: assetsOption,
 			default: defaultOption,
 			metadata: {
 				description: 'Make every entry a record with its status and composed frontmatter.',
@@ -362,9 +360,9 @@ function showCommand(layersFor: LayersFor): cli.Command {
 	})
 }
 
-function listCommand(layersFor: LayersFor): cli.Command {
+function listCommand(layersFor: LayersFor, assets = false, name = 'list'): cli.Command {
 	return command({
-		name: 'list',
+		name,
 		description:
 			'List every reference name, one row each, with its description, and its status when not found. A pattern keeps only the names it matches exactly.',
 		arguments: [
@@ -377,7 +375,6 @@ function listCommand(layersFor: LayersFor): cli.Command {
 		],
 		options: {
 			root: rootOption,
-			assets: assetsOption,
 			trace: { ...traceOption, description: 'Add one row per name per layer holding it, with its outcome.' },
 		},
 		async run(args: CommonArgs & { pattern?: string | undefined; trace: boolean | undefined }) {
@@ -448,9 +445,9 @@ function searchCommand(layersFor: LayersFor): cli.Command {
 	})
 }
 
-function whereCommand(layersFor: LayersFor): cli.Command {
+function whereCommand(layersFor: LayersFor, assets = false, name = 'where'): cli.Command {
 	return command({
-		name: 'where',
+		name,
 		description:
 			'Give the project and user files a customization or a selection of a reference is written to, who each reaches, and the heading paths of the document below each.',
 		arguments: [
@@ -462,7 +459,6 @@ function whereCommand(layersFor: LayersFor): cli.Command {
 		],
 		options: {
 			root: rootOption,
-			assets: assetsOption,
 			default: defaultOption,
 			trace: { ...traceOption, description: 'Add every layer checked, with its outcome.' },
 		},
@@ -474,7 +470,7 @@ function whereCommand(layersFor: LayersFor): cli.Command {
 				const report = whereReference(args.name, await layersFor(args, home), {
 					root: resolve(args.root ?? process.cwd()),
 					display,
-					assets: args.assets,
+					assets,
 				})
 				const output: ReferenceWhereOutput = compact({
 					name: report.name,
@@ -719,9 +715,9 @@ function createCommand(layersFor: LayersFor): cli.Command {
 	})
 }
 
-function selectCommand(layersFor: LayersFor): cli.Command {
+function selectCommand(layersFor: LayersFor, assets = false, name = 'select'): cli.Command {
 	return command({
-		name: 'select',
+		name,
 		description:
 			'Choose what a name builds on: write an `extends` listing the options, bottom first, in the project or user file. Its body and other keys are kept.',
 		arguments: [
@@ -734,7 +730,6 @@ function selectCommand(layersFor: LayersFor): cli.Command {
 		],
 		options: {
 			root: rootOption,
-			assets: assetsOption,
 			scope: scopeOption,
 			clear: {
 				description: 'Remove the selection; a file left with nothing in it is deleted.',
@@ -755,7 +750,7 @@ function selectCommand(layersFor: LayersFor): cli.Command {
 				const root = resolve(args.root ?? process.cwd())
 				const display = (path: string) => collapseHome(home, path)
 				const selected = selectContribution(
-					await layersFor({ root, assets: args.assets }, home),
+					await layersFor({ root }, home),
 					{
 						root,
 						home,
@@ -763,7 +758,7 @@ function selectCommand(layersFor: LayersFor): cli.Command {
 						options: args.options ?? [],
 						scope: args.scope,
 						clear: args.clear,
-						assets: args.assets,
+						assets,
 					},
 					{ display },
 				)
@@ -805,15 +800,14 @@ function deleteReport(deleted: DeleteResult, home: string): ReferenceDeleteRepor
 	})
 }
 
-function deleteCommand(layersFor: LayersFor): cli.Command {
+function deleteCommand(layersFor: LayersFor, assets = false, name = 'delete'): cli.Command {
 	return command({
-		name: 'delete',
+		name,
 		description:
 			"Delete a project or user contribution, or one in a plugin's or a skill's source folder, and report what answers the name afterwards. Never deletes an installed or managed one.",
 		arguments: [{ name: 'name', description: 'Reference name, without the `.md` extension.', type: t.string() }],
 		options: {
 			root: rootOption,
-			assets: assetsOption,
 			scope: { ...scopeOption, description: 'Tier to delete from: project (default) or user.' },
 			plugin: pluginOption,
 			default: skillOption,
@@ -844,7 +838,7 @@ function deleteCommand(layersFor: LayersFor): cli.Command {
 						scope: args.scope,
 						plugin: args.plugin,
 						default: args.default,
-						assets: args.assets,
+						assets,
 						dryRun: args['dry-run'],
 					},
 					{ display: (path) => collapseHome(home, path) },
@@ -913,4 +907,20 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 			'Read reference documents by name, composed from the managed, project, user, plugin, and default tiers, and write, select, or delete a contribution.',
 		commands: [show, list, search, where, create, select, remove, implementations, check],
 	})
+}
+
+export type AssetResolveCommands = { load: cli.Command; names: cli.Command; where: cli.Command; select: cli.Command }
+
+/**
+ * The tiered, by-name commands over `assets/` folders: the reference engine reading `assets/` where it
+ * reads `references/`. `load` is `show`, `names` is `list`; `asset`'s own commands act on a path.
+ */
+export function createAssetResolveCommands({ plugin }: ReferenceCommandOptions = {}): AssetResolveCommands {
+	const layersFor = layerSource(plugin, 'assets')
+	return {
+		load: showCommand(layersFor, true, 'load'),
+		names: listCommand(layersFor, true, 'names'),
+		where: whereCommand(layersFor, true),
+		select: selectCommand(layersFor, true),
+	}
 }

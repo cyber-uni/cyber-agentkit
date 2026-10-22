@@ -1,3 +1,4 @@
+export { loadAsset } from './assets/load-asset.js'
 export type {
 	CheckedDependency,
 	CheckPluginDependenciesOptions,

@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import type { cli } from 'clibuilder'
 import { command, exitCodes, t } from 'clibuilder'
 import { CliError, document, isCliError, result } from 'clibuilder/axi'
+import { createAssetResolveCommands, type ReferenceCommandOptions } from '../references/reference.command.js'
 import { AssetError, deleteAsset, listAssets, showAsset, writeAsset } from './skill-assets.js'
 
 type Common = { skill: string; root: string | undefined }
@@ -115,10 +116,22 @@ function deleteCommand(): cli.Command {
 	})
 }
 
-export function createAssetCommand(): cli.Command {
+export function createAssetCommand(options: ReferenceCommandOptions = {}): cli.Command {
+	const { load, names, where, select } = createAssetResolveCommands(options)
 	return command({
 		name: 'asset',
-		description: "List, show, create, update, and delete the files in a skill's assets/ folder. No tiers, no merging.",
-		commands: [listCommand(), showCommand(), writeCommand('create'), writeCommand('update'), deleteCommand()],
+		description:
+			"Manage a skill's assets/ files by path (list, show, create, update, delete), and load one by name through the tiers (load, names, where, select).",
+		commands: [
+			listCommand(),
+			showCommand(),
+			writeCommand('create'),
+			writeCommand('update'),
+			deleteCommand(),
+			load,
+			names,
+			where,
+			select,
+		],
 	})
 }
