@@ -80,8 +80,8 @@ To change which file a skill uses, override by name: a skill ships `permissions.
 project or user `permissions.json` decides which one answers. There is no separate mechanism, and it works through
 the command and the library alike.
 
-`show` marks a data answer with its `format`, and `list` does too. `create` and `delete` act on Markdown
-only; write a data file by hand.
+`show` marks a data answer with its `format`, and `list` does too. `create` writes Markdown only, so write a
+data file by hand; `delete` removes either.
 
 ## Assets by name
 
