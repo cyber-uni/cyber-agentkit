@@ -96,6 +96,11 @@ function writeCommand(mode: 'create' | 'update', host: ReferenceCommandOptions):
 			from: { description: 'A local file whose bytes to write.', type: t.string().optional() },
 			...(create
 				? {
+						default: {
+							description:
+								"With --copy, the calling skill's folder: its `assets/<name>.<ext>` is the `default` source.",
+							type: t.string().optional(),
+						},
 						copy: {
 							description:
 								"Copy the asset of this source: a plugin's name, `default` (the skill's own file), `project`, or `user`. `managed` is refused.",
@@ -109,7 +114,9 @@ function writeCommand(mode: 'create' | 'update', host: ReferenceCommandOptions):
 					}
 				: {}),
 		},
-		async run(args: WriteArgs & { copy?: string | undefined; scope?: string | undefined }) {
+		async run(
+			args: WriteArgs & { copy?: string | undefined; scope?: string | undefined; default?: string | undefined },
+		) {
 			try {
 				if (args.copy !== undefined) {
 					if (args.content !== undefined || args.from !== undefined) usage('--copy takes neither --content nor --from.')
@@ -121,7 +128,7 @@ function writeCommand(mode: 'create' | 'update', host: ReferenceCommandOptions):
 						platform: process.platform,
 						env: process.env,
 						plugin: host.plugin,
-						defaultSkill: args.skill,
+						defaultSkill: args.default ?? args.skill,
 						folder: 'assets',
 					})
 					const done = copyAsset(layers, {
