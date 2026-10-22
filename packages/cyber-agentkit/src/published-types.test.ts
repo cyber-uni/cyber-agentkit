@@ -1,9 +1,17 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
-import { expect, it } from 'vitest'
+import { beforeAll, expect, it } from 'vitest'
+
+// `pnpm test` builds `dist` first, but a bare `vitest run` does not, so build it when it is missing.
+beforeAll(() => {
+	const root = resolve(import.meta.dirname, '..')
+	if (!existsSync(join(root, 'dist', 'index.d.ts'))) {
+		execFileSync(resolve(root, 'node_modules/.bin/tsdown'), { cwd: root, stdio: 'ignore' })
+	}
+}, 60_000)
 
 function typeCheck(declarations: string) {
 	const dir = mkdtempSync(join(tmpdir(), 'agent-harness-types-'))
@@ -35,7 +43,7 @@ it('exports the root, ./commands, and ./worktrees, and keeps command-output inte
 })
 
 // TypeScript 6 defaults `types` to `[]`, so a consumer without `@types/node` in its types must
-// still be able to load the published declarations. `pnpm test` builds `dist` first.
+// still be able to load the published declarations.
 it.each(['index.d.ts', 'commands.d.ts', 'worktrees.d.ts'])(
 	'the published %s type-checks without @types/node',
 	(declarations) => {
