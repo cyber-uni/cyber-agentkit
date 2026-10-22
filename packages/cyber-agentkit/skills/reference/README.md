@@ -1,6 +1,6 @@
 # Reference
 
-Loads, creates, updates, selects, deletes, and finds [references](https://cyber-uni.github.io/cyber-agentkit/concepts/reference-documents/): Markdown documents an agent reads on demand by name. It routes each request to the `reference` command, run from a launcher bundled in `scripts/`, and writes or deletes a reference only after the user approves it. Type `/reference` to run it yourself. Installed as a Claude Code plugin, it is `/cyber-agentkit:reference` (pnpm install: `pnpm-cyber-agentkit-reference`). Installed with pnpm, it is `pnpm-cyber-agentkit-reference`.
+Loads, creates, updates, selects, deletes, and finds [references](https://cyber-uni.github.io/cyber-agentkit/concepts/reference-documents/): Markdown documents (or JSON, YAML, TOML, or text files, which are never merged) an agent reads on demand by name. It routes each request to the `reference` command, run from a launcher bundled in `scripts/`, and writes or deletes a reference only after the user approves it. Type `/reference` to run it yourself. Installed as a Claude Code plugin, it is `/cyber-agentkit:reference` (pnpm install: `pnpm-cyber-agentkit-reference`). Installed with pnpm, it is `pnpm-cyber-agentkit-reference`.
 
 | Mode | When |
 | --- | --- |

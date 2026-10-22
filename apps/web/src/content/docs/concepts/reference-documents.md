@@ -62,6 +62,26 @@ A skill loads references by naming them in one line:
 Load `agent-readiness-weights` and `release-checklist` with the `reference` skill of `cyber-agentkit`.
 ```
 
+## References that are not Markdown
+
+A reference can also be a data file: `<name>.json`, `<name>.yaml`, `<name>.yml`, `<name>.toml`, or
+`<name>.txt`, in any tier's references folder, and `<name>.default.<extension>` as a skill's default. The
+name stays bare, so `checks.json` is asked for as `checks`.
+
+A data file is not composed. Sections, `patch`, and `combine` mean nothing inside JSON, so the highest tier
+that holds the name answers with its file as written, and everything below it is shadowed. A Markdown
+contribution above a data file is ignored with a `format-mismatch` warning, except `merge: remove`, which
+turns the name off. When one folder holds several files for a name, the first of `.md`, `README.md`,
+`.json`, `.yaml`, `.yml`, `.toml`, `.txt` answers and the others are ignored with a warning. The content is
+returned as text and is not parsed.
+
+`show` marks a data answer with its `format`, and `list` does too. `create` and `delete` act on Markdown
+only; write a data file by hand.
+
+Only the skill's `references/` folder and the tiers are read. The open Agent Skills specification also
+names `assets/`: static files a skill points to by path, with no tiers to layer. A reference is fetched by
+name and composed across tiers, so `assets/` stays outside this skill.
+
 ## Where contributions are read from
 
 A name may have a contribution in several layers. The tiers, listed from highest to lowest:
