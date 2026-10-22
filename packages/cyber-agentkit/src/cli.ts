@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { cli, exitCodes } from 'clibuilder'
+import { createAssetCommand } from './assets/asset.command.js'
 import { createReferenceCommand } from './references/reference.command.js'
 
 /** Who runs the CLI: the plugin's name, the package's version, and the folder its own `references/` sit in. */
@@ -30,7 +31,9 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 		name: 'cyber-agentkit',
 		version,
 		description: 'Work with the AI agent harness running here: read its layered reference documents.',
-	}).command(createReferenceCommand({ plugin: { name, root } }))
+	})
+		.command(createReferenceCommand({ plugin: { name, root } }))
+		.command(createAssetCommand())
 }
 
 /**
@@ -41,8 +44,8 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 function defaultFormat(argv: string[]): 'toon' | 'text' {
 	const args = argv.slice(2)
 	if (args.some((arg) => arg === '--format' || arg.startsWith('--format='))) return 'toon'
-	const subcommand = args[0] === 'reference' ? args[1] : undefined
-	return ['show', 'create', 'select', 'delete'].includes(subcommand ?? '') ? 'text' : 'toon'
+	const subcommand = args[0] === 'reference' || args[0] === 'asset' ? args[1] : undefined
+	return ['show', 'create', 'update', 'select', 'delete'].includes(subcommand ?? '') ? 'text' : 'toon'
 }
 
 /** argv in, exit code out — returned rather than written, so a caller that is not the process can act on it. */

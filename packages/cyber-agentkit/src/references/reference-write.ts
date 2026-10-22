@@ -67,7 +67,7 @@ export function bareName(value: string): ReferenceName {
 }
 
 /** The repository the root sits in: a write to a source folder must land inside it, and never in an installed copy. */
-function insideRepository(folder: string, root: string): boolean {
+export function insideRepository(folder: string, root: string): boolean {
 	const repository = canonical(repositoryRoot(root) ?? resolve(root))
 	const target = canonical(folder)
 	if (target !== repository && !target.startsWith(repository + sep)) return false

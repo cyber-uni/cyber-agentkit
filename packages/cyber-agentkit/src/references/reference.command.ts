@@ -382,6 +382,7 @@ function listCommand(layersFor: LayersFor): cli.Command {
 								compact({
 									name: row.name,
 									description: row.description,
+									format: row.format,
 									status: row.status === 'found' ? undefined : row.status,
 									options: row.options,
 								}),
