@@ -11,6 +11,7 @@ import { defaultsUnverified, skillHoldings, withDefault } from './skill-defaults
 
 /** One row per name. */
 export type ReferenceListRow = {
+	format?: string
 	name: string
 	description: string
 	status: ReferenceStatus
@@ -108,6 +109,7 @@ export function listReferences(source: Source, options: ListOptions = {}): Refer
 			description: resolved.status === 'found' ? firstLine(resolved.metadata?.['description']) : '',
 			status: resolved.status,
 		}
+		if (resolved.format && resolved.format !== 'markdown') row.format = resolved.format
 		if (resolved.options) {
 			const skills = held.map(({ skill }) => `default of ${skill.name}`)
 			row.options = [...new Set([...resolved.options.filter((option) => option !== 'default'), ...skills])]

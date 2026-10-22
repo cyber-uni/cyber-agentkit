@@ -12,6 +12,7 @@ import {
 } from './create-reference.js'
 import { interfaceLookup } from './reference-check.js'
 import { hasBody, isMergeOperation, type MergeOperation, parseDocument } from './reference-document.js'
+import { dataExtensions } from './reference-format.js'
 import { fitsName, type ReferenceInterface } from './reference-interface.js'
 import {
 	canonical,
@@ -67,7 +68,7 @@ export function bareName(value: string): ReferenceName {
 }
 
 /** The repository the root sits in: a write to a source folder must land inside it, and never in an installed copy. */
-function insideRepository(folder: string, root: string): boolean {
+export function insideRepository(folder: string, root: string): boolean {
 	const repository = canonical(repositoryRoot(root) ?? resolve(root))
 	const target = canonical(folder)
 	if (target !== repository && !target.startsWith(repository + sep)) return false
@@ -398,6 +399,11 @@ export function selectContribution(
 	}
 }
 
+/** The data files that can answer a name in a folder. */
+function dataFiles(dir: string, name: string): string[] {
+	return dataExtensions.map(({ extension }) => join(dir, `${name}${extension}`))
+}
+
 export type DeleteArgs = WhereArgs & { name: string; dryRun?: boolean | undefined }
 
 export type DeleteResult = {
@@ -422,7 +428,7 @@ export function deleteContribution(
 	const before = resolveReference(name, layers, options)
 	const candidates =
 		target.scope === 'project' || target.scope === 'user'
-			? [target.path, join(target.dir, name.name, 'README.md')]
+			? [target.path, join(target.dir, name.name, 'README.md'), ...dataFiles(target.dir, name.name)]
 			: [target.path]
 	const path = candidates.find((candidate) => candidate !== options.without && existsSync(candidate))
 	if (!path) {

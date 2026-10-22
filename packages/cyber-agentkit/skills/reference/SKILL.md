@@ -1,11 +1,11 @@
 ---
 name: reference
-description: Use this skill when loading, creating, updating, deleting, finding, or inspecting a reference — a Markdown document agents read by name — or when wiring a skill to load one.
+description: Use this skill when loading, creating, updating, deleting, finding, or inspecting a reference — a document agents read by name, Markdown or a JSON, YAML, TOML, or text file — or when wiring a skill to load one.
 ---
 
 # Reference
 
-Route the request to one mode, then follow that mode. A **reference** is a Markdown document fetched by name. Each place that holds a **contribution** to a name is a **tier**: managed, project, user, a plugin, or the loading skill's **default** (`references/<name>.default.md` in its folder). Contributions compose bottom first: the plugins and the default, in the order `extends` gives, then user, then project, then managed. Each applies with its `merge`: `patch` (the default) replaces the text a section matches, `combine` adds after it, `replace` drops everything below, and `remove` turns the name off. An **interface** is a contract, declared in a `<id>.interface` reference, that other references implement. What answers a name is the `reference` command's decision. Never decide it by reading tier folders yourself.
+Route the request to one mode, then follow that mode. A **reference** is a document fetched by name, usually Markdown. A JSON, YAML, TOML, or text file (`<name>.json`) is also one: it is never merged, and the highest tier holding it answers whole. Only `references/` is read. A skill's `assets/` files are resolved by name with the `asset` skill. Each place that holds a **contribution** to a name is a **tier**: managed, project, user, a plugin, or the loading skill's **default** (`references/<name>.default.md` in its folder). Contributions compose bottom first: the plugins and the default, in the order `extends` gives, then user, then project, then managed. Each applies with its `merge`: `patch` (the default) replaces the text a section matches, `combine` adds after it, `replace` drops everything below, and `remove` turns the name off. An **interface** is a contract, declared in a `<id>.interface` reference, that other references implement. What answers a name is the `reference` command's decision. Never decide it by reading tier folders yourself.
 
 ## Route
 

@@ -15,6 +15,7 @@ import {
 	type SectionSource,
 	stripMergeMarkers,
 } from './reference-document.js'
+import { dataExtensions, formatOfFile, type ReferenceFormat } from './reference-format.js'
 import { interfaceIdOf } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
 import { defaultSuffix, namePattern, parseReferenceName, type ReferenceName } from './reference-name.js'
@@ -38,7 +39,7 @@ export type ReferenceTraceLayer = {
 	skill?: string
 	/** The file matched, or the folder checked when none matched. */
 	path: string
-	/** The file that answered, relative to the folder: `<name>.md`, `<name>/README.md`, or `<name>.default.md`. */
+	/** The file that answered, relative to the folder: `<name>.md`, `<name>/README.md`, `<name>.default.md`, or the same with a data extension. */
 	file?: string
 	/** Its frontmatter as written. */
 	frontmatter?: Record<string, unknown>
@@ -95,6 +96,8 @@ export type ResolvedReference = {
 	/** Why it is not `found`, for a person. */
 	message?: string
 	content?: string
+	/** Set when `found`: `markdown`, or the format of the data file that answered whole. */
+	format?: ReferenceFormat
 	/** The composed frontmatter, key by key with the higher contribution winning, without `merge` and `extends`. */
 	metadata?: Record<string, unknown>
 	/** When `ambiguous`: each `<plugin>/<name>`, and `default` when the skill has one. */
@@ -126,6 +129,9 @@ type Contribution = {
 	metadata: Record<string, unknown>
 	body: string
 	hasBody: boolean
+	format: ReferenceFormat
+	/** Read as written: a data file, or any file in an `assets/` layer. It never merges or extends. */
+	whole: boolean
 	merge: MergeOperation | undefined
 	/** Its own `extends`, when written and well formed. */
 	steps: ExtendsStep[] | undefined
@@ -148,8 +154,11 @@ function tryRead(path: string): string | undefined {
 }
 
 /** The files that answer a name in a layer, in the order they answer. */
-export function candidateFiles(layer: Pick<ReferenceLayer, 'tier'>, name: string): string[] {
-	return layer.tier === 'default' ? [`${name}${defaultSuffix}.md`] : [`${name}.md`, `${name}/README.md`]
+export function candidateFiles(layer: Pick<ReferenceLayer, 'tier' | 'whole'>, name: string): string[] {
+	if (layer.whole) return [`${name}.md`, ...dataExtensions.map(({ extension }) => `${name}${extension}`)]
+	return layer.tier === 'default'
+		? [`${name}${defaultSuffix}.md`, ...dataExtensions.map(({ extension }) => `${name}${defaultSuffix}${extension}`)]
+		: [`${name}.md`, `${name}/README.md`, ...dataExtensions.map(({ extension }) => `${name}${extension}`)]
 }
 
 export function contributionLabel(layer: ReferenceLayer, path: string, display: (path: string) => string): string {
@@ -366,6 +375,82 @@ function plan(
 	return planFromPlugins(holders, lookup, defaultContribution, ref.name, warn)
 }
 
+/**
+ * The stack of an `assets/` name: no `extends` orders anything, so the highest tier holding the name
+ * answers whole. Below the tiers, one plugin answers over the skill's own file; several plugins make
+ * the name ambiguous unless a tier answers or a qualified name picks one.
+ */
+function planWhole(
+	ref: ReferenceName,
+	layers: readonly ReferenceLayer[],
+	tiered: readonly Contribution[],
+	holders: ReadonlyMap<string, Contribution>,
+	lookup: Lookup,
+	defaultContribution: Contribution | undefined,
+	warn: WarnFn,
+): Plan | Failure {
+	const entry = (target: string, contribution: Contribution): StackEntry => ({
+		target,
+		contribution,
+		operation: 'replace',
+		from: 'default',
+	})
+	const lowest = defaultContribution ? [entry('default', defaultContribution)] : []
+	if (ref.plugin !== undefined) {
+		const found = lookup(ref.plugin)
+		if ('reason' in found) return { status: 'missing', message: `the plugin ${ref.plugin} ${found.reason}` }
+		return { entries: [entry(ref.plugin, found)], builtBy: 'qualified name', replaced: [], replacedBy: '' }
+	}
+	if (tiered.some(({ hasBody }) => hasBody)) return { entries: lowest, builtBy: 'none', replaced: [], replacedBy: '' }
+	const chosen = readAssetSelection(layers, ref.name, warn)
+	if (chosen !== undefined) {
+		if (chosen === 'default' && defaultContribution) {
+			return { entries: lowest, builtBy: 'selection', replaced: [], replacedBy: '' }
+		}
+		const held = holders.get(chosen)
+		if (held) return { entries: [...lowest, entry(chosen, held)], builtBy: 'selection', replaced: [], replacedBy: '' }
+		warn(
+			'selection-invalid',
+			`the selection of "${ref.name}" names ${chosen}, which holds no such asset; it is ignored`,
+		)
+	}
+	const plugins = [...holders.entries()]
+	if (plugins.length > 1) {
+		const names = plugins.map(([plugin]) => plugin)
+		return {
+			status: 'ambiguous',
+			cause: 'unordered',
+			message: `the plugins ${names.join(', ')} hold it; run "asset select ${ref.name} <option>" (options: ${names.join(', ')}${defaultContribution ? ', default' : ''}), ask for ${names[0]}/${ref.name}, or put the file in a project or user assets folder`,
+		}
+	}
+	const [only] = plugins
+	return {
+		entries: [...lowest, ...(only ? [entry(only[0], only[1])] : [])],
+		builtBy: 'none',
+		replaced: [],
+		replacedBy: '',
+	}
+}
+
+/** The plugin or `default` a managed, project, or user `<name>.select` file names; the highest one wins. */
+function readAssetSelection(layers: readonly ReferenceLayer[], name: string, warn: WarnFn): string | undefined {
+	for (const layer of layers) {
+		if (layer.skipped || !['managed', 'project', 'user'].includes(layer.tier)) continue
+		const raw = tryRead(join(layer.dir, `${name}.select`))
+		if (raw === undefined) continue
+		const value = raw.trim()
+		if (!namePattern.test(value)) {
+			warn(
+				'selection-invalid',
+				`${layer.tier} ${name}.select holds "${value}", which is not a plugin name or default; it is ignored`,
+			)
+			continue
+		}
+		return value
+	}
+	return undefined
+}
+
 function planFromPlugins(
 	holders: ReadonlyMap<string, Contribution>,
 	lookup: Lookup,
@@ -500,7 +585,9 @@ export function resolveReference(
 		return resolveInterface(ref, contributions, holders, defaultContribution, result, warn, options)
 	}
 
-	const decided = plan(ref, tiered, holders, lookup, defaultContribution, warn)
+	const decided = layers.some(({ whole }) => whole)
+		? planWhole(ref, layers, tiered, holders, lookup, defaultContribution, warn)
+		: plan(ref, tiered, holders, lookup, defaultContribution, warn)
 	if ('status' in decided) {
 		if (decided.status === 'ambiguous') {
 			for (const { entry } of contributions) if (entry.outcome === '') entry.outcome = 'ambiguous'
@@ -549,8 +636,32 @@ export function resolveReference(
 	let applied: Contribution[] = []
 	let removedBy: Contribution | undefined
 	const used: Contribution[] = []
+	let whole: Contribution | undefined
 	for (const { contribution, operation, from } of order) {
 		const { entry } = contribution
+		if (contribution.whole && contribution.hasBody) {
+			entry.operation = 'replace'
+			entry.operationFrom = 'default'
+			for (const below of applied) below.entry.outcome = `shadowed by ${contribution.label} (replace)`
+			applied = [contribution]
+			composed = { ...emptyComposed(), removed: composed.removed }
+			whole = contribution
+			removedBy = undefined
+			entry.outcome = 'used'
+			used.push(contribution)
+			continue
+		}
+		if (whole && operation !== 'remove' && contribution.hasBody) {
+			entry.operation = operation
+			entry.operationFrom = from
+			entry.outcome = `not used (format differs from ${whole.format})`
+			warnAt(contribution.label)(
+				'format-mismatch',
+				`it is ignored: ${whole.label} is ${whole.format}, which a Markdown contribution cannot compose with`,
+			)
+			continue
+		}
+		if (operation === 'remove') whole = undefined
 		entry.operation = operation
 		entry.operationFrom = from
 		const warnHere = warnAt(contribution.label)
@@ -618,6 +729,15 @@ export function resolveReference(
 		...composedSections(composed).map(({ path, sources }) => ({ path, contributions: sources })),
 		...trace.sections,
 	]
+	if (whole) {
+		return {
+			...result,
+			status: 'found',
+			content: whole.body,
+			format: whole.format,
+			metadata: {},
+		}
+	}
 	// One contribution with no marker reads as written; anything composed is rendered from its sections.
 	const single = applied.length === 1 && !composed.removed.length ? (applied[0] as Contribution).body : undefined
 	const content =
@@ -628,6 +748,7 @@ export function resolveReference(
 		...result,
 		status: 'found',
 		content,
+		format: 'markdown',
 		metadata: composedMetadata(shown),
 	}
 }
@@ -670,6 +791,25 @@ function readContribution(
 	}
 	const label = contributionLabel(layer, hit.path, display)
 	const warn = warnAt(label)
+	const format = formatOfFile(hit.file)
+	if (format !== 'markdown' || layer.whole) {
+		Object.assign(entry, { path: hit.path, file: hit.file, outcome: '' })
+		const held = hit.raw.trim().length > 0
+		if (!held) entry.empty = true
+		return {
+			layer,
+			entry,
+			label,
+			path: hit.path,
+			metadata: {},
+			body: hit.raw,
+			hasBody: held,
+			whole: true,
+			format,
+			merge: 'replace',
+			steps: undefined,
+		}
+	}
 	const { metadata, body } = parseDocument(hit.raw, warn)
 	const merge = readMergeOperation(metadata, warn)
 	const steps = readExtends(metadata['extends'], warn)
@@ -678,7 +818,7 @@ function readContribution(
 	const bodyHeld = hasBody(body)
 	if (!bodyHeld) entry.empty = true
 	if (steps && !bodyHeld && merge !== 'remove') entry.selection = true
-	return { layer, entry, label, path: hit.path, metadata, body, hasBody: bodyHeld, merge, steps }
+	return { layer, entry, label, path: hit.path, metadata, body, hasBody: bodyHeld, format, whole: false, merge, steps }
 }
 
 /**
@@ -780,7 +920,7 @@ function resolveInterface(
 }
 
 /** Every name a layer holds; empty for a layer that is missing, unreadable, or skipped. */
-export function layerNames(layer: Pick<ReferenceLayer, 'tier' | 'dir' | 'skipped'>): string[] {
+export function layerNames(layer: Pick<ReferenceLayer, 'tier' | 'dir' | 'skipped' | 'whole'>): string[] {
 	if (layer.skipped) return []
 	let entries: Dirent[]
 	try {
@@ -789,14 +929,20 @@ export function layerNames(layer: Pick<ReferenceLayer, 'tier' | 'dir' | 'skipped
 		return []
 	}
 	const names = new Set<string>()
-	const isDefault = layer.tier === 'default'
+	const isDefault = layer.tier === 'default' && !layer.whole
 	for (const entry of entries) {
 		let name: string | undefined
 		if (isDefault) {
-			if (entry.name.endsWith(`${defaultSuffix}.md`)) name = entry.name.slice(0, -`${defaultSuffix}.md`.length)
-		} else if (entry.name.endsWith('.md') && !entry.isDirectory()) {
-			name = entry.name.slice(0, -3)
-		} else if (!entry.isFile() && tryRead(join(layer.dir, entry.name, 'README.md')) !== undefined) {
+			const suffix = [`${defaultSuffix}.md`, ...dataExtensions.map((item) => `${defaultSuffix}${item.extension}`)].find(
+				(item) => entry.name.endsWith(item),
+			)
+			if (suffix) name = entry.name.slice(0, -suffix.length)
+		} else if (
+			!entry.isDirectory() &&
+			['.md', ...dataExtensions.map((item) => item.extension)].some((extension) => entry.name.endsWith(extension))
+		) {
+			name = entry.name.slice(0, entry.name.lastIndexOf('.'))
+		} else if (!layer.whole && !entry.isFile() && tryRead(join(layer.dir, entry.name, 'README.md')) !== undefined) {
 			name = entry.name
 		}
 		if (name === undefined || parseReferenceName(name).invalid) continue

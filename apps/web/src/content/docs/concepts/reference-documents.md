@@ -62,6 +62,52 @@ A skill loads references by naming them in one line:
 Load `agent-readiness-weights` and `release-checklist` with the `reference` skill of `cyber-agentkit`.
 ```
 
+## References that are not Markdown
+
+A reference can also be a data file: `<name>.json`, `<name>.yaml`, `<name>.yml`, `<name>.toml`, or
+`<name>.txt`, in any tier's references folder, and `<name>.default.<extension>` as a skill's default. The
+name stays bare, so `checks.json` is asked for as `checks`.
+
+A data file is not composed. Sections, `patch`, and `combine` mean nothing inside JSON, so the highest tier
+that holds the name answers with its file as written, and everything below it is shadowed. A Markdown
+contribution above a data file is ignored with a `format-mismatch` warning, except `merge: remove`, which
+turns the name off. When one folder holds several files for a name, the first of `.md`, `README.md`,
+`.json`, `.yaml`, `.yml`, `.toml`, `.txt` answers and the others are ignored with a warning. The content is
+returned as text and is not parsed.
+
+To change which file a skill uses, override by name: a skill ships `permissions.default.json`, another plugin ships
+`permissions.json`, and `reference select permissions <plugin>` (a Markdown selection with only `extends`) or a
+project or user `permissions.json` decides which one answers. There is no separate mechanism, and it works through
+the command and the library alike.
+
+`show` marks a data answer with its `format`, and `list` does too. `create` writes Markdown only, so write a
+data file by hand.
+
+## Assets by name
+
+A skill that ships a data file in its `assets/` folder can let others override which file it loads. The `asset`
+skill does this, not `reference`: `asset load`, `asset names`, `asset where`, and `asset select`, or `loadAsset` in the library, read the same tiers over
+`assets/` folders. They read `.agents/assets/` in the project and under the
+home directory, a plugin's `assets/`, a harness's managed `assets/`, and the skill's own `assets/<name>.<ext>` as
+the default, with no `.default` marker.
+
+```sh
+npx -y cyber-agentkit asset load permissions --default <skill folder>
+npx -y cyber-agentkit asset select permissions <plugin>
+```
+
+The highest tier holding the name answers with the file as written. Nothing merges or extends, Markdown included,
+so choosing is not an `extends`. When two plugins hold a name the answer is ambiguous: `asset select` writes a
+one-line `<name>.select` file naming the plugin, or `default` for the skill's own file, in the project or user
+`assets/` folder. A file of the same name in a tier, or a request for `<plugin>/<name>`, also answers. The `reference`
+commands never read `assets/`.
+
+To start an override, `asset create <name> --copy <plugin|default|project|user> --scope project|user` copies that
+source's file into the tier folder to edit. It never copies from the managed tier: that is administrator policy, a
+copy in a shared repository would leak it, and the managed file would still win over the copy. Read it with
+`asset load` instead. `asset list`, `show`, `create`, `update`, and `delete` act on one skill's files by
+path, with no tiers.
+
 ## Where contributions are read from
 
 A name may have a contribution in several layers. The tiers, listed from highest to lowest:

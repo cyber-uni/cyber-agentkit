@@ -7,7 +7,12 @@ import { collapseHome } from '../command-output/collapse-home.js'
 import { listReferences, searchReferences } from './reference-catalog.js'
 import { checkReferences, checkResolved, interfaceLookup } from './reference-check.js'
 import { referenceImplementations } from './reference-implementations.js'
-import { type ReferenceLayers, type ReferencePlugin, referenceLayers } from './reference-layers.js'
+import {
+	type ReferenceFolder,
+	type ReferenceLayers,
+	type ReferencePlugin,
+	referenceLayers,
+} from './reference-layers.js'
 import { parseReferenceName } from './reference-name.js'
 import type { ReferenceWarning } from './reference-warning.js'
 import { whereReference } from './reference-where.js'
@@ -28,6 +33,8 @@ export type ReferenceShowEntry =
 			name: string
 			status: ResolvedReference['status']
 			content?: string
+			/** Set when the answer is not Markdown. */
+			format?: string
 			code?: string
 			options?: string[]
 			metadata?: Record<string, unknown>
@@ -37,7 +44,7 @@ export type ReferenceShowEntry =
 
 export type ReferenceListReport = {
 	/** A string when nothing matches, so a run states its zero explicitly. */
-	references: { name: string; description?: string; status?: string; options?: string[] }[] | string
+	references: { name: string; description?: string; format?: string; status?: string; options?: string[] }[] | string
 	/** Why some skills' defaults are not listed; left out when every detected harness's skill folders were read. */
 	defaults?: string
 	layers?: {
@@ -151,7 +158,7 @@ const defaultOption = {
 
 type LayersFor = (args: CommonArgs & { default?: string | undefined }, home: string) => Promise<ReferenceLayers>
 
-function layerSource(plugin: ReferencePlugin | undefined): LayersFor {
+function layerSource(plugin: ReferencePlugin | undefined, folder: ReferenceFolder = 'references'): LayersFor {
 	return (args, home) =>
 		referenceLayers({
 			root: args.root ?? process.cwd(),
@@ -160,6 +167,7 @@ function layerSource(plugin: ReferencePlugin | undefined): LayersFor {
 			env: process.env,
 			plugin,
 			defaultSkill: args.default,
+			folder,
 		})
 }
 
@@ -247,11 +255,13 @@ function errorText(entry: ResolvedReference): string {
 type ShowFlags = { metadata: boolean; trace: boolean }
 
 function showEntry(resolved: ResolvedReference, home: string, { metadata, trace }: ShowFlags): ReferenceShowEntry {
-	if (resolved.status === 'found' && !resolved.warnings.length && !metadata && !trace) return resolved.content as string
+	if (resolved.status === 'found' && !resolved.warnings.length && !metadata && !trace && resolved.format === 'markdown')
+		return resolved.content as string
 	return compact({
 		name: resolved.name,
 		status: resolved.status,
 		content: resolved.content,
+		format: resolved.format === 'markdown' ? undefined : resolved.format,
 		code: resolved.code,
 		options: resolved.options,
 		metadata: metadata ? resolved.metadata : undefined,
@@ -279,9 +289,9 @@ function showText(resolved: readonly ResolvedReference[]): Answer<string> | unde
 	return document(blocks.join('\n\n'))
 }
 
-function showCommand(layersFor: LayersFor): cli.Command {
+function showCommand(layersFor: LayersFor, name = 'show'): cli.Command {
 	return command({
-		name: 'show',
+		name,
 		description:
 			'Print one or more references, each composed from its contributions as their extends and merge declare.',
 		arguments: [
@@ -350,9 +360,9 @@ function showCommand(layersFor: LayersFor): cli.Command {
 	})
 }
 
-function listCommand(layersFor: LayersFor): cli.Command {
+function listCommand(layersFor: LayersFor, name = 'list'): cli.Command {
 	return command({
-		name: 'list',
+		name,
 		description:
 			'List every reference name, one row each, with its description, and its status when not found. A pattern keeps only the names it matches exactly.',
 		arguments: [
@@ -378,6 +388,7 @@ function listCommand(layersFor: LayersFor): cli.Command {
 								compact({
 									name: row.name,
 									description: row.description,
+									format: row.format,
 									status: row.status === 'found' ? undefined : row.status,
 									options: row.options,
 								}),
@@ -434,9 +445,9 @@ function searchCommand(layersFor: LayersFor): cli.Command {
 	})
 }
 
-function whereCommand(layersFor: LayersFor): cli.Command {
+function whereCommand(layersFor: LayersFor, assets = false, name = 'where'): cli.Command {
 	return command({
-		name: 'where',
+		name,
 		description:
 			'Give the project and user files a customization or a selection of a reference is written to, who each reaches, and the heading paths of the document below each.',
 		arguments: [
@@ -459,6 +470,7 @@ function whereCommand(layersFor: LayersFor): cli.Command {
 				const report = whereReference(args.name, await layersFor(args, home), {
 					root: resolve(args.root ?? process.cwd()),
 					display,
+					assets,
 				})
 				const output: ReferenceWhereOutput = compact({
 					name: report.name,
@@ -739,7 +751,14 @@ function selectCommand(layersFor: LayersFor): cli.Command {
 				const display = (path: string) => collapseHome(home, path)
 				const selected = selectContribution(
 					await layersFor({ root }, home),
-					{ root, home, name: args.name, options: args.options ?? [], scope: args.scope, clear: args.clear },
+					{
+						root,
+						home,
+						name: args.name,
+						options: args.options ?? [],
+						scope: args.scope,
+						clear: args.clear,
+					},
 					{ display },
 				)
 				const report: ReferenceSelectReport = compact({
@@ -886,4 +905,19 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 			'Read reference documents by name, composed from the managed, project, user, plugin, and default tiers, and write, select, or delete a contribution.',
 		commands: [show, list, search, where, create, select, remove, implementations, check],
 	})
+}
+
+export type AssetResolveCommands = { load: cli.Command; names: cli.Command; where: cli.Command }
+
+/**
+ * The tiered, by-name commands over `assets/` folders: the reference engine reading `assets/` where it
+ * reads `references/`. `load` is `show`, `names` is `list`. `asset`'s own commands act on a path.
+ */
+export function createAssetResolveCommands({ plugin }: ReferenceCommandOptions = {}): AssetResolveCommands {
+	const layersFor = layerSource(plugin, 'assets')
+	return {
+		load: showCommand(layersFor, 'load'),
+		names: listCommand(layersFor, 'names'),
+		where: whereCommand(layersFor, true),
+	}
 }

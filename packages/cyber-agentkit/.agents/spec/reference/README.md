@@ -28,7 +28,8 @@ each name is answered with what can be found, and every fault is reported as a w
 
 - N1 Installing, enabling, or removing plugins. That is [dependencies](../dependencies/README.md).
 - N2 Finding references by meaning. Results are returned in a deterministic order.
-- N3 Reading anything but Markdown by name, or any path. A name is never a path.
+- N3 Reading any path, or a folder other than `references/`. A name is never a path. Non-Markdown references are
+  [formats](./formats/README.md); `assets/` belongs to [asset](../asset/README.md).
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
 
@@ -92,6 +93,7 @@ each name is answered with what can be found, and every fault is reported as a w
 | [write](./write/README.md) | UC5, UC9, UC11 | Writing |
 | [interfaces](./interfaces/README.md) | UC6 | Interfaces |
 | [skill](./skill/README.md) | UC4, UC12 | Fallback |
+| [formats](./formats/README.md) | UC13 | R65 to R72 |
 
 ### UC8 — Consumers read a stable output (A1.1)
 
