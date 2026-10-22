@@ -1,5 +1,12 @@
 # cyber-agentkit
 
+## 1.1.0
+
+### Minor Changes
+
+- 4d46d9e: Add the `asset` skill and command. It lists, shows, creates, updates, and deletes the files in a skill's assets folder by path, and loads one by name through the managed, project, user, and plugin tiers with `asset load`, `asset names`, `asset where`, and `asset select` (library: `loadAsset`), with no merging or extending, so a plugin, the project, or the user can override which data file a skill loads.
+- 33de3a8: Reference names now resolve to JSON, YAML, TOML, and text files as well as Markdown. A data file is not merged: the highest tier holding it answers whole, and `show` and `list` report its format.
+
 ## 1.0.0
 
 ### Major Changes
