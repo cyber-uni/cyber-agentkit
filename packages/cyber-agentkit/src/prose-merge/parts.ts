@@ -12,8 +12,14 @@ export type Part = {
 	raw: string
 }
 
-const HEADING = /^(#{1,6})\s+(.*?)\s*#*\s*$/
+const HEADING = /^(#{1,6})\s+(.*)$/
 const FENCE = /^\s*(`{3,}|~{3,})/
+
+function titleOf(text: string): string {
+	let end = text.trimEnd().length
+	while (end > 0 && text[end - 1] === '#') end--
+	return text.slice(0, end).trim()
+}
 
 /** Divides a document into parts by heading path. A heading inside a fence is not a heading. */
 export function parseParts(input: string): Part[] {
@@ -29,7 +35,12 @@ export function parseParts(input: string): Part[] {
 		} else {
 			const heading = HEADING.exec(line)
 			if (heading) {
-				raw.push({ heading: line.trim(), level: (heading[1] as string).length, title: heading[2] as string, body: [] })
+				raw.push({
+					heading: line.trim(),
+					level: (heading[1] as string).length,
+					title: titleOf(heading[2] as string),
+					body: [],
+				})
 				continue
 			}
 		}
@@ -60,7 +71,8 @@ export function parseParts(input: string): Part[] {
 			raw: [entry.heading, ...entry.body]
 				.filter((line) => line !== undefined)
 				.join('\n')
-				.replace(/^\n+|\s+$/g, ''),
+				.trimEnd()
+				.replace(/^\n+/, ''),
 		})
 	}
 	return parts
