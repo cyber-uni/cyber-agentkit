@@ -12,7 +12,7 @@ export type Part = {
 	raw: string
 }
 
-const HEADING = /^(#{1,6})\s+(.*)$/
+const HEADING = /^(#{1,6})[ \t](.*)$/
 const FENCE = /^\s*(`{3,}|~{3,})/
 
 function titleOf(text: string): string {
