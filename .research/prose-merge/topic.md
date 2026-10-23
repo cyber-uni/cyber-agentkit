@@ -39,7 +39,7 @@ jj and Pijul keep a conflict as structured data. Our equivalent is returning `{b
 ## Open questions
 
 - Q1 Is "append" a first-class outcome? `enhance` has none; same-position appends always conflict in diff3.
-- Q2 Where is the base stored for reference overrides: a hash, the full text, or a pointer to a plugin version?
+- Q2 Where is the base stored for a copied asset override: a hash, the full text, or a pointer to a plugin version?
 - Q3 Which domain owns it: `prose-merge` standalone, or inside `references`?
 - Q4 Does the library parse the history file format, making buddy-agent-harness a consumer?
 - Q5 Whether markdown-tree-aware sentence units (skipping fences and quotes) are enough or lists/tables need their own units.

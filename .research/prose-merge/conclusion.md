@@ -27,7 +27,7 @@ The mechanical layer is a strict improvement over what `enhance` does today (a m
 | Owner and tool edit the same or adjacent sentences | conflict | escalate to the agent with base, ours, theirs |
 | Section matches no retired wording, little sentence overlap | no usable base | owner's own: offer nothing |
 | Section matches no retired wording, some overlap | base unknown | escalate (this is `enhance`'s "cannot tell") |
-| No history at all (a copied reference override) | two-way only | treat the copy's source text at copy time as the base, so the copy must record it |
+| No history at all (a copied asset override) | two-way only | treat the copy's source text at copy time as the base, so the copy must record it |
 
 Prior art in one line each:
 
