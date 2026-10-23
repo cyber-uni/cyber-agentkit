@@ -24,7 +24,7 @@ In: three-way merge over prose and markdown, base selection from a retired-wordi
 Mechanical: three-way merge over sentences, base from history. Intent: an agent reads base/ours/theirs and decides ownership or meaning. The seam is the conflict or the missing base.
 
 ### The merge base is the hard part
-Every system that merges well stores the base (ucf cache, Helm/kubectl last-applied, git history). `enhance`'s retired-wordings file is that store, but only for wordings it shipped; owner-written or copied text without a recorded source has no base. Reference overrides made by `copyAsset` have the same gap today.
+Every system that merges well stores the base (ucf cache, Helm/kubectl last-applied, git history). `enhance`'s retired-wordings file is that store, but only for wordings it shipped; owner-written or copied text without a recorded source has no base. Asset overrides made by `copyAsset` have the same gap today (reference overrides declare their changes and do not).
 
 ### Granularity decides conflicts
 E8: paragraph lines over-conflict; sentence lines conflict only on real collisions.
