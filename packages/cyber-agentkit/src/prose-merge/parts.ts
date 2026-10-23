@@ -8,6 +8,8 @@ export type Part = {
 	/** The heading line as written; absent for text before the first heading. */
 	heading?: string | undefined
 	sentences: Sentence[]
+	/** The part as written: the heading line and the lines under it, without the blank lines around them. */
+	raw: string
 }
 
 const HEADING = /^(#{1,6})\s+(.*?)\s*#*\s*$/
@@ -53,6 +55,10 @@ export function parseParts(input: string): Part[] {
 			key: count === 1 ? base : `${base} #${count}`,
 			heading: entry.heading,
 			sentences,
+			raw: [entry.heading, ...entry.body]
+				.filter((line) => line !== undefined)
+				.join('\n')
+				.replace(/^\n+|\s+$/g, ''),
 		})
 	}
 	return parts

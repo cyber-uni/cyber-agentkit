@@ -43,6 +43,16 @@ describe('parseParts', () => {
 	})
 })
 
+describe('part raw text', () => {
+	it('holds the heading and the lines under it as written', () => {
+		expect(parseParts('Intro\n\n# A\n\nOne\nwraps.\n\n# B\nTwo.\n').map((part) => part.raw)).toEqual([
+			'Intro',
+			'# A\n\nOne\nwraps.',
+			'# B\nTwo.',
+		])
+	})
+})
+
 describe('renderPart', () => {
 	it('writes the heading, then the sentences with their own separators', () => {
 		const [part] = parseParts('# A\n\nOne. Two.\n\n- item')
