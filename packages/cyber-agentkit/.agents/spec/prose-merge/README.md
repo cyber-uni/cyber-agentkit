@@ -112,7 +112,7 @@ without collision, so the facts report whether a revision is an append, and an a
 - R6 `update`: a found part equal to its base part sentence for sentence takes the offered part with no owner
   sentences. Otherwise base, found part and offered part merge three-way at sentence level with no collision. A collision is two
   changes touching the same base sentence, two changes with no unchanged base sentence between them, or two insertions in
-  the same gap. The result keeps every owner sentence and takes every sentence the offered part changed or added.
+  the same gap; two identical changes are one change and do not collide. The result keeps every owner sentence and takes every sentence the offered part changed or added.
 - R8 When the revision is an append revision, the new sentences go immediately after the found sentence that is the
   base's last sentence; when the owner replaced it, after the last sentence of the run of found sentences between the
   nearest shared sentences on either side of it; when the owner deleted it, after the nearest earlier shared sentence; if
