@@ -38,6 +38,17 @@ if (harness !== 'unknown') skillsDirectories(harness)
 for a host CLI. The concepts behind them are in [reference documents](/cyber-agentkit/concepts/reference-documents/)
 and [reference interfaces](/cyber-agentkit/concepts/reference-interfaces/).
 
+## Prose merge
+
+`classify({ found, offered, history })` compares prose a tool wrote earlier, and its owner may have edited, with the
+wording the tool offers now. Text is divided into parts by heading path and compared sentence by sentence against the
+retired wording the found text descends from. Each part gets one outcome: `up-to-date`, `update` (the merged text, with
+the owner's sentences kept), `owners`, `conflict` (the colliding sentences), or `undetermined` (with a reason). It
+returns the same answer for the same inputs and never calls a model. `parseHistory()` reads a history text of retired
+wordings, newest first, and `retire()` returns that text with an outgoing wording added. The
+[`merge-prose` skill](/cyber-agentkit/packages/cyber-agentkit/skills/merge-prose/) builds on them and resolves what
+the facts leave open.
+
 ## Full signatures
 
 The [package readme](https://github.com/cyber-uni/cyber-agentkit/tree/main/packages/cyber-agentkit#readme)
