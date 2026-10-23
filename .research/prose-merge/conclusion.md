@@ -27,7 +27,7 @@ The mechanical layer is a strict improvement over what `enhance` does today (a m
 | Owner and tool edit the same or adjacent sentences | conflict | escalate to the agent with base, ours, theirs |
 | Section matches no retired wording, little sentence overlap | no usable base | owner's own: offer nothing |
 | Section matches no retired wording, some overlap | base unknown | escalate (this is `enhance`'s "cannot tell") |
-| No history at all (a copied asset override) | two-way only | treat the copy's source text at copy time as the base, so the copy must record it |
+| No history at all | two-way only | the caller supplies whatever historic prose it has; with none, the result is `undetermined` |
 
 Prior art in one line each:
 
@@ -51,14 +51,14 @@ So sentence-per-line is the right unit for prose. Appends at the same position a
 
 ## Recommendation for cyber-agentkit
 
-- Domain: a new `prose-merge` folder under `src/`, named for the concept. It is not a harness fact, so it cites no harness research. It is the engine behind `reference` overrides going stale: a copy-created override (`copyAsset`) is the owner's edit of a plugin-supplied base, and the plugin's next version is theirs.
+- Domain: a new `prose-merge` folder under `src/`, named for the concept. It is not a harness fact, so it cites no harness research. It depends on no other domain.
 - Public API sketch (not decided, see open questions):
   - `splitSentences(markdown)`: fence- and quote-aware, per the `enhance` rule that a quoted or fenced sentence is not asserted.
   - `merge3({ base, ours, theirs })` returning `{ status: 'clean' | 'conflict', text, conflicts[] }`, each conflict carrying base/ours/theirs.
   - `locateBase({ section, history })` returning the retired wording with the most surviving sentences, plus the survival ratio, or `none`.
   - `parseHistory(markdown)` for the dated, fenced-wording file format.
 - Escalation contract: the function returns the three texts and the findings; the skill or agent decides. The library has no model calls.
-- Tie to references: a copied override should record the source version it was copied from (a hash or the base text), otherwise there is no merge base and only the weaker `locateBase` guess is available. This is the dpkg/ucf lesson.
+- Where the historic prose comes from is the caller's concern; the skill takes new, current and historic prose as text.
 
 ## Confidence
 

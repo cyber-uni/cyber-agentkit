@@ -4,9 +4,8 @@ spec-type: behavioral
 
 # prose-merge — a section a tool wrote earlier is brought to its current wording without losing the owner's edits
 
-Research: [prose-merge](../../../../../.research/prose-merge/conclusion.md). Related to [asset](../asset/README.md), whose
-copied overrides go stale the same way, and [reference](../reference/README.md), which avoids the problem with merge
-operations; this spec depends on neither.
+Research: [prose-merge](../../../../../.research/prose-merge/conclusion.md). Depends on no other domain: where the historic prose
+comes from is the caller's concern.
 
 ## What
 
@@ -64,8 +63,6 @@ apply and cannot collide with the owner's edits, so it is the preferred shape of
   mechanical, so it can ask the owner.
 - A3 **Owner** (never invokes). A3.1 Keeps sentences they wrote through every update. A3.2 Is asked only about real
   collisions.
-- A4 **Reference consumer** (a library caller). A4.1 Uses the same comparison for a copied override against the text it
-  was copied from.
 
 ## Use Cases
 
@@ -85,8 +82,6 @@ apply and cannot collide with the owner's edits, so it is the preferred shape of
   prose, unchanged); UC5.2 outcome `owners` (the recommended prose is the current prose, unchanged, and the note says
   the owner's own text was left alone); UC5.3 outcome `conflict` or `undetermined` (the skill resolves it by reading
   intent and marks every such sentence `decided`, or returns no recommendation and says what the owner must choose).
-- **UC4 Compare a copy with its source.** Trigger: a consumer passes the copy, the source text at copy time, and the
-  source now. Success: the same outcomes with the source at copy time as the single base. Extensions: as UC1 and UC2.
 
 ## Criteria
 
@@ -149,10 +144,6 @@ apply and cannot collide with the owner's edits, so it is the preferred shape of
 
 ## Open questions
 
-- Q1 Who records the base of a whole-text copy? UC4 assumes the source text at copy time is available. Today only
-  [asset](../asset/README.md) makes such copies (`asset create --copy`), and it keeps no record; `reference` has no copy
-  and declares its changes with merge operations instead, so it needs no base. Whether asset adopts this is asset's
-  decision, outside this spec.
 - Q2 How the skill reaches the library's facts: a script it runs, as the reference and asset skills do, or the library
   called directly. Reuse is at the skill (decided); this is only the wiring.
 - Q4 The history file format. Settled direction: any shape that is optimal after detailed design, starting from

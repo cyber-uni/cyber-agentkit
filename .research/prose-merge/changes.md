@@ -7,3 +7,4 @@
 ## 2026-10-23
 
 - Corrected: the whole-text-copy base question belongs to the asset domain (`copyAsset`), not reference; reference overrides declare changes and need no base. Added the several-sections design (parts by heading path). The conclusion's recommendation is unchanged.
+- Removed the whole-text-copy base question: the caller supplies the historic prose, so the capability needs no storage option.
