@@ -1,6 +1,6 @@
 {
 	"skills": {
-		"merge-prose": {
+		"prose-update": {
 			"examples": [
 				{
 					"prompt": "The new Delegation wording is in delegation.md, and AGENTS.md has an older one I edited. Update it.",

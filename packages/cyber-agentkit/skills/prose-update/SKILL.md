@@ -1,9 +1,9 @@
 ---
-name: merge-prose
+name: prose-update
 description: Use this skill when a section of prose a tool wrote earlier may have been edited by its owner and a newer wording is available, to get recommended updated prose that keeps the owner's sentences. Takes the offered prose, the found prose, and the historic prose.
 ---
 
-# Merge prose
+# Update prose
 
 Given a newer wording, the text now in a file, and the wordings the tool retired, recommend the updated text. A script returns the facts that settle most cases. You resolve only what it leaves open. Nothing here writes a file or asks the owner: the calling skill does that with your recommendation.
 
@@ -20,7 +20,7 @@ Read no file the caller did not name. If one of the three is missing, say which 
 ## Run
 
 ```sh
-node <this skill's folder>/scripts/merge-prose.mjs classify --offered-from <file> --found-from <file> --history-from <file> --format json
+node <this skill's folder>/scripts/prose-update.mjs classify --offered-from <file> --found-from <file> --history-from <file> --format json
 ```
 
 Pass `--offered`, `--found`, or `--history` with the text itself instead of the `-from` form, and `--retired` (repeatable, newest first) in place of a history text. Each of the three takes one form, not both. If the script is missing or cannot run, use `pnpm exec cyber-agentkit prose-merge` when the package is a direct dependency, else `npx -y cyber-agentkit@1.1.0 prose-merge`, with the same arguments.
@@ -55,4 +55,4 @@ Return the recommended prose, then for each part its outcome, and for each sente
 
 ## Retire a wording
 
-When the tool ships a new wording, add the old one to the history: `node <this skill's folder>/scripts/merge-prose.mjs retire --history-from <file> --wording-from <file> --date <date> --reason "<why>"` prints the new history text. Save it only after the user approves. Write new wordings so that they only add sentences after the old ones: such a revision merges without collision.
+When the tool ships a new wording, add the old one to the history: `node <this skill's folder>/scripts/prose-update.mjs retire --history-from <file> --wording-from <file> --date <date> --reason "<why>"` prints the new history text. Save it only after the user approves. Write new wordings so that they only add sentences after the old ones: such a revision merges without collision.

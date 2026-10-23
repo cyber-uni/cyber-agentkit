@@ -11,7 +11,7 @@ Part of [prose-merge](../README.md); its terms (K1 to K10) and actors apply here
 ### UC5 — Recommend updated prose (A2.1, A2.2, A3.1, A3.2)
 
 - **Trigger:** a skill writes prose the owner may have edited, and a newer wording is available.
-- **Entry points:** Skill: `/merge-prose` (the way to reuse this capability).
+- **Entry points:** Skill: `/prose-update` (the way to reuse this capability).
 - **Inputs:** the offered prose, the found prose, the historic prose(s), as text (R17).
 - **Success:** recommended prose (K8), the outcome of UC1 for each part, and for each sentence whether it was kept, taken,
   or decided.
@@ -25,7 +25,7 @@ Part of [prose-merge](../README.md); its terms (K1 to K10) and actors apply here
 
 - **Trigger:** a skill's script, or a program using the library, needs the outcome for each part without judgment, or
   an author wants to know whether a revision was an append.
-- **Entry points:** Script: the `merge-prose` skill's script. Code: `classify`.
+- **Entry points:** Script: the `prose-update` skill's script. Code: `classify`.
 - **Inputs:** the found text, the offered wording, the history (as text).
 - **Success:** one outcome per part (R1) with the facts it rests on, and the merged text where the outcome is `update`.
 - **Extensions:**
@@ -90,7 +90,7 @@ Part of [prose-merge](../README.md); its terms (K1 to K10) and actors apply here
 - R26 The skill script prints, for each part: path, outcome, reason when `undetermined`, base, shared count and the base's sentence count,
   revision kind, the text for `up-to-date`, `owners` and `update`, and the collisions for `conflict`. It uses the same
   `--format` option as the reference and asset commands.
-- R17 The `merge-prose` skill takes exactly three inputs, as text: offered prose, found prose, and historic prose(s), which
+- R17 The `prose-update` skill takes exactly three inputs, as text: offered prose, found prose, and historic prose(s), which
   is either a history text (parsed by R11) or one or more retired wordings. It reads no file the caller did not name.
 
 **Skill behavior** (UC5; judged by an agent scenario, because no deterministic test reaches it)

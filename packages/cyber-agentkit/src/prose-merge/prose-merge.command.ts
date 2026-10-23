@@ -132,7 +132,7 @@ function retireCommand(): cli.Command {
 	})
 }
 
-/** `classify` and `retire`: the script behind the `merge-prose` skill (R26). */
+/** `classify` and `retire`: the script behind the `prose-update` skill (R26). */
 export function createProseMergeCommand(): cli.Command {
 	return command({
 		name: 'prose-merge',

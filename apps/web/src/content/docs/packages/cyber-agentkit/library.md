@@ -46,7 +46,7 @@ retired wording the found text descends from. Each part gets one outcome: `up-to
 the owner's sentences kept), `owners`, `conflict` (the colliding sentences), or `undetermined` (with a reason). It
 returns the same answer for the same inputs and never calls a model. `parseHistory()` reads a history text of retired
 wordings, newest first, and `retire()` returns that text with an outgoing wording added. The
-[`merge-prose` skill](/cyber-agentkit/packages/cyber-agentkit/skills/merge-prose/) builds on them and resolves what
+[`prose-update` skill](/cyber-agentkit/packages/cyber-agentkit/skills/prose-update/) builds on them and resolves what
 the facts leave open.
 
 ## Full signatures

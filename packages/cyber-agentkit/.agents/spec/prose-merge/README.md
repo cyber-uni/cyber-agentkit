@@ -15,7 +15,7 @@ text, or replaces the section and deletes what the owner added. Each skill that 
 and a model re-judges the same comparison on every run.
 
 This capability gives a skill one thing to ask: here is the wording I offer now, the text found in the file, and the
-wordings I retired; recommend the updated text. The `merge-prose` skill answers, and it is the way other skills reuse
+wordings I retired; recommend the updated text. The `prose-update` skill answers, and it is the way other skills reuse
 this. Beneath it, a library and a script return the facts that settle most cases without judgment (whether the found
 text is current, which retired wording it descends from, which sentences are the owner's, the merged text or the exact
 sentences that collide), and keep the retired wordings. The skill reads those facts and resolves only what they leave

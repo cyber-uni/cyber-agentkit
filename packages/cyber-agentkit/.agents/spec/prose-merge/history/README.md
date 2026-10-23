@@ -11,7 +11,7 @@ Part of [prose-merge](../README.md); its terms (K3 history, K1 to K2 wordings) a
 ### UC3 — Read and extend the history (A1.1)
 
 - **Trigger:** a skill passes a history text to read, or a wording author retires a wording.
-- **Entry points:** Code: `parseHistory`, `retire`. Skill: `/merge-prose` parses the history text it is given (R17).
+- **Entry points:** Code: `parseHistory`, `retire`. Skill: `/prose-update` parses the history text it is given (R17).
 - **Inputs:** the history text; for `retire`, also the outgoing wording, a date, and a reason.
 - **Success:** the wordings parsed in order, newest first; or the history text returned with the outgoing wording added at
   the top and every other byte unchanged.
