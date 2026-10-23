@@ -40,6 +40,8 @@ export function parseParts(input: string): Part[] {
 	const parts: Part[] = []
 	for (const entry of raw) {
 		const sentences = splitSentences(entry.body.join('\n'))
+		const first = sentences[0]
+		if (entry.heading !== undefined && first) first.gap = entry.body[0]?.trim() === '' ? '\n\n' : '\n'
 		if (entry.heading === undefined) {
 			if (!sentences.length) continue
 		} else {
