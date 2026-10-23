@@ -19,6 +19,10 @@ structured facts: whether the section is current, which retired wording it desce
 owner's, and either the updated text or the exact sentences that collide. A skill takes those facts and, only where they
 do not settle it, asks the agent or the owner. The same facts give the same answer every run.
 
+The point of reuse is a skill, not a command. A skill takes three things: the new prose, the current prose, and the
+historic prose(s). It returns the recommended updated prose. The skill reads the facts, resolves what they leave open
+by reading intent, and always ends in text a caller can show the owner.
+
 Wordings are written to be revised by appending. A revision that only adds sentences after the old ones is cheap to
 apply and cannot collide with the owner's edits, so it is the preferred shape of a revision.
 
@@ -42,14 +46,17 @@ apply and cannot collide with the owner's edits, so it is the preferred shape of
 - K5 **base**: the retired wording a section descends from.
 - K6 **append revision**: a revision whose wording holds every sentence of the one before it, in order, followed by new
   ones. Any other revision is a **rewrite**.
+- K8 **recommended prose**: the text the skill proposes as the updated section, with a note of what it kept, took from the
+  new wording, and decided by judgment. It is a proposal: nothing writes it without the caller's approval.
 - K7 **owner sentence**: a sentence of the section found in no wording of the history.
 
 ## Actors and goals
 
 - A1 **Wording author** (maintains the addition). A1.1 Ships a new wording and keeps the old one, so sections written
   from it can still be recognised.
-- A2 **Skill** (acts for the owner). A2.1 Learns, from structured facts, whether the section is current, updatable, or
-  needs a decision. A2.2 Gets the updated text when the update is mechanical.
+- A2 **Calling skill** (acts for the owner; any skill that writes prose the owner may edit). A2.1 Hands over the new,
+  current, and historic prose and gets recommended prose back. A2.2 Is told when a decision was judgment, not
+  mechanical, so it can ask the owner.
 - A3 **Owner** (never invokes). A3.1 Keeps sentences they wrote through every update. A3.2 Is asked only about real
   collisions.
 - A4 **Reference consumer** (a library caller). A4.1 Uses the same comparison for a copied override against the text it
@@ -67,6 +74,12 @@ apply and cannot collide with the owner's edits, so it is the preferred shape of
   Success: wordings parsed in order, or the outgoing wording added at the top with a date and reason, other text untouched.
   Extensions: UC3.1 a heading or fence does not parse (that entry is reported, the others are returned); UC3.2 the
   outgoing wording equals the newest retired one (nothing added).
+- **UC5 Recommend updated prose.** Trigger: a calling skill invokes the `merge-prose` skill with the new prose, the
+  current prose, and the historic prose(s). Success: recommended prose (K8), the outcome of UC1, and for each sentence
+  whether it was kept, taken, or decided. Extensions: UC5.1 outcome `current` (the recommended prose is the current
+  prose, unchanged); UC5.2 outcome `owners` (the recommended prose is the current prose, unchanged, and the note says
+  the owner's own text was left alone); UC5.3 outcome `conflict` or `undetermined` (the skill resolves it by reading
+  intent and marks every such sentence `decided`, or returns no recommendation and says what the owner must choose).
 - **UC4 Compare a copy with its source.** Trigger: a consumer passes the copy, the source text at copy time, and the
   source now. Success: the same outcomes with the source at copy time as the single base. Extensions: as UC1 and UC2.
 
@@ -107,18 +120,26 @@ apply and cannot collide with the owner's edits, so it is the preferred shape of
 - R14 The same inputs give the same outcome and text on every call. No outcome depends on a model, a clock, or a file
   beyond the inputs. (UC1, UC2)
 - R15 Sentence splitting ignores fenced, quoted and blockquoted text (K4); a heading line is a sentence. (UC1)
+- R17 The `merge-prose` skill takes exactly three inputs: new prose, current prose, historic prose(s), as text. It reads
+  no file the caller did not name. (UC5)
+- R18 For outcomes `current`, `owners`, and a clean `update`, the recommended prose is the library's text, with no
+  sentence marked `decided`. (UC5, UC5.1, UC5.2)
+- R19 Every sentence of the recommended prose that is not from the current prose, the new prose, or an owner sentence is
+  marked `decided`; the recommendation is returned only with that mark. (UC5.3)
+- R20 No owner sentence is dropped from the recommended prose unless it is marked `decided` with the reason. (UC5, A3.1)
 - R16 The library reads and writes no instruction file; callers pass text and receive text. (N2)
 
 ## Open questions
 
 - Q1 What does a copied reference override record as its base: the source text, a hash, or a plugin version? UC4 assumes
   the text is available. [reference](../reference/README.md) owns the answer.
-- Q2 Adapters. Skills run scripts, not library calls: does a `prose-merge` command return these outcomes as
-  structured output, as the reference and asset commands do?
+- Q2 How the skill reaches the library's facts: a script it runs, as the reference and asset skills do, or the library
+  called directly. Reuse is at the skill (decided); this is only the wiring.
 - Q3 Does a heading-path-aware merge (reference's `patch`) replace sentence splitting for documents with several
   sections, or does the caller pass one section at a time (N4)?
-- Q4 The history file's heading wording. This spec assumes buddy-agent-harness's current shape (a dated `Superseded`
-  heading with a reason, then the wording in a Markdown fence); confirm before the format is a contract.
+- Q4 The history file format. Settled direction: any shape that is optimal after detailed design, starting from
+  buddy-agent-harness's (a dated `Superseded` heading with a reason, then the wording in a Markdown fence). The skill
+  takes the wordings as text (R17), so the file is the library's storage, not the skill's contract.
 
 ## References
 
