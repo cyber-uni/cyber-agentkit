@@ -5,7 +5,7 @@ spec-type: behavioral
 # prose-merge — a section a tool wrote earlier is brought to its offered wording without losing the owner's edits
 
 Research: [prose-merge](../../../../../.research/prose-merge/conclusion.md). Depends on no other domain: where the
-historic prose comes from is the caller's concern. Retired IDs: A4, UC4, R5, R15, R16.
+historic prose comes from is the caller's concern. Retired IDs: A4, UC4, R5, R7, R15, R16.
 
 ## What
 
@@ -39,14 +39,15 @@ without collision, so the facts report whether a revision is an append, and an a
 
 - K1 **wording**: the full text of a section as a tool offered it.
 - K2 **offered wording**: the wording the tool offers now. **Retired wording**: one it offered before. **Found text**:
-  the text in the file being updated.
+  the text in the file being updated. **Prose**: any of these passed as text; "offered prose", "found prose" and
+  "historic prose(s)" are the offered wording, the found text and the retired wordings.
 - K3 **history**: the retired wordings of one addition, newest first, each with a date and a reason, kept as a Markdown
   text the library parses and writes.
 - K4 **sentence**: the unit compared. Text is split at `.`, `;`, `?` or `!` followed by whitespace or the end of the text,
   except after `e.g.`, `i.e.`, `etc.` and `vs.`; at every blank line; and so that a heading line, a list item, and a table
-  row are each one sentence. Text inside a fenced code block, a blockquote, or quotation marks is not a sentence of the
-  text: it is shown, not asserted. Two sentences are equal when they match after each run of whitespace becomes one
-  space; case, punctuation and inline markup must match exactly.
+  row are each one sentence. A fenced code block and a blockquote are each one sentence, compared whole, so a change inside
+  one is a change; a line inside a fence is never a heading. Two sentences are equal when they match after each run of
+  whitespace becomes one space; case, punctuation and inline markup must match exactly.
 - K5 **base**: the retired wording the found text descends from.
 - K6 **append revision**: an offered wording that holds every sentence of the base, in order, followed by new ones. Any
   other revision is a **rewrite**.
@@ -72,7 +73,8 @@ without collision, so the facts report whether a revision is an append, and an a
 
 - **UC1 Classify found text.** Trigger: a skill passes the found text, the offered wording, and the history (as text).
   Success: one outcome per part (R1) with the facts it rests on. Extensions: UC1.1 the history is empty (`undetermined`,
-  reason `no-history`); UC1.2 the found text or a part is empty (`undetermined`, reason `empty-section`); UC1.3 two
+  reason `no-history`); UC1.4 the found part shares sentences with the offered wording but with no retired wording and is
+  not up to date (`undetermined`, reason `no-base`); UC1.2 the found text or a part is empty (`undetermined`, reason `empty-section`); UC1.3 two
   retired wordings share the most (`undetermined`, reason `tied-base`).
 - **UC2 Update found text.** Trigger: a part's outcome is `update`. Success: the updated text, the revision kind (K6),
   and the owner sentences kept. Extensions: UC2.1 the edits collide (`conflict`); UC2.2 the base is not identified
@@ -92,28 +94,28 @@ without collision, so the facts report whether a revision is an append, and an a
 **Library: outcomes** (UC1)
 
 - R1 `classify` returns, for each part, exactly one outcome of `up-to-date`, `update`, `conflict`, `owners`,
-  `undetermined`. A part of the offered wording missing from the found text is judged by R22, and the parts of the found
-  text missing from the offered wording by R23.
+  `undetermined`. A part on one side only gets its outcome from R22 or R23.
 - R2 `up-to-date`: the found part holds every sentence of the offered part, in order, and no sentence found only in a
   retired wording. Sentences the owner added around or between them do not change this.
 - R3 `owners`: the found part shares no sentence with any wording of the history or the offered wording. Nothing is
   offered.
 - R4 The base is the retired wording with the largest shared count (K10) with the whole found text, at least 1. Equal
   largest counts for two wordings give `undetermined` with reason `tied-base`, naming both.
-- R10 Every outcome except `owners` and `up-to-date` reports the base, the shared count, the base's sentence count, and
+- R10 Every outcome except `owners` and `up-to-date` reports the base (when it has one), the shared count, the base's sentence count, and
   the revision kind (K6).
 - R14 The same inputs give the same outcomes and text on every call. No outcome depends on a model, a clock, or a file
   beyond the inputs.
 
 **Library: update** (UC2)
 
-- R6 `update`: base, found part and offered part merge three-way at sentence level with no collision. A collision is two
+- R6 `update`: a found part equal to its base part sentence for sentence takes the offered part with no owner
+  sentences. Otherwise base, found part and offered part merge three-way at sentence level with no collision. A collision is two
   changes touching the same base sentence, two changes with no unchanged base sentence between them, or two insertions in
   the same gap. The result keeps every owner sentence and takes every sentence the offered part changed or added.
-- R7 A found part equal to its base part sentence for sentence updates to the offered part, with no owner sentences.
-- R8 When the revision is an append revision, the new sentences go immediately after the found sentence aligned with the
-  base's last sentence (equal or edited); if the owner deleted it, after the nearest earlier aligned sentence; if there is
-  none, at the end of the part. Owner sentences already after that point stay after the new ones. An append revision
+- R8 When the revision is an append revision, the new sentences go immediately after the found sentence that is the
+  base's last sentence; when the owner replaced it, after the last sentence of the run of found sentences between the
+  nearest shared sentences on either side of it; when the owner deleted it, after the nearest earlier shared sentence; if
+  there is none, at the end of the part. Owner sentences already after that point stay after the new ones. An append revision
   never gives `conflict`.
 - R9 `conflict` (rewrites only) carries each collision as base, found and offered sentences. Nothing is merged in a
   conflicting collision, and the non-colliding sentences of the part are returned as merged.
@@ -123,13 +125,17 @@ without collision, so the facts report whether a revision is an append, and an a
 
 - R21 Text is divided into parts (K9) and each part is classified and merged by R1–R9. Parts are matched across the
   base, the found text, and the offered wording by heading path.
-- R22 A part only in the offered wording is added after the nearest preceding part the found text holds, or first if none;
-  a part only in the found text is the owner's and stays; a part in the base and the offered wording but absent from the
+- R22 A part only in the offered wording is added (outcome `update`) after the nearest preceding part the found text
+  holds, or first if none; a part only in the found text is the owner's and stays (outcome `owners`); a part in the base and the offered wording but absent from the
   found text stays absent unless the offered part differs from the base's, which is a `conflict`.
 - R23 A part in the base and the found text but absent from the offered wording is removed if the found part equals the
   base's; otherwise it is a `conflict`.
 - R24 The base is chosen once for the whole found text by R4; parts are then aligned within it. The document's outcome is
   the first that any part has, in the order `conflict`, `undetermined`, `update`, `owners`, `up-to-date`.
+- R31 A found part that shares sentences with the offered wording but with no retired wording, and is not `up-to-date`,
+  is `undetermined` with reason `no-base`. (UC1.4)
+- R32 When one heading path occurs more than once in a text, its occurrences are matched across texts by their order; an
+  occurrence without a match is an added or removed part.
 - R25 A heading renamed by either side is a removed part and an added part; no outcome depends on guessing a rename.
 
 **Library: history** (UC3)
