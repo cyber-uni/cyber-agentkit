@@ -60,6 +60,18 @@ export { supportsPluginDependencies } from './plugins/plugin-dependencies.js'
 export { pluginManifestName, pluginManifestPaths } from './plugins/plugin-manifest.js'
 export type { PluginStorage, PluginStorageKind, PluginStorageLocation } from './plugins/plugin-storage.js'
 export { pluginStorage } from './plugins/plugin-storage.js'
+export type {
+	BaseRef,
+	Classification,
+	ClassifyInput,
+	Outcome,
+	PartResult,
+	Reason,
+} from './prose-merge/classify.js'
+export { classify, ProseMergeError } from './prose-merge/classify.js'
+export type { InvalidEntry, ParsedHistory, RetiredWording } from './prose-merge/history.js'
+export { parseHistory, retire } from './prose-merge/history.js'
+export type { Collision } from './prose-merge/merge.js'
 export type { LoadReferenceOptions } from './references/load-reference.js'
 export { loadReference } from './references/load-reference.js'
 export type {
