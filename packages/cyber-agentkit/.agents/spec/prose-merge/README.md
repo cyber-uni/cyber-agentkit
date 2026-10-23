@@ -4,8 +4,9 @@ spec-type: behavioral
 
 # prose-merge — a section a tool wrote earlier is brought to its current wording without losing the owner's edits
 
-Research: [prose-merge](../../../../../.research/prose-merge/conclusion.md). Related to [reference](../reference/README.md),
-which can use this to update an override copied from a plugin; this spec does not depend on it.
+Research: [prose-merge](../../../../../.research/prose-merge/conclusion.md). Related to [asset](../asset/README.md), whose
+copied overrides go stale the same way, and [reference](../reference/README.md), which avoids the problem with merge
+operations; this spec depends on neither.
 
 ## What
 
@@ -148,9 +149,10 @@ apply and cannot collide with the owner's edits, so it is the preferred shape of
 
 ## Open questions
 
-- Q1 What does a copied reference override record as its base? UC4 assumes the source text at copy time is available.
-  Options and a recommendation are in the research's reference-override note; [reference](../reference/README.md) owns
-  the answer.
+- Q1 Who records the base of a whole-text copy? UC4 assumes the source text at copy time is available. Today only
+  [asset](../asset/README.md) makes such copies (`asset create --copy`), and it keeps no record; `reference` has no copy
+  and declares its changes with merge operations instead, so it needs no base. Whether asset adopts this is asset's
+  decision, outside this spec.
 - Q2 How the skill reaches the library's facts: a script it runs, as the reference and asset skills do, or the library
   called directly. Reuse is at the skill (decided); this is only the wiring.
 - Q4 The history file format. Settled direction: any shape that is optimal after detailed design, starting from

@@ -48,9 +48,11 @@ jj and Pijul keep a conflict as structured data. Our equivalent is returning `{b
 
 See `evidence.md`.
 
-## Reference-override note (Q1)
+## Whole-text copy note (Q1)
 
-A reference override made by copy (`copyAsset`, `asset create --copy`) is the owner's edit of a plugin's text. The
+Correction (2026-10-23): this is an asset-domain question, not a reference one. `reference` has no copy-based create; its overrides declare changes (`replace`, `patch`, `combine`, `remove`), so they carry no stale copy. Only `asset create --copy` (`copyAsset`) makes a whole-text copy.
+
+An asset override made by copy is the owner's edit of a plugin's file. The
 plugin later ships a new version. Merging needs the text that was copied (the base). The copy records nothing today.
 
 Options:
@@ -62,9 +64,7 @@ Options:
 - C. Record nothing; fall back to the library's best-match base (R4). No cost to the owner, but frequently
   `undetermined`.
 
-Recommendation: B, with A as the fallback when the plugin ships no history. Separately, overrides that only change a few
-sections should use reference's `patch` or `combine`, which need no base at all because they declare their change; only
-whole-text copies need this.
+Recommendation: B, with A as the fallback when the plugin ships no history. For prose, a reference override that declares `patch` or `combine` needs no base at all; only whole-text copies need this.
 
 ## Several sections (Q3)
 
