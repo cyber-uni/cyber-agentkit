@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { sameSentence, splitSentences } from './split-sentences.js'
 
 const texts = (input: string) => splitSentences(input).map((sentence) => sentence.text)
+const plain = (input: string) => splitSentences(input).map(({ text, kind }) => ({ text, kind }))
 
 describe('splitSentences', () => {
 	it('splits at ., ;, ? and ! followed by whitespace or the end', () => {
@@ -26,7 +27,7 @@ describe('splitSentences', () => {
 
 	it('makes a heading line, a list item and a table row one sentence each', () => {
 		const input = '## Title\nIntro. More.\n- item one. still one\n- item two\n| a | b |\n| - | - |\n1. numbered'
-		expect(splitSentences(input)).toEqual([
+		expect(plain(input)).toEqual([
 			{ text: '## Title', kind: 'heading' },
 			{ text: 'Intro.', kind: 'text' },
 			{ text: 'More.', kind: 'text' },
@@ -40,7 +41,7 @@ describe('splitSentences', () => {
 
 	it('keeps a fenced code block whole, and never reads a heading inside one', () => {
 		const input = 'Before.\n```sh\n# not a heading. nor split\n\nstill code\n```\nAfter.'
-		expect(splitSentences(input)).toEqual([
+		expect(plain(input)).toEqual([
 			{ text: 'Before.', kind: 'text' },
 			{ text: '```sh\n# not a heading. nor split\n\nstill code\n```', kind: 'fence' },
 			{ text: 'After.', kind: 'text' },
@@ -48,9 +49,19 @@ describe('splitSentences', () => {
 	})
 
 	it('keeps a blockquote whole', () => {
-		expect(splitSentences('> quoted. twice\n> more\nAfter.')).toEqual([
+		expect(plain('> quoted. twice\n> more\nAfter.')).toEqual([
 			{ text: '> quoted. twice\n> more', kind: 'quote' },
 			{ text: 'After.', kind: 'text' },
+		])
+	})
+
+	it('records what separated each sentence from the one before', () => {
+		expect(splitSentences('A. B\nC\n\n- d\n- e\n## F').map((sentence) => sentence.gap)).toEqual([
+			'',
+			' ',
+			'\n\n',
+			'\n',
+			'\n',
 		])
 	})
 

@@ -1,7 +1,12 @@
 export type SentenceKind = 'text' | 'heading' | 'item' | 'row' | 'fence' | 'quote'
 
 /** The unit prose-merge compares: see K4 in the prose-merge spec. */
-export type Sentence = { text: string; kind: SentenceKind }
+export type Sentence = {
+	text: string
+	kind: SentenceKind
+	/** What separated this sentence from the one before it: nothing, a space, a newline, or a blank line. */
+	gap: '' | ' ' | '\n' | '\n\n'
+}
 
 const ABBREVIATIONS = ['e.g.', 'i.e.', 'etc.', 'vs.']
 const FENCE = /^\s*(`{3,}|~{3,})/
@@ -42,8 +47,18 @@ export function splitSentences(input: string): Sentence[] {
 	const lines = input.split(/\r?\n/)
 	const out: Sentence[] = []
 	let paragraph: string[] = []
+	let blank = false
+	const gapBefore = () => (out.length === 0 ? '' : blank ? '\n\n' : '\n')
+	const add = (text: string, kind: SentenceKind) => {
+		out.push({ text, kind, gap: gapBefore() })
+		blank = false
+	}
 	const flush = () => {
-		if (paragraph.length) for (const text of splitParagraph(paragraph.join(' '))) out.push({ text, kind: 'text' })
+		if (!paragraph.length) return
+		splitParagraph(paragraph.join(' ')).forEach((text, index) => {
+			if (index === 0) add(text, 'text')
+			else out.push({ text, kind: 'text', gap: ' ' })
+		})
 		paragraph = []
 	}
 	for (let i = 0; i < lines.length; i++) {
@@ -58,23 +73,24 @@ export function splitSentences(input: string): Sentence[] {
 				const close = FENCE.exec(lines[i] as string)
 				if (close && (close[1] as string)[0] === marker && (lines[i] as string).trim() === (close[1] as string)) break
 			}
-			out.push({ text: block.join('\n'), kind: 'fence' })
+			add(block.join('\n'), 'fence')
 		} else if (!line.trim()) {
 			flush()
+			blank = true
 		} else if (HEADING.test(line)) {
 			flush()
-			out.push({ text: line.trim(), kind: 'heading' })
+			add(line.trim(), 'heading')
 		} else if (QUOTE.test(line)) {
 			flush()
 			const block = [line.trim()]
 			while (i + 1 < lines.length && QUOTE.test(lines[i + 1] as string)) block.push((lines[++i] as string).trim())
-			out.push({ text: block.join('\n'), kind: 'quote' })
+			add(block.join('\n'), 'quote')
 		} else if (ROW.test(line)) {
 			flush()
-			out.push({ text: line.trim(), kind: 'row' })
+			add(line.trim(), 'row')
 		} else if (ITEM.test(line)) {
 			flush()
-			out.push({ text: line.trim(), kind: 'item' })
+			add(line.trim(), 'item')
 		} else paragraph.push(line.trim())
 	}
 	flush()
