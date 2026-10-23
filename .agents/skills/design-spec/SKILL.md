@@ -32,10 +32,15 @@ behavior branches. Write these sections of `README.md`, in order. Keep each as s
    capability does about it. Legible to a non-engineer. A definition belongs in Key terms, not here.
 3. **Non-goals.** Plausible goals this capability excludes. "Must not crash" is not a non-goal.
 4. **Key terms.** Each term a criterion leans on, defined once.
-5. **Actors and goals.** Every actor, then the result each wants. Include people affected by the outcome who never
-   invoke it; a missed use case usually hides there. Derive use cases from actors, never by walking the interface.
-6. **Use cases.** One per actor goal: trigger, inputs, success outcome, and **extensions**, every path from the
-   trigger that does not reach the goal. A use case with no extensions says `extensions: none, <why>`.
+5. **Actors and goals.** A table of ID, actor, and goal (`A1.1`, `A1.2`, ...), one row per goal. Include people affected
+   by the outcome who never invoke it; a missed use case usually hides there. Derive use cases from actors, never by
+   walking the interface.
+6. **Use cases.** One per actor goal, each its own heading `### UCn — <title> (<actor IDs>)` with these labelled
+   bullets, in this order: **Trigger**, **Entry points** (grouped by surface, the primary delivery first and named
+   as such), **Inputs**, **Success**, and **Extensions**, every path from the trigger that does not reach the goal, as
+   `UCn.m` sub-bullets. A use case with no extensions says `extensions: none, <why>`. The use case states the goal and
+   result and is delivery agnostic; the delivery (a skill, a command, a library call) appears only under Entry points,
+   and in the criteria group for that adapter.
 7. **Criteria.** A list of boolean statements about the outcome, one per line, each with a stable ID and bound to a
    use case and, where a graph exists, to an edge in it.
 8. **Open questions.** What is unresolved, marked. Empty before the spec is ready.
@@ -59,6 +64,11 @@ each section:
 
 A change to an earlier section reopens every section after it. With no user to ask (a headless run), draft every
 section and put each question under Open questions; the spec is not ready until they are answered.
+
+**Split by capability, never by layer.** A child spec is a capability an actor can name (what they get), such as
+`update` or `history`, so the folder names say what the system does. Never split into a library spec, a CLI spec, and a
+skill spec: one capability reached through three deliveries is one spec, whose use cases list the deliveries as entry
+points. A layer split writes the functional spec early and scatters one outcome across files.
 
 **Size the spec by the tasks that read it.** When the actors and use cases are settled, list the tasks that will read
 the spec: changing one behavior, deriving its tests, checking scope, a consumer checking its contract. If most of them
