@@ -40,7 +40,7 @@ without collision, so the facts report whether a revision is an append, and an a
   the text in the file being updated. **Prose**: any of these passed as text; "offered prose", "found prose" and
   "historic prose(s)" are the offered wording, the found text and the retired wordings.
 - K3 **history**: the retired wordings of one addition, newest first, each with a date and a reason, kept as a Markdown
-  text the library parses and writes.
+  text that the library parses and extends.
 - K4 **sentence**: the unit compared. Text is split at `.`, `;`, `?` or `!` followed by whitespace or the end of the text,
   except after `e.g.`, `i.e.`, `etc.` and `vs.`; at every blank line; and so that a heading line, a list item, and a table
   row are each one sentence. A fenced code block and a blockquote are each one sentence, compared whole, so a change inside
@@ -74,7 +74,7 @@ without collision, so the facts report whether a revision is an append, and an a
 Each use case lives in the child that owns the capability. The delivery (skill, script, library) is an entry point of the
 use case, never a reason to split.
 
-| Child | Capability | Use cases | 
+| Child | Capability | Use cases | Criteria |
 | --- | --- | --- | --- |
 | [update](./update/README.md) | Bring found text to the offered wording | UC5, UC1 | Outcomes, Update, Several sections, Script and skill inputs, Skill behavior |
 | [history](./history/README.md) | Keep the retired wordings | UC3 | History |

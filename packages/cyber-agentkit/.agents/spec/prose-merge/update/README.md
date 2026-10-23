@@ -90,8 +90,8 @@ Part of [prose-merge](../README.md); its terms (K1 to K10) and actors apply here
 - R26 The skill script prints, for each part: path, outcome, reason when `undetermined`, base, shared count and the base's sentence count,
   revision kind, the text for `up-to-date`, `owners` and `update`, and the collisions for `conflict`. It uses the same
   `--format` option as the reference and asset commands.
-- R17 The `merge-prose` skill takes exactly three inputs: offered prose, found prose, historic prose(s), as text. It reads
-  no file the caller did not name.
+- R17 The `merge-prose` skill takes exactly three inputs, as text: offered prose, found prose, and historic prose(s), which
+  is either a history text (parsed by R11) or one or more retired wordings. It reads no file the caller did not name.
 
 **Skill behavior** (UC5; judged by an agent scenario, because no deterministic test reaches it)
 
