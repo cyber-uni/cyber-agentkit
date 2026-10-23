@@ -73,9 +73,10 @@ without collision, so the facts report whether a revision is an append, and an a
 
 - **UC1 Classify found text.** Trigger: a skill passes the found text, the offered wording, and the history (as text).
   Success: one outcome per part (R1) with the facts it rests on. Extensions: UC1.1 the history is empty (`undetermined`,
-  reason `no-history`); UC1.4 the found part shares sentences with the offered wording but with no retired wording and is
-  not up to date (`undetermined`, reason `no-base`); UC1.2 the found text or a part is empty (`undetermined`, reason `empty-section`); UC1.3 two
-  retired wordings share the most (`undetermined`, reason `tied-base`).
+  reason `no-history`); UC1.2 the found text or a part is empty (`undetermined`, reason `empty-section`); UC1.3 two
+  retired wordings share the most (`undetermined`, reason `tied-base`); UC1.4 no retired wording shares a sentence with the
+  found text, and a part shares sentences with the offered wording without being up to date (`undetermined`, reason
+  `no-base`); UC1.5 the offered wording is empty (refused, R33).
 - **UC2 Update found text.** Trigger: a part's outcome is `update`. Success: the updated text, the revision kind (K6),
   and the owner sentences kept. Extensions: UC2.1 the edits collide (`conflict`); UC2.2 the base is not identified
   (`undetermined`).
@@ -96,11 +97,11 @@ without collision, so the facts report whether a revision is an append, and an a
 - R1 `classify` returns, for each part, exactly one outcome of `up-to-date`, `update`, `conflict`, `owners`,
   `undetermined`. A part on one side only gets its outcome from R22 or R23.
 - R2 `up-to-date`: the found part holds every sentence of the offered part, in order, and no sentence found only in a
-  retired wording. Sentences the owner added around or between them do not change this.
-- R3 `owners`: the found part shares no sentence with any wording of the history or the offered wording. Nothing is
-  offered.
+  retired wording; or the part is one the owner deleted (R22). Sentences the owner added around or between them do not
+  change this.
+- R3 `owners`: the found part shares no sentence with the base or the offered wording. Nothing is offered.
 - R4 The base is the retired wording with the largest shared count (K10) with the whole found text, at least 1. Equal
-  largest counts for two wordings give `undetermined` with reason `tied-base`, naming both.
+  largest counts for two wordings give `undetermined` with reason `tied-base`, naming both, for every part.
 - R10 Every outcome except `owners` and `up-to-date` reports the base (when it has one), the shared count, the base's sentence count, and
   the revision kind (K6).
 - R14 The same inputs give the same outcomes and text on every call. No outcome depends on a model, a clock, or a file
@@ -127,13 +128,14 @@ without collision, so the facts report whether a revision is an append, and an a
   base, the found text, and the offered wording by heading path.
 - R22 A part only in the offered wording is added (outcome `update`) after the nearest preceding part the found text
   holds, or first if none; a part only in the found text is the owner's and stays (outcome `owners`); a part in the base and the offered wording but absent from the
-  found text stays absent unless the offered part differs from the base's, which is a `conflict`.
+  found text stays absent (outcome `up-to-date`) unless the offered part differs from the base's, which is a `conflict`.
 - R23 A part in the base and the found text but absent from the offered wording is removed if the found part equals the
   base's; otherwise it is a `conflict`.
 - R24 The base is chosen once for the whole found text by R4; parts are then aligned within it. The document's outcome is
   the first that any part has, in the order `conflict`, `undetermined`, `update`, `owners`, `up-to-date`.
-- R31 A found part that shares sentences with the offered wording but with no retired wording, and is not `up-to-date`,
-  is `undetermined` with reason `no-base`. (UC1.4)
+- R31 When R4 finds no base, a found part that shares sentences with the offered wording and is not `up-to-date` is
+  `undetermined` with reason `no-base`, and one that shares none is `owners`. (UC1.4)
+- R33 An empty offered wording is refused with an error; nothing is classified. (UC1.5)
 - R32 When one heading path occurs more than once in a text, its occurrences are matched across texts by their order; an
   occurrence without a match is an added or removed part.
 - R25 A heading renamed by either side is a removed part and an added part; no outcome depends on guessing a rename.
@@ -143,14 +145,14 @@ without collision, so the facts report whether a revision is an append, and an a
 - R11 `parseHistory` takes text and returns each retired wording as text, date, reason, newest first. An entry that does
   not parse is returned in `invalid` with its position; the rest are returned.
 - R12 `retire` takes the history text, the outgoing wording, a date and a reason, and returns the history text with the
-  wording added at the top and every other byte unchanged. The wording equal to the newest retired one changes nothing.
+  wording, the date text exactly as given, and the reason added at the top and every other byte unchanged. The wording equal to the newest retired one changes nothing.
 - R13 `parseHistory(retire(h, w))` returns `w` first, exactly.
 - R27 The history text starts from the `buddy-agent-harness` shape (a dated `Superseded` heading with a reason, then the
   wording in a Markdown fence); a change to it is a spec change.
 
 **Adapters** (UC5)
 
-- R26 The skill script prints, for each part: path, outcome, reason when `undetermined`, base, shared and total counts,
+- R26 The skill script prints, for each part: path, outcome, reason when `undetermined`, base, shared count and the base's sentence count,
   revision kind, the text for `up-to-date`, `owners` and `update`, and the collisions for `conflict`. It uses the same
   `--format` option as the reference and asset commands.
 - R17 The `merge-prose` skill takes exactly three inputs: offered prose, found prose, historic prose(s), as text. It reads
