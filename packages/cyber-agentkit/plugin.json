@@ -21,7 +21,8 @@
 			},
 			"scripts": {
 				"skills/reference/scripts/reference.mjs": "src/references/reference.skill-script.ts",
-				"skills/asset/scripts/asset.mjs": "src/assets/asset.skill-script.ts"
+				"skills/asset/scripts/asset.mjs": "src/assets/asset.skill-script.ts",
+				"skills/merge-prose/scripts/merge-prose.mjs": "src/prose-merge/prose-merge.skill-script.ts"
 			}
 		}
 	}
