@@ -32,7 +32,8 @@ apply and cannot collide with the owner's edits, so it is the preferred shape of
   agent; this returns facts for it.
 - N2 Writing files, offering text to the owner, or asking. The skill does that.
 - N3 Merging code or structured data, or any unit finer than a sentence.
-- N4 Choosing which section of a file belongs to which addition. The caller passes the section.
+- N4 Finding the prose inside a larger file (the part of an `AGENTS.md` that one addition owns). The caller passes the
+  text; it may hold several sections.
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
 
@@ -48,6 +49,9 @@ apply and cannot collide with the owner's edits, so it is the preferred shape of
   ones. Any other revision is a **rewrite**.
 - K8 **recommended prose**: the text the skill proposes as the updated section, with a note of what it kept, took from the
   new wording, and decided by judgment. It is a proposal: nothing writes it without the caller's approval.
+- K9 **part**: one heading path and the sentences under it before the next heading. A document is a list of parts; a
+  document with no heading is one part with an empty path. Heading levels are read from the document's own top level,
+  as in [reference](../reference/README.md) K5.
 - K7 **owner sentence**: a sentence of the section found in no wording of the history.
 
 ## Actors and goals
@@ -127,16 +131,28 @@ apply and cannot collide with the owner's edits, so it is the preferred shape of
 - R19 Every sentence of the recommended prose that is not from the current prose, the new prose, or an owner sentence is
   marked `decided`; the recommendation is returned only with that mark. (UC5.3)
 - R20 No owner sentence is dropped from the recommended prose unless it is marked `decided` with the reason. (UC5, A3.1)
+**Several sections**
+
+- R21 Prose is divided into parts (K9) and merged part by part; every rule above applies to a part. Parts are matched
+  across the base, the section and the current wording by heading path. (UC1, UC2)
+- R22 A part only in the current wording is added after the nearest preceding part both sides hold; a part only in the
+  section is the owner's and stays; a part in the base and current wording but absent from the section stays deleted
+  unless the current wording changed it, which is a `conflict`. (UC2)
+- R23 A part present in the base and the section but absent from the current wording is removed only if the section's
+  part equals the base's; otherwise it stays and is reported `retired-by-tool`. (UC2)
+- R24 The base is chosen once for the whole document by R4 over all its sentences, then parts are aligned within it.
+  Outcomes are reported per part, and the document's outcome is `current` only if every part is. (UC1)
+- R25 A heading renamed by either side is a removed part and an added part; no outcome depends on guessing a rename.
+  (UC2)
 - R16 The library reads and writes no instruction file; callers pass text and receive text. (N2)
 
 ## Open questions
 
-- Q1 What does a copied reference override record as its base: the source text, a hash, or a plugin version? UC4 assumes
-  the text is available. [reference](../reference/README.md) owns the answer.
+- Q1 What does a copied reference override record as its base? UC4 assumes the source text at copy time is available.
+  Options and a recommendation are in the research's reference-override note; [reference](../reference/README.md) owns
+  the answer.
 - Q2 How the skill reaches the library's facts: a script it runs, as the reference and asset skills do, or the library
   called directly. Reuse is at the skill (decided); this is only the wiring.
-- Q3 Does a heading-path-aware merge (reference's `patch`) replace sentence splitting for documents with several
-  sections, or does the caller pass one section at a time (N4)?
 - Q4 The history file format. Settled direction: any shape that is optimal after detailed design, starting from
   buddy-agent-harness's (a dated `Superseded` heading with a reason, then the wording in a Markdown fence). The skill
   takes the wordings as text (R17), so the file is the library's storage, not the skill's contract.

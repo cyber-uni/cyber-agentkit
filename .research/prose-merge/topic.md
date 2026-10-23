@@ -47,3 +47,28 @@ jj and Pijul keep a conflict as structured data. Our equivalent is returning `{b
 ## Sources consulted
 
 See `evidence.md`.
+
+## Reference-override note (Q1)
+
+A reference override made by copy (`copyAsset`, `asset create --copy`) is the owner's edit of a plugin's text. The
+plugin later ships a new version. Merging needs the text that was copied (the base). The copy records nothing today.
+
+Options:
+- A. Store the base next to the copy (a sidecar or frontmatter field). Always works; duplicates text and can drift if
+  the owner moves the file.
+- B. Record the source plugin, version and a hash of the copied text. The base is found in the plugin's own history of
+  retired wordings, or in a cached older plugin version, by matching the hash. Small, but the plugin must keep history
+  and the cache may have dropped the version (installed caches did hold 0.20.0 and 0.21.0 side by side).
+- C. Record nothing; fall back to the library's best-match base (R4). No cost to the owner, but frequently
+  `undetermined`.
+
+Recommendation: B, with A as the fallback when the plugin ships no history. Separately, overrides that only change a few
+sections should use reference's `patch` or `combine`, which need no base at all because they declare their change; only
+whole-text copies need this.
+
+## Several sections (Q3)
+
+Divide by heading path, conquer by sentence. Flatten the heading tree into a list of parts keyed by heading path; no
+recursion is needed because each part's own sentences are merged and children are separate parts. Nested headings are
+handled by the path, and depth is bounded by Markdown's six levels. A rename is a removed part plus an added part;
+guessing renames would make results depend on a heuristic. The base is chosen once for the whole document.
