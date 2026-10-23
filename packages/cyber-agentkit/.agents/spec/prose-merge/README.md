@@ -140,15 +140,17 @@ apply and cannot collide with the owner's edits, so it is the preferred shape of
   Outcomes are reported per part, and the document's outcome is `current` only if every part is. (UC1)
 - R25 A heading renamed by either side is a removed part and an added part; no outcome depends on guessing a rename.
   (UC2)
+**Adapters**
+
+- R26 The skill reaches the facts through a skill script that follows the shape of the reference and asset skill
+  scripts: structured output, one outcome per part. (UC5)
+- R27 The history file starts from the `buddy-agent-harness` shape (a dated `Superseded` heading with a reason, then the
+  wording in a Markdown fence); a change to it is a spec change. (UC3)
 - R16 The library reads and writes no instruction file; callers pass text and receive text. (N2)
 
 ## Open questions
 
-- Q2 How the skill reaches the library's facts: a script it runs, as the reference and asset skills do, or the library
-  called directly. Reuse is at the skill (decided); this is only the wiring.
-- Q4 The history file format. Settled direction: any shape that is optimal after detailed design, starting from
-  buddy-agent-harness's (a dated `Superseded` heading with a reason, then the wording in a Markdown fence). The skill
-  takes the wordings as text (R17), so the file is the library's storage, not the skill's contract.
+None.
 
 ## References
 
