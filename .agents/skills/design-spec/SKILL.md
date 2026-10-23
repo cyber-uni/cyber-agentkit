@@ -109,9 +109,19 @@ states facts or a table.
 
 ## Review
 
-Load [the criteria](references/criteria.md) and judge the spec against C1 to C9 in the order given there. Report each
-criterion as pass or fail with the line that fails it. A spec is ready when none fails. Do not rewrite a failing
-spec in the same pass unless asked; say what is wrong and what would fix it.
+Load [the criteria](references/criteria.md) and judge the spec against C1 to C9 in the order given there. A spec is
+ready when none fails.
+
+Iterate before you present. After each judgment, fix every failing criterion in the spec yourself, then judge it again.
+Repeat a few times, stopping when none fails or when a round fixes nothing new. Take only the fixes the spec and its
+sources settle. A fix that needs a decision the user has not made (a scope call, a rule with two reasonable readings)
+is not a fix: leave it, and put it under Open questions with the options and your recommendation. Keep each round a
+change of the spec's text only; never move the spec's scope without asking.
+
+Then present, in one message: what you changed across the rounds, grouped by criterion; the final pass or fail of each
+criterion with the line that still fails it; and the open questions that need the user, each with a recommendation. A
+reviewer asked only to judge, not to edit (a read-only review of someone else's spec), skips the iteration and reports
+what is wrong and what would fix it.
 
 ## Derive tests
 
