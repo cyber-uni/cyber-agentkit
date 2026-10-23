@@ -30,6 +30,10 @@ describe('mergeSentences, append revisions', () => {
 		expect(run(['a', 'b'], ['mine'], ['a', 'b', 'new']).merged).toEqual(['mine', 'new'])
 	})
 
+	it('does not add a sentence the owner already wrote', () => {
+		expect(run(['a'], ['a', 'new'], ['a', 'new', 'more']).merged).toEqual(['a', 'new', 'more'])
+	})
+
 	it('never collides, whatever the owner did', () => {
 		expect(run(['a', 'b'], ['x', 'y'], ['a', 'b', 'new']).collisions).toEqual([])
 	})

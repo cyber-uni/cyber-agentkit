@@ -22,8 +22,14 @@ export function revisionKind(base: readonly Sentence[], offered: readonly Senten
 
 function appendTo(base: readonly Sentence[], found: readonly Sentence[], added: readonly Sentence[]): Sentence[] {
 	const last = matchSentences(base, found).find(([i]) => i === base.length - 1)
-	const at = last ? last[1] + 1 : found.length
-	return [...found.slice(0, at), ...added, ...found.slice(at)]
+	const out = [...found]
+	let at = last ? last[1] + 1 : out.length
+	for (const sentence of added) {
+		const had = out.findIndex((x, index) => index >= at && sameSentence(x.text, sentence.text))
+		if (had === -1) out.splice(at++, 0, sentence)
+		else at = had + 1
+	}
+	return out
 }
 
 /**
