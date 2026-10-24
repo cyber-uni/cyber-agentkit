@@ -23,7 +23,7 @@ Read no file the caller did not name. If one of the three is missing, say which 
 node <this skill's folder>/scripts/prose-update.mjs classify --offered-from <file> --found-from <file> --history-from <file> --format json
 ```
 
-Pass `--offered`, `--found`, or `--history` with the text itself instead of the `-from` form, and `--retired` (repeatable, newest first) in place of a history text. Each of the three takes one form, not both. If the script is missing or cannot run, use `pnpm exec cyber-agentkit prose-update` when the package is a direct dependency, else `npx -y cyber-agentkit@1.1.0 prose-update`, with the same arguments.
+Pass `--offered`, `--found`, or `--history` with the text itself instead of the `-from` form, and `--retired` (repeatable, newest first) in place of a history text. Each of the three takes one form, not both. If the script is missing or cannot run, use `pnpm exec cyber-agentkit prose-update` when the package is a direct dependency, else `npx -y cyber-agentkit@1.2.0 prose-update`, with the same arguments.
 
 An empty offered wording exits 1 with `error: empty-offered`. Report it and stop.
 
