@@ -1,6 +1,6 @@
 export type SentenceKind = 'text' | 'heading' | 'item' | 'row' | 'fence' | 'quote'
 
-/** The unit prose-merge compares: see K4 in the prose-merge spec. */
+/** The unit prose-update compares: see K4 in the prose-update spec. */
 export type Sentence = {
 	text: string
 	kind: SentenceKind

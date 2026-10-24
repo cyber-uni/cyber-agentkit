@@ -3,7 +3,7 @@ import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { cli, exitCodes } from 'clibuilder'
 import { createAssetCommand } from './assets/asset.command.js'
-import { createProseUpdateCommand } from './prose-merge/prose-merge.command.js'
+import { createProseUpdateCommand } from './prose-update/prose-update.command.js'
 import { createReferenceCommand } from './references/reference.command.js'
 
 /** Who runs the CLI: the plugin's name, the package's version, and the folder its own `references/` sit in. */
@@ -32,7 +32,7 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 		name: 'cyber-agentkit',
 		version,
 		description:
-			'Work with the AI agent harness running here: read its layered reference documents, and merge prose a tool wrote earlier.',
+			'Work with the AI agent harness running here: read its layered reference documents, and update prose a tool wrote earlier.',
 	})
 		.command(createReferenceCommand({ plugin: { name, root } }))
 		.command(createAssetCommand({ plugin: { name, root } }))

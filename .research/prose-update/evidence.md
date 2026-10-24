@@ -1,4 +1,4 @@
-# Evidence: prose-merge
+# Evidence: prose-update
 
 Confidence: H high, M medium, L low. All accessed 2026-10-22 through search summaries unless noted; primary reads still due.
 

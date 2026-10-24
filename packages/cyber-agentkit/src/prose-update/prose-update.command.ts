@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import type { cli } from 'clibuilder'
 import { command, exitCodes, t } from 'clibuilder'
 import { CliError, document, result } from 'clibuilder/axi'
-import { classify, ProseMergeError } from './classify.js'
+import { classify, ProseUpdateError } from './classify.js'
 import { parseHistory, retire } from './history.js'
 
 const text = (what: string) => ({ description: `${what}, as text.`, type: t.string().optional() })
@@ -96,7 +96,7 @@ function classifyCommand(): cli.Command {
 					text: out.text,
 				})
 			} catch (error) {
-				if (!(error instanceof ProseMergeError)) throw error
+				if (!(error instanceof ProseUpdateError)) throw error
 				process.stderr.write(`error: ${error.code}: ${error.message}\n`)
 				throw CliError.reported(exitCodes.error)
 			}

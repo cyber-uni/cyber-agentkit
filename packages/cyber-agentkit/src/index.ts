@@ -67,11 +67,11 @@ export type {
 	Outcome,
 	PartResult,
 	Reason,
-} from './prose-merge/classify.js'
-export { classify, ProseMergeError } from './prose-merge/classify.js'
-export type { InvalidEntry, ParsedHistory, RetiredWording } from './prose-merge/history.js'
-export { parseHistory, retire } from './prose-merge/history.js'
-export type { Collision } from './prose-merge/merge.js'
+} from './prose-update/classify.js'
+export { classify, ProseUpdateError } from './prose-update/classify.js'
+export type { InvalidEntry, ParsedHistory, RetiredWording } from './prose-update/history.js'
+export { parseHistory, retire } from './prose-update/history.js'
+export type { Collision } from './prose-update/merge.js'
 export type { LoadReferenceOptions } from './references/load-reference.js'
 export { loadReference } from './references/load-reference.js'
 export type {

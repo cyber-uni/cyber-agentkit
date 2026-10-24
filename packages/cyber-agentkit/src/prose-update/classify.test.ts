@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classify, ProseMergeError } from './classify.js'
+import { classify, ProseUpdateError } from './classify.js'
 
 const V1 = 'Alpha is first. Beta is second.'
 const V2 = 'Alpha is first. Beta is second. Gamma is third.'
@@ -92,7 +92,7 @@ describe('classify, one section', () => {
 	})
 
 	it('refuses an empty offered wording', () => {
-		expect(() => classify({ found: V1, offered: ' \n', history: [V1] })).toThrow(ProseMergeError)
+		expect(() => classify({ found: V1, offered: ' \n', history: [V1] })).toThrow(ProseUpdateError)
 	})
 
 	it('picks the base with the most shared sentences, and takes dates from a history text', () => {

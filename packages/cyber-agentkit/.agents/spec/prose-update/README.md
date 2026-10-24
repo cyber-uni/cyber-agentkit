@@ -2,9 +2,9 @@
 spec-type: behavioral
 ---
 
-# prose-merge — a section a tool wrote earlier is brought to its offered wording without losing the owner's edits
+# prose-update — a section a tool wrote earlier is brought to its offered wording without losing the owner's edits
 
-Research: [prose-merge](../../../../../.research/prose-merge/conclusion.md). Depends on no other domain: where the
+Research: [prose-update](../../../../../.research/prose-update/conclusion.md). Depends on no other domain: where the
 historic prose comes from is the caller's concern. Retired IDs: A4, UC2, UC4, R5, R7, R15, R16.
 
 ## What
@@ -90,7 +90,7 @@ None.
 
 ## References
 
-- [prose-merge research](../../../../../.research/prose-merge/conclusion.md): prior art and the sentence-granularity
+- [prose-update research](../../../../../.research/prose-update/conclusion.md): prior art and the sentence-granularity
   experiment.
 - `buddy-agent-harness` skill `enhance`: the procedure and history files this generalises.
 - [reference](../reference/README.md): `combine` and `patch` declare a change over a base; this recovers the change from

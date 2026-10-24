@@ -51,7 +51,7 @@ So sentence-per-line is the right unit for prose. Appends at the same position a
 
 ## Recommendation for cyber-agentkit
 
-- Domain: a new `prose-merge` folder under `src/`, named for the concept. It is not a harness fact, so it cites no harness research. It depends on no other domain.
+- Domain: a new `prose-update` folder under `src/`, named for the concept. It is not a harness fact, so it cites no harness research. It depends on no other domain.
 - Public API sketch (not decided, see open questions):
   - `splitSentences(markdown)`: fence- and quote-aware, per the `enhance` rule that a quoted or fenced sentence is not asserted.
   - `merge3({ base, ours, theirs })` returning `{ status: 'clean' | 'conflict', text, conflicts[] }`, each conflict carrying base/ours/theirs.

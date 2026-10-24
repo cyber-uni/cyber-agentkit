@@ -44,13 +44,13 @@ export type ClassifyInput = {
 }
 
 /** The offered wording is empty, so nothing can be classified (R33). */
-export class ProseMergeError extends Error {
+export class ProseUpdateError extends Error {
 	constructor(
 		readonly code: 'empty-offered',
 		message: string,
 	) {
 		super(message)
-		this.name = 'ProseMergeError'
+		this.name = 'ProseUpdateError'
 	}
 }
 
@@ -92,7 +92,7 @@ function render(part: Part | undefined, heading: string | undefined, sentences: 
 /** Classifies each part of the found text against the offered wording and the history, and merges where it can. */
 export function classify(input: ClassifyInput): Classification {
 	const offeredSentences = splitSentences(input.offered)
-	if (!offeredSentences.length) throw new ProseMergeError('empty-offered', 'The offered wording is empty.')
+	if (!offeredSentences.length) throw new ProseUpdateError('empty-offered', 'The offered wording is empty.')
 	const foundSentences = splitSentences(input.found)
 	const foundParts = parseParts(input.found)
 	const offeredParts = parseParts(input.offered)

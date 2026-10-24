@@ -29,7 +29,7 @@ describe('prose-update classify', () => {
 	})
 
 	it('reads inputs from files and a history text', async () => {
-		const dir = mkdtempSync(join(tmpdir(), 'prose-merge-'))
+		const dir = mkdtempSync(join(tmpdir(), 'prose-update-'))
 		writeFileSync(join(dir, 'history.md'), '## Superseded 2026-01 — r\n\n```markdown\nA. B.\n```\n')
 		writeFileSync(join(dir, 'found.md'), 'A. B.\n')
 		const code = await run(

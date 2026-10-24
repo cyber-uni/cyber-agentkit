@@ -38,7 +38,7 @@ if (harness !== 'unknown') skillsDirectories(harness)
 for a host CLI. The concepts behind them are in [reference documents](/cyber-agentkit/concepts/reference-documents/)
 and [reference interfaces](/cyber-agentkit/concepts/reference-interfaces/).
 
-## Prose merge
+## Prose update
 
 `classify({ found, offered, history })` compares prose a tool wrote earlier, and its owner may have edited, with the
 wording the tool offers now. Text is divided into parts by heading path and compared sentence by sentence against the

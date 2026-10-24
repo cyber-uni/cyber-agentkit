@@ -4,7 +4,7 @@ spec-type: behavioral
 
 # update — a calling skill gets the recommended updated prose for text the owner may have edited
 
-Part of [prose-merge](../README.md); its terms (K1 to K10) and actors apply here.
+Part of [prose-update](../README.md); its terms (K1 to K10) and actors apply here.
 
 ## Use cases
 

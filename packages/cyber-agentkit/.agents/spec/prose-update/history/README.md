@@ -4,7 +4,7 @@ spec-type: behavioral
 
 # history — the wordings a tool has retired are read from and added to a history text
 
-Part of [prose-merge](../README.md); its terms (K3 history, K1 to K2 wordings) and actors apply here.
+Part of [prose-update](../README.md); its terms (K3 history, K1 to K2 wordings) and actors apply here.
 
 ## Use cases
 

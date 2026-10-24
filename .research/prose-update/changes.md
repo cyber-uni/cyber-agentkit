@@ -1,4 +1,4 @@
-# Changes: prose-merge
+# Changes: prose-update
 
 ## 2026-10-22
 
