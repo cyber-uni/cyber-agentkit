@@ -13,10 +13,10 @@ afterEach(() => {
 	process.exitCode = undefined
 })
 
-const argv = (...args: string[]) => ['node', 'cyber-agentkit', 'prose-merge', ...args]
+const argv = (...args: string[]) => ['node', 'cyber-agentkit', 'prose-update', ...args]
 const printed = () => stdout.mock.calls.map(([chunk]) => String(chunk)).join('')
 
-describe('prose-merge classify', () => {
+describe('prose-update classify', () => {
 	it('prints the outcome and the merged text as json', async () => {
 		const code = await run(
 			argv('classify', '--offered', 'A. B. C.', '--found', 'A. B. Mine.', '--retired', 'A. B.', '--format', 'json'),
@@ -63,7 +63,7 @@ describe('prose-merge classify', () => {
 	})
 })
 
-describe('prose-merge retire', () => {
+describe('prose-update retire', () => {
 	it('prints the history with the wording added', async () => {
 		const code = await run(
 			argv('retire', '--history', '# H\n', '--wording', 'W', '--date', '2026-02', '--reason', 'why'),

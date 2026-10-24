@@ -133,9 +133,9 @@ function retireCommand(): cli.Command {
 }
 
 /** `classify` and `retire`: the script behind the `prose-update` skill (R26). */
-export function createProseMergeCommand(): cli.Command {
+export function createProseUpdateCommand(): cli.Command {
 	return command({
-		name: 'prose-merge',
+		name: 'prose-update',
 		description:
 			'Bring prose a tool wrote earlier to its offered wording without losing the owner’s edits: classify found prose, and extend the history of retired wordings.',
 		commands: [classifyCommand(), retireCommand()],
