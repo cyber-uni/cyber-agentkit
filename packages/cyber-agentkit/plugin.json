@@ -21,7 +21,8 @@
 			},
 			"scripts": {
 				"skills/reference/scripts/reference.mjs": "src/references/reference.skill-script.ts",
-				"skills/asset/scripts/asset.mjs": "src/assets/asset.skill-script.ts"
+				"skills/asset/scripts/asset.mjs": "src/assets/asset.skill-script.ts",
+				"skills/prose-update/scripts/prose-update.mjs": "src/prose-update/prose-update.skill-script.ts"
 			}
 		}
 	}

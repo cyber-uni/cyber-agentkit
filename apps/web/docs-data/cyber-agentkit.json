@@ -1,5 +1,17 @@
 {
 	"skills": {
+		"prose-update": {
+			"examples": [
+				{
+					"prompt": "The new Delegation wording is in delegation.md, and AGENTS.md has an older one I edited. Update it.",
+					"result": "The skill runs `classify` on the offered wording, the section found in AGENTS.md, and the retired wordings. For a part marked `update` it recommends the merged text, with your own sentences kept. It writes nothing until you approve."
+				},
+				{
+					"prompt": "Both the new wording and my edit changed the same sentence.",
+					"result": "The part is a `conflict`. The skill shows the base, found, and offered sentences that collide, recommends a resolution it marks as decided with its reason, and asks you to choose."
+				}
+			]
+		},
 		"reference": {
 			"examples": [
 				{

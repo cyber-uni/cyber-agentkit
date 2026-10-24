@@ -36,4 +36,4 @@ facts, is a section of that node, not a node of its own. Chosen because `src/` i
 
 Nodes so far: [`dependencies/`](./dependencies/README.md), the plugin dependency check and the how-to document it
 generates; [`reference/`](./reference/README.md), loading the instructions a skill names, composed from the tiers that hold
-them (draft; its child specs are resolve, write, interfaces, and skill).
+them (draft; its child specs are resolve, write, interfaces, and skill); [`prose-update/`](./prose-update/README.md), updating prose a tool wrote earlier without losing the owner's edits (draft).
