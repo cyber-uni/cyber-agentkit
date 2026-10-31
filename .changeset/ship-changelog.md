@@ -1,5 +1,0 @@
----
-"cyber-agentkit": patch
----
-
-Include `CHANGELOG.md` in the published package.

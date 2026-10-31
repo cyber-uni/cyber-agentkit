@@ -1,5 +1,11 @@
 # cyber-agentkit
 
+## 1.2.1
+
+### Patch Changes
+
+- f67f2f2: Include `CHANGELOG.md` in the published package.
+
 ## 1.2.0
 
 ### Minor Changes
