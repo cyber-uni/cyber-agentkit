@@ -2,27 +2,30 @@
 spec-type: behavioral
 ---
 
-# reference — an agent loads exactly the instructions a skill names, composed from tiers that hold them
+# reference — an agent reads only the instructions that apply where it works, however many places customize them
 
 The work to make the code meet this spec and its child specs is tracked in #113.
 
 ## What
 
-A skill often needs instructions it does not carry itself: how this repository tracks issues, or which house style to
-follow. Today it has three ways to get them, and each costs context or control. It can inline them, so every run loads
-all of them and no one can change them without forking the plugin. It can ship them as skills only the agent invokes, so
-each one's name and description load into every session, needed or not. Or it can search for them by frontmatter or by
-grepping text, which loads documents the task does not need and leaves each skill to decide for itself which
-contribution to follow.
+A skill often needs instructions it does not carry itself: how this repository tracks issues, which house style to
+follow, which criteria a spec must meet. Many parties want a say in them: the plugin that ships the skill, other
+plugins, the user for every repository, the repository, each project in a monorepo, a single feature, and a company
+or team through the harness. Without this capability, each choice costs the agent something. Instructions inlined in
+the skill load on every run and cannot change without a fork. Layered customizations still hand the agent the text
+they meant to drop, or two texts that disagree, and leave it to reconcile them. A project's customization is missed
+when the agent's work moves into that project's folder mid-task. And a customization goes quietly out of date when the
+plugin under it updates.
 
-This capability lets a skill ask for instructions by name, such as `project-tracker.capabilities.github`, and get
-exactly that. The skill depends on the name, not on a file. Whoever places a contribution for the name decides what it
-says: a plugin ships one, and a repository, a user, or a machine-wide policy can each place their own. Each contribution
-declares what it builds on and how it applies over it: it replaces it, combines with it, patches some of its sections,
-or removes it. One rule, the same for every skill, puts the contributions in order. A team can then customize a
-plugin's instructions without forking it, and two skills asking for one name read the same thing, unless each answers
-from its own default. Contributions come from authors who never coordinate, so a fault in one never stops the rest:
-each name is answered with what can be found, and every fault is reported as a warning.
+This capability lets a skill ask for instructions by name and get one concise document. A customizer states once, in
+their own words, what they want changed, for themselves or for the repository. An agent then writes the finished
+document from everything it builds on, and records what it was built from. Each project folder adds only what differs
+there, and the agent receives those additions marked with the folder they apply to, so it follows the right ones
+wherever its work goes. When a plugin a document was built from changes, the agent is told to revise it. Company and
+team instructions, and a single feature's own instructions, cannot be read in advance. The agent combines them with
+the document while it works, following a stated order of precedence. Customizations come from people who never
+coordinate, so a fault in one never stops the rest: each name is answered with what can be found, and every fault is
+reported as a warning.
 
 **Non-goals:**
 
