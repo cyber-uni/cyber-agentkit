@@ -12,13 +12,16 @@ IDs are shared across the parent and its children.
 ### UC1 — Resolve names (A1.1)
 
 - **Trigger:** a consumer's instructions name one or more references to load.
-- **Entry points:** Skill: the `reference` skill's Load mode, which runs the command. Code: `reference show <name>...`;
+- **Entry points:** Skill: the `reference` skill's Load mode, which runs the command. Code: `reference load <name>...`;
   `loadReference(name, options)`.
-- **Inputs:** one or more names; the root (default the current directory); the calling skill's folder, for the `default`
-  tier; the detected harness.
-- **Outcome:** for each name, in the order asked, the document composed from its contributions as their `extends` and
-  `merge` declare, with status `found`. The document is the composed bodies; no contribution's frontmatter is part of
-  it.
+- **Inputs:** one or more names; the root (K18); the calling skill's folder, for the `default` tier; the detected
+  harness; optionally the routing option, and `--in <path>...`.
+- **Outcome:** for each name, in the order asked, with status `found`, its resolved reference (K28): the main document
+  (K23), composed as each contribution's `extends` and `merge` declare, followed by each project section below the root,
+  in path order, under a heading naming its folder. Project sections are read from every folder below the root that
+  `.gitignore` does not exclude, tracked or not. With the routing option, a route stands in place of each project
+  section's text, and `--in` expands the routes whose folder holds one of its paths. No contribution's frontmatter or
+  merge marker is part of it.
 - **Extensions:** each name resolves on its own; a fault in one never stops the others.
   - UC1.1 No contribution answers: status `missing`, with the reason: no tier holds the name (`default` included); the
     plugin a qualified name asks for is not installed; or a `merge: remove` contribution leaves nothing and no
@@ -47,6 +50,13 @@ IDs are shared across the parent and its children.
   - UC1.13 A section matches no section below: with an explicit `<!-- merge: ... -->` marker, a warning, and its text
     goes at the end (nothing, for `remove`); unmarked, it goes at the end with no warning. A document repeating a
     heading: the first is matched, with a warning.
+  - UC1.14 A generated document it uses is stale (K26): still answered, with a warning naming each changed or missing
+    source and how to revise it (UC14).
+  - UC1.16 No main document, but project sections exist: status `found`, with only the project sections. A generated
+    section whose recorded sources are gone is stale (UC1.14).
+  - UC1.17 A project section for a name that is not Markdown: not read, with a warning.
+  - UC1.18 An `--in` path outside the root: ignored, with a warning. `--in` without the routing option changes nothing:
+    every project section is already inline.
 
 ### UC2 — Explain a resolution (A2.1)
 
