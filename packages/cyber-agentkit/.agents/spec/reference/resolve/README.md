@@ -121,7 +121,7 @@ IDs are shared across the parent and its children.
 
 ### UC7 — Build on other contributions (A5.1, A6.2)
 
-- **Trigger:** an author (a plugin author, or a customizer in the project or user folder) wants a contribution to
+- **Trigger:** an author (a plugin author, or a customizer in the `repo` or `user` tier) wants a contribution to
   build on other plugins' contributions, or on the loading skill's default, in a chosen order and way.
 - **Entry points:** Skill: the `reference` skill's Create and Update modes. Code: the contribution's frontmatter
   `extends` and `merge`.
@@ -130,9 +130,11 @@ IDs are shared across the parent and its children.
   contribution's own `merge`.
 - **Outcome:** each step brings its own `extends` beneath it, recursively; a plugin both listed and brought in appears
   once, at its listed place. Each step applies with its own operation: the step's key, else the plugin's own `merge`,
-  else `patch`. The contribution's body applies on top with its own `merge`. The highest written `extends` builds the
-  stack, and managed, project, and user contributions apply over it in K17 order. Anything left out of that `extends`,
-  a plugin or `default`, is `not used`. So a house-style plugin changes what a generic skill reads without forking it.
+  else `patch`. The contribution's body applies on top with its own `merge`. The highest written `extends` among the
+  contributions used builds the stack: a managed contribution's, else the nearer of the `repo` and `user` ones, else the
+  plugins' own. The nearer `repo` or `user` contribution applies over the stack, and each managed contribution over that
+  (K23). Anything left out of that `extends`, a plugin or `default`, is `not used`. So a house-style plugin changes what
+  a generic skill reads without forking it.
 - **Extensions:**
   - UC7.1 A step cannot be used, a lower `extends` differs, or a plugin lists itself: as UC1.12 says.
   - UC7.2 The steps cannot be put in one order: as UC1.2 says. Under a written list, bringing in stops at a plugin
@@ -141,21 +143,24 @@ IDs are shared across the parent and its children.
   - UC7.3 A malformed `extends`: as UC1.5 says; it counts as not written.
   - UC7.4 A qualified name builds that plugin's own stack; a written `extends` is not used (UC2.4).
   - UC7.5 `extends` or `merge` on an interface document: ignored with a warning. An interface is never composed.
+  - UC7.6 Both `repo` and `user` write `extends`: the `user` one is not used (UC2.7), so the user's own pick never
+    reaches the repository's stack.
 
 ### UC10 — Confirm a managed contribution is in effect (A4.1)
 
 - **Trigger:** an admin has placed `<name>.md` in a harness's managed folder, by hand or through device management,
   and wants to confirm it is in effect.
-- **Entry points:** Skill: the `reference` skill's Inspect mode. Code: `reference show <name> --trace`.
+- **Entry points:** Skill: the `reference` skill's Inspect mode. Code: `reference load <name> --trace`.
 - **Inputs:** a name; the root of a repository to check from; the detected harness.
-- **Outcome:** the trace shows the managed contribution with its outcome, above project and user contributions, and
-  what it changed in each section (UC2). Placing the file is outside this capability: it is written like any other
-  contribution, in the managed folder that harness detection finds for each harness.
+- **Outcome:** the trace shows the managed contribution with its outcome, applied over the main document with its merge
+  operation (K27), and what it changed in each section (UC2). Placing the file is outside this capability: it is written
+  like any other contribution, in the managed folder that harness detection finds for each harness.
 - **Extensions:**
   - UC10.1 The harness keeps its managed content where it cannot be read locally (an MDM domain, or a server): the
     trace shows that layer not read, with the reason.
   - UC10.2 The file sits in the managed folder of a harness that is not detected: that folder is not read, and the
     trace names the detected harnesses, so the admin sees why.
+  - UC10.3 A section of the managed contribution matches no section of the main document: as UC1.13 says.
 
 ## Criteria
 
