@@ -10,22 +10,31 @@ The work to make the code meet this spec and its child specs is tracked in #113.
 
 A skill often needs instructions it does not carry itself: how this repository tracks issues, which house style to
 follow, which criteria a spec must meet. Many parties want a say in them: the plugin that ships the skill, other
-plugins, the user for every repository, the repository, each project in a monorepo, a single feature, and a company
-or team through the harness. Without this capability, each choice costs the agent something. Instructions inlined in
-the skill load on every run and cannot change without a fork. Layered customizations still hand the agent the text
-they meant to drop, or two texts that disagree, and leave it to reconcile them. A project's customization is missed
-when the agent's work moves into that project's folder mid-task. And a customization goes quietly out of date when the
-plugin under it updates.
+plugins, a company's admin, the user in every repository, the repository, each project in a monorepo, and a single
+feature. Without this capability, each of them costs the agent something. Instructions inlined in the skill load on
+every run, and no one can change them without forking the plugin. A plugin that supplies its own version, such as one
+for another issue tracker, cannot tell whether it covers everything the skill expects. Customizations stacked on one
+another hand the agent text they meant to drop, or two texts that disagree, and leave it to reconcile them while it
+works. A project's customization is missed when the agent's work moves into that project's folder partway through a
+task. A customization goes quietly out of date when the plugin under it updates. And an admin's instructions for every
+repository on the machine reach a skill only if something reads them for it.
 
-This capability lets a skill ask for instructions by name and get one concise document. A customizer states once, in
-their own words, what they want changed, for themselves or for the repository. An agent then writes the finished
-document from everything it builds on, and records what it was built from. Each project folder adds only what differs
-there, and the agent receives those additions marked with the folder they apply to, so it follows the right ones
-wherever its work goes. When a plugin a document was built from changes, the agent is told to revise it. Company and
-team instructions, and a single feature's own instructions, cannot be read in advance. The agent combines them with
-the document while it works, following a stated order of precedence. Customizations come from people who never
-coordinate, so a fault in one never stops the rest: each name is answered with what can be found, and every fault is
-reported as a warning.
+This capability lets a skill ask for instructions by name and get one concise document, with the additions that apply
+around it. The skill's author ships a version of their own, and can publish what any version must contain. Another
+plugin can ship a version of its own that meets those requirements, or build on an existing version by replacing or
+adding to some of its sections. Either takes effect as soon as the plugin is installed. Where several versions could
+answer, the customizer picks one. A customizer then states, in their own words, what to change, either for the
+repository or for themselves in every repository, and an agent writes the finished document from the chosen versions
+and those changes, recording what it was built from. When a skill asks for the name, the nearest finished document
+answers: the repository's, else the one the user made for themselves, else what the plugins ship. An admin's
+instructions on the machine come before it and rank above it. Each project folder adds only what differs there, marked
+with the folder it applies to, so the agent follows the right additions wherever its work goes. When a plugin a
+document was built from changes, the agent is told to revise the document.
+
+Some instructions cannot be read in advance: those a harness delivers from a company or team server, and a single
+feature's own. The agent combines them with the document while it works, following a stated order of precedence.
+Customizations come from people who never coordinate, so a fault in one never stops the rest: each name is answered
+with what can be found, and every fault is reported as a warning.
 
 **Non-goals:**
 
