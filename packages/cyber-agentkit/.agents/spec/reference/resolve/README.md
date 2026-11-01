@@ -61,18 +61,20 @@ IDs are shared across the parent and its children.
 ### UC2 — Explain a resolution (A2.1)
 
 - **Trigger:** someone asks what an agent reads for a name and why, or where a customization of it would go.
-- **Entry points:** Skill: the `reference` skill's Inspect mode. Code: `reference show <name> --trace`;
-  `reference where <name> [--default <skill folder>] [--trace]`; `resolveReference`, `whereReference`.
-- **Inputs:** a name; the root (default the current directory); the calling skill's folder, for the `default` tier;
-  the detected harness.
+- **Entry points:** Skill: the `reference` skill's Inspect mode. Code: `reference load <name> --trace`;
+  `reference where <name> [--default <skill folder>] [--in <folder>] [--trace]`; `resolveReference`, `whereReference`.
+- **Inputs:** a name; the root (K18); the calling skill's folder, for the `default` tier; the detected harness;
+  optionally a folder below the root.
 - **Outcome:** the trace gives the name's status; the stack and what built it (the contribution whose `extends` was
-  used, the plugins' own `extends`, or none); for each section of the composed document, by heading path, the
-  contributions that supplied its text and the operation each applied; and every layer checked, in K17 order highest
-  first, with its path, the file that matched, its frontmatter as written, the operation it applied and whether that
-  came from the contribution or from a step, and its outcome (K7). The composed document itself is unchanged. `where`
-  gives the project and user `<name>.md` files a customization or a selection is written to, each with who it reaches,
-  and the heading paths of the document below each, which a section operation can target; with `--trace`, also the
-  layers with their outcomes.
+  used, the plugins' own `extends`, or none); for each section of the main document, by heading path, the
+  contributions that supplied its text and the operation each applied; every layer checked, highest first (`managed`,
+  then `repo`, then `user`, then the stack in K17 order), with its path, the file that matched, its frontmatter as
+  written, the operation it applied and whether that came from the contribution or from a step, and its outcome (K7);
+  and each project section with its folder and path. For a generated document, it also gives each recorded source with
+  its recorded and installed plugin versions, and the instructions. The resolved reference itself is unchanged. `where`
+  gives the `repo` and `user` `<name>.md` files a customization or a selection is written to, each with who it reaches,
+  and the heading paths of the main document, which a section operation can target; with `--in <folder>`, also the
+  project section file for that folder; with `--trace`, also the layers with their outcomes.
 - **Extensions:**
   - UC2.1 A layer or step cannot be read (policy held in MDM, a plugin with no install folder, a step not installed, a
     `default` step with nothing there): it appears with the reason, such as `not read (not installed)` or
@@ -83,10 +85,14 @@ IDs are shared across the parent and its children.
     `not used (<step>'s extends replaced by <contribution>)`.
   - UC2.4 An `extends` that did not build the stack: `not used (<contribution>'s extends builds the stack)`, or
     `not used (qualified name)`. The contribution's body still applies.
-  - UC2.5 `where` on an ambiguous name: it lists each `<plugin>/<name>` and the default as options, and the project and
-    user files a selection goes to. It is not an error.
+  - UC2.5 `where` on an ambiguous name: it lists each `<plugin>/<name>` and the default as options, and the `repo` and
+    `user` files a selection goes to. It is not an error.
   - UC2.6 `where` on a plugin's contribution or a default contribution: reported read-only, never offered as a place to
     write.
+  - UC2.7 Both `repo` and `user` hold a contribution: the `user` one is `shadowed (repo is nearer)`, whatever its
+    operation.
+  - UC2.8 A generated document is stale: each changed or missing source is marked, and the layer's outcome is `stale`.
+  - UC2.9 A folder below the root that `.gitignore` excludes: its project section is `not read (ignored)`.
 
 ### UC3 — List and search (A3.1)
 
