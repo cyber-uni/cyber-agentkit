@@ -99,13 +99,14 @@ IDs are shared across the parent and its children.
 - **Trigger:** someone wants the names that exist, to load one or customize one.
 - **Entry points:** Skill: the `reference` skill's Find mode. Code: `reference list [pattern]`;
   `reference search <query>`; `listReferences`, `searchReferences`.
-- **Inputs:** a pattern or a query; the root (default the current directory); the detected harness.
+- **Inputs:** a pattern or a query; the root (K18); the detected harness.
 - **Outcome:** `list` gives one row per name with its description, and its status when not `found`; a pattern keeps
   exactly the names it matches. With `--trace`, it gives one row per name per layer holding it, and one per installed
   skill holding a default contribution of it (a harness's machine-wide admin skills included), with tier, plugin or
   skill, path, description, and the outcome (K7) that contribution gets; a default's is the one it gets when its skill
   loads the name, and its row notes that the `default` step reaches it then; a default has no qualified name. A
-  selection's row is marked as one. `search` resolves each name as `show` would, and each default as its skill loads it,
+  selection's row is marked as one, a generated document's as generated, and a project section's row names its folder.
+  `search` resolves each name as `load` would, and each default as its skill loads it,
   then gives matches best first, each with its name, description, and match kind.
 - **Extensions:**
   - UC3.1 Nothing matches: the output says zero explicitly. It is not an error.
