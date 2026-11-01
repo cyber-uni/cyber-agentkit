@@ -24,17 +24,17 @@ around it. The skill's author ships a version of their own, and can publish what
 plugin can ship a version of its own that meets those requirements, or build on an existing version by replacing or
 adding to some of its sections. Either takes effect as soon as the plugin is installed. Where several versions could
 answer, the customizer picks one. A customizer then states, in their own words, what to change, either for the
-repository or for themselves in every repository, and an agent writes the finished document from the chosen versions
-and those changes, recording what it was built from. When a skill asks for the name, the nearest finished document
-answers: the repository's, else the one the user made for themselves, else what the plugins ship. An admin's
-instructions on the machine come before it and rank above it. Each project folder adds only what differs there, marked
-with the folder it applies to, so the agent follows the right additions wherever its work goes. When a plugin a
-document was built from changes, the agent is told to revise the document.
+repository or for themselves in every repository, and an agent writes the finished document from the chosen versions and
+those changes, recording what it was built from. When a skill asks for the name, the nearest finished document answers:
+the repository's, else the one the user made for themselves, else what the plugins ship. An admin's instructions on the
+machine apply over it, changing, adding to, or replacing its sections the way a plugin does. Each project folder adds
+only what differs there, marked with the folder it applies to, so the agent follows the right additions wherever its
+work goes. When a plugin a document was built from changes, the agent is told to revise the document.
 
 Some instructions cannot be read in advance: those a harness delivers from a company or team server, and a single
 feature's own. The agent combines them with the document while it works, following a stated order of precedence.
-Customizations come from people who never coordinate, so a fault in one never stops the rest: each name is answered
-with what can be found, and every fault is reported as a warning.
+Customizations come from people who never coordinate, so a fault in one never stops the rest: each name is answered with
+what can be found, and every fault is reported as a warning.
 
 **Non-goals:**
 
@@ -50,34 +50,35 @@ with what can be found, and every fault is reported as a warning.
 - N7 Finding a document for a single use, such as one feature's spec. The consuming skill points the agent at it.
 - N8 Noticing changes to a source's content. Only a plugin's version is compared; a customizer who changes their
   instructions generates the document again.
-- N9 Editing a generated document by hand. A change goes in the customizer's instructions, and the document is
-  generated again.
+- N9 Editing a generated document by hand. A change goes in the customizer's instructions, and the document is generated
+  again.
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
 
-- K1 **tier**: where a contribution for a name comes from: `managed`, `repo`, `project`, `user`, `plugin`, or
-  `default`. `plugin` and `default` build the stack (K14). `repo` and `user` hold a whole document or a selection, and
-  K23 picks the main document from them and the stack. `managed` and `project` add sections around it (K27, K24).
-  `--scope` names the tier a write goes to: `repo`, which reaches everyone working in the repository, or `user`, which
-  reaches only you, in every repository.
+- K1 **tier**: where a contribution for a name comes from: `managed`, `repo`, `project`, `user`, `plugin`, or `default`.
+  `plugin` and `default` build the stack (K14). `repo` and `user` hold a whole document or a selection, and K23 picks
+  the main document from them and the stack. `managed` applies over it (K27), and `project` adds sections after it
+  (K24). `--scope` names the tier a write goes to: `repo`, which reaches everyone working in the repository, or `user`,
+  which reaches only you, in every repository.
 - K2 **layer**: one folder read for a name: one per plugin for `plugin`, the calling skill's folder for `default`,
   `~/.agents/references/` for `user`, `.agents/references/` at the root for `repo`, each `.agents/references/` below the
   root for `project`, and one per detected harness for `managed`, beside that harness's own managed settings.
 - K4 **qualified name**: `<plugin>/<name>`: that plugin's implementation of a name, with the stack it builds on. A
   selection or a pin names one.
-- K5 **merge operation**: how a plugin's contribution applies over what is below it in the stack. `replace` puts mine
-  in place of everything below. `patch` (the default) keeps what is below and puts my text in place of the text it
-  matches by heading path. `combine` keeps what is below and adds my text after the text it matches. `remove` drops
-  what is below. The same four apply to a whole contribution (frontmatter `merge`), to a step, and to one section (a
-  `<!-- merge: ... -->` marker). A heading path is read from each document's own top heading level, so `# Review` and
-  `## Review` match. In `repo` and `user`, only `remove` is accepted, and it turns the name off.
-- K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid`. A name is `ambiguous` when its plugins
-  cannot be put in one order and no selection settles it.
-- K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, `stale` (K26), or `not read`
-  or `not used` with a reason. A layer is `shadowed` when a nearer whole document or selection answers instead.
-- K8 **interface**: a contract declared in a `<id>.interface` reference. It lists the sections an implementation
-  holds, in order, which of them are required, and what each holds. An **implementation** declares
-  `implements: <id>@<version>`.
+- K5 **merge operation**: how a plugin's contribution applies over what is below it in the stack, and a managed
+  contribution over the main document (K27). `replace` puts mine in place of everything below. `patch` (the default)
+  keeps what is below and puts my text in place of the text it matches by heading path. `combine` keeps what is below
+  and adds my text after the text it matches. `remove` drops what is below. The same four apply to a whole contribution
+  (frontmatter `merge`), to a step, and to one section (a `<!-- merge: ... -->` marker). A heading path is read from
+  each document's own top heading level, so `# Review` and `## Review` match. In `repo` and `user`, only `remove` is
+  accepted, and it turns the name off.
+- K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid`. A name is `ambiguous` when its plugins cannot
+  be put in one order and no selection settles it.
+- K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, `stale` (K26), or `not read` or
+  `not used` with a reason. A layer is `shadowed` when a nearer whole document or selection answers instead.
+- K8 **interface**: a contract declared in a `<id>.interface` reference. It lists the sections an implementation holds,
+  in order, which of them are required, and what each holds. An **implementation** declares `implements:
+  <id>@<version>`.
 - K9 **consumer**: a plugin or skill that loads references through this capability, by skill, command, or library.
 - K10 **contribution**: a reference file for a name, in one layer. A name may have several.
 - K13 **default**: a skill's own contribution of a name it owns, `references/<name>.default.md` in the skill's folder,
@@ -87,20 +88,22 @@ with what can be found, and every fault is reported as a warning.
   Frontmatter `extends` lists it.
 - K15 **step**: one entry of `extends`: a plugin or `default`, optionally with the keys (`merge`, `extends`) to use for
   that contribution in place of its own.
-- K16 **selection**: a `repo` or `user` contribution with `extends` and no body. It records the customizer's pick of
-  the stack and changes nothing else.
+- K16 **selection**: a `repo` or `user` contribution with `extends` and no body. It records the customizer's pick of the
+  stack and changes nothing else.
 - K17 **above and below**: the order the stack applies in, bottom first: its plugins and `default` in `extends` order,
   the first listed lowest; with no written `extends`, `default` lowest. Each contribution applies over the result of
   everything below it, so a higher one wins where they conflict. Lower and higher mean below and above. The `managed`
-  and `project` tiers are not in the stack: they are delivered around the main document (K27, K24).
-- K18 **root**: the repository root, found from the working folder. Its `.agents/references/` holds the `repo`
-  tier, and every `.agents/references/` below it holds a project section. `--root <folder>` names the root when it
-  cannot be found that way: when the command runs from outside the repository, as a globally installed skill may, or
-  when the work is in a folder that is not a git repository.
-- K20 **generated document**: a whole `repo` or `user` document that a generator writes from a stack and the
-  customizer's instructions. Its frontmatter keeps the selection it was built on (`extends`), each source with its
-  plugin's version, and the instructions.
-- K21 **source**: a contribution a generated document is built from: each step of its stack.
+  and `project` tiers are not in the stack: `managed` applies over the main document (K27), and project sections are
+  delivered after it (K24).
+- K18 **root**: the repository root, found from the working folder. Its `.agents/references/` holds the `repo` tier, and
+  every `.agents/references/` below it holds a project section. `--root <folder>` names the root when it cannot be found
+  that way: when the command runs from outside the repository, as a globally installed skill may, or when the work is in
+  a folder that is not a git repository.
+- K20 **generated document**: a document a generator writes from the customizer's instructions: a whole `repo` or `user`
+  document from a stack, or a project section from the main document. Its frontmatter keeps the selection it was built
+  on (`extends`), each source with its plugin's version, and the instructions.
+- K21 **source**: a contribution a generated document is built from: each step of its stack. A project section records
+  the sources of the main document it was written against.
 - K22 **instructions**: what the customizer told the generator to change, in their own words.
 - K23 **main document**: what answers a name: the `repo` whole document or selection, else the `user` one, else the
   stack. A selection answers with the stack it picks.
@@ -108,10 +111,10 @@ with what can be found, and every fault is reported as a warning.
   folder. It is delivered after the main document, under a heading naming that folder.
 - K25 **route**: in the opt-in routing table, a line naming a folder that has a project section, in place of the
   section's text. `--in <path>` expands the routes whose folder holds the path.
-- K26 **stale**: said of a generated document when a source's recorded plugin version differs from the installed one,
-  or a recorded source is gone. Load still uses it, and suggests revising it.
-- K27 **managed section**: `<name>.md` in `references/` of a detected harness's managed folder, placed there by an
-  admin. It is delivered verbatim before the main document, and ranks above it.
+- K26 **stale**: said of a generated document when a source's recorded plugin version differs from the installed one, or
+  a recorded source is gone. Load still uses it, and suggests revising it.
+- K27 **managed contribution**: `<name>.md` in `references/` of a detected harness's managed folder, placed there by an
+  admin. It applies over the main document at load, with its merge operation (K5), so it ranks above every other tier.
 
 ## Use Cases
 
@@ -119,12 +122,12 @@ with what can be found, and every fault is reported as a warning.
 
 | ID | Actor | Goal |
 | --- | --- | --- |
-| A1.1 | A1 consumer (a skill, or the agent running it) | Load the instructions it names: the main document, with the managed section before it and each project section after it, marked with the folder it applies to |
+| A1.1 | A1 consumer (a skill, or the agent running it) | Load the instructions it names: the main document, with any managed contribution applied over it, and each project section after it, marked with the folder it applies to |
 | A1.2 | A1 | When a name can't be answered, know the reason, since each needs a different next step, and carry on |
 | A1.3 | A1 | Know the order of precedence for combining the document with instructions it cannot load: company and team instructions, and a single feature's own |
 | A2.1 | A2 inspector (anyone) | Know what an agent reads for a name, and why |
 | A3.1 | A3 finder (anyone) | Find the names that exist, to load one or customize one |
-| A4.1 | A4 admin | Have their instructions reach every repository on the machine, before and above everything else |
+| A4.1 | A4 admin | Have their instructions reach every repository on the machine, applied over everything else |
 | A5.1 | A5 customizer (a team for its repository, or a user for themselves) | Change what a skill reads without forking the plugin: say in their own words what to change, and get one concise document generated from it, or turn the name off |
 | A5.2 | A5 | Remove a customization, and learn what answers afterwards |
 | A5.3 | A5 | Pick which implementation answers a name, and the order in which plugins extend it |
