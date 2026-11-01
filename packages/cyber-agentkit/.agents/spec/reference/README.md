@@ -48,9 +48,10 @@ with what can be found, and every fault is reported as a warning.
   document.
 - N6 Detecting where the agent works, or reloading when its work moves. Every folder's additions are delivered up front.
 - N7 Finding a document for a single use, such as one feature's spec. The consuming skill points the agent at it.
-- N8 Noticing changes to a source's content. Only a plugin's version is compared; a customizer who edits a brief
-  regenerates the document.
-- N9 Editing a generated document by hand. A change goes in its brief, and the document is generated again.
+- N8 Noticing changes to a source's content. Only a plugin's version is compared; a customizer who changes their
+  instructions generates the document again.
+- N9 Editing a generated document by hand. A change goes in the customizer's instructions, and the document is
+  generated again.
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
 
