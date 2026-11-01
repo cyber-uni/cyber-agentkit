@@ -55,39 +55,63 @@ with what can be found, and every fault is reported as a warning.
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
 
-- K1 **tier**: where a contribution lives: `managed`, `project`, `user`, `plugin`, `default`. Their order is K17. A
-  write goes to `project`, which reaches everyone working in the repository, or `user`, which reaches only you, in every
-  repository.
-- K2 **layer**: one folder read for contributions. A tier reads one or more: the plugin tier one per plugin, the project
-  tier one per folder from the root (K18) up to the repository root, the managed tier one per detected harness, beside
-  that harness's own managed settings.
-- K10 **contribution**: a reference file for a name, in one layer. A name may have several.
-- K13 **default contribution**: a skill's own contribution of a name, `references/<name>.default.md` in the skill's
-  folder. It forms the `default` tier when that skill loads the name. A name ending `.default` is reserved for it.
-- K4 **qualified name**: `<plugin>/<name>`. It makes that plugin, with what it builds on, the stack for one call.
-- K5 **merge operation**: how a contribution applies over what is below it. `replace` puts mine in place of everything
-  below. `patch` (the default) keeps what is below and puts my text in place of the text it matches by heading path.
-  `combine` keeps what is below and adds my text after the text it matches. `remove` drops what is below. The same
-  four apply to a whole contribution (frontmatter `merge`), to a step, and to one section (a `<!-- merge: ... -->`
-  marker). A heading path is read from each document's own top heading level, so `# Review` and `## Review` match.
-- K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid`.
-- K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, or `not read` or `not used`
-  with a reason.
-- K8 **interface**: a contract declared in a `<id>.interface` reference. An **implementation** declares
+- K1 **tier**: where a contribution for a name comes from: `managed`, `repo`, `project`, `user`, `plugin`, or
+  `default`. `plugin` and `default` build the stack (K14). `repo` and `user` hold a whole document or a selection, and
+  K23 picks the main document from them and the stack. `managed` and `project` add sections around it (K27, K24).
+  `--scope` names the tier a write goes to: `repo`, which reaches everyone working in the repository, or `user`, which
+  reaches only you, in every repository.
+- K2 **layer**: one folder read for a name: one per plugin for `plugin`, the calling skill's folder for `default`,
+  `~/.agents/references/` for `user`, `.agents/references/` at the root for `repo`, each `.agents/references/` below the
+  root for `project`, and one per detected harness for `managed`, beside that harness's own managed settings.
+- K4 **qualified name**: `<plugin>/<name>`: that plugin's implementation of a name, with the stack it builds on. A
+  selection or a pin names one.
+- K5 **merge operation**: how a plugin's contribution applies over what is below it in the stack. `replace` puts mine
+  in place of everything below. `patch` (the default) keeps what is below and puts my text in place of the text it
+  matches by heading path. `combine` keeps what is below and adds my text after the text it matches. `remove` drops
+  what is below. The same four apply to a whole contribution (frontmatter `merge`), to a step, and to one section (a
+  `<!-- merge: ... -->` marker). A heading path is read from each document's own top heading level, so `# Review` and
+  `## Review` match. In `repo` and `user`, only `remove` is accepted, and it turns the name off.
+- K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid`. A name is `ambiguous` when its plugins
+  cannot be put in one order and no selection settles it.
+- K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, `stale` (K26), or `not read`
+  or `not used` with a reason. A layer is `shadowed` when a nearer whole document or selection answers instead.
+- K8 **interface**: a contract declared in a `<id>.interface` reference. It lists the sections an implementation
+  holds, in order, which of them are required, and what each holds. An **implementation** declares
   `implements: <id>@<version>`.
 - K9 **consumer**: a plugin or skill that loads references through this capability, by skill, command, or library.
-- K14 **stack**: the plugin and default contributions under the managed, project, and user tiers, bottom first.
+- K10 **contribution**: a reference file for a name, in one layer. A name may have several.
+- K13 **default**: a skill's own contribution of a name it owns, `references/<name>.default.md` in the skill's folder,
+  passed with `--default`. It is the lowest step of the stack unless `extends` places it. A name ending `.default` is
+  reserved for it.
+- K14 **stack**: the plugin and default contributions of a name, applied bottom first, each with its merge operation.
   Frontmatter `extends` lists it.
 - K15 **step**: one entry of `extends`: a plugin or `default`, optionally with the keys (`merge`, `extends`) to use for
   that contribution in place of its own.
-- K16 **selection**: a contribution with `extends` and no body. It picks the stack and changes nothing else.
-- K17 **above and below**: the order contributions apply in, bottom first: the stack (its plugins and `default` in
-  `extends` order, the first listed lowest; with no written `extends`, `default` lowest), then `user`, then `project`
-  from the repository root down to the root (K18), then `managed` (each detected harness's managed folder). Each
-  contribution applies over the result of everything below it, so a higher one wins where they conflict. Lower and
-  higher mean below and above.
-- K18 **root**: the folder the project tier starts from (default the current directory). The project tier reads it and
-  each folder above it up to the repository root, and a project write goes to its `.agents/references/`.
+- K16 **selection**: a `repo` or `user` contribution with `extends` and no body. It records the customizer's pick of
+  the stack and changes nothing else.
+- K17 **above and below**: the order the stack applies in, bottom first: its plugins and `default` in `extends` order,
+  the first listed lowest; with no written `extends`, `default` lowest. Each contribution applies over the result of
+  everything below it, so a higher one wins where they conflict. Lower and higher mean below and above. The `managed`
+  and `project` tiers are not in the stack: they are delivered around the main document (K27, K24).
+- K18 **root**: the repository root, found from the working folder. Its `.agents/references/` holds the `repo`
+  tier, and every `.agents/references/` below it holds a project section. `--root <folder>` names the root when it
+  cannot be found that way: when the command runs from outside the repository, as a globally installed skill may, or
+  when the work is in a folder that is not a git repository.
+- K20 **generated document**: a whole `repo` or `user` document that a generator writes from a stack and the
+  customizer's instructions. Its frontmatter keeps the selection it was built on (`extends`), each source with its
+  plugin's version, and the instructions.
+- K21 **source**: a contribution a generated document is built from: each step of its stack.
+- K22 **instructions**: what the customizer told the generator to change, in their own words.
+- K23 **main document**: what answers a name: the `repo` whole document or selection, else the `user` one, else the
+  stack. A selection answers with the stack it picks.
+- K24 **project section**: a `.agents/references/<name>.md` below the root, which states only what differs in its
+  folder. It is delivered after the main document, under a heading naming that folder.
+- K25 **route**: in the opt-in routing table, a line naming a folder that has a project section, in place of the
+  section's text. `--in <path>` expands the routes whose folder holds the path.
+- K26 **stale**: said of a generated document when a source's recorded plugin version differs from the installed one,
+  or a recorded source is gone. Load still uses it, and suggests revising it.
+- K27 **managed section**: `<name>.md` in `references/` of a detected harness's managed folder, placed there by an
+  admin. It is delivered verbatim before the main document, and ranks above it.
 
 ## Use Cases
 
