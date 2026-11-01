@@ -33,6 +33,15 @@ reported as a warning.
 - N2 Finding references by meaning. Results are returned in a deterministic order.
 - N3 Reading any path, or a folder other than `references/`. A name is never a path. Non-Markdown references are
   [formats](./formats/README.md); `assets/` belongs to [asset](../asset/README.md).
+- N4 Reading company or team instructions a harness delivers from a server. The agent combines them at run time
+  (`.research/machine-wide-content`).
+- N5 Running a model when a name is loaded, in this version. A model runs only when a customizer generates or revises a
+  document.
+- N6 Detecting where the agent works, or reloading when its work moves. Every folder's additions are delivered up front.
+- N7 Finding a document for a single use, such as one feature's spec. The consuming skill points the agent at it.
+- N8 Noticing changes to a source's content. Only a plugin's version is compared; a customizer who edits a brief
+  regenerates the document.
+- N9 Editing a generated document by hand. A change goes in its brief, and the document is generated again.
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
 
