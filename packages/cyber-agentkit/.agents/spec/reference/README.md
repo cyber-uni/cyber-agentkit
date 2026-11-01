@@ -115,21 +115,27 @@ with what can be found, and every fault is reported as a warning.
 
 ## Use Cases
 
-**Actors and goals.** A4 and A7 are affected by the outcome without invoking it.
+**Actors and goals.** A4, A7, and A8 are affected by the outcome without invoking it.
 
 | ID | Actor | Goal |
 | --- | --- | --- |
-| A1.1 | A1 consumer (a skill, or the agent running it) | Load exactly the instructions it names, composed as their contributions declare |
+| A1.1 | A1 consumer (a skill, or the agent running it) | Load the instructions it names: the main document, with the managed section before it and each project section after it, marked with the folder it applies to |
 | A1.2 | A1 | When a name can't be answered, know the reason, since each needs a different next step, and carry on |
+| A1.3 | A1 | Know the order of precedence for combining the document with instructions it cannot load: company and team instructions, and a single feature's own |
 | A2.1 | A2 inspector (anyone) | Know what an agent reads for a name, and why |
 | A3.1 | A3 finder (anyone) | Find the names that exist, to load one or customize one |
-| A4.1 | A4 admin | Have a managed contribution reach every repository on the machine, above project and user ones |
-| A5.1 | A5 customizer (a team for its repository, or a user for themselves) | Change what a skill reads without forking the plugin: replace, patch, combine with, or remove a plugin's contribution, and choose which plugins it builds on and in what order |
+| A4.1 | A4 admin | Have their instructions reach every repository on the machine, before and above everything else |
+| A5.1 | A5 customizer (a team for its repository, or a user for themselves) | Change what a skill reads without forking the plugin: say in their own words what to change, and get one concise document generated from it, or turn the name off |
 | A5.2 | A5 | Remove a customization, and learn what answers afterwards |
-| A6.1 | A6 plugin author | Ship skills that load references by name, with defaults others can customize |
-| A6.2 | A6 | Build on another plugin's contribution, or on the loading skill's default, as its author wrote it |
-| A6.3 | A6 | Publish an interface, and know an implementation meets it |
+| A5.3 | A5 | Pick which implementation answers a name, and the order in which plugins extend it |
+| A5.4 | A5 | Revise a generated document when a plugin it was built from changes, without restating their instructions |
+| A6.1 | A6 plugin author | Ship skills that load references by name, with defaults others can implement or extend |
+| A6.2 | A6 | Extend another plugin's implementation, or the loading skill's default, by replacing or adding to some of its sections, in effect once installed |
+| A6.3 | A6 | Publish an interface that states which sections an implementation must hold and what each holds, and know an implementation meets it |
+| A6.4 | A6 | Ship its own implementation of another skill's interface, loaded by itself under a name the plugin owns |
 | A7.1 | A7 agent user | Be told when the agent ran without instructions it asked for, or without the customizations placed for it |
+| A7.2 | A7 | Be told when a document was built from plugins that have since changed, and how to revise it |
+| A8.1 | A8 project maintainer (a team owning one folder of a monorepo) | Add only what differs in their folder, and have the agent follow it whenever its work is there |
 
 **Child specs.** Each use case lives in the child that owns it; UC8 stays here.
 
