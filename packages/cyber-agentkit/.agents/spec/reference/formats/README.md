@@ -48,9 +48,9 @@ the `references/` folder and the tiers. It never reads `assets/`; [asset](../../
   - UC13.2 Contributions differ in format across tiers: a non-Markdown contribution replaces everything below it. A
     Markdown contribution above it is ignored with a warning, except a `merge: remove`, which turns the name off.
   - UC13.3 Several non-Markdown contributions: the highest answers whole; those below are shadowed.
-  - UC13.4 A name ends in a K29 extension or `.meta`: `invalid`, as for `.md`.
+  - UC13.4 A name ends in a K29 extension or `.meta`: `invalid` (R1).
   - UC13.5 A non-Markdown file has no frontmatter: its metadata file (K31) holds it. With none, it lists with an empty
-    description, and nothing picks it.
+    description, and it can be picked only through a metadata file alone (UC13.9).
   - UC13.6 The skill's default may be non-Markdown: `references/<name>.default.json`.
   - UC13.7 A customizer customizes a non-Markdown name (UC18): the generator writes a whole document in the format of
     the one it was generated from, never a delta, since nothing merges inside the file (N10). Its picks, sources, and
@@ -67,11 +67,12 @@ the `references/` folder and the tiers. It never reads `assets/`; [asset](../../
   content is the file's text unchanged. A metadata file (K31) never answers a name.
 - R66 (UC13): A result reports its `format` (K29); `load --metadata` and `--trace` carry it, and each trace layer's
   `file` shows the extension. `list` and `search` rows carry it for a non-Markdown name.
-- R67 (UC13.1): Two formats in one folder: K30 first answers, each other warns `file-ignored`.
+- R67 (UC1.6, UC13.1): Two files for a name in one folder, `<name>.md` and `<name>/README.md` included: K30 first
+  answers, each other warns `file-ignored`.
 - R68 (UC13.2, UC13.3): The highest non-Markdown contribution replaces all below it, which are
   `shadowed by <contribution> (replace)`. A Markdown contribution above is `not used (format differs from <format>)`,
   with a warning `format-mismatch`, unless it is `merge: remove`.
-- R69 (UC13.4): A name ending in a K29 extension is `invalid`, and nothing is read.
+- R69 (UC13.4): A name ending in a K29 extension is `invalid`, as R1 says.
 - R70 (UC13.5): A non-Markdown reference's metadata is its metadata file's frontmatter, without `extends` and the
   generated record (as for Markdown, UC8), plus `format`; with no metadata file, only `format`, and it lists with an
   empty description. `where` lists no sections for it.

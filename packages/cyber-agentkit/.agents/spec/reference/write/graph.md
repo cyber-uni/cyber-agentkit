@@ -53,4 +53,4 @@ flowchart TD
 | Edge | Decision | Outcome |
 | --- | --- | --- |
 | E26 | where `create`, `customize`, or `delete` writes | `customize`: the `repo`, `user`, or a folder's `<name>.md`; `create` and `delete` also a plugin's or skill's source folder in the repository; never managed or an installed copy |
-| E34 | a template with no `description` | written, with a hint |
+| E34 | a title template; a template with no `description` | refused; written, with a hint |

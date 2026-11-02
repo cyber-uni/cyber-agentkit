@@ -51,7 +51,7 @@ IDs are shared across the parent and its children.
   - UC12.1 A skill written for one harness: the line may add that harness's typed form of the skill
     (`.research/harness-detection` R4). A harness with no typed form recorded gets the words only.
   - UC12.2 The skill uses an interface: the line names the interface ("Load the implementations of the `<id>`
-    interface ..."); Load lists the implementations (UC6), and the skill loads each by its pin.
+    interface ..."); Load lists the implementations (UC6), and the skill loads each by its qualified name.
   - UC12.3 The agent cannot tell the caller's folder: the names resolve without the `default` tier, and the user is
     told.
   - UC12.4 The `reference` skill is not installed: the line names the package, so the agent tells the user what to
@@ -109,12 +109,15 @@ by what an agent does.
 **Load (UC12, UC17)**
 
 - R89 (UC12, E62): The load line names the references and "the `reference` skill of `cyber-agentkit`", or, for an
-  interface, "the implementations of the `<id>` interface". Load runs `load <name>... --default <the caller's
-  folder>`, adding `--root` only when the working folder is not in the repository, and, when the load line asks for
-  the routing table, the routing option with `--in` naming the paths the task already names.
+  interface, "the implementations of the `<id>` interface"; for a skill written for one harness, it may add that
+  harness's typed form of the skill. When the agent cannot tell the caller's folder, Load runs without `--default` and
+  tells the user. Load runs `load <name>... --default <the caller's folder>`, adding `--root` only when the working
+  folder is not in the repository, and, when the load line asks for the routing table, the routing option with `--in`
+  naming the paths the task already names.
 - R90 (UC17, E63): With the loaded references, Load states the order to follow where instructions conflict: company and
-  team instructions, then a single feature's own document, then the resolved reference; within it, the project section
-  for the folder the work is in over the main document, and an inner folder's over an outer one's.
+  team instructions, then a single feature's own document, then the resolved reference, or the default read by fallback
+  (UC4.4); within it, the project section for the folder the work is in over the main document, and an inner folder's
+  over an outer one's.
 - R91 (UC17, E64): Load tells the agent to follow a project section whenever its work is in that folder, from the
   moment the work moves there; and, with routes, to load the name again with `--in <path>` when the work enters a
   routed folder.

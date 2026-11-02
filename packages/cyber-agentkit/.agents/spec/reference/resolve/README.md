@@ -18,8 +18,8 @@ IDs are shared across the parent and its children.
   harness; optionally the routing option, and `--in <path>...`.
 - **Outcome:** for each name, in the order asked, with status `found`, its resolved reference (K28): the main document
   (K23), composed as each contribution's `extends` and `merge` declare, followed by each project section below the root,
-  in path order, under a heading naming its folder. Each managed contribution applies over each project section as it
-  does over the main document (K27). Project sections are read from every folder below the root that
+  in path order, each wrapped with the folder it applies to (R44). Each managed contribution applies over each project
+  section as it does over the main document (K27). Project sections are read from every folder below the root that
   `.gitignore` does not exclude, tracked or not. With the routing option, a route stands in place of each project
   section's text, and `--in` expands the routes whose folder holds one of its paths. No contribution's frontmatter or
   merge marker is part of it.
@@ -30,7 +30,7 @@ IDs are shared across the parent and its children.
   - UC1.2 Its contributions cannot be put in one order: status `ambiguous`. The error names the contributions in
     conflict, the cause (no written `extends` orders the plugins, a cycle in the plugins' own `extends`, or an
     `extends` listing one plugin at two separate places), and the options.
-  - UC1.3 It is not a name (it ends `.md` or `.default`, is a path, or has a bad character): status `invalid`, and
+  - UC1.3 It is not a name (R1): status `invalid`, and
     nothing is read for it.
   - UC1.5 A contribution has malformed frontmatter, an unknown `merge`, or a bad `extends`: it still answers, with a
     warning and the documented default. A `merge: remove` contribution with a body: the body is ignored, with a warning,
@@ -41,8 +41,8 @@ IDs are shared across the parent and its children.
   - UC1.8 The document fails its interface check: still answered, with a warning.
   - UC1.9 The skill folder does not exist: a warning, and the name resolves without the `default` tier.
   - UC1.10 A plugin's contribution answers over the default contribution, and no selection names it: still answered,
-    with a warning naming the plugin and `reference select <name>` (UC9). The warning stops once a written `extends`,
-    whether a selection (UC9) or a customization, names the plugin or the default.
+    with a warning naming the plugin and `reference customize <name> --extends` (UC9). The warning stops once a written
+    `extends`, whether a selection (UC9) or a customization, names the plugin or the default.
   - UC1.12 A step in `extends` cannot be used. A step not installed, or not holding the name, is skipped with whatever
     only it brings in, with a warning. When every step is missing, the `extends` counts as not written, with a warning,
     and the stack falls to the next written `extends`. A plugin listing itself has that entry ignored, with a warning. A
@@ -67,15 +67,15 @@ IDs are shared across the parent and its children.
 - **Inputs:** a name; the root (K18); the calling skill's folder, for the `default` tier; the detected harness;
   optionally a folder below the root.
 - **Outcome:** the trace gives the name's status; the stack and what built it (the contribution whose `extends` was
-  used, the plugins' own `extends`, or none); for each section of the main document, by heading path, the
-  contributions that supplied its text and the operation each applied; every layer checked, highest first (`managed`,
-  then `repo`, then `user`, then the stack in K17 order), with its path, the file that matched, its frontmatter as
-  written, the operation it applied and whether that came from the contribution or from a step, and its outcome (K7);
-  and each project section with its folder and path. For a generated document, it also gives each recorded source with
-  its recorded and installed plugin versions, and the instructions. The resolved reference itself is unchanged. `where`
-  gives the `repo` and `user` `<name>.md` files a customization or a selection is written to, each with who it reaches,
-  and the heading paths of the main document, which a section operation can target; with `--in <folder>`, also the
-  project section file for that folder; with `--trace`, also the layers with their outcomes.
+  used, the plugins' own `extends`, or none); for each section of the main document, by heading path, the contributions
+  that supplied its text and the operation each applied; every layer checked, highest first (`managed`, then `repo`,
+  then `user`, then the stack from its top), with its path, the file that matched, its frontmatter as written, the
+  operation it applied and whether that came from the contribution or from a step, and its outcome (K7); and each
+  project section with its folder and path. For a generated document, it also gives each recorded source with its
+  recorded and installed plugin versions, and the request. The resolved reference itself is unchanged. `where` gives the
+  `repo` and `user` `<name>.md` files a customization or a selection is written to, each with who it reaches, and the
+  heading paths of the main document, which a section operation can target; with `--in <folder>`, also the project
+  section file for that folder; with `--trace`, also the layers with their outcomes.
 - **Extensions:**
   - UC2.1 A layer or step cannot be read (policy held in MDM, a plugin with no install folder, a step not installed, a
     `default` step with nothing there): it appears with the reason, such as `not read (not installed)` or
@@ -112,10 +112,11 @@ IDs are shared across the parent and its children.
 - **Extensions:**
   - UC3.1 Nothing matches: the output says zero explicitly. It is not an error.
   - UC3.2 `search` with an empty query: error.
-  - UC3.3 A name that no written `extends` orders: `list` marks it ambiguous with the options (each `<plugin>/<name>`,
-    and each skill's default); `search` returns it once per plugin.
-  - UC3.4 A name a `remove` turned off: `list` shows it `missing`, and with `--trace` the `remove` row and each row
-    below it as `shadowed by <contribution> (remove)`; `search` leaves the name out.
+  - UC3.3 A name whose plugins cannot be put in one order (R8): `list` marks it ambiguous with the options (each
+    `<plugin>/<name>`, and each skill's default); `search` returns it once per plugin.
+  - UC3.4 A name a `remove` turned off, with no project section left (R49): `list` shows it `missing`, and with
+    `--trace` the `remove` row and each row below it as `shadowed by <contribution> (remove)`; `search` leaves the name
+    out.
   - UC3.5 The detected harness's skill folders are not verified (`.research/skill-resolution` covers six harnesses; Q12
     holds what stays open): `list` and `search` show no defaults, and the answer says so and why. It is a limit of the
     harness, not a warning.
@@ -214,8 +215,9 @@ Edge IDs are in [graph.md](./graph.md).
   Unmarked subsections combine. When combined text was joined, the output says once that where they conflict, the
   later text wins.
 - R4 (UC1, E4): `replace` drops everything below; each contribution below is `shadowed by <contribution> (replace)`.
-- R49 (UC1, E45): `remove` drops everything below, and its body is ignored with a warning. When no contribution above
-  it has a body, the name is `missing`, naming that contribution.
+- R49 (UC1, E45): `remove` drops everything below, and its body is ignored with a warning. When no contribution above it
+  has a body, there is no main document: the name is `missing`, naming that contribution, unless a project section
+  answers (R99). A managed `remove` drops the project sections too, so the name is `missing`.
 - R42 (UC1, E44): A `<!-- merge: <operation> -->` marker under a heading applies that operation to that section alone;
   a section with no marker takes its document's operation.
 - R50 (UC1, E46): A contribution with no body changes nothing, except with `remove`.
@@ -269,10 +271,11 @@ Edge IDs are in [graph.md](./graph.md).
 **Layers**
 
 - R12 (UC1, E14): The root is the nearest folder at or above the working folder that holds `.git`; `--root` names it
-  instead, and with neither, the working folder is the root. The `repo` tier reads the root's `.agents/references/`.
-  The `project` tier reads every `.agents/references/` strictly below the root, in folders `.gitignore` does not
-  exclude, tracked or not. The `user` tier reads `~/.agents/references/`. The managed tier reads `references/` in each
-  detected harness's managed folder; the library keeps no managed folder of its own.
+  instead, and with neither, the working folder is the root. The `repo` tier reads the root's `.agents/references/`. The
+  `project` tier reads every `.agents/references/` strictly below the root, in folders git does not ignore (by any
+  ignore file git reads), tracked or not; outside a git repository, none is ignored. The `user` tier reads
+  `~/.agents/references/`. The managed tier reads `references/` in each detected harness's managed folder; the library
+  keeps no managed folder of its own.
 - R102 (UC1, E55): With the routing option, each project section is a route naming its folder, in place of its text.
   `--in <path>...` expands each route whose folder holds one of the paths, so a path in nested folders expands both. An
   `--in` path outside the root is ignored, with a warning. Without the routing option, `--in` changes nothing.
@@ -287,10 +290,11 @@ Edge IDs are in [graph.md](./graph.md).
   `ambiguous`.
 - R15 (UC2, E17): A layer skipped for a reason appears in the trace with that reason and adds no contribution.
 - R20 (UC1, UC2, E22): No `governances/` folder is read, in any tier or skill folder.
-- R41 (UC1, UC2, UC4, E43): `--default <skill folder>` reads `<skill folder>/references/<name>.default.md` as the
-  `default` tier; the old `references/<name>.md` copy is not read as a default. `where` takes `--default`. Every
-  detected harness tells a loaded skill its folder, but none hands it to a script, so the skill passes it
-  (`.research/skill-resolution` D).
+- R41 (UC1, UC2, UC4, E43): `--default <skill folder>` reads `<skill folder>/references/<name>.default.md`, or
+  `<name>.default.<ext>` for a K29 extension in K30 order, as the `default` tier; a folder that does not exist warns,
+  and the name resolves without the `default` tier; the old `references/<name>.md` copy is not read as a default.
+  `where` takes `--default`. Every detected harness tells a loaded skill its folder, but none hands it to a script, so
+  the skill passes it (`.research/skill-resolution` D).
 
 **Finding**
 
@@ -303,8 +307,9 @@ Edge IDs are in [graph.md](./graph.md).
   keeps exactly the names matching, where `*` is any run of characters and everything else is literal and
   case-sensitive.
 - R17 (UC3, E19): `search` ranks match kinds in the order `name`, `prefix`, `close name`, `description` (which also
-  matches `tags`), `heading`, `body`, then by name. A name resolves as `load` would, and each default as its skill loads
-  it, before it is searched; a name a `remove` turned off is left out.
+  matches `tags`), `heading`, `body`, then by name. A `close name` contains the query, or is within an edit distance of
+  the larger of 1 and a quarter of the query's length. A name resolves as `load` would, and each default as its skill
+  loads it, before it is searched; a name a `remove` turned off is left out.
 - R18 (UC3, E20): `list` and `search` with no match print an explicit zero; it is not an error.
 - R58 (UC3, E48): Defaults are found in the skill folders the detected harness reads: its project and user skill
   folders, its machine-wide admin skill folders, and each enabled plugin's skills. On a harness whose skill folders are

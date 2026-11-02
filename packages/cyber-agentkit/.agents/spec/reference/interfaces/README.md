@@ -7,12 +7,18 @@ spec-type: behavioral
 Part of [reference](../README.md). Its What, key terms, actors, adapters, names, and output contract apply here;
 IDs are shared across the parent and its children.
 
+**Non-goals (this child):**
+
+- N16 Interface composition: an interface that includes others, or a document that implements several. A name fits
+  one interface's namespace, so these would need implementations found by what a document declares. In this version
+  `implements` names one interface (UC6.3).
+
 ## Use Cases
 
 ### UC6 — Publish and check interfaces (A6.3)
 
 - **Trigger:** a plugin author publishes an interface, or wants to know a contribution meets the interface it
-  declares; or a consumer wants the implementations it can pin.
+  declares; or a consumer wants the implementations it can load.
 - **Entry points:** Skill: the `reference` skill's Create mode (an interface document), Inspect mode (check), and Find
   mode (implementations). Code: `reference check [name...]`; `reference implementations <id> [--accept <versions>]`;
   `checkReferences`, `referenceImplementations`.
@@ -35,7 +41,7 @@ IDs are shared across the parent and its children.
     also checked as each `<plugin>/<name>`, so each author sees their own result. Each skill's default is checked as
     its skill loads it, subject to UC3.5.
   - UC6.5 `implementations` of an unknown interface: error.
-  - UC6.6 A skill's default is never listed by `implementations`: it has no qualified name to pin.
+  - UC6.6 A skill's default is never listed by `implementations`: it has no qualified name to load it by.
   - UC6.8 Composing a checked name raises a warning: its `compose` check fails, so `check` is the strict gate while
     `load` still answers.
   - UC6.9 A plugin's delta records a base version (UC5) that differs from the installed base: `check` warns, naming
@@ -89,15 +95,16 @@ Edge IDs are in [graph.md](./graph.md).
   fails the `required` check, naming each such section. Every other section is optional. An implementation may hold
   sections the interface does not list, anywhere; `order` compares only the listed ones, each at most once. `holds` is
   never checked.
-- R33 (UC6, E35): `check` runs these checks on an implementation's composed document, each named in the output:
-  `interface found` (`implements` is one `<id>@<version>` naming a found, valid interface), `version`, `name`, `order`,
-  and `required`; an interface document gets the `interface` check (R63). Every document checked also gets `compose`,
-  which fails when composing it raised any warning. Any failure fails the result.
+- R33 (UC6, E35): A document checked that neither declares `implements` nor is an interface document fails. `check` runs
+  these checks on an implementation's composed document, each named in the output: `interface found` (`implements` is
+  one `<id>@<version>` naming a found, valid interface), `version`, `name`, `order`, and `required`; an interface
+  document gets the `interface` check (R63). Every document checked also gets `compose`, which fails when composing it
+  raised any warning. Any failure fails the result.
 - R34 (UC6, E36): An optional listed section left out, or whose first line is `**Unsupported.**`, is listed
   `unsupported`.
 - R35 (UC6, E37): `implementations <id>` lists an implementation only when it passes `check` for that interface; every
   other candidate is under `excluded` with each reason. A skill's default is never listed. `--accept` replaces the
-  interface's accepted versions.
+  interface's accepted versions. `implementations` of an unknown interface fails.
 - R36 (UC6, E38): `check` with no names covers every interface document and implementation found. A name several
   plugins hold is also checked as each `<plugin>/<name>`, and each skill's default as its skill loads it.
 - R37 (UC1, UC15, E39): `load` prints a document that fails its interface check, with a warning naming the failed
@@ -109,8 +116,3 @@ Edge IDs are in [graph.md](./graph.md).
   `implementations` lists both under `excluded` until a customizer picks one (UC9), and then lists only the pick. A
   plugin's `merge: replace` implementation of a `one` interface answers over the owner's default as R56 says.
 
-## Open questions
-
-- **Q13.** Interface composition (traits, mixins): an interface that includes others, and a document that implements
-  several. A name fits one interface's namespace, so these need implementations found by what a document declares,
-  not by its name. Parked: `implements` names one interface (UC6.3).

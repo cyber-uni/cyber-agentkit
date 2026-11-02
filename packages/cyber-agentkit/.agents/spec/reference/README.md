@@ -47,7 +47,8 @@ what can be found, and every fault is reported as a warning.
   (`.research/machine-wide-content`).
 - N14 Running a model when a name is loaded, in this version. A model runs only when a customizer generates or revises a
   document.
-- N15 Detecting where the agent works, or reloading when its work moves. Every folder's additions are delivered up front.
+- N15 Detecting where the agent works, or reloading when its work moves. Every folder's additions are delivered up
+  front.
 - N7 Finding a document for a single use, such as one feature's spec. The consuming skill points the agent at it.
 - N8 Noticing changes to a source's content. Only a plugin's version is compared; a customizer who changes their
   request generates the document again.
@@ -64,17 +65,19 @@ what can be found, and every fault is reported as a warning.
 - K2 **layer**: one folder read for a name: one per plugin for `plugin`, the calling skill's folder for `default`,
   `~/.agents/references/` for `user`, `.agents/references/` at the root for `repo`, each `.agents/references/` below the
   root for `project`, and one per detected harness for `managed`, beside that harness's own managed settings.
-- K4 **qualified name**: `<plugin>/<name>`: that plugin's implementation of a name, with the stack it builds on. A
-  selection or a pin names one.
+- K4 **qualified name**: `<plugin>/<name>`: that plugin's implementation of a name, with the stack it builds on.
+  `implementations` gives each as its `pin`.
 - K5 **merge operation**: how a contribution applies over what is below it: a plugin's over the stack below it, a `user`
   one over the stack, a `repo` one over that, and a managed one over the main document and each project section (K27).
   `replace` puts mine in place of everything below. `patch` (the default) keeps what is below and puts my text in place
   of the text it matches by heading path. `combine` keeps what is below and adds my text after the text it matches.
   `remove` drops what is below. The same four apply to a whole contribution (frontmatter `merge`), to a step, and to one
   section (a `<!-- merge: ... -->` marker). A heading path is read from each document's own top heading level, so
-  `# Review` and `## Review` match. A `remove` in `repo` or `user` turns the name off.
+  `# Review` and `## Review` match. A `remove` in `repo` or `user` turns the main document off; project sections still
+  answer (R49).
 - K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid`. A name is `ambiguous` when its plugins cannot
-  be put in one order and no selection settles it.
+  be put in one order and no selection settles it, when two plugins hold an interface document of it (R14) or the same
+  key of a `many` interface (R87), or when two names list it as an alias (R98).
 - K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, `stale` (K26), or `not read` or
   `not used` with a reason. A layer is `shadowed` when a `replace` or `remove` above it drops it.
 - K8 **interface**: a contract declared in a `<id>.interface` reference. It lists the sections an implementation holds,
@@ -112,7 +115,7 @@ what can be found, and every fault is reported as a warning.
   `repo` one; then each managed contribution over that; each with its merge operation. A selection changes the stack
   and adds nothing.
 - K24 **project section**: a `.agents/references/<name>.md` below the root, which states only what differs in its
-  folder. It follows the main document in the resolved reference, under a heading naming that folder.
+  folder. It follows the main document in the resolved reference, wrapped with that folder (R44).
 - K25 **route**: in the opt-in routing table, a line naming a folder that has a project section, in place of the
   section's text. `--in <path>` expands the routes whose folder holds the path.
 - K26 **stale**: said of a generated document when a source's recorded plugin version differs from the installed one, or
@@ -155,10 +158,10 @@ what can be found, and every fault is reported as a warning.
 | Child | Use cases | Criteria |
 | --- | --- | --- |
 | [resolve](./resolve/README.md) | UC1, UC2, UC3, UC7, UC10, UC19 | Composition, Stack, Reporting, Layers, Finding, Renames |
-| [write](./write/README.md) | UC5, UC9, UC11, UC20, UC18 | Writing |
+| [write](./write/README.md) | UC5, UC9, UC11, UC18, UC20 | Writing |
 | [interfaces](./interfaces/README.md) | UC6, UC15 | Interfaces |
-| [skill](./skill/README.md) | UC4, UC12, UC17 | Fallback |
-| [formats](./formats/README.md) | UC13 | R65 to R72 |
+| [skill](./skill/README.md) | UC4, UC12, UC17 | Fallback, Load |
+| [formats](./formats/README.md) | UC13 | R65 to R72, R92 to R95 |
 
 ### UC8 — Consumers read a stable output (A1.1)
 
@@ -169,12 +172,11 @@ what can be found, and every fault is reported as a warning.
 - **Inputs:** a command and its arguments; the output format.
 - **Outcome:** each result carries the same fields in every adapter: by default only those that answer the request, with
   `--metadata` and `--trace` adding the rest, so an agent pays for no detail it did not ask for, and a consumer reads
-  status, metadata, and codes instead of prose (repobuddy reads `metadata.contract` from `load --metadata`, once its
-  `show` calls move to `load`, and `match` from `search`). Removing or renaming a field is a breaking change. Each
-  failure and warning carries a stable code; the human wording is not a contract. `metadata` is the composed
-  frontmatter, key by key with the higher contribution winning, without `merge`, `extends`, and a generated document's
-  record of its sources and request: those say how one contribution was built or applies, and the trace carries each as
-  written (UC2).
+  status, metadata, and codes instead of prose (repobuddy reads `metadata.contract` from `load --metadata`, and `match`
+  from `search`). Removing or renaming a field is a breaking change. Each failure and warning carries a stable code; the
+  human wording is not a contract. `metadata` is the composed frontmatter, key by key with the higher contribution
+  winning, without `merge`, `extends`, and a generated document's record of its sources and request: those say how one
+  contribution was built or applies, and the trace carries each as written (UC2).
 - **Extensions:**
   - UC8.1 A name not `found`: its entry carries the status and code, and the other names still resolve.
   - UC8.2 A warning in structured output goes in the entry's `warnings`, so a consumer reads every fault from one
@@ -186,24 +188,24 @@ what can be found, and every fault is reported as a warning.
 
 **Surface trace.** `load`, `--trace`, `--default` (UC1, UC2, UC10, UC12); the routing option and `--in` (UC1, UC12,
 UC17); `--root` (all); `where`, `--default`, `--in` (UC2); `list`, pattern (UC3); `search` (UC3); `create` with
-`--merge`, `--template`, `--implements`, `--scope`, `--in`, `--plugin`, `--default`, `--dry-run` (UC5, UC15);
-`customize` with `--extends`, `--request`, `--body`, `--base`, `--scope`, `--in`, `--merge`, `--dry-run` (UC9, UC20,
-UC18); `delete` with `--scope`, `--plugin`, `--default`, `--dry-run` (UC11); `check` (UC6); `implementations`,
-`--accept` (UC6); `--format`, `--metadata` (UC8). Frontmatter keys `merge`, `extends` (with the step keys `merge`,
-`extends`, `sections`), `implements`, `interface`, `description`, `tags`, `aliases`, and a generated document's record
-of sources and request serve UC1, UC5, UC6, UC7, UC9, UC20, UC18, UC19; the section marker `<!-- merge: ... -->` serves
-UC1 and UC7. File names `<name>.md` and `<name>.default.md` serve UC5, UC9, UC11, UC18 and UC3, UC12. Informational, no
-contract: the trace's keys beyond those the Adapters group names.
+`--merge`, `--template`, `--implements`, `--scope`, `--in`, `--plugin`, `--default`, `--dry-run`, `--trace` (UC5, UC15);
+`customize` with `--extends`, `--request`, `--body`, `--base`, `--scope`, `--in`, `--merge`, `--dry-run`, `--trace`
+(UC9, UC20, UC18); `delete` with `--scope`, `--in`, `--plugin`, `--default`, `--dry-run` (UC11); `check` (UC6);
+`implementations`, `--accept` (UC6); `--format`, `--metadata` (UC8). Frontmatter keys `merge`, `extends` (with the step
+keys `merge`, `extends`, `sections`), `implements`, `interface`, `description`, `tags`, `aliases`, and a generated
+document's record of sources and request serve UC1, UC5, UC6, UC7, UC9, UC20, UC18, UC19; the section marker
+`<!-- merge: ... -->` serves UC1 and UC7. File names `<name>.md` and `<name>.default.md` serve UC5, UC9, UC11, UC18 and
+UC3, UC12. Informational, no contract: the trace's keys beyond those the Adapters group names.
 
 ## Criteria
 
-Edge IDs are in [graph.md](./graph.md).
+Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/graph.md).
 
 **Adapters**
 
 - R43 (UC1, UC6, UC8, E12): The command exits 0 when it did what was asked: every name `found`, or `where` on an
   ambiguous name. It exits 1 when a name is not `found`, a check fails, or a write is refused, and 2 on a usage error
-  (no name, an unknown flag).
+  (no name, an unknown flag). `list` and `search` exit 0 whatever their rows' statuses.
 - R44 (UC1): In text, one name prints its resolved reference; several print each as
   `<reference name="...">...</reference>` in the order asked; a name not `found` prints
   `<reference name="..." status="..." code="...">` holding its message, and its options when `ambiguous`, in its
@@ -223,13 +225,14 @@ Edge IDs are in [graph.md](./graph.md).
   the entry's `warnings`, not on stderr.
 - R48 (UC1, UC8): Each library function returns full records: every field R38 lists, including those `--metadata` and
   `--trace` add; the command prints a subset. A name not `found`, `invalid` included, is a status in its record, never a
-  thrown error. Warnings go in the record's `warnings` and are never printed.
+  thrown error, and so is a failed check. A refused write throws an error carrying its `code`, marked when it is a usage
+  error. Warnings go in the record's `warnings` and are never printed.
 
 **Names**
 
-- R1 (UC1, E1): A name is `invalid` when it ends `.md`, `.default` (that suffix names a default's file, K13), or `.meta`
-  (that suffix names a metadata file, K31), has a path separator other than one `<plugin>/` prefix, or a character
-  other than letters, digits, `-` and `.`. Nothing is read for it, and the other names still resolve.
+- R1 (UC1, E1): A name is `invalid` when it ends `.md`, a K29 extension, `.default` (that suffix names a default's file,
+  K13), or `.meta` (that suffix names a metadata file, K31), has a path separator other than one `<plugin>/` prefix, or
+  a character other than letters, digits, `-` and `.`. Nothing is read for it, and the other names still resolve.
 - R51 (UC1, E1): A `<name>.default.md` in a tier folder is ignored, with a warning that a default goes in a skill's
   `references/` folder.
 - R2 (UC1, UC7, E2): `<plugin>/<name>` builds the stack from that plugin's contribution and what its own `extends`
@@ -254,8 +257,8 @@ Edge IDs are in [graph.md](./graph.md).
   - `check`: the entries that fail, each `name` and `failures` (each `check` and `message`), the entries that pass with
     a warning, each `name` and `warnings`, and the count that pass; `--trace` adds every entry with `kind` and
     `unsupported`.
-  - `implementations`: each `pin`, `description`, and `unsupported`; `--trace` adds `name`, `tier`, `version`, the
-    interface's `cardinality` and `accept`, and `excluded` with `name` and `reasons`.
+  - `implementations`: each `pin` (its qualified name), `description`, and `unsupported`; `--trace` adds `name`, `tier`,
+    `version`, the interface's `cardinality` and `accept`, and `excluded` with `name` and `reasons`.
   - `where`: `files`, each with `scope` (`repo`, `user`, or the `--in` folder), `path`, and `reaches`; `headings`, the
     main document's heading paths; `used`, the plugins and default the stack uses; and `options` when `ambiguous`.
     `--trace` adds the layers with their outcomes.
@@ -275,22 +278,18 @@ Edge IDs are in [graph.md](./graph.md).
 
 ## Open questions
 
-- **Q12.** (#114) Narrowed by `.research/skill-resolution`, which answers it for Claude Code, Cursor, Codex, Copilot
-  CLI, OpenCode, and Gemini CLI: where a plugin's skills sit, how an installed plugin maps to its folder, which copy of
-  a skill runs, and that every one tells a loaded skill its folder (R41). A plugin-root `references/` folder is a
-  convention of this library, not of the Agent Plugins spec (R13). It no longer blocks the `default` tier or UC3's
-  defaults (#113). What stays unverified: which Cursor marketplace plugins are enabled (Cursor keeps that on its server,
-  so only the cached copies can be read); Claude Code's project-scope plugin records; and the text OpenCode and Gemini
-  CLI give a loaded skill, read from source only. The harnesses also disagree on which same-named skill runs; R16 says
-  how `list` shows a default two skills of one name hold.
+None in the parent; each child lists its own.
 
 ## References
 
-- Interfaces design: issue #97 (closed). Name-pattern listing: #79 (closed). #110 (open): its alias, default marker,
-  and pin file are replaced by `extends` and selection (UC7, UC9). #107 (open): overrides and hard plugin dependencies.
+- Interfaces design: issue #97 (closed). Name-pattern listing: #79 (closed). #110 (open): its default marker and pin
+  file are replaced by `extends` and selection (UC7, UC9), and its alias by K32 (UC19). #107 (open): overrides and hard
+  plugin dependencies.
 - Output rules (R38, R43 to R48): clibuilder v12's `axi` output. A returned value goes to stdout in the asked format,
   diagnostics to stderr, errors coded; `--full` there means no truncation, so this spec's extra fields use `--metadata`.
-- Harness facts for enabled-plugin layers and managed folders: `.research/harness-detection`.
+- Harness facts for enabled-plugin layers and managed folders: `.research/harness-detection`. What stays unverified
+  about skill folders and plugin records (Cursor's enabled marketplace plugins, Claude Code's project-scope records, the
+  text OpenCode and Gemini CLI give a loaded skill): #114.
 - Machine-wide and managed content, including admin skill folders: `.research/machine-wide-content`.
 - Where each harness keeps a plugin's skills, its install records, same-name precedence, what a loaded skill is told
   about its folder, and that a plugin-root `references/` is ours: `.research/skill-resolution`.

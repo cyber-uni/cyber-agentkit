@@ -9,12 +9,12 @@ IDs are shared across the parent and its children.
 
 ## Use Cases
 
-### UC5 — Create a reference (A6.1, A6.2, A6.4)
+### UC5 — Create a reference (A5.1, A6.1, A6.2, A6.4)
 
 - **Trigger:** an author creates a reference: a new name, a skill's default, an implementation of an interface (the
   owner's or another skill's), or an extension of an existing implementation. It goes into their plugin's or skill's
-  source, or into the `repo` or `user` tier for a name the repository or the user owns. `create` can do anything
-  `customize` (UC18) does, by hand.
+  source, or into the `repo` or `user` tier for a name the repository or the user owns; there `--merge remove` turns a
+  name off. `create` can do anything `customize` (UC18) does, by hand.
 - **Entry points:** Skill: the `reference` skill's Create and Update modes; Update edits the file, then checks the
   trace. Code: `reference create <name> [--scope repo|user | --in <folder> | --plugin <plugin folder> | --default <skill
   folder>]
@@ -46,8 +46,8 @@ IDs are shared across the parent and its children.
     is given. `--default <skill folder>`: writes `<skill folder>/references/<name>.default.md`, with no `merge`. The
     hide check (UC5.4) and the trace apply only when the folder is a layer the stack reads.
   - UC5.11 The folder holds no plugin manifest (`--plugin`) or no `SKILL.md` (`--default`), or lies outside the
-    repository, such as an installed copy: error, and nothing is written. More than one of `--scope`, `--plugin`, and
-    `--default`: usage error.
+    repository, such as an installed copy: error, and nothing is written. More than one of `--scope`, `--in`,
+    `--plugin`, and `--default`: usage error.
   - UC5.12 A `--plugin` file that extends another plugin with `merge: replace`: error, and nothing is written. A copy
     would freeze every user on the base its author saw. The file states only the sections it changes, or, to replace
     the base entirely, is an implementation of its own with no `extends` on that plugin.
@@ -167,21 +167,23 @@ Edge IDs are in [graph.md](./graph.md).
 
 **Writing (UC5, UC9, UC11, UC20, UC18)**
 
-- R24 (UC5, UC9, UC11, UC18, E26): `customize` writes only `<name>.md` in the root's `.agents/references/` (`repo`,
-  the default), in `~/.agents/references/` (`user`, with `--scope user`), or in `<folder>/.agents/references/` (a
-  project section, with `--in <folder>`, a folder strictly below the root). `create` and `delete` act there too, or on
-  `<plugin folder>/references/<name>.md` with `--plugin <plugin folder>`, or on
-  `<skill folder>/references/<name>.default.md` with `--default <skill folder>`; that folder must hold a plugin manifest
-  or a `SKILL.md` and sit inside the repository. `--scope`, `--in`, `--plugin`, and `--default` exclude each other
-  (exit 2).
+- R24 (UC5, UC9, UC11, UC18, E26): `customize` writes only `<name>.md` (for a non-Markdown name, the files R92 and R93
+  give) in the root's `.agents/references/` (`repo`, the default), in `~/.agents/references/` (`user`, with
+  `--scope user`), or in `<folder>/.agents/references/` (a project section, with `--in <folder>`, a folder strictly
+  below the root). `create` and `delete` act there too, or on `<plugin folder>/references/<name>.md` with
+  `--plugin <plugin folder>`, or on `<skill folder>/references/<name>.default.md` with `--default <skill folder>`; that
+  folder must hold a plugin manifest or a `SKILL.md` and sit inside the repository. `--scope`, `--in`, `--plugin`, and
+  `--default` exclude each other (exit 2).
 - R25 (UC5, UC9, UC11, UC18, E27): `create`, `customize`, and `delete` reject a qualified name and say which bare name
   to use.
 - R60 (UC5, E26): `create` never overwrites a file with a body. On a file holding only a selection, it adds the body
   and `merge` and keeps the `extends`.
 - R26 (UC5, E28): `create` refuses when a `replace` or `remove` above would hide the new file, and names that
-  contribution. A `user` file hidden only by this repository's `repo` contribution is written, with a warning.
-- R27 (UC5, E29): `create` writes `merge` from `--merge`, else the template's `merge`, else `patch`. `--implements`
-  writes `merge: replace`. `--merge remove` writes no body, and fails with `--template`.
+  contribution, checking only when the folder is a layer the stack reads. A `user` file hidden only by this repository's
+  `repo` contribution is written, with a warning.
+- R27 (UC5, E29): In the `repo`, `user`, and `project` tiers, `create` writes `merge` from `--merge`, else the
+  template's `merge`, else `patch`; with `--plugin`, only from `--merge`; with `--default`, never. `--implements` writes
+  `merge: replace`. `--merge remove` writes no body, and fails with `--template`.
 - R103 (UC5, E29): A `--plugin` file whose `extends` names another plugin is refused with `merge: replace`, and is
   written with that plugin's installed version recorded, which `check` compares (UC6.9).
 - R28 (UC5, E30): `create --implements <id>` writes the interface's sections as `##` headings in order and
@@ -197,20 +199,24 @@ Edge IDs are in [graph.md](./graph.md).
   document), `request` (the file's text), and `merge` (`--merge`, else `patch`). The command runs no model.
 - R82 (UC18, E58): `customize` refuses, writing nothing: with neither `--extends` nor `--request`; with only one of
   `--request` and `--body`; with `--plugin` or `--default` (exit 2); with `--request` when the target holds a body that
-  records no request; and with `--in` for a name that is not Markdown. A body that records a request is replaced.
+  records no request; with `--in` for a name that is not Markdown; and with `--request` and no `--extends` on an
+  `ambiguous` name. A body that records a request is replaced.
 - R83 (UC18, E50): `customize --extends` on a target holding a body keeps the body; when that body records a request,
   the output suggests customizing again with it.
 - R84 (UC20, UC18, E59): `customize --base` prints, and writes nothing, the document the generator reads for that
   target: the resolved reference with the picks applied, leaving out managed contributions always, the `user` tier for
   a `repo` or folder target, and the `repo` tier for a `user` target. `load` offers no way to leave tiers out.
 - R85 (UC20, UC18): Customize mode shows the draft and writes only once the customizer approves; with no user present,
-  it writes nothing. The written body holds no managed contribution's text.
-- R30 (UC11, E32): `delete` removes only the file at the place chosen (R24), never a managed contribution or an
-  installed copy, and reports the status and stack afterwards; when the file held a selection, the report says so and
-  names `reference customize --extends`. With no file there, it fails stating what answers the name now.
+  it writes nothing. The written body holds no managed contribution's text. Revising (UC20), it tells the customizer of
+  a recorded source that is gone before generating, and revises the main document before its project sections.
+- R30 (UC11, E32): `delete` removes only the file at the place chosen (R24), with its metadata file for a non-Markdown
+  name (R95), never a managed contribution or an installed copy, and reports the status and stack afterwards; when the
+  file held a selection, the report says so and names `reference customize --extends`. With no file there, it fails
+  stating what answers the name now.
 - R29 (UC5, UC11, UC18, E31): `--dry-run` prints the path and the exact content (`create`, `customize`) or the path and
   the answer afterwards (`delete`), and changes no file.
 - R31 (UC5, UC18, E33): After a write, the report gives the path and points to `load <name>` for the resolved
   reference; with `--trace`, the trace shows the new file `used`.
 - R32 (UC5, E34): `create` refuses a template whose top level is a single heading holding the others (a title), and
-  writes nothing; for a missing `description` it writes the file with a hint, not a warning.
+  writes nothing, and so does an unreadable template or one whose frontmatter is not a mapping; for a missing
+  `description` it writes the file with a hint, not a warning.
