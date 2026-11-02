@@ -18,14 +18,12 @@ IDs are shared across the parent and its children.
 - **Extensions:**
   - UC4.1 `missing`: the consumer carries on without it, and the user is told the name was not loaded. No substitute
     is searched for, and the skill does not read its own default instead: the command already included it. When a
-    `remove` turned the name off, which the code `reference-removed` tells from a name that does not exist (code
-    `reference-missing`), nothing is said; the trace explains it.
+    `remove` turned the name off, nothing is said; the trace explains it.
   - UC4.2 `ambiguous`: with a user present, the options are listed (each `<plugin>/<name>`, and the skill's default
     if it has one), the user picks one even when only one is left, and says whether the pick is for the repository
-    (the default) or only for themselves. The pick is written with `reference customize <name> --extends <step>`
-    (UC9), where the step is the option's plugin part, or `default` for the skill's default, and the name loads from
-    it. With no user, the consumer carries on without it, and the user is told to
-    settle it.
+    (the default) or only for themselves. The pick is recorded as a customization (UC9) at that
+    scope, and the name loads from it. With no user, the consumer carries on without it, and the user is told to settle
+    it.
   - UC4.3 `invalid`: the consumer carries on without it, and the user is told the skill's load line names something
     that is not a reference name, a fault to report to the skill's author.
   - UC4.4 The command does not run: each name is read from the skill's own default, as R21 says, and the
@@ -40,12 +38,11 @@ IDs are shared across the parent and its children.
 
 - **Trigger:** a skill author wants a skill to load references by name, with defaults others can customize.
 - **Entry points:** Skill: the `reference` skill's Wire a skill mode, which gives the load line: "Load `<name>` and
-  `<name>` with the `reference` skill of `cyber-agentkit`." Code: none directly; Load runs
-  `load <name>... --default <the caller's folder>` (UC1), adding `--root` only when the working folder is not in the
-  repository (K18).
+  `<name>` with the `reference` skill of `cyber-agentkit`." Code: none directly; Load runs `load` for the
+  names with the skill's folder as the default (UC1).
 - **Inputs:** the names; the harness the skill is written for, if only one; the defaults the author ships.
 - **Outcome:** the skill carries one load line naming the references and the `reference` skill with its package, in
-  words every harness reads. The author ships each default as `<skill>/references/<name>.default.md`. When the skill
+  words every harness reads. The author ships each default inside the skill. When the skill
   runs, Load resolves the names with the skill's folder as the `default` tier (UC1), acts on what the load reports
   (UC4), and follows the result in order of precedence (UC17); a customizer finds the defaults with `list` (UC3) and
   customizes them (UC18), and a plugin author implements or extends them (UC15, UC7).
@@ -59,8 +56,8 @@ IDs are shared across the parent and its children.
     told.
   - UC12.4 The `reference` skill is not installed: the line names the package, so the agent tells the user what to
     install.
-  - UC12.5 A skill ships its copy as `references/<name>.md` (the old layout): it is not read as a default. A name no
-    other contribution holds is then `missing`, and UC4.1 tells the user.
+  - UC12.5 A skill ships its copy in the old layout: it is not read as a default. A name no other contribution holds
+    is then `missing`, and UC4.1 tells the user.
 
 ### UC17 — Follow the reference in order of precedence (A1.3)
 
@@ -92,27 +89,24 @@ instruction, not by what an agent does.
 
 **Fallback (UC4)**
 
-- R21 (UC4, E23): The skill reads its own default of a name, `references/<name>.default.md` or `<name>.default.<ext>`
-  for a K29 extension in K30 order (R41), only when the command did not run, never for a name the command reported,
-  whatever its status.
+- R21 (UC4, E23): The skill reads its own default of a name only when the command did not run, never for a name the
+  command reported, whatever its status.
 - R59 (UC4, E49): With a user present, an `ambiguous` name lists every option, the skill's default included, even when
-  one is left; the pick is written with `reference customize <name> --extends <step>`, the step being the option's
-  plugin part or `default` for the skill's default, at the scope the user chose, `repo` unless they say otherwise, and
-  the name loads from it. With no user, it is not loaded, and the user is told to settle it.
+  one is left; the pick is recorded at the scope the user chose, the repository unless they say otherwise, and the name
+  loads from it. With no user, it is not loaded, and the user is told to settle it.
 - R22 (UC4, E24): Every name read from a fallback, and every name not loaded, is reported to the user with the reason,
-  except a name whose code is `reference-removed` (a `remove` turned it off); nothing is reported when every name came
+  except a name a `remove` turned off; nothing is reported when every name came
   from the command.
 - R23 (UC4, E25): An `invalid` name's path is never read.
-- R88 (UC4, E61): Every warning a load returns is passed on to the user, one line each. A `reference-stale` warning
+- R88 (UC4, E61): Every warning a load returns is passed on to the user, one line each. A stale warning
   also names the plugins that changed and says Customize mode revises the document from its recorded request.
 
 **Load (UC12, UC17)**
 
 - R89 (UC12, E62): The load line names the references and "the `reference` skill of `cyber-agentkit`", or, for an
   interface, "the implementations of the `<id>` interface"; for a skill written for one harness, it may add that
-  harness's typed form of the skill. When the agent cannot tell the caller's folder, Load runs without `--default` and
-  tells the user. Load runs `load <name>... --default <the caller's folder>`, adding `--root` only when the working
-  folder is not in the repository.
+  harness's typed form of the skill. When the agent cannot tell the caller's folder, Load runs without the skill's
+  default and tells the user.
 - R90 (UC17, E63): With the loaded references, Load states the order to follow where instructions conflict: company and
   team instructions, then a single feature's own document, then the resolved reference, or the default read by fallback
   (UC4.4); within it, the project section for the folder the work is in over the main document, and an inner folder's

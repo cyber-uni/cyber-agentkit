@@ -62,27 +62,25 @@ what can be found, and every fault is reported as a warning.
 - K1 **tier**: where a contribution for a name comes from: `managed`, `repo`, `project`, `user`, `plugin`, or `default`.
   `plugin` and `default` build the stack (K14). `user` applies over the stack, and `repo` over that (K23). `managed`
   applies over the main document and each project section (K27), and `project` adds sections after the main document
-  (K24). `--scope` names the tier a write goes to: `repo`, which reaches everyone working in the repository, or `user`,
-  which reaches only you, in every repository.
+  (K24). A write goes to `repo`, which reaches everyone working in the repository, or to `user`, which reaches only
+  you, in every repository.
 - K2 **layer**: one folder read for a name: one per plugin for `plugin`, the calling skill's folder for `default`,
   `~/.agents/references/` for `user`, `.agents/references/` at the root for `repo`, each `.agents/references/` below the
   root for `project`, and, for `managed`, the one beside the managed settings of the harness that
   detection names as running. Other harnesses' managed folders are never read, and none is read when detection names
-  more than one harness (nested harnesses; detection reports `unknown`, R12).
+  more than one harness.
 - K4 **qualified name**: `<plugin>/<name>`: that plugin's implementation of a name, with the stack it builds on.
-  `implementations` gives a plugin's implementation as its `pin`; a `repo` or `user` implementation of a `many`
-  interface's `<id>.<key>` has its bare name as its `pin` (R35).
 - K5 **merge operation**: how a contribution applies over what is below it, in the order K23 gives; a managed one
   applies over the main document and over each project section (K27). `replace` puts mine in place of everything below.
   `patch` (the default) keeps what is below and puts my text in place of the text it matches by heading path, keeping
-  the subsections of a matched section that my text does not match (R6). `combine` keeps what is below and adds my text
+  the subsections of a matched section that my text does not match. `combine` keeps what is below and adds my text
   after the text it matches. `remove` drops what is below. The same four apply to a whole contribution (frontmatter
   `merge`), to a step, and to one section (a `<!-- merge: ... -->` marker). A heading path is read from each document's
   own top heading level, so `# Review` and `## Review` match. A `remove` in `repo` or `user` turns the main document off
-  when no contribution above it has a body (R49); project sections still answer.
+  when no contribution above it has a body; project sections still answer.
 - K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid`. A name is `ambiguous` when its plugins cannot
-  be put in one order and no selection settles it, when two plugins hold an interface document of it (R14) or the same
-  key of a `many` interface (R87), or when two names list it as an alias (R98).
+  be put in one order and no selection settles it, when two plugins hold an interface document of it or the same
+  key of a `many` interface, or when two names list it as an alias.
 - K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, `stale` (K26), or `not read` or
   `not used` with a reason. A layer is `shadowed` when a `replace` or `remove` above it drops it.
 - K8 **interface**: a contract declared in a `<id>.interface` reference. It lists the sections an implementation holds,
@@ -90,8 +88,8 @@ what can be found, and every fault is reported as a warning.
   <id>@<version>`.
 - K9 **consumer**: a plugin or skill that loads references through this capability, by skill, command, or library.
 - K10 **contribution**: a reference file for a name, in one layer. A name may have several.
-- K13 **default**: a skill's own contribution of a name it owns, `references/<name>.default.md` in the skill's folder,
-  passed with `--default`. It is the lowest step of the stack unless its own `extends` or a written `extends` places it.
+- K13 **default**: a skill's own contribution of a name it owns, `references/<name>.default.md` in the skill's folder.
+  It is the lowest step of the stack unless its own `extends` or a written `extends` places it.
   A name ending `.default` is reserved for it.
 - K14 **stack**: the plugin and default contributions of a name, applied bottom first, each with its merge operation.
   Frontmatter `extends` lists it.
@@ -105,23 +103,19 @@ what can be found, and every fault is reported as a warning.
   wins where they conflict. Lower and higher mean below and above. The `managed` and `project` tiers are not in the
   stack: `managed` applies over the main document and each project section (K27), and project sections are delivered
   after it (K24).
-- K18 **root**: the repository root, found from the working folder as the nearest folder at or above it that holds
-  `.git`, which may be a folder or a file (a git worktree). Its `.agents/references/` holds the `repo` tier, and every
-  `.agents/references/` below it holds a project section. `--root <folder>` names the root when it cannot be found that
-  way: when the command runs from outside the repository, as a globally installed skill may, or when the work is in a
-  folder that is not a git repository.
+- K18 **root**: the repository root, found from the working folder. Its `.agents/references/` holds the `repo` tier, and
+  every `.agents/references/` below it holds a project section.
 - K33 **generated document**: a contribution a generator writes from the customizer's request, never from its own
   earlier text: a `repo` or `user` contribution written from the stack, as a delta by default or a whole document with
-  `merge: replace` (from the interface's stub with `--implements`, for a name only an interface defines or one already
-  found, R111), or a project section, written from the main document and the project sections of the folders above its
-  own. Its frontmatter keeps the selection it was built on (`extends`), each source with its plugin's version, and the
+  `merge: replace` (from the interface's stub, for a name only an interface defines or one already found), or a
+  project section, written from the main document and the project sections of the folders above its own. Its
+  frontmatter keeps the selection it was built on (`extends`), each source with its plugin's version, and the
   request. A project section records `sources` and `request` only, with no `extends` (K24). A whole document from the
-  interface's stub records `implements` and the request, and no `sources` (R111).
+  interface's stub records `implements` and the request, and no `sources`.
 - K34 **source**: a contribution a generated document is built from: each step of its stack. A project section records
   the sources of the main document it was written against. A `default` source records its skill's plugin and version
-  when the skill ships in a plugin; a standalone skill's default records no version and is never stale (R101). A `user`
-  document's sources are only the harness's enabled plugins, never one found through a repository's `package.json` (R13,
-  R84).
+  when the skill ships in a plugin; a standalone skill's default records no version and is never stale. A `user`
+  document's sources are only the harness's enabled plugins.
 - K22 **request**: what the customizer asked to change in the prose, in their own words. Choices of plugins, their
   order, and their sections are metadata (`extends`), not part of the request.
 - K23 **main document**: what the tiers compose for a name: the stack; over it, the `user` contribution; over that, the
@@ -129,12 +123,12 @@ what can be found, and every fault is reported as a warning.
   document and over each project section (K27). A selection changes the stack and adds nothing.
 - K24 **project section**: a `.agents/references/<name>.md` or `<name>/README.md` below the root, which states only what
   differs in its folder. It follows the main document in the resolved reference, wrapped with that folder (R44). It
-  carries no `merge`, `extends`, `implements`, or `aliases`: no command writes them on one (R27, R81), and load ignores
-  them with a `project-section-key-ignored` warning (R110).
+  carries no `merge`, `extends`, `implements`, or `aliases`: no command writes them on one, and load ignores them with
+  a warning.
 - K26 **stale**: said of a generated `repo` or `user` document, or a project section, when a source's recorded plugin
   version differs from the installed one, or a recorded source is gone. Load still uses it, and suggests revising it. A
-  plugin's or a default's own file is compared only by `check` (R86, R101).
-- K27 **managed contribution**: the file answering the name (K30) in `references/` of the current harness's managed
+  plugin's or a default's own file is compared only by `check`.
+- K27 **managed contribution**: the file answering the name in `references/` of the current harness's managed
   folder, placed there by an admin. It applies at load over the main document and each project section, with its merge
   operation (K5), so it ranks above every other tier. Its text reaches the agent only through load: no written
   contribution holds it, generated or not.
@@ -142,7 +136,7 @@ what can be found, and every fault is reported as a warning.
   the managed contribution applied over the main document and over each project section (K27).
 - K32 **alias**: an older name a plugin's or a default's contribution of a name lists in `aliases`, so load lines and
   customizations written for the older name still reach it after a rename. An interface document lists the older ids of
-  its interface (R96).
+  its interface.
 
 ## Use Cases
 
@@ -183,36 +177,19 @@ what can be found, and every fault is reported as a warning.
 
 - **Trigger:** a consumer's code (a skill's script, or a program using the library) needs fields from a result, not
   prose.
-- **Entry points:** Code: `--format json` on `load`, `where`, `list`, `search`, `check`, `implementations`, `create`,
-  `customize`, and `delete`; the library functions return the same records.
+- **Entry points:** Code: the commands' structured output; the library functions return the same records.
 - **Inputs:** a command and its arguments; the output format.
-- **Outcome:** each result carries the same fields in every adapter: by default only those that answer the request, with
-  `--metadata` and `--trace` adding the rest, so an agent pays for no detail it did not ask for, and a consumer reads
-  status, metadata, and codes instead of prose (repobuddy reads `metadata.contract` from `load --metadata`, and `match`
-  from `search`). Removing or renaming a field is a breaking change. Each failure and warning carries a stable code; the
-  human wording is not a contract. `metadata` is the composed frontmatter, key by key with the higher contribution
-  winning, without `merge`, `extends`, and a generated document's record of its sources and request: those say how one
-  contribution was built or applies, and the trace carries each as written (UC2).
+- **Outcome:** each result carries the same fields in every adapter, so an agent pays for no detail it did not ask for,
+  and a consumer reads status, metadata, and codes instead of prose. Removing or renaming a field is a breaking change.
+  Each failure and warning carries a stable code; the human wording is not a contract. Warnings are in one place, so a
+  consumer reads every fault from there. Project sections are records of their own.
 - **Extensions:**
-  - UC8.1 A name not `found`: its entry carries the status and code, and the other names still resolve.
-  - UC8.2 A warning in structured output goes in the entry's `warnings`, so a consumer reads every fault from one
-    place.
+  - UC8.1 A name not `found`: its entry carries the status and a code, and the other names still resolve.
+  - UC8.2 A warning in structured output goes in one place in the entry, so a consumer reads every fault from it.
   - UC8.3 The name has project sections: structured output gives each as its own record with its folder, and its text,
     apart from the main document, so code can take the one for the folder it works in without parsing headings, and code
     reading only the main document is unchanged. Such an entry is always a record, never the bare content. Text output
     inlines them as UC1 says.
-
-**Surface trace.** `load`, `--trace`, `--default` (UC1, UC2, UC10, UC12); `--root` (all); `where`, `--default`, `--in`
-(UC2); `list`, pattern, `--trace` (UC3); `search`, `--trace` (UC3); `create` with `--merge`, `--template`,
-`--implements`, `--scope`, `--in`, `--plugin`, `--default`, `--dry-run`, `--trace` (UC5, UC15); `customize` with
-`--extends`, `--extends-file`, `--request`, `--body`, `--base`, `--scope`, `--in`, `--default`, `--merge`,
-`--implements`, `--dry-run`, `--trace` (UC9, UC20, UC18); `delete` with `--scope`, `--in`, `--plugin`, `--default`,
-`--dry-run` (UC11); `check`, `--trace` (UC6); `implementations`, `--accept`, `--trace` (UC6); `--format`, `--metadata`
-(UC8). Frontmatter keys `merge`, `extends` (with the step keys `merge`, `extends`, `sections`), `implements`,
-`interface`, `description`, `tags`, `aliases`, and a generated document's record of sources and request serve UC1, UC5,
-UC6, UC7, UC9, UC20, UC18, UC19; the section marker `<!-- merge: ... -->` serves UC1 and UC7. File names `<name>.md` and
-`<name>.default.md` serve UC5, UC9, UC11, UC18 and UC3, UC12. Informational, no contract: the trace's keys beyond those
-the Adapters group names.
 
 ## Criteria
 
@@ -220,170 +197,34 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
 
 **Adapters**
 
-- R43 (UC1, UC6, UC8, E12): Exit values follow clibuilder's `axi` contract. Exit 0: the command did what was asked, a
-  no-op and an empty answer included (axi's `empty` state, printed as `empty: <message>` with `help`, as when `list`,
-  `search`, or `implementations` has nothing to show). `load`, `list`, and `search` exit 0 whenever they answered, a
-  name not `found` being a status in its record, with its `code`. `check` exits 0 with its full result whether entries
-  pass or fail: failures are entries in the result, which CI reads (for example with `--format json`), never an error
-  value. `where` on an ambiguous name, `delete` that leaves the name `missing` or `ambiguous`, and `customize` on a
-  `missing` name that writes also exit 0, and so do the no-ops `delete` with no file there and
-  `customize --extends none` with no selection, each saying nothing was there and what answers the name now (R30, R80).
-  Exit 1: the command was called correctly but could not complete: a refused write, a `--root` that does not exist, or
-  `implementations` of an unknown interface. Exit 2: it was called incorrectly (no name, an unknown flag, a combination
-  that cannot work), and retrying cannot help. R104 gives each code its exit value.
-- R44 (UC1): In text, one name prints its resolved reference; several print each as
-  `<reference name="...">...</reference>` in the order asked; a name not `found` prints
-  `<reference name="..." status="..." code="...">` holding its message, and its options when `ambiguous`, in its place.
-  Each project section follows the main document as `<project folder="...">...</project>`, in path order. The wrapper,
-  not a heading, marks where a section starts and ends, so its own headings keep their levels. The `folder` of a project
-  section, here and in `projectSections[].folder` and `search`'s `folder` (R38), is its path relative to the root,
-  `/`-separated on every OS, with no leading `./` and no trailing slash; in text it is XML-escaped.
-- R45 (UC1, UC8, E13): A command that exits 1 or 2 (a refused write, a usage error) prints exactly one error value on
-  stdout, as clibuilder's `axi` error value: `error` (the message), `code` (stable, kebab-case), flat `details` (scalars
-  or lists of scalars), and `help`; in text, its text form. Nothing else goes on stdout. In text, a warning is a
-  diagnostic on stderr, `warning: <code>: <message>`, and never changes stdout; under `--format json` or `toon` it is in
-  the record's `warnings` (R47). A warning never changes the exit code.
-- R46 (UC2): `--trace` in text writes to stderr a summary line (status, stack, what built it), then each section's
-  heading path with its contributions and operations, then each layer, then each project section with its folder and
-  path; for a generated document, each source with its recorded and installed plugin versions, and the request. Stdout
-  stays the plain resolved reference.
-- R47 (UC8): `--format json` or `toon` writes one document to stdout, with the fields R38 gives; a warning goes only in
-  the entry's `warnings`, not on stderr.
-- R48 (UC1, UC8): Each library function returns full records: every field R38 lists, including those `--metadata` and
-  `--trace` add; the command prints a subset. A name not `found`, `invalid` included, is a status in its record, never a
-  thrown error, and so is a failed check, an entry in the result. A refused write throws an error carrying its `code`,
-  marked when it is a usage error. `implementations` of an unknown interface throws an error carrying
-  `interface-unknown`, and a usage error on a read (`name-missing`, `query-missing`) throws an error carrying its code,
-  marked as a usage error, as a refused write does. Warnings go in the record's `warnings` and are never printed.
+- R43 (UC1, UC6, UC8, E12): Exit values follow clibuilder's `axi` contract. Exit 0: the command did what was asked or
+  answered, a no-op and an empty answer included; a name not `found` is a status in the answer, not a failure. Exit 1:
+  the command was called correctly but could not complete. Exit 2: it was called incorrectly, and retrying cannot help.
+- R44 (UC1): In text, one name prints its resolved reference; several print each in the order asked, each marked with
+  its name; a name not `found` prints its message in its place, with its options when `ambiguous`. Each project section
+  follows the main document as `<project folder="...">...</project>`, in path order. The wrapper, not a heading, marks
+  where a section starts and ends, so its own headings keep their levels. The `folder` is the section's path relative
+  to the root.
 
 **Names**
 
-- R1 (UC1, E1): A name is `invalid` when it ends `.md`, a [K29](./formats/README.md) extension, `.default` (that suffix
-  names a default's file, K13), or `.meta` (that suffix names a metadata file, [K31](./formats/README.md)), has a path
-  separator other than one `<plugin>/` prefix, or a character other than letters, digits, `-` and `.`, or it starts or
-  ends with `.`, contains `..`, or has an empty segment (a part between `.` or `/` separators), an empty name after
-  `<plugin>/` included. So a name is never a path (N3): `..` would otherwise read `references/../README.md`. Nothing is
-  read for it, and the other names still resolve.
-- R51 (UC1, E1): A `<name>.default.md` in a tier folder is ignored, with a warning that a default goes in a skill's
-  `references/` folder.
-- R2 (UC1, UC7, E2): `<plugin>/<name>` builds the stack from that plugin's contribution and what its own `extends`
-  brings in; the `user` and `repo` contributions still apply over it, as K23 orders them, and the managed one over the
-  result (K27); its project sections still follow it. A written `extends` is not used, and a plugin extending the named
-  one is left out.
+- R1 (UC1, E1): A name is never a path (N3). A name that is not valid is `invalid`, nothing is read for it, and the
+  other names still resolve.
+- R2 (UC1, UC7, E2): `<plugin>/<name>` is pinned to that plugin's version of a name, with the stack it builds on; the
+  `user` and `repo` contributions still apply over it, as K23 orders them, and the managed one over the result (K27);
+  its project sections still follow it.
 
 **Consumers (UC8)**
 
-- R38 (UC8, E40): A command prints only the fields that answer it; `--metadata` (on `load`) and `--trace` add more, and
-  a field with nothing to say is left out. In `--format json` and `toon`:
-  - `load`: one entry per name asked, in order. A `found` name with no warnings and no project sections is its content
-    as a string; otherwise a record of `name`, `status`, `content`, `projectSections` (each `folder`, R44, and
-    `content`), and `warnings`. A name not `found` is a record of `name`, `status`, `code`, and `options` when
-    `ambiguous`. `--metadata` or `--trace` makes every entry a record. `--metadata` adds `status`, `metadata`, and
-    `format` (R66). `--trace` adds `trace`: the stack, the contributions used (tier, plugin or skill, path, operation),
-    the sections, the layers (each with its `file`, whose extension shows the format), each project section's `folder`
-    and `path`, and for a generated document its `sources` (each plugin, recorded version, and installed version) and
-    `request`.
-  - `list`: rows of `name` and `description`, with `status` and `options` when not `found`, and `format` for a
-    non-Markdown name (R66); `--trace` adds the rows per
-    layer (R16) with `tier`, `plugin` or `skill`, `path`, outcome, and `kind` (`selection`, `generated`, or
-    `project-section` with its `folder`) when the row is one.
-  - `search`: matches of `name`, `description`, and `match`, `folder` (R44) for a match in a project section, and
-    `format` for a non-Markdown name (R66); `--trace` adds `tier` and `plugin` or `skill`.
-  - `check`: the entries that fail, each `name` and `failures` (each `check`, a kebab-case name R104 gives, and
-    `message`), the entries that pass with a warning, each `name` and `warnings`, and the count that pass; `--trace`
-    adds every entry with `kind` and `unsupported`. The exit is 0 whether entries fail (R43).
-  - `implementations`: each `pin` (a plugin's qualified name, or a `repo` or `user` implementation's bare name, R35),
-    its `tier` when `repo` or `user`, `description`, and `unsupported`; with nothing listed, axi's empty answer;
-    `--trace` adds `name`, `tier` for every one, `version`, the interface's `cardinality` and `accept`, and `excluded`
-    with `name` and `reasons`.
-  - `where`: `files`, each with `scope` (`repo`, `user`, or the `--in` folder), `path`, `reaches`, and `hiddenBy` (the
-    contribution that hides it, R57) when one does; `headings`, the
-    main document's heading paths; `used`, the plugins and default the stack uses; and `options` when `ambiguous`.
-    `--trace` adds the layers with their outcomes.
-  Removing or renaming one of these fields is a breaking change. The reports of `create`, `customize`, and `delete`
-  follow the Writing criteria and are informational, not a contract.
-- R39 (UC8, E41): Every failure and warning carries a `code`, following clibuilder's `axi` error contract; a warning in
-  `warnings` is `{code, message}`. A name not `found` has `reference-missing`, `reference-removed` (a `remove` turned it
-  off), `reference-ambiguous`, or `reference-invalid`; a stale generated document's warning has `reference-stale` (UC4.6
-  acts on it); a renamed one's has `reference-renamed` (UC19); every code is in R104. The human wording is not a
-  contract.
-- R104 (UC8, E41): Every code is one of these, and this table is its one home: one code, one description. Adding a
-  code is not breaking; removing or renaming one is. A check failure is an entry in `check`'s result (R43), not an
-  error value; its code is its check's name (R33, R64): `interface-found`, `version`, `name`, `order`, `required`,
-  `interface`, `kind`, `compose`, and, for a checked name that is not `found`, its status code (`reference-missing`,
-  `reference-removed`, `reference-ambiguous`, `reference-invalid`). Exit is the value a command that ends on the code
-  returns (R43): a wrong invocation is 2, a state of the files is 1. A notice is a no-op's answer: exit 0, with the code
-  carried in the result.
-
-  | Code | Kind | Exit | When |
-  | --- | --- | --- | --- |
-  | `reference-missing` | name status | 0 | no tier holds the name, or the plugin a qualified name asks for is not installed (UC1.1) |
-  | `reference-removed` | name status | 0 | a `missing` name a `remove` turned off (UC1.1, R49) |
-  | `reference-ambiguous` | name status | 0 | contributions that cannot be put in one order, or a name two names list as an alias (UC1.2, R98) |
-  | `reference-invalid` | name status | 0 | not a name (UC1.3, R1) |
-  | `frontmatter-invalid` | warning | none | malformed frontmatter (R105) |
-  | `merge-unknown` | warning | none | an unknown `merge` value (R7) |
-  | `marker-unknown` | warning | none | an unknown merge marker (R7) |
-  | `marker-unmatched` | warning | none | an explicit marker that matches nothing below (R7) |
-  | `heading-repeated` | warning | none | a document repeating a heading (R7) |
-  | `remove-body-ignored` | warning | none | a `remove` with a body (R49) |
-  | `extends-invalid` | warning | none | a malformed `extends` (R106) |
-  | `extends-self` | warning | none | a plugin listing itself (R54) |
-  | `extends-step-missing` | warning | none | a step that cannot be used (R55) |
-  | `extends-all-missing` | warning | none | every step cannot be used (R55) |
-  | `extends-not-used` | warning | none | a lower `extends` that builds a different stack (R53); picks written under a managed `extends` that builds it (R109) |
-  | `section-not-held` | warning | none | a `sections` entry the plugin does not hold (R52) |
-  | `default-not-selected` | warning | none | a plugin answering over the default with no `extends` naming either, and no own `extends` of the plugin naming `default` (R56) |
-  | `default-folder-missing` | warning | none | a `--default` folder that does not exist (R41) |
-  | `default-in-tier` | warning | none | a `<name>.default.md` in a tier folder (R51) |
-  | `file-ignored` | warning | none | a second file for a name in one folder, one under an older name beside the new name's included (R67, R97) |
-  | `format-mismatch` | warning | none | a Markdown contribution above a non-Markdown one (R68) |
-  | `metadata-ignored` | warning | none | a misplaced metadata file, or a body, `merge`, or `implements` in one (R94) |
-  | `project-section-key-ignored` | warning | none | `merge`, `extends`, `implements`, or `aliases` in a project section, or dropped from one `create --in --template` writes (R27, R110) |
-  | `interface-not-composed` | warning | none | `extends`, `merge`, or a higher copy on an interface document (R14) |
-  | `interface-check` | warning | none | a loaded document failing its interface check (R37) |
-  | `base-moved` | warning | none | `check` on a plugin or default file whose extended base has a newer version (R86) |
-  | `reference-stale` | warning | none | a generated document or project section with a changed or missing source (R101) |
-  | `reference-renamed` | warning | none | a name or file under an older name, or an interface's older id (R96, R97) |
-  | `alias-not-used` | warning | none | an alias a name holds as its own (R98) |
-  | `alias-invalid` | warning | none | an invalid or misplaced alias (R96) |
-  | `project-section-not-markdown` | warning | none | a Markdown project section for a name whose main document is not Markdown, or a non-Markdown file in a project folder (R99) |
-  | `reference-hidden` | warning | none | a file hidden by a `replace` or `remove` above it: one `create` or `customize` wrote (R26), or one `check` finds (R112) |
-  | `repo-hides-user` | warning | none | a `user` file this repository's `repo` contribution hides (R26, R112) |
-  | `root-missing` | refused | 1 | a `--root` that does not exist (R12) |
-  | `file-unreadable` | refused | 1 | a `--request` or `--body` file that cannot be read (R81, R82) |
-  | `folder-invalid` | refused | 1 | a `--plugin` or `--default` folder that does not qualify (R24) |
-  | `file-exists` | refused | 1 | `create` on a file with a body, or where the target folder holds a file answering the name in another form (R60) |
-  | `extends-replace` | refused | 1 | a `--plugin` or `--default` file extending a plugin with `replace` (R103) |
-  | `interface-invalid` | refused | 1 | `--implements` with an unknown interface (R28, R111) |
-  | `interface-unknown` | refused | 1 | `implementations` of an unknown interface (R35) |
-  | `template-title` | refused | 1 | a title template (R32) |
-  | `template-invalid` | refused | 1 | an unreadable template, or one whose frontmatter is not a mapping (R32) |
-  | `extends-file-invalid` | refused | 1 | an `--extends-file` that is unreadable or not a YAML `extends` list (R79) |
-  | `step-invalid` | refused | 1 | a step neither `default` nor a plugin holding the name (R79) |
-  | `no-selection` | notice | 0 | `--extends none` with no `extends` there: a no-op (R80) |
-  | `body-not-generated` | refused | 1 | `--request` on a body that records no request (R82) |
-  | `pick-required` | refused | 1 | `--request` without `--extends` on an `ambiguous` name (R82) |
-  | `name-outside-interface` | refused | 1 | `customize --implements` on a name outside the interface's namespace (R111) |
-  | `implements-required` | refused | 1 | `--request` without `--implements` on a `missing` name under a found interface's namespace (R111) |
-  | `in-not-markdown` | refused | 1 | `create --in` or `customize --in` for a name whose main document is not Markdown, which has no project sections (R82) |
-  | `no-file` | notice | 0 | `delete` with no file there: a no-op (R30) |
-  | `name-missing` | usage | 2 | a command that needs a name, given none (UC1.7) |
-  | `reference-qualified` | usage | 2 | a qualified name given to a write (R25) |
-  | `query-missing` | usage | 2 | `search` with an empty query (UC3.2) |
-  | `change-missing` | usage | 2 | `customize` with neither `--extends` nor `--request` (R82) |
-  | `options-conflict` | usage | 2 | flags that exclude each other, such as two of `--scope`, `--in`, `--plugin`, `--default` on `create` and `delete`, `--scope` with `--in` on `customize`, or `--merge` or `--extends` with `--in` (R24, R27, R82) |
-  | `options-missing` | usage | 2 | a flag given without the one it needs: `--request` without `--body`, or the reverse (R82) |
-  | `option-invalid` | usage | 2 | a flag given a value it does not accept, such as an unknown `--merge` operation (R27) |
-  | `in-not-below-root` | usage | 2 | `--in` naming the root or a folder outside it (R24) |
-  | `remove-with-template` | usage | 2 | `--merge remove` with `--template` (R27) |
-  | `template-with-implements` | usage | 2 | `--template` with `--implements` (R28) |
+- R39 (UC8, E41): Every failure and warning carries a stable `code`, following clibuilder's `axi` error contract. A
+  name not `found` is `missing`, `ambiguous`, or `invalid`, and a stale generated document warns (UC4.6 acts on it).
+  The human wording is not a contract.
 
 **Read-only reads**
 
 - R19 (UC1–UC3, UC6, E21): `load`, `where`, `list`, `search`, `check`, and `implementations` create, change, or delete
-  no file. Only `create`, `customize`, and `delete` write, each only where R24 allows; none writes in the managed tier
-  or an installed copy of a plugin or skill.
+  no file. Only `create`, `customize`, and `delete` write; none writes in the managed tier or an installed copy of a
+  plugin or skill.
 
 ## Open questions
 
@@ -394,8 +235,8 @@ None.
 - Interfaces design: issue #97 (closed). Name-pattern listing: #79 (closed). #110 (open): its default marker and pin
   file are replaced by `extends` and selection (UC7, UC9), and its alias by K32 (UC19). #107 (open): overrides and hard
   plugin dependencies.
-- Output rules (R38, R43 to R48): clibuilder v12's `axi` output. A returned value goes to stdout in the asked format,
-  diagnostics to stderr, errors coded; `--full` there means no truncation, so this spec's extra fields use `--metadata`.
+- Output rules (R43, R44): clibuilder v12's `axi` output. A returned value goes to stdout in the asked format,
+  diagnostics to stderr, errors coded; this spec's extra fields are opt-in.
 - Harness facts for enabled-plugin layers and managed folders: `.research/harness-detection`. What stays unverified
   about skill folders and plugin records (Cursor's enabled marketplace plugins, Claude Code's project-scope records, the
   text OpenCode and Gemini CLI give a loaded skill): #114.

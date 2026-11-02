@@ -26,73 +26,46 @@ name.
 
 **Key terms:**
 
-- K29 **format**: `markdown` for `<name>.md` and `<name>/README.md`; otherwise named by the extension: `json`,
-  `yaml` (`.yaml` and `.yml`), `toml`, `txt`.
-- K30 **format order**: when one folder holds several files for a name, the first of `.md`, `<name>/README.md`,
-  `.json`, `.yaml`, `.yml`, `.toml`, `.txt` answers.
-- K31 **metadata file**: `<name>.meta.md`, in the folder of a non-Markdown contribution. Its frontmatter holds what a
-  Markdown contribution's would: `description`, `tags`, `aliases`, `extends`, and a generated document's record of its
-  picks, sources, and request. It has no body; `merge` and `implements` in it are ignored (R94), since a non-Markdown
-  contribution always replaces what is below it (R68) and an interface's sections are Markdown. It is never a reference
-  itself, so a name ending `.meta` is reserved for it.
+- K29 **format**: the kind of a reference file: `markdown`, `json`, `yaml`, `toml`, or `txt`.
+- K31 **metadata file**: a file beside a non-Markdown contribution that carries its description and picks, and a
+  generated document's record of its sources and request. It has no body. It is never a reference itself.
 
 ## Use Cases
 
 ### UC13 — Load a reference that is not Markdown (A1.1, A5.1, A6.1)
 
-- **Trigger:** a consumer names a reference that a tier holds as `<name>.json` (or another K29 extension).
+- **Trigger:** a consumer names a reference that a tier holds as a non-Markdown file, such as `<name>.json`.
 - **Entry points:** Skill: Load mode. Code: `reference load <name>`; `loadReference`; the same for `where`, `list`,
   `search`, `check`.
 - **Inputs:** a name, as for any reference.
 - **Outcome:** the highest tier holding the name answers with its file as written, status `found`, format reported.
   Markdown behavior is unchanged.
 - **Extensions:**
-  - UC13.1 One folder holds several formats of a name: the K30 first answers; each other is ignored with a warning.
+  - UC13.1 One folder holds several formats of a name: one answers; each other is ignored with a warning.
   - UC13.2 Contributions differ in format across tiers: a non-Markdown contribution replaces everything below it. A
     Markdown contribution above it is ignored with a warning, except a `merge: remove`, which turns the name off.
   - UC13.3 Several non-Markdown contributions: the highest answers whole; those below are shadowed.
-  - UC13.4 A name ends in a K29 extension or `.meta`: `invalid` (R1).
-  - UC13.5 A non-Markdown file has no frontmatter: its metadata file (K31) holds it. With none, it lists with an empty
-    description, and it can be picked only through a metadata file alone (UC13.9).
+  - UC13.5 A non-Markdown file has no frontmatter: its description comes from a companion metadata file (K31). With
+    none, it lists with an empty description.
   - UC13.6 The skill's default may be non-Markdown: `references/<name>.default.json`.
   - UC13.7 A customizer customizes a non-Markdown name (UC18): the generator writes a whole document in the format of
     the one it was generated from, never a delta, since nothing merges inside the file (N10). Its picks, sources, and
     request go in its metadata file (K31), and it goes stale as K26 says.
   - UC13.8 A non-Markdown name has no project sections (UC1.17): a Markdown project section found for it is not
-    delivered, and neither is a non-Markdown file in a project folder, each with the `project-section-not-markdown`
-    warning.
-  - UC13.9 A customizer picks for a non-Markdown name (UC9): the pick is a metadata file with `extends` and no file
-    beside it, the selection for that name. Nothing merges, so the top step's file answers whole.
-  - UC13.10 A metadata file beside a Markdown contribution, or with neither a non-Markdown file nor `extends`: ignored,
-    with a warning. A metadata file with a body: the body is ignored, with a warning, and the frontmatter still applies.
-    A metadata file holding `merge` or `implements`: the key is ignored, with the `metadata-ignored` warning.
+    delivered, and neither is a non-Markdown file in a project folder; each is warned about.
+  - UC13.9 A customizer picks for a non-Markdown name (UC9): the pick is recorded in a metadata file. Nothing merges,
+    so the top step's file answers whole.
 
 ## Criteria
 
-- R65 (UC13): `<name>.<ext>` for each K29 extension answers a name in every tier but `project`, whose sections are
-  Markdown only (R99), in K30 order within a folder; the content is the file's text unchanged. A metadata file (K31)
-  never answers a name.
-- R66 (UC13): A result reports its `format` (K29); `load --metadata` and `--trace` carry it, and each trace layer's
-  `file` shows the extension. `list` and `search` rows carry it for a non-Markdown name.
-- R67 (UC1.6, UC13.1): Two files for a name in one folder, `<name>.md` and `<name>/README.md` included, or a file under
-  an older name beside one under the new name (R97): K30 first answers (the new name's first), each other warns
-  `file-ignored`.
-- R68 (UC13.2, UC13.3): The highest non-Markdown contribution replaces all below it, which are
-  `shadowed by <contribution> (replace)`. A Markdown contribution above is `not used (format differs from <format>)`,
-  with a warning `format-mismatch`, unless it is `merge: remove`.
-- R69 (UC13.4): A name ending in a K29 extension is `invalid`, as R1 says.
-- R70 (UC13.5): A non-Markdown reference's metadata is its metadata file's frontmatter, without `extends` and the
-  generated record (as for Markdown, UC8), plus `format`; with no metadata file, only `format`, and it lists with an
-  empty description. `where` lists no sections for it.
-- R92 (UC13.7): `customize` with a request for a non-Markdown name writes the body whole, in the format of the
-  document it was generated from, never a delta, and writes the picks, sources with installed versions, and request to
-  `<name>.meta.md` beside it. It goes stale as R101 says.
-- R93 (UC13.9): A metadata file with `extends` and no non-Markdown file beside it is that tier's selection for the
-  name: the stack is built from it, and the top step's file answers whole.
-- R95 (UC11, UC13): `delete` on a non-Markdown name removes its file and the metadata file beside it; on a selection
-  that is a metadata file alone, it removes that file.
-- R94 (UC13.10): A metadata file beside a Markdown contribution, or with neither a non-Markdown file nor `extends`, is
-  ignored with a warning. A body in a metadata file is ignored with a warning, and its frontmatter still applies, except
-  `merge` and `implements`, which are ignored with the same `metadata-ignored` warning (K31).
-- R71 (UC13): Markdown output, trace fields, and codes are unchanged for every name that no non-Markdown file answers.
+- R65 (UC13): A non-Markdown name is answered in every tier but `project`, whose sections are Markdown only (R99); the
+  content is the file's text unchanged. A metadata file (K31) never answers a name.
+- R66 (UC13): A result reports its `format` (K29).
+- R67 (UC1.6, UC13.1): Two files for a name in one folder: one answers, the other is warned about.
+- R68 (UC13.2, UC13.3): The highest non-Markdown contribution replaces all below it. A Markdown contribution above it
+  is not used and is warned about, unless it is `merge: remove`.
+- R92 (UC13.7): `customize` with a request for a non-Markdown name writes the whole document, never a delta, and
+  records its picks, sources with installed versions, and request in the metadata file. It goes stale as usual (K26).
+- R95 (UC11, UC13): `delete` on a non-Markdown name leaves no orphan metadata file behind.
+- R71 (UC13): Markdown output is unchanged for every name that no non-Markdown file answers.
 - R72 (UC13): No reference command reads an `assets/` folder or accepts a path.
