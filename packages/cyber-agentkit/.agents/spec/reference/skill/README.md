@@ -51,8 +51,9 @@ IDs are shared across the parent and its children.
 - **Extensions:**
   - UC12.1 A skill written for one harness: the line may add that harness's typed form of the skill
     (`.research/harness-detection` R4). A harness with no typed form recorded gets the words only.
-  - UC12.2 The skill uses an interface: the line names the interface ("Load the implementations of the `<id>`
-    interface ..."); Load lists the implementations (UC6), and the skill loads each by its qualified name.
+  - UC12.2 The skill uses an interface: the line names the interface ("Load the implementations of the `<id>` interface
+    ..."); Load lists the implementations (UC6), and the skill loads each by its `pin`: a plugin's qualified name, or a
+    `repo` or `user` implementation's bare name.
   - UC12.3 The agent cannot tell the caller's folder: the names resolve without the `default` tier, and the user is
     told.
   - UC12.4 The `reference` skill is not installed: the line names the package, so the agent tells the user what to

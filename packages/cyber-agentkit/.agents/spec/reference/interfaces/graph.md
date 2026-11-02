@@ -7,8 +7,10 @@ Decisions a consumer can observe. Criteria in [README.md](./README.md) cite the 
 
 ```mermaid
 flowchart TD
-  k([check name]) --> kind{"E35 an interface, an implementation, or neither?"}
-  kind -->|neither| kf([failure entry in the result, exit 0])
+  k([check name]) --> st{"E35 the name found?"}
+  st -->|"missing, ambiguous, or invalid: its status code is the check name"| kf([failure entry in the result, exit 0])
+  st -->|yes| kind{"E35 an interface, an implementation, or neither?"}
+  kind -->|"neither: check kind"| kf
   kind -->|interface| shape{"E52 the interface block well formed?"}
   shape -->|no| kf
   shape -->|yes| comp
@@ -16,7 +18,7 @@ flowchart TD
   found -->|no| kf
   found -->|yes| checks["version, name, order, required on the composed document"]
   checks --> sections["E36 a required one left out or Unsupported fails; an optional one is listed unsupported"]
-  sections --> base{"E60 extends another plugin, and its recorded version differs?"}
+  sections --> base{"E60 a plugin or default file extends another plugin, and its recorded version differs?"}
   base -->|yes| bw["warning naming both versions; the check still passes"]
   base -->|no| hid
   bw --> hid
@@ -24,7 +26,7 @@ flowchart TD
   hid -->|yes| hw["warning reference-hidden, or repo-hides-user, naming the hiding contribution; never a failure"]
   hid -->|no| comp
   hw --> comp
-  comp{"compose: did composing raise a warning that is a defect in the document itself (R33's list)?"}
+  comp{"compose: did composing raise a warning that is a defect in the document itself (R33's list; alias-not-used and section-not-held never fail it)?"}
   comp -->|yes| kf
   comp -->|no| ok{any other check failed?}
   ok -->|yes| kf
@@ -32,7 +34,7 @@ flowchart TD
   i([implementations id]) --> known{"E37 a known interface?"}
   known -->|no| iu(["refused interface-unknown, exit 1"])
   known -->|yes| pass{"E37 each candidate: passes check for that interface?"}
-  pass -->|"yes, and no other plugin holds that name, or the customizer picked it (R87)"| listed["listed: pin, description, unsupported"]
+  pass -->|"yes, and no other plugin holds that name, or the customizer picked it (R87)"| listed["listed: pin (a plugin's qualified name, or a repo or user implementation's bare name), tier, description, unsupported"]
   pass -->|no| excl[excluded, each with its reasons]
   listed --> any
   excl --> any{"E37 after every candidate is judged, is anything listed?"}

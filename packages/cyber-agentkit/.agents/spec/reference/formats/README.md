@@ -58,7 +58,9 @@ name.
   - UC13.7 A customizer customizes a non-Markdown name (UC18): the generator writes a whole document in the format of
     the one it was generated from, never a delta, since nothing merges inside the file (N10). Its picks, sources, and
     request go in its metadata file (K31), and it goes stale as K26 says.
-  - UC13.8 A project section in a format other than Markdown: not read, with a warning (UC1.17).
+  - UC13.8 A non-Markdown name has no project sections (UC1.17): a Markdown project section found for it is not
+    delivered, and neither is a non-Markdown file in a project folder, each with the `project-section-not-markdown`
+    warning.
   - UC13.9 A customizer picks for a non-Markdown name (UC9): the pick is a metadata file with `extends` and no file
     beside it, the selection for that name. Nothing merges, so the top step's file answers whole.
   - UC13.10 A metadata file beside a Markdown contribution, or with neither a non-Markdown file nor `extends`: ignored,

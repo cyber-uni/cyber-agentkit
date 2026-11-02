@@ -42,19 +42,23 @@ IDs are shared across the parent and its children.
   - UC1.9 The skill folder does not exist: a warning, and the name resolves without the `default` tier.
   - UC1.10 A plugin's contribution answers over the default contribution, and no selection names it: still answered,
     with a warning naming the plugin and `reference customize <name> --extends` (UC9). The warning stops once a written
-    `extends`, whether a selection (UC9) or a customization, names the plugin or the default.
+    `extends`, whether a selection (UC9) or a customization, names the plugin or the default. A plugin whose own
+    `extends` names `default` has placed the default itself, so it gets no warning (R56).
   - UC1.12 A step in `extends` cannot be used (not installed, not holding the name, a plugin listing itself, or a
     lower contribution's `extends` that builds a different stack): as R53 to R55 say.
   - UC1.13 A section matches no section below: with an explicit `<!-- merge: ... -->` marker, a warning, and its text
-    goes at the end (nothing, for `remove`); unmarked, it goes at the end with no warning. A document repeating a
-    heading: the first is matched, with a warning.
+    goes at the end of its parent section (nothing, for `remove`); unmarked, it goes there with no warning (R6). A
+    document repeating a heading: the first is matched, with a warning.
   - UC1.14 A generated document it uses is stale (K26): still answered, with a warning naming each changed or missing
     source and how to revise it (UC20).
   - UC1.16 No main document, but project sections exist: status `found`, with only the project sections. A generated
     section whose recorded sources are gone is stale (UC1.14).
-  - UC1.17 A project section for a name that is not Markdown: not read, with a warning.
+  - UC1.17 A name whose main document is not Markdown gets no project sections: a Markdown project section found for it
+    is not delivered, and neither is a non-Markdown file in a project folder, each with a `project-section-not-markdown`
+    warning (R99).
   - UC1.19 A project section holds `merge`, `extends`, `implements`, or `aliases` (K24): the key is ignored, with a
     `project-section-key-ignored` warning naming it and the folder, and the section is still delivered.
+  - UC1.20 A `--root` folder that does not exist: refused, `root-missing` (exit 1), and nothing is read (R12).
 
 ### UC2 — Explain a resolution (A2.1)
 
@@ -64,16 +68,16 @@ IDs are shared across the parent and its children.
 - **Inputs:** a name; the root (K18); the calling skill's folder, for the `default` tier; the detected harness;
   optionally a folder below the root.
 - **Outcome:** the trace gives the name's status; the stack and what built it (the contribution whose `extends` was
-  used, the plugins' own `extends`, or none); for each section of the main document with managed applied over it, by
-  heading path, the contributions that supplied its text and the operation each applied; every layer checked, highest
-  first (`managed`, then `repo`, then `user`, then the stack from its top), with its path, the file that matched, its
-  frontmatter as written, the operation it applied and whether that came from the contribution or from a step, and its
-  outcome (K7); and each project section with its folder and path. For a generated document, it also gives each recorded
-  source with its recorded and installed plugin versions, and the request. The resolved reference itself is unchanged.
-  `where` gives the `repo` and `user` `<name>.md` files a customization or a selection is written to, each with who it
-  reaches and, when a `replace` or `remove` above hides it, that it is hidden and by what, and the heading paths of the
-  main document, which a section operation can target; with `--in <folder>`, also the project section file for that
-  folder; with `--trace`, also the layers with their outcomes.
+  used, the plugins' and the default's own `extends`, or none); for each section of the main document with managed
+  applied over it, by heading path, the contributions that supplied its text and the operation each applied; every layer
+  checked, highest first (`managed`, then `repo`, then `user`, then the stack from its top), with its path, the file
+  that matched, its frontmatter as written, the operation it applied and whether that came from the contribution or from
+  a step, and its outcome (K7); and each project section with its folder and path. For a generated document, it also
+  gives each recorded source with its recorded and installed plugin versions, and the request. The resolved reference
+  itself is unchanged. `where` gives the `repo` and `user` `<name>.md` files a customization or a selection is written
+  to, each with who it reaches and, when a `replace` or `remove` above hides it, that it is hidden and by what, and the
+  heading paths of the main document, which a section operation can target; with `--in <folder>`, also the project
+  section file for that folder; with `--trace`, also the layers with their outcomes.
 - **Extensions:**
   - UC2.1 A layer or step cannot be read (policy held in MDM, a plugin with no install folder, a step not installed, a
     `default` step with nothing there): it appears with the reason, such as `not read (not installed)` or
@@ -136,9 +140,9 @@ IDs are shared across the parent and its children.
   once, at its listed place. Each step applies with its own operation: the step's key, else the plugin's own `merge`,
   else `patch`. The contribution's body applies on top with its own `merge`. The highest written `extends` among the
   contributions used builds the stack: a managed contribution's, else the `repo` one's, else the `user` one's, else the
-  plugins' own. The `user` and `repo` contributions apply over the stack in the order K23 gives, and the managed one
-  over the result (K27). Anything left out of that `extends`, a plugin or `default`, is `not used`. So a house-style
-  plugin changes what a generic skill reads without forking it.
+  own `extends` of the plugins and the default. The `user` and `repo` contributions apply over the stack in the order
+  K23 gives, and the managed one over the result (K27). Anything left out of that `extends`, a plugin or `default`, is
+  `not used`. So a house-style plugin changes what a generic skill reads without forking it.
 - **Extensions:**
   - UC7.1 A step cannot be used, a lower `extends` differs, or a plugin lists itself: as UC1.12 says.
   - UC7.2 The steps cannot be put in one order: as UC1.2 says. How bringing in, repeats, and a plugin brought in twice
@@ -191,6 +195,9 @@ IDs are shared across the parent and its children.
   - UC19.5 An alias of an alias: not followed. The owner lists every older name.
   - UC19.6 A qualified older name `<plugin>/<older name>`: resolves as `<plugin>/<new name>`.
   - UC19.7 An alias that is not a valid name (R1): ignored with a warning.
+  - UC19.8 An interface is renamed (its document lists the older id in `aliases`, R96): `implements: <old id>@<version>`
+    in an implementation resolves to the renamed interface, and a load of `<old id>` or `<old id>.<key>` resolves `<id>`
+    or `<id>.<key>`, each with a `reference-renamed` warning.
 
 ## Criteria
 
@@ -205,21 +212,65 @@ Edge IDs are in [graph.md](./graph.md).
   where they conflict is the agent's ordering rule (R90).
 - R100 (UC1, UC2, E57): When both `repo` and `user` hold a contribution, both apply, the `repo` one over the `user` one;
   a `repo` `replace` or `remove` makes the `user` one `shadowed`. The `user` one's `extends` is not used (R8).
-- R99 (UC1, UC10, E54): Project sections follow the main document in path order, never composed into it: paths compared
-  segment by segment by character code, so a folder comes before the folders inside it. The managed contribution
-  applies over each project section by heading path: a managed section that matches none of the project section's is not
-  added to it, and a managed `replace` or `remove` drops every project section. With no main document but a project
-  section, the name is `found` with only its project sections. A project section that is not Markdown is not read, with
-  a warning.
+- R99 (UC1, UC10, E54): Project sections follow the main document in path order, each marked with its `folder` (R44),
+  never composed into it: paths compared segment by segment by character code, so a folder comes before the folders
+  inside it. The managed contribution applies over each project section by heading path: a managed section that matches
+  none of the project section's is not added to it, and a managed `replace` or `remove` drops every project section.
+  With no main document but a project section, the name is `found` with only its project sections. A name whose main
+  document is not Markdown gets no project sections: a Markdown project section found for it is not delivered, and
+  neither is a non-Markdown file in a project folder, each with a `project-section-not-markdown` warning.
 - R110 (UC1, E54): A project section carries no `merge`, `extends`, `implements`, or `aliases` (K24). Load ignores each
   such key on one with a `project-section-key-ignored` warning naming the key and the folder, and still delivers the
   section.
 - R6 (UC1, E6): `patch` keeps what is below and puts each section's text in place of the text it matches by heading
-  path, unless that text is empty. Unmarked subsections replace. A section that matches nothing is added at the end. A
-  heading path is read from each document's own top heading level.
+  path, unless that text is empty. On a matched section, the subsections below it that the contribution does not match
+  are kept, and the ones it matches are replaced, recursively by heading path. A section that matches nothing is added
+  at the end of its parent section (at the end of the document, for a top-level one). A heading path is read from each
+  document's own top heading level.
+
+  Example. The document below, patched by the second one, gives the third. `Lint` is not matched, so it is kept;
+  `Types` matches nothing, so it ends its parent section `Checks`; `Docs` matches nothing, so it ends the document.
+
+  ````markdown
+  # Checks
+  Run lint.
+  ## Lint
+  Use biome.
+  ## Tests
+  Run vitest.
+  # Style
+  Short lines.
+  ````
+
+  ````markdown
+  # Checks
+  Run lint and types.
+  ## Tests
+  Run vitest with coverage.
+  ## Types
+  Use tsc.
+  # Docs
+  Write docs.
+  ````
+
+  ````markdown
+  # Checks
+  Run lint and types.
+  ## Lint
+  Use biome.
+  ## Tests
+  Run vitest with coverage.
+  ## Types
+  Use tsc.
+  # Style
+  Short lines.
+  # Docs
+  Write docs.
+  ````
 - R5 (UC1, E5): `combine` keeps what is below and adds each section's text after the text it matches, lower first.
-  Unmarked subsections combine. When combined text was joined, the output says once that where they conflict, the
-  later text wins.
+  Unmarked subsections combine. When combined text was joined, the resolved reference says so once, with the single line
+  `Where these sections conflict, the later text wins.` on a line of its own, immediately before the first section whose
+  text was joined (before its heading, when it has one).
 - R4 (UC1, E4): `replace` drops everything below; each contribution below is `shadowed by <contribution> (replace)`.
 - R49 (UC1, E45): `remove` drops everything below, and its body is ignored with a warning. When no contribution above it
   (a managed one included) has a body, there is no main document: the name is `missing` with the code
@@ -231,16 +282,17 @@ Edge IDs are in [graph.md](./graph.md).
 - R105 (UC1): A contribution with malformed frontmatter still answers, with a `frontmatter-invalid` warning and the
   documented default.
 - R7 (UC1, E7): An unknown `merge` value or marker is read as `patch`, with a warning. An explicit marker that matches
-  nothing below warns, and its text goes at the end (nothing, for `remove`); an unmarked section that matches nothing
-  does not warn. A document repeating a heading warns, and the first is matched.
+  nothing below warns, and its text goes at the end of its parent section (nothing, for `remove`); an unmarked section
+  that matches nothing does not warn. A document repeating a heading warns, and the first is matched.
 
 **Stack**
 
-- R8 (UC1, UC7, E8–E10): The highest written `extends` builds the stack: its steps apply bottom first, each bringing
-  its own `extends` beneath it, recursively; a plugin both listed and brought in appears once, at its listed place.
-  The highest is a managed contribution's, else the `repo` one's, else the `user` one's. With no written `extends` in
-  the managed, `repo`, or `user` tiers, the plugins' own `extends` order them. A plugin left unordered makes the name
-  `ambiguous`, with each `<plugin>/<name>` and the default as options.
+- R8 (UC1, UC7, E8–E10): The highest written `extends` builds the stack: its steps apply bottom first, each bringing its
+  own `extends` beneath it, recursively; a plugin both listed and brought in appears once, at its listed place. The
+  highest is a managed contribution's, else the `repo` one's, else the `user` one's. With no written `extends` in the
+  managed, `repo`, or `user` tiers, the plugins' own `extends` order them, and the default's own `extends` places the
+  default, as a plugin's places that plugin. A plugin left unordered makes the name `ambiguous`, with each
+  `<plugin>/<name>` and the default as options.
 - R52 (UC7, E8): A step applies with its own `merge` key, else the plugin's own `merge`, else `patch`. A step's own
   `extends` key replaces the plugin's. A step's `sections` key lists the top-level sections, by heading, it contributes;
   its other sections are not used, and a listed one it does not hold is skipped with a warning. `<plugin>: <operation>`
@@ -258,7 +310,8 @@ Edge IDs are in [graph.md](./graph.md).
 - R106 (UC7): A malformed `extends` counts as not written, with an `extends-invalid` warning.
 - R56 (UC1, UC4, E42): A plugin's contribution answering over the loading skill's default, when no written `extends`
   names the plugin or the default, still answers, with a warning naming the plugin and
-  `reference customize <name> --extends`.
+  `reference customize <name> --extends`. A plugin whose own `extends` names `default` has placed the default itself, so
+  the warning does not fire for it.
 
 **Reporting**
 
@@ -277,25 +330,30 @@ Edge IDs are in [graph.md](./graph.md).
   their outcomes.
 - R101 (UC1, UC2, E56): At load, a generated `repo` or `user` document, or a project section, is `stale` when a recorded
   source's plugin version differs from the installed one, or a recorded source is gone. It is still used, with a
-  `reference-stale` warning naming each changed or missing source and how to revise it (UC20). A plugin's own file that
-  records `sources` (R103) is never stale at load: only `check` compares it (R86, `base-moved`). A `default` source's
-  version is as K34 says. Only plugin versions are compared (N8). A contribution that records no sources is never stale.
+  `reference-stale` warning naming each changed or missing source and how to revise it (UC20). A `user` document records
+  only the harness's enabled plugins as sources (R84), so a plugin found only through a repository's `package.json`
+  (R13) is never one of its sources, and its absence in another repository never makes the document stale. A plugin's or
+  a default's own file that records `sources` (R103) is never stale at load: only `check` compares it (R86,
+  `base-moved`). A `default` source's version is as K34 says. Only plugin versions are compared (N8). A contribution
+  that records no sources is never stale.
 
 **Layers**
 
-- R12 (UC1, E14): The root is the folder `--root` names; without it, the nearest folder at or above the working folder
-  that holds `.git`, a folder or a file (a git worktree); with neither, the working folder. The `repo` tier reads the
-  root's `.agents/references/`. The `project` tier reads every `.agents/references/` strictly below the root, in folders
-  git does not ignore (by any ignore file git reads), tracked or not; outside a git repository, none is ignored. The
-  `user` tier reads `~/.agents/references/`. The managed tier reads `references/` in the current harness's managed
-  folder only; when detection names no harness, or more than one (nested harnesses, for which harness detection reports
-  `unknown`), none is read, and the trace says so; the library keeps no managed folder of its own.
+- R12 (UC1, E14): The root is the folder `--root` names, which must exist (else `root-missing`, exit 1, and nothing is
+  read); without it, the nearest folder at or above the working folder that holds `.git`, a folder or a file (a git
+  worktree); with neither, the working folder. The `repo` tier reads the root's `.agents/references/`. The `project`
+  tier reads every `.agents/references/` strictly below the root, in folders git does not ignore (by any ignore file git
+  reads), tracked or not; outside a git repository, none is ignored. The `user` tier reads `~/.agents/references/`. The
+  managed tier reads `references/` in the current harness's managed folder only; when detection names no harness, or
+  more than one (nested harnesses, for which harness detection reports `unknown`), none is read, and the trace says so;
+  the library keeps no managed folder of its own.
 - R13 (UC1, E15): The plugin tier holds, for the detected harness, each enabled plugin's `references/`, and the declared
-  `dependencies` and `devDependencies` of the nearest `package.json` that are plugins and ship one, each named by its
-  plugin manifest's `name`, never by its package name; never a transitive package. Any other dependency adds no plugin
-  layer: a standalone skill's defaults are found with the skills (R58), and the trace shows the rest `not read (not a
-  plugin)`. The plugin running the command is read once. A plugin-root `references/` is this library's convention, not
-  part of the Agent Plugins spec, and no harness reads it (`.research/skill-resolution`).
+  `dependencies` and `devDependencies` of the root's `package.json` (R12) that are plugins and ship one, each named by
+  its plugin manifest's `name`, never by its package name; never a transitive package. Any other dependency adds no
+  plugin layer: a standalone skill's defaults are found with the skills (R58), and the trace shows the rest
+  `not read (not a plugin)`. The plugin running the command is read once. A plugin-root `references/` is this library's
+  convention, not part of the Agent Plugins spec, and no harness reads it (`.research/skill-resolution`). A workspace
+  package's own `package.json` adds no plugin in this version, so the plugin tier is the same from any working folder.
 - R14 (UC1, E16): An interface document is never composed: `extends` and `merge` on it are ignored with a warning, a
   higher contribution of it is ignored with a warning, and the lowest answers; two plugins holding it make it
   `ambiguous`.
@@ -333,10 +391,13 @@ Edge IDs are in [graph.md](./graph.md).
 **Renames (UC19)**
 
 - R96 (UC19, E65): `aliases` on a plugin's or a default's contribution of a name, or on an interface document, lists
-  older names. A load of an older name resolves the name listing it, with a `reference-renamed` warning naming it, and
-  a qualified older name resolves as the same plugin's new name. Aliases are not followed transitively; an invalid one,
-  or `aliases` in any other tier, is ignored with a warning (in a project section, R110). For a non-Markdown name, the
-  owner lists them in its metadata file (K31).
+  older names. A load of an older name resolves the name listing it, with a `reference-renamed` warning naming it, and a
+  qualified older name resolves as the same plugin's new name. Aliases are not followed transitively; an invalid one, or
+  `aliases` in any other tier, is ignored with a warning (in a project section, R110). On an interface document,
+  `aliases` lists the interface's older ids: after the rename, `implements: <old id>@<version>` resolves to the renamed
+  interface, and the names `<old id>` and `<old id>.<key>` follow the alias like any renamed name, to `<id>` and
+  `<id>.<key>`, each with the `reference-renamed` warning naming the older one. For a non-Markdown name, the owner lists
+  them in its metadata file (K31).
 - R97 (UC19, E65): A contribution filed under an older name in the managed, `repo`, `user`, or `project` tier applies
   as one of the new name, with a `reference-renamed` warning naming its path and the new name. A file under the new
   name in the same folder wins, and the older one is ignored with a `file-ignored` warning.

@@ -8,7 +8,7 @@ Decisions a consumer can observe. Criteria in [README.md](./README.md) cite the 
 ```mermaid
 flowchart TD
   start([load name]) --> valid{"E1 a valid name?"}
-  valid -->|"no: .md, a K29 extension, .default, .meta, a path, a bad character"| invalid(["invalid: nothing read, other names go on"])
+  valid -->|"no: .md, a K29 extension, .default, .meta, a path, a bad character, a leading, trailing, or doubled dot, an empty segment"| invalid(["invalid: nothing read, other names go on"])
   valid -->|yes| qual{"E2 qualified plugin/name?"}
   qual -->|yes| pinned["stack: that plugin and what its own extends brings in; a written extends is not used"]
   qual -->|no| iface{"E16 an interface document?"}
@@ -28,9 +28,9 @@ flowchart TD
   fall --> written
   step -->|yes| leftout
   skip --> leftout["E9 a plugin or default left out: not used, never ambiguous"]
-  written -->|no| own{"E10 the plugins' own extends order every holder?"}
+  written -->|no| own{"E10 the plugins' own extends, and the default's, order every holder?"}
   own -->|"no, or a cycle, or a plugin at two places"| ambiguous(["ambiguous: each plugin/name and the default as options"])
-  own -->|yes| overdef{"E42 a plugin answers over the skill's default with no extends naming either?"}
+  own -->|yes| overdef{"E42 a plugin answers over the skill's default with no extends naming either, and its own extends not naming default?"}
   overdef -->|yes| warnsel["answers; warning names the plugin and reference customize --extends"]
   overdef -->|no| leftout
   warnsel --> leftout
@@ -41,7 +41,7 @@ flowchart TD
   both --> compose["E3 the stack bottom first in K17 order, then user, then repo, then managed, each with its own operation"]
   compose --> op{"the contribution's operation?"}
   op -->|"E46 no body, and not a remove"| nochange[changes nothing]
-  op -->|"E6 patch, the default"| patch[each section's text in place of the text it matches by heading path]
+  op -->|"E6 patch, the default"| patch["each section's text in place of the text it matches by heading path: unmatched subsections kept, a section matching nothing added at the end of its parent"]
   op -->|"E5 combine"| comb[each section's text after the text it matches]
   op -->|"E4 replace"| repl["everything below dropped: shadowed"]
   op -->|"E45 remove"| rem["everything below dropped; its body ignored with a warning"]
@@ -61,7 +61,7 @@ flowchart TD
   body -->|"no: another remove is on top"| projonly{"E54 any project section?"}
   projonly -->|no| missing
   projonly -->|yes| sections
-  body -->|yes| sections["E54 project sections after the main document, in path order; managed applied over each, and a managed replace or remove drops every project section; merge, extends, implements, aliases in one ignored with a warning"]
+  body -->|yes| sections["E54 project sections after the main document, in path order; managed applied over each, and a managed replace or remove drops every project section; merge, extends, implements, aliases in one ignored with a warning; a non-Markdown name gets none, with a warning"]
   sections --> found(["found: the resolved reference, every project section inlined"])
   found --> stale{"E56 a repo, user, or project-section document's recorded source version changed, or the source gone?"}
   stale -->|yes| stalew["stale: still used; reference-stale warning"]
@@ -74,7 +74,7 @@ flowchart TD
 
 | Edge | Decision | Outcome |
 | --- | --- | --- |
-| E14 | the root and the `repo`, `project`, `user`, and managed tiers | the root: `--root`, else the nearest folder up that holds `.git` (a folder, or a file in a git worktree), else the working folder; `repo`: the root's `.agents/references/`; `project`: each `.agents/references/` strictly below it that git does not ignore (by any ignore file git reads); `~/.agents/references/`; `references/` in the current harness's managed folder only, and none when detection names no harness or more than one |
+| E14 | the root and the `repo`, `project`, `user`, and managed tiers | the root: `--root` (refused, `root-missing`, when it does not exist), else the nearest folder up that holds `.git` (a folder, or a file in a git worktree), else the working folder; `repo`: the root's `.agents/references/`; `project`: each `.agents/references/` strictly below it that git does not ignore (by any ignore file git reads); `~/.agents/references/`; `references/` in the current harness's managed folder only, and none when detection names no harness or more than one |
 | E15 | the plugin tier | enabled plugins of the detected harness, plus declared (not transitive) package dependencies that ship `references/` |
 | E43 | `--default <skill folder>` | `<skill folder>/references/<name>.default.md` read as the `default` tier; an old `references/<name>.md` copy is not |
 | E22 | a `governances/` folder | never read |
@@ -94,4 +94,4 @@ flowchart TD
 
 | Edge | Decision | Outcome |
 | --- | --- | --- |
-| E65 | a name or a file name listed in another name's `aliases`, and held by no contribution as its own | resolves the new name, with a `reference-renamed` warning; listed by two names, `ambiguous` |
+| E65 | a name or a file name listed in another name's `aliases` (an interface's older ids included), and held by no contribution as its own | resolves the new name, with a `reference-renamed` warning; listed by two names, `ambiguous` |

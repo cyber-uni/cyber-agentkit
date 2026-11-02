@@ -23,19 +23,21 @@ IDs are shared across the parent and its children.
 - **Outcome:** `create` writes `<name>.md` in that tier's folder with `merge: <operation>` (none in a project section,
   which carries no `merge`, K24), and reports the path with a hint that `load <name>` gives the resolved reference; with
   `--trace`, also the resulting trace, which shows the new file's outcome (R31). The skill shows the user where each
-  section came from and offers the full document. A plugin file whose `extends` names another plugin (it gets `extends`
-  only from a `--template`, since `create` has no `--extends`) records, in `sources`, the version of that plugin it was
-  written against, so `check` can warn its author when the base moves on (UC6).
+  section came from and offers the full document. A plugin or default file whose `extends` names another plugin (it gets
+  `extends` only from a `--template`, since `create` has no `--extends`) records, in `sources`, the version of that
+  plugin it was written against, so `check` can warn its author when the base moves on (UC6).
 - **Extensions:**
-  - UC5.1 The file exists with a body: error, and nothing is written. `create` never overwrites; Update edits it.
+  - UC5.1 The file exists with a body: error, and nothing is written. `create` never overwrites; Update edits it. The
+    folder holds a file answering the name in another form (`<name>/README.md`, or `<name>.<ext>` for a K29 extension):
+    refused the same way, `file-exists`, naming that file (R60).
   - UC5.2 The file holds only a selection: `create` adds the body and `merge`, and keeps its `extends`.
   - UC5.3 A qualified name: usage error `reference-qualified` (exit 2), naming the bare name to use.
   - UC5.4 A contribution that would hide the new file (a managed `replace` or `remove` over a `repo` file or a project
     section; this repository's `repo` one over a `user` file; for a plugin file, one above it in the stack): written all
     the same, since the hiding contribution may change later, with a warning naming it: `reference-hidden`, or
     `repo-hides-user` for a `user` file under this repository's `repo` contribution (R26, UC2.7).
-  - UC5.5 `--implements <id>`: the interface's sections are written with `merge: replace`. With `--in`: usage error
-    `options-conflict` (exit 2), since a project section carries no `implements` or `merge` (K24).
+  - UC5.5 `--implements <id>`: the interface's sections are written with `merge: replace`. With `--in`: they are
+    written as that folder's project section, with no `implements` or `merge` (K24, R27).
   - UC5.6 `--merge remove`: no body is written. With `--template`: usage error `remove-with-template` (exit 2).
   - UC5.7 Both `--template` and `--implements`: usage error `template-with-implements` (exit 2). An unreadable
     template, or a template whose frontmatter is not a mapping: refused, `template-invalid`. An unknown interface:
@@ -58,6 +60,8 @@ IDs are shared across the parent and its children.
     `merge: replace`: refused, `extends-replace` (R103), and nothing is written. A copy would freeze every user
     on the base its author saw. The file states only the sections it changes, or, to replace the base entirely, is a
     snapshot of its own with no `extends` on that plugin.
+  - UC5.13 `--in` with a `--template` whose frontmatter holds `merge`, `extends`, `implements`, or `aliases`: the
+    section is written without those keys, with a `project-section-key-ignored` warning naming each (R27).
 
 ### UC18 — Customize a reference (A5.1, A8.1)
 
@@ -79,14 +83,16 @@ IDs are shared across the parent and its children.
 - **Outcome:** what is written depends on what the customizer ended up changing. Picks alone write a selection (UC9). A
   request also writes a body: the generator reads the resolved reference from `load` with the picks applied, never the
   contribution files, and leaves the `user` tier out when the target is `repo` or a folder, so nothing personal reaches
-  a shared file, and the `repo` tier out when the target is `user`, since it applies above. It never reads the target
-  file itself, so a request is never applied over its own earlier result when revising (UC20): for a `repo` or `user`
-  target, its input is the main document built without that file; for a folder, the main document plus the project
-  sections of the folders above the target (the outer ones), not the target's own section nor any deeper one. It leaves
-  managed text out too, whatever the target, and writes none of it, even when the harness shows an admin's instructions
-  to the agent: it reaches the agent only at load (K27). A managed contribution's `extends` is structure, not text, so
-  it still builds the stack the generator reads (R84). It writes one concise document that applies the request and keeps
-  the stack's heading paths: by default a delta holding only the sections it changes, with `patch` or `combine`; with
+  a shared file, and the `repo` tier out when the target is `user`, since it applies above. For a `user` target the
+  plugins in the stack are only the harness's enabled ones, never plugins found through a repository's `package.json`
+  (R13), so a `user` document means the same in every repository (R84). It never reads the target file itself, so a
+  request is never applied over its own earlier result when revising (UC20): for a `repo` or `user` target, its input is
+  the main document built without that file; for a folder, the main document plus the project sections of the folders
+  above the target (the outer ones), not the target's own section nor any deeper one. It leaves managed text out too,
+  whatever the target, and writes none of it, even when the harness shows an admin's instructions to the agent: it
+  reaches the agent only at load (K27). A managed contribution's `extends` is structure, not text, so it still builds
+  the stack the generator reads (R84). It writes one concise document that applies the request and keeps the stack's
+  heading paths: by default a delta holding only the sections it changes, with `patch` or `combine`; with
   `--merge replace`, a whole document. For a folder, it is that folder's project section, stating only what differs
   there. The command records in the frontmatter the picks (`extends`), each source with its plugin's version (K34), and
   the request. A body goes stale as K26 says. A later `load` uses it as K23 says.
@@ -98,8 +104,8 @@ IDs are shared across the parent and its children.
   - UC18.3 The name resolves to nothing (`missing`): the body is written from the request alone, with no sources, as a
     whole document. Under a found interface's namespace, see UC18.12 and UC18.13.
   - UC18.4 The name is `ambiguous`: the customizer picks first, then the request, if any, is applied.
-  - UC18.5 A project section for a name that is not Markdown: refused, `in-not-markdown` (UC1.17), and nothing is
-    written.
+  - UC18.5 A name whose main document is not Markdown has no project sections (UC1.17): `--in` is refused,
+    `in-not-markdown`, and nothing is written.
   - UC18.6 The command cannot run: the skill writes nothing and says so (UC4).
   - UC18.7 `--plugin`: usage error `options-conflict`. `customize` never writes a file that ships; an author uses
     `create` (UC5).
@@ -111,22 +117,30 @@ IDs are shared across the parent and its children.
     command warns `extends-not-used`, naming that managed contribution (R109).
   - UC18.11 `--merge` with `--in`: usage error `options-conflict`, since a project section carries no `merge` (K24).
   - UC18.12 A name only an interface defines: no default and no plugin implements it, so the name is `missing`.
-    `--implements <id>` mirrors `create --implements` (UC5.5). The generator's base (`--base`) is the interface's stub,
-    each section a `##` heading with its "what it holds" line, as R28 writes them. The written document is a whole
-    document recording `implements: <id>@<version>` with `merge: replace` (R111).
-  - UC18.17 `--implements` on a name that is already found: allowed; the whole implementation replaces the stack
-    (R111). On a name outside the interface's namespace: refused, `name-outside-interface` (exit 1), and nothing is
-    written.
+    `--implements <id>` mirrors `create --implements` (UC5.5). The generator's base (`--base`) is the interface's stub
+    alone, as R84 says. The written document is a whole document recording `implements: <id>@<version>` with
+    `merge: replace` (R111).
+  - UC18.17 `--implements` on a name that is already found: allowed; the whole implementation replaces the stack (R111),
+    and the generator's base is the interface's stub followed by the name's current resolved reference (R84), so it can
+    carry content over. On a name outside the interface's namespace: refused, `name-outside-interface` (exit 1), and
+    nothing is written.
   - UC18.13 A `missing` name that falls under a found interface's namespace (R111), customized with `--request` and no
     `--implements`: refused, `implements-required` (exit 1), and nothing is written. Its `help` gives the `--implements`
     command.
-  - UC18.14 `--implements` with `--in`: usage error `options-conflict` (exit 2), since a project section carries no
-    `implements` (K24). `--implements` with an unknown interface: refused as `create --implements` is,
+  - UC18.14 `--implements` with `--in`: a project section for that folder, written from the interface's stub plus the
+    main document and outer sections when the name is found (R84), holding every section of the interface. It records no
+    `implements` or `merge` (K24); the agent's nearer-folder rule (R90) makes it win for work in that folder, and with
+    no main document it alone answers there (UC1.16). So one package of a monorepo can implement an interface
+    differently from the rest. `--implements` with an unknown interface: refused as `create --implements` is,
     `interface-invalid`.
   - UC18.15 A `replace` or `remove` above would hide the target file (a managed one over a `repo` file or a project
     section; this repository's `repo` one over a `user` file): written all the same, with the warning R26 gives, naming
     the hiding contribution. A selection (UC9) is written likewise.
   - UC18.16 `--in` naming the root or a folder outside it: usage error `in-not-below-root` (exit 2).
+  - UC18.18 A `--request` or `--body` file that cannot be read: refused, `file-unreadable` (exit 1), and nothing is
+    written (R81, R82).
+  - UC18.19 `--scope` with `--in`: usage error `options-conflict` (exit 2), since a customization goes to one place
+    (R24).
 
 ### UC20 — Revise a stale generated document (A5.4, A7.2)
 
@@ -176,8 +190,8 @@ IDs are shared across the parent and its children.
     is `not used` (R8, UC7.6).
   - UC9.4 A qualified name: usage error `reference-qualified` (exit 2), naming the bare name to use.
   - UC9.5 `--extends none`: `extends` is removed from the file, and a file left with nothing in it is deleted. With no
-    `extends` in that tier: refused, `no-selection`, stating what answers the name now. Removing the whole file is
-    UC11.
+    `extends` in that tier: a no-op, exit 0, whose answer says nothing was there (code `no-selection`) and what answers
+    the name now. Removing the whole file is UC11.
   - UC9.6 A `sections` entry names a section the plugin's contribution does not hold: it is skipped with a warning.
 
 ### UC11 — Remove a customization (A5.2)
@@ -192,8 +206,8 @@ IDs are shared across the parent and its children.
   with what built it. The status can be `ambiguous`, with the options, when the file held the selection that ordered
   the plugins. A name left `missing` or `ambiguous` is an answer, not a failure: exit 0 (R43).
 - **Extensions:**
-  - UC11.1 No contribution there: refused, `no-file` (exit 1), stating what answers the name now. An installed plugin's,
-    a managed, or an installed skill's contribution is never deleted.
+  - UC11.1 No contribution there: a no-op, exit 0, whose answer says nothing was there (code `no-file`) and what answers
+    the name now. An installed plugin's, a managed, or an installed skill's contribution is never deleted.
   - UC11.2 A qualified name: usage error `reference-qualified` (exit 2), naming the bare name to use.
   - UC11.3 `--dry-run`: the path and the answer afterwards are printed, and nothing is deleted.
   - UC11.4 The file also holds a selection (`extends`): both go, and the report says the selection went too, naming
@@ -215,13 +229,16 @@ Edge IDs are in [graph.md](./graph.md).
   below the root). `create` and `delete` act there too, or on `<plugin folder>/references/<name>.md` with
   `--plugin <plugin folder>`, or on `<skill folder>/references/<name>.default.md` with `--default <skill folder>`; that
   folder must hold a plugin manifest or a `SKILL.md` and sit inside the repository. `--scope`, `--in`, `--plugin`, and
-  `--default` exclude each other (`options-conflict`, exit 2) for `create` and `delete`. `--in` names a folder strictly
-  below the root, else `in-not-below-root` (exit 2). On `customize`, `--default` is no place to write: it names the
-  skill folder to read the default from (R41), and combines with `--scope` or `--in`.
+  `--default` exclude each other (`options-conflict`, exit 2) for `create` and `delete`; `customize` takes at most one
+  of `--scope` and `--in` (`options-conflict`, exit 2), and no `--plugin`. `--in` names a folder strictly below the
+  root, else `in-not-below-root` (exit 2). On `customize`, `--default` is no place to write: it names the skill folder
+  to read the default from (R41), and combines with `--scope` or `--in`.
 - R25 (UC5, UC9, UC11, UC18, E27): `create`, `customize`, and `delete` reject a qualified name as a usage error
   (`reference-qualified`, exit 2) and say which bare name to use.
-- R60 (UC5, E26): `create` never overwrites a file with a body. On a file holding only a selection, it adds the body
-  and `merge` and keeps the `extends`.
+- R60 (UC5, E26): `create` never overwrites a file with a body. On a file holding only a selection, it adds the body and
+  `merge` and keeps the `extends`. When the target folder holds a file answering the name in another form
+  (`<name>/README.md`, or `<name>.<ext>` for a K29 extension; for a default, `<name>.default.<ext>`), it is refused,
+  `file-exists` (exit 1), naming that file, and nothing is written.
 - R26 (UC5, UC18, E28): `create` and `customize` write the file even when a `replace` or `remove` above would hide it
   (a managed one over a `repo` file or a project section; this repository's `repo` one over a `user` file; for a
   `create` of a plugin or default file, one above it in the stack, checked only when the folder is a layer the stack
@@ -231,15 +248,19 @@ Edge IDs are in [graph.md](./graph.md).
 - R27 (UC5, E29): In the `repo` and `user` tiers, `create` writes `merge` from `--merge`, else the template's `merge`,
   else `patch`; with `--plugin` or `--default`, only from `--merge`. A default can extend a plugin through its own
   `extends` (R8 brings each step's `extends` beneath it), so it can sit above that plugin, and its `merge` matters:
-  `merge: replace` makes it a whole-document snapshot. In a project section (`--in`) it writes no `merge`, and `--merge`
-  or `--implements` with `--in` is a usage error (`options-conflict`, exit 2), since a project section carries no
-  `merge` or `implements` (K24). Otherwise `--implements` writes `merge: replace` whatever the other options.
-  `--merge remove` writes no body, and with `--template` is a usage error (`remove-with-template`, exit 2). An
-  unknown `--merge` operation is a usage error (`option-invalid`, exit 2).
+  `merge: replace` makes it a whole-document snapshot. In a project section (`--in`) it writes no `merge`: `--merge`
+  with `--in` is a usage error (`options-conflict`, exit 2), and `--implements` with `--in` writes the interface's
+  sections stubbed as R28 says, with no `implements` or `merge`, since a project section carries neither (K24). `--in`
+  for a name whose main document is not Markdown is refused (`in-not-markdown`, exit 1), as for `customize`. A
+  `--template` that holds `merge`, `extends`, `implements`, or `aliases` has those keys dropped from the section written
+  with `--in`, with a `project-section-key-ignored` warning naming each. Otherwise `--implements` writes
+  `merge: replace` whatever the other options. `--merge remove` writes no body, and with `--template` is a usage error
+  (`remove-with-template`, exit 2). An unknown `--merge` operation is a usage error (`option-invalid`, exit 2).
 - R103 (UC5, E29): A `--plugin` or `--default` file gets an `extends` naming a plugin only from a `--template`, since
-  `create` has no `--extends`. Such a file is refused with `merge: replace` (`extends-replace`, exit 1), since a
-  whole document makes the `extends` pointless: a snapshot is written with no `extends`. A `--plugin` file is written
-  with that plugin's installed version recorded in `sources`, which `check` compares (R86, UC6.9).
+  `create` has no `--extends`. Such a file is refused with `merge: replace` (`extends-replace`, exit 1), since a whole
+  document makes the `extends` pointless: a snapshot is written with no `extends`. A `--plugin` or `--default` file that
+  extends a plugin is written with that plugin's installed version recorded in `sources`, which `check` compares (R86,
+  UC6.9).
 - R28 (UC5, E30): `create --implements <id>` writes the interface's sections as `##` headings in order and
   `implements: <id>@<version>`, each section stubbed `**Unsupported.**` followed by the line saying what it holds; it
   is refused for an unknown interface (`interface-invalid`, exit 1), and is a usage error with `--template`
@@ -250,20 +271,24 @@ Edge IDs are in [graph.md](./graph.md).
   selection. A step that is neither `default` nor a plugin holding the name is refused (`step-invalid`), and so is an
   `--extends-file` that is unreadable or not a YAML `extends` list (`extends-file-invalid`); nothing is written.
 - R80 (UC9, E51): `customize --extends none` removes `extends` and deletes a file left with nothing in it; with no
-  `extends` in that tier, it is refused (`no-selection`), stating what answers the name now.
+  `extends` in that tier, it is a no-op (exit 0, code `no-selection`): nothing is written, and the answer says nothing
+  was there and what answers the name now.
 - R81 (UC20, UC18, E58): `customize --request <file> --body <file>` writes the body with frontmatter `extends` (the
   picks given, else the target's existing `extends`, kept; none for a project section, K24), `sources` (each source's
-  plugin and installed version, a `default` source's as K34 says; for a project section, those of the main document),
-  `request` (the file's text), and `merge` (`--merge`, else `patch`; none for a project section, K24); with
-  `--implements`, see R111. The command runs no model.
+  plugin and installed version, a `default` source's as K34 says; for a project section, those of the main document; for
+  a `user` target, only enabled plugins', R84), `request` (the file's text), and `merge` (`--merge`, else `patch`; none
+  for a project section, K24); with `--implements`, see R111. An unreadable `--request` or `--body` file is refused,
+  `file-unreadable` (exit 1), writing nothing (R82). The command runs no model.
 - R82 (UC18, E58): `customize` refuses, writing nothing, each with its code (R104): with neither `--extends` nor
   `--request` (`change-missing`, exit 2); with `--in` and `--extends`, since a project section has no stack, with
-  `--plugin`, or with `--in` and `--merge` or `--implements` (`options-conflict`, exit 2); with only one of `--request`
-  and `--body` (`options-missing`, exit 2); with `--in` outside the root (`in-not-below-root`, exit 2); with `--request`
-  when the target holds a body that records no request (`body-not-generated`, exit 1); with `--in` for a name that is
-  not Markdown (`in-not-markdown`, exit 1); with `--request` and no `--extends` on an `ambiguous` name
-  (`pick-required`, exit 1); and with `--request` and no `--implements` on a `missing` name under a found interface's
-  namespace (`implements-required`, exit 1, R111). A body that records a request is replaced.
+  `--plugin`, with `--scope` and `--in` together, or with `--in` and `--merge` (`options-conflict`,
+  exit 2); with only one of `--request` and `--body` (`options-missing`, exit 2); with `--in` outside the root
+  (`in-not-below-root`, exit 2); with a `--request` or `--body` file that cannot be read (`file-unreadable`, exit 1);
+  with `--request` when the target holds a body that records no request (`body-not-generated`, exit 1); with `--in` for
+  a name whose main document is not Markdown, which has no project sections (`in-not-markdown`, exit 1); with
+  `--request` and no `--extends` on an `ambiguous` name (`pick-required`, exit 1); and with `--request` and no
+  `--implements` on a `missing` name under a found interface's namespace (`implements-required`, exit 1, R111). A body
+  that records a request is replaced.
 - R83 (UC18, E50): `customize --extends` on a target holding a body keeps the body; when that body records a request,
   the output suggests customizing again with it.
 - R84 (UC20, UC18, E59): `customize --base` prints, and writes nothing, the document the generator reads for that
@@ -271,10 +296,15 @@ Edge IDs are in [graph.md](./graph.md).
   names its folder (R41). It never includes the target file itself, so a request is never applied over its own earlier
   result when revising. For a `repo` or `user` target it is the main document built without that file. For a folder
   target it is the main document plus the project sections of the folders above the target (the outer ones), not the
-  target's own section nor any deeper one. With `--implements <id>` for a `missing` name, it is the interface's stub
-  (R111). It leaves out the text of managed contributions always, though a managed contribution's `extends` still
-  builds the stack, being structure; and the `user` tier for a `repo` or folder target, and the `repo` tier for a
-  `user` target. `load` offers no way to leave tiers out or to leave out the target file.
+  target's own section nor any deeper one. For a `user` target, the stack holds only the harness's enabled plugins,
+  never one found through a repository's `package.json` (R13), so a `user` document means the same in every repository,
+  and its recorded sources (R81) name only those plugins. With `--implements <id>` (R111), the base is the interface's
+  stub (each section a `##` heading in order with its "what it holds" line, as R28 writes them) followed by the name's
+  current resolved reference when it is `found`, built as above, so the generator can carry content over into the whole
+  implementation; for a `missing` name it is the stub alone. It leaves out the text of managed contributions always,
+  though a managed contribution's `extends` still builds the stack, being structure; and the `user` tier for a `repo` or
+  folder target, and the `repo` tier for a `user` target. `load` offers no way to leave tiers out or to leave out the
+  target file.
 - R109 (UC18, E50): `customize --extends` under a managed contribution whose `extends` builds the stack (R8) writes
   the picks, since the file is the customizer's, and warns `extends-not-used`, naming that managed contribution (R53).
 - R85 (UC20, UC18): Customize mode shows the draft and writes only once the customizer approves; with no user present,
@@ -284,8 +314,8 @@ Edge IDs are in [graph.md](./graph.md).
 - R30 (UC11, E32): `delete` removes only the file at the place chosen (R24), with its metadata file for a non-Markdown
   name (R95), never a managed contribution or an installed copy, and reports the status and stack afterwards; when the
   file held a selection, the report says so and names `reference customize --extends`. A name left `missing` or
-  `ambiguous` is reported, and the exit is 0. With no file there, it is refused (`no-file`), stating what answers the
-  name now.
+  `ambiguous` is reported, and the exit is 0. With no file there, it is a no-op (exit 0, code `no-file`), saying nothing
+  was there and what answers the name now.
 - R29 (UC5, UC11, UC18, E31): `--dry-run` prints the path and the exact content (`create`, `customize`) or the path and
   the answer afterwards (`delete`), and changes no file.
 - R31 (UC5, UC18, E33): After a write, the report gives the path and points to `load <name>` for the resolved reference;
@@ -299,9 +329,10 @@ Edge IDs are in [graph.md](./graph.md).
   (R28), for a name nothing implements (no default and no plugin, so the name is `missing`) or for one already found,
   whose stack the whole document then replaces. The name must fall under the interface's namespace (cardinality `one`:
   `<id>`; `many`: `<id>.<key>`), else it is refused with `name-outside-interface` (exit 1), writing nothing. The
-  generator's base (`--base`, R84) is the interface's stub: each section a `##` heading in order, with its "what it
-  holds" line. The written document is whole and records `implements: <id>@<version>`, `merge: replace`, and the
+  generator's base (`--base`) is as R84 says: the interface's stub, followed by the name's current resolved reference
+  when it is found. The written document is whole and records `implements: <id>@<version>`, `merge: replace`, and the
   request, with no `sources`. A `missing` name that falls under a found interface's namespace, customized with
   `--request` and no `--implements`, is refused with `implements-required` (exit 1), writing nothing, and its `help`
-  gives the `--implements` command. `--implements` with `--in` is a usage error (`options-conflict`, exit 2), since a
-  project section carries no `implements` (K24); an unknown interface is refused as R28 says (`interface-invalid`).
+  gives the `--implements` command. `--implements` with `--in` writes a project section (UC18.14), which records no
+  `implements` or `merge`, since a project section carries neither (K24); an unknown interface is refused as R28 says
+  (`interface-invalid`).
