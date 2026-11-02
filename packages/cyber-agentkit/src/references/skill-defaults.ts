@@ -22,8 +22,8 @@ export function defaultsUnverified(source: Source): string | undefined {
 
 /** The layers as the skill at `folder` loads a name: its default joins as the `default` tier. */
 export function withDefault(source: Source, folder: string): ReferenceLayers {
-	const { layers, harnesses, skills } = Array.isArray(source)
-		? { layers: source as readonly ReferenceLayer[], harnesses: [], skills: undefined }
+	const layers: ReferenceLayers = Array.isArray(source)
+		? { layers: [...(source as readonly ReferenceLayer[])], harnesses: [] }
 		: (source as ReferenceLayers)
-	return { layers: [...layers.filter(({ tier }) => tier !== 'default'), defaultLayer(folder)], harnesses, skills }
+	return { ...layers, layers: [...layers.layers.filter(({ tier }) => tier !== 'default'), defaultLayer(folder)] }
 }

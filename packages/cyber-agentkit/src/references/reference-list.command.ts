@@ -33,7 +33,8 @@ export type ReferenceListReport = {
 		path: string
 		description?: string
 		outcome: string
-		selection?: boolean
+		kind?: string
+		folder?: string
 		reachedBy?: string
 	}[]
 	warnings?: ReferenceWarning[]

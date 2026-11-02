@@ -39,7 +39,7 @@ describe('listReferences', () => {
 		expect(listing.defaults).toBeUndefined()
 	})
 
-	it('gives one layer row per name per layer holding it, with its outcome, marking a selection', () => {
+	it('gives one layer row per name per layer holding it, with its outcome, marking a selection by its kind (R38)', () => {
 		const layers = [
 			layer('repo', { 'shared.md': '---\nextends: [b]\n---\n' }),
 			layer('plugin', { 'shared.md': doc('a') }, 'a'),
@@ -49,8 +49,8 @@ describe('listReferences', () => {
 		const { layers: rows, references } = listReferences(layers)
 
 		expect(references).toEqual([{ name: 'shared', description: 'b', status: 'found' }])
-		expect(rows.map(({ tier, plugin, outcome, selection }) => [tier, plugin, outcome, selection])).toEqual([
-			['repo', undefined, 'used', true],
+		expect(rows.map(({ tier, plugin, outcome, kind }) => [tier, plugin, outcome, kind])).toEqual([
+			['repo', undefined, 'used', 'selection'],
 			['plugin', 'b', 'used', undefined],
 			['plugin', 'a', 'not used (not in extends)', undefined],
 		])

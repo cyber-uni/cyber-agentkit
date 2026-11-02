@@ -18,11 +18,18 @@ import type { ReferenceFormat } from './reference-format.js'
 import { interfaceIdOf } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
 import { parseReferenceName, type ReferenceName } from './reference-name.js'
+import {
+	type ProjectSections,
+	type ReferenceTraceProjectSection,
+	type ResolvedProjectSection,
+	readProjectSections,
+} from './reference-project-sections.js'
 import { type Lookup, namesDefault, plan } from './reference-stack.js'
 
 export { candidateFiles, contributionLabel, layerNames } from './reference-contribution.js'
 export type { ReferenceName } from './reference-name.js'
 export { parseReferenceName } from './reference-name.js'
+export type { ReferenceTraceProjectSection, ResolvedProjectSection } from './reference-project-sections.js'
 export type { ExtendsStep } from './reference-stack.js'
 export { readExtends } from './reference-stack.js'
 
@@ -89,6 +96,8 @@ export type ReferenceTrace = {
 	harnesses: string[]
 	/** When a `remove` turned the whole name off (`reference-removed`): that contribution. */
 	removedBy?: string
+	/** Each project section found, in path order, delivered or not, and each one in a folder git ignores. */
+	projectSections: ReferenceTraceProjectSection[]
 }
 
 /** A name resolved, with every field: the command prints a subset. A bad name is a status, never thrown. */
@@ -104,6 +113,8 @@ export type ResolvedReference = {
 	format?: ReferenceFormat
 	/** The composed frontmatter, key by key with the higher contribution winning, without `merge` and `extends`. */
 	metadata?: Record<string, unknown>
+	/** When `found`: what each folder below the root adds after the main document, in path order (R99). */
+	projectSections: ResolvedProjectSection[]
 	/** When `ambiguous`: each `<plugin>/<name>`, and `default` when the skill has one. */
 	options?: string[]
 	cause?: AmbiguousCause
@@ -129,7 +140,15 @@ function layersOf(source: Source): ReferenceLayers {
 }
 
 function emptyTrace(harnesses: readonly string[]): ReferenceTrace {
-	return { stack: [], builtBy: 'none', contributions: [], sections: [], layers: [], harnesses: [...harnesses] }
+	return {
+		stack: [],
+		builtBy: 'none',
+		contributions: [],
+		sections: [],
+		layers: [],
+		harnesses: [...harnesses],
+		projectSections: [],
+	}
 }
 
 /**
@@ -158,10 +177,10 @@ export function resolveReference(
 	{ display = (path) => path, without, below }: ResolveOptions = {},
 ): ResolvedReference {
 	const ref = typeof input === 'string' ? parseReferenceName(input) : input
-	const { layers: all, harnesses } = layersOf(source)
+	const { layers: all, harnesses, root, projects } = layersOf(source)
 	const trace = emptyTrace(harnesses)
 	const warnings: ReferenceWarning[] = []
-	const result: ResolvedReference = { name: ref.raw, status: 'missing', warnings, trace }
+	const result: ResolvedReference = { name: ref.raw, status: 'missing', projectSections: [], warnings, trace }
 	if (ref.invalid) return { ...result, status: 'invalid', code: 'reference-invalid', message: ref.invalid }
 	const seen = new Set<string>()
 	const warnAt =
@@ -215,6 +234,15 @@ export function resolveReference(
 		return resolveInterface(ref, contributions, holders, defaultContribution, result, warn, options)
 	}
 
+	// `where` reads only the layers below a file, which no project section is part of.
+	const sectionsOver = (format: ReferenceFormat | undefined): ProjectSections => {
+		if (root === undefined || below !== undefined) return { sections: [], trace: [] }
+		const managed = tiered.find(({ layer }) => layer.tier === 'managed')
+		const found = readProjectSections(ref.name, { root, cache: projects, managed, format, display, without, warnAt })
+		trace.projectSections = found.trace
+		return found
+	}
+
 	const decided = plan(ref, tiered, holders, lookup, defaultContribution, warn)
 	if ('status' in decided) {
 		if (decided.status === 'ambiguous') {
@@ -264,6 +292,11 @@ export function resolveReference(
 	const { composed, applied, removedBy, used, whole } = composeOrder(order, warnAt)
 	trace.sections = composed.removed.map(({ path, by }) => ({ path, contributions: [], removedBy: by }))
 	if (!applied.length) {
+		const only = sectionsOver(undefined).sections
+		if (only.length) {
+			// No main document, but project sections answer (UC1.16).
+			return { ...result, status: 'found', content: '', format: 'markdown', metadata: {}, projectSections: only }
+		}
 		if (removedBy) {
 			trace.removedBy = removedBy.label
 			return {
@@ -296,6 +329,7 @@ export function resolveReference(
 		...trace.sections,
 	]
 	if (whole) {
+		sectionsOver(whole.format)
 		return {
 			...result,
 			status: 'found',
@@ -316,6 +350,7 @@ export function resolveReference(
 		content,
 		format: 'markdown',
 		metadata: composedMetadata(shown),
+		projectSections: sectionsOver('markdown').sections,
 	}
 }
 

@@ -10,6 +10,7 @@ import {
 	type CommonArgs,
 	compact,
 	defaultOption,
+	deliveredText,
 	displayTrace,
 	type LayersFor,
 	notFoundTag,
@@ -30,6 +31,8 @@ export type ReferenceLoadEntry =
 			name: string
 			status: ResolvedReference['status']
 			content?: string
+			/** What each folder below the root adds after the main document, in path order. */
+			projectSections?: { folder: string; content: string }[]
 			/** Set when the answer is not Markdown. */
 			format?: string
 			code?: ReferenceStatusCode
@@ -42,12 +45,20 @@ export type ReferenceLoadEntry =
 type LoadFlags = { metadata: boolean; trace: boolean }
 
 function loadEntry(resolved: ResolvedReference, home: string, { metadata, trace }: LoadFlags): ReferenceLoadEntry {
-	if (resolved.status === 'found' && !resolved.warnings.length && !metadata && !trace && resolved.format === 'markdown')
+	if (
+		resolved.status === 'found' &&
+		!resolved.warnings.length &&
+		!resolved.projectSections.length &&
+		!metadata &&
+		!trace &&
+		resolved.format === 'markdown'
+	)
 		return resolved.content as string
 	return compact({
 		name: resolved.name,
 		status: resolved.status,
 		content: resolved.content,
+		projectSections: resolved.projectSections.map(({ folder, content }) => ({ folder, content })),
 		format: resolved.format === 'markdown' ? undefined : resolved.format,
 		code: resolved.code,
 		options: resolved.options,
@@ -66,10 +77,10 @@ const bareArray = {
 /** One found name prints alone; several, and any name not `found`, print as `<reference>` tags in the order asked. */
 function loadText(resolved: readonly ResolvedReference[]): Answer<string> {
 	const tag = (entry: ResolvedReference) =>
-		entry.status === 'found' ? referenceTag(entry.name, entry.content ?? '') : notFoundTag(entry)
+		entry.status === 'found' ? referenceTag(entry.name, deliveredText(entry)) : notFoundTag(entry)
 	if (resolved.length === 1) {
 		const [only] = resolved as [ResolvedReference]
-		return document(only.status === 'found' ? (only.content ?? '') : notFoundTag(only))
+		return document(only.status === 'found' ? deliveredText(only) : notFoundTag(only))
 	}
 	return document(resolved.map(tag).join('\n\n'))
 }

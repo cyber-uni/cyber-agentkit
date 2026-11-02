@@ -11,11 +11,22 @@ export type ProjectFolder = {
 	dir: string
 }
 
-/**
- * The files git lists below each root, so one run asks git once per root. A root git does not list
- * (outside a repository, or with no git) maps to `undefined`.
- */
-export type ProjectFolderCache = Map<string, readonly string[] | undefined>
+/** What one discovery found below a root: the folders to read, the ones git ignores, and the files git lists. */
+export type ProjectFolders = {
+	/** The folders whose `.agents/references/` git does not ignore, in path order. */
+	folders: ProjectFolder[]
+	/**
+	 * The folders whose `.agents/references/` git ignores, in path order: one an ignore file names, or
+	 * one whose every listed file is ignored. A folder inside an ignored folder is not looked for, so
+	 * discovery never walks an ignored tree such as `node_modules/`.
+	 */
+	ignored: ProjectFolder[]
+	/** Each file below the root git lists and does not ignore, relative with `/`; `undefined` outside git, where nothing is ignored. */
+	listed?: ReadonlySet<string> | undefined
+}
+
+/** One discovery per root, so one run asks git once per root. */
+export type ProjectFolderCache = Map<string, ProjectFolders>
 
 const referencesPath = ['.agents', 'references'] as const
 
@@ -29,15 +40,19 @@ function lsFiles(root: string, ...args: string[]): string[] {
 	return output.split('\0').filter(Boolean)
 }
 
+type GitListing = { files: string[]; ignored: string[] }
+
 /**
  * Every file below `root` git tracks or would track and no ignore file git reads ignores, tracked
- * or not: `git ls-files -co --exclude-standard`, less the tracked files `-ci` names as ignored.
- * `undefined` when git cannot list the folder.
+ * or not: `git ls-files -co --exclude-standard`, less what `-coi --directory` names as ignored, which
+ * lists an ignored folder git does not track as the folder alone. `undefined` when git cannot list
+ * the folder.
  */
-function gitFiles(root: string): string[] | undefined {
+function gitListing(root: string): GitListing | undefined {
 	try {
-		const ignored = new Set(lsFiles(root, '-ci'))
-		return lsFiles(root, '-co').filter((file) => !ignored.has(file))
+		const ignored = lsFiles(root, '-coi', '--directory')
+		const skip = new Set(ignored)
+		return { files: lsFiles(root, '-co').filter((file) => !skip.has(file)), ignored }
 	} catch {
 		return undefined
 	}
@@ -52,6 +67,19 @@ function folderOf(file: string): string | undefined {
 		}
 	}
 	return undefined
+}
+
+/**
+ * The project folder an ignored entry stands for: a file's folder, as `folderOf` reads it, or a folder
+ * git names whole (`build/`) when it holds a `.agents/references/` of its own.
+ */
+function ignoredFolderOf(root: string, entry: string): string | undefined {
+	if (!entry.endsWith('/')) return folderOf(entry)
+	const segments = entry.slice(0, -1).split('/')
+	if (segments.at(-1) === referencesPath[1] && segments.at(-2) === referencesPath[0]) segments.splice(-2)
+	else if (segments.at(-1) === referencesPath[0]) segments.splice(-1)
+	const folder = segments.join('/')
+	return folder && isDirectory(join(root, ...segments, ...referencesPath)) ? folder : undefined
 }
 
 function entries(dir: string): Dirent[] {
@@ -99,19 +127,46 @@ export function comparePaths(a: string, b: string): number {
 	return left.length - right.length
 }
 
-/**
- * The folders strictly below `root` holding a `.agents/references/`, in path order. In a git
- * repository, git lists them once per root and `cache` keeps the list for the run; a folder any ignore
- * file git reads ignores is left out. Outside one, the tree is walked and none is ignored. Folder data
- * only: what the folders hold is read elsewhere.
- */
-export function projectReferenceFolders(root: string, cache: ProjectFolderCache = new Map()): ProjectFolder[] {
-	const top = resolve(root)
-	if (!cache.has(top)) cache.set(top, gitFiles(top))
-	const listed = cache.get(top)
-	const folders = listed === undefined ? walk(top) : [...new Set(listed.flatMap((file) => folderOf(file) ?? []))]
-	return folders
+function located(top: string, folders: Iterable<string>): ProjectFolder[] {
+	return [...folders]
 		.sort(comparePaths)
 		.map((folder) => ({ folder, dir: join(top, ...folder.split('/'), ...referencesPath) }))
 		.filter(({ dir }) => isDirectory(dir))
+}
+
+function discover(top: string): ProjectFolders {
+	const listing = gitListing(top)
+	if (listing === undefined) return { folders: located(top, walk(top)), ignored: [] }
+	const read = new Set(listing.files.flatMap((file) => folderOf(file) ?? []))
+	const ignored = new Set(
+		listing.ignored.flatMap((entry) => {
+			const folder = ignoredFolderOf(top, entry)
+			return folder === undefined || read.has(folder) ? [] : [folder]
+		}),
+	)
+	return { folders: located(top, read), ignored: located(top, ignored), listed: new Set(listing.files) }
+}
+
+/**
+ * The folders strictly below `root` holding a `.agents/references/`, the ones git ignores apart, and
+ * the files git lists. In a git repository, git lists them once per root and `cache` keeps the answer
+ * for the run; outside one, the tree is walked and nothing is ignored. Folder data only: what the
+ * folders hold is read elsewhere.
+ */
+export function projectFolders(root: string, cache: ProjectFolderCache = new Map()): ProjectFolders {
+	const top = resolve(root)
+	const known = cache.get(top)
+	if (known) return known
+	const found = discover(top)
+	cache.set(top, found)
+	return found
+}
+
+/**
+ * The folders strictly below `root` holding a `.agents/references/`, in path order. In a git
+ * repository, git lists them once per root and `cache` keeps the list for the run; a folder any ignore
+ * file git reads ignores is left out. Outside one, the tree is walked and none is ignored.
+ */
+export function projectReferenceFolders(root: string, cache: ProjectFolderCache = new Map()): ProjectFolder[] {
+	return projectFolders(root, cache).folders
 }

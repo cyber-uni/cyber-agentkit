@@ -9,6 +9,7 @@ import { type FoundSkill, skillName, skillsIn } from '../skills/skill-folder.js'
 import { detectedHarnesses, enabledPluginLayers, harnessManagedLayers } from './harness-layers.js'
 import type { ReferenceWarning } from './reference-codes.js'
 import { ReferenceFailure } from './reference-error.js'
+import type { ProjectFolderCache } from './reference-projects.js'
 
 /**
  * Where a contribution lives. Listed highest first; the stack (plugins and `default`) is ordered by
@@ -70,8 +71,10 @@ export type ReferencePlugin = {
 export type ReferenceLayers = {
 	/** Highest first: managed, repo, user, plugin, default. */
 	layers: ReferenceLayer[]
-	/** The repository root the layers were read from. */
+	/** The repository root the layers were read from. Its folders below hold the project sections. */
 	root?: string | undefined
+	/** The project folders found below the root, kept for the run so git is asked once. */
+	projects?: ProjectFolderCache | undefined
 	/** The harnesses detected, whose managed folders and enabled plugins were read. */
 	harnesses: readonly HarnessId[]
 	/** The installed skills that hold a default, which `list`, `search`, and `check` reach. */
@@ -308,5 +311,5 @@ export async function referenceLayers({
 	// A repository checked out at the home directory would read the same folder as repo and user.
 	const seen = new Set<string>()
 	const placed = layers.filter(({ dir }) => !seen.has(dir) && seen.add(dir))
-	return { layers: placed, root, harnesses, skills }
+	return { layers: placed, root, projects: new Map(), harnesses, skills }
 }

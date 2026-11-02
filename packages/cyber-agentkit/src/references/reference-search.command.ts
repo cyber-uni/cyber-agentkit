@@ -18,6 +18,7 @@ export type ReferenceSearchReport = {
 		name: string
 		description?: string
 		match: string
+		folder?: string
 		loadedBy?: string
 		tier?: string
 		plugin?: string
@@ -49,11 +50,11 @@ export function searchCommand(layersFor: LayersFor): cli.Command {
 					})
 				}
 				const report: ReferenceSearchReport = compact({
-					references: matches.map(({ name, description, match, tier, plugin, skill, loadedBy }) =>
+					references: matches.map(({ name, description, match, folder, tier, plugin, skill, loadedBy }) =>
 						compact(
 							args.trace
-								? { name, description, match, loadedBy, tier, plugin, skill }
-								: { name, description, match, loadedBy },
+								? { name, description, match, folder, loadedBy, tier, plugin, skill }
+								: { name, description, match, folder, loadedBy },
 						),
 					),
 					defaults,

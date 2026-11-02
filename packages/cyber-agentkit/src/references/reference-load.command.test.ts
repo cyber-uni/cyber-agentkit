@@ -34,14 +34,16 @@ describe('load: tiers', () => {
 		expect(written()).toBe('## A\n\nproject\n\n## U\n\nuser\n\n## M\n\nmanaged\n')
 	})
 
-	it('reads the repo tier at the root only, never a folder below it as a tier (R12)', async () => {
+	it('reads the repo tier at the root only: a folder below it adds a project section, never a tier (R12)', async () => {
 		const root = repo()
 		const sub = join(root, 'packages', 'app')
 		write(root, '.agents/references/name.md', '## A\n\nroot\n\n## B\n\nroot b\n')
 		write(sub, '.agents/references/name.md', '## A\n\nnear\n')
 
 		expect(await load(['name'], { root })).toBe(0)
-		expect(written()).toBe('## A\n\nroot\n\n## B\n\nroot b\n')
+		expect(written()).toBe(
+			'## A\n\nroot\n\n## B\n\nroot b\n\n<project folder="packages/app">\n## A\n\nnear\n</project>\n',
+		)
 	})
 
 	it('refuses a --root that does not exist with root-missing, exit 1, reading nothing (UC1.20)', async () => {

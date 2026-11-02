@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { comparePaths, type ProjectFolderCache, projectReferenceFolders } from './reference-projects.js'
+import { comparePaths, type ProjectFolderCache, projectFolders, projectReferenceFolders } from './reference-projects.js'
 
 function tempDir(): string {
 	return mkdtempSync(join(tmpdir(), 'reference-projects-'))
@@ -50,6 +50,32 @@ describe('projectReferenceFolders in a git repository (C10)', () => {
 		write(root, 'app/.agents/references/name.md')
 
 		expect(folders(root)).toEqual(['app'])
+	})
+
+	it('names the folders git ignores apart, without walking into an ignored folder, and the files it lists', () => {
+		const root = gitRepo()
+		write(root, '.gitignore', 'build/\nvendor/\nnode_modules/\n')
+		write(root, 'build/.agents/references/name.md')
+		write(root, 'build/deep/.agents/references/name.md')
+		write(root, 'node_modules/pkg/.agents/references/name.md')
+		write(root, 'vendor/.agents/references/name.md')
+		git(root, 'add', '-f', 'vendor/.agents/references/name.md')
+		write(root, 'app/.agents/references/name.md')
+
+		const found = projectFolders(root)
+
+		expect(found.folders.map(({ folder }) => folder)).toEqual(['app'])
+		expect(found.ignored.map(({ folder }) => folder)).toEqual(['build', 'vendor'])
+		expect([...(found.listed ?? [])].sort()).toEqual(['.gitignore', 'app/.agents/references/name.md'])
+	})
+
+	it('ignores nothing and lists no files outside git', () => {
+		const root = tempDir()
+		write(root, 'app/.agents/references/name.md')
+
+		const found = projectFolders(root)
+		expect(found.ignored).toEqual([])
+		expect(found.listed).toBeUndefined()
 	})
 
 	it('reads a nested ignore file as git does', () => {

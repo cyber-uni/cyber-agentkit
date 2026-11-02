@@ -82,6 +82,7 @@ export type {
 	ReferenceListing,
 	ReferenceListLayerRow,
 	ReferenceListRow,
+	ReferenceListRowKind,
 	ReferenceSearch,
 	SearchMatch,
 } from './references/reference-catalog.js'
@@ -136,6 +137,7 @@ export {
 	userReferencesDir,
 } from './references/reference-layers.js'
 export type { ReferenceName } from './references/reference-name.js'
+export type { ProjectFolder, ProjectFolderCache, ProjectFolders } from './references/reference-projects.js'
 export type { ReferenceWherePlace, ReferenceWhereReport, WhereOptions } from './references/reference-where.js'
 export { whereReference } from './references/reference-where.js'
 export type {
@@ -146,7 +148,9 @@ export type {
 	ReferenceTrace,
 	ReferenceTraceContribution,
 	ReferenceTraceLayer,
+	ReferenceTraceProjectSection,
 	ReferenceTraceSection,
+	ResolvedProjectSection,
 	ResolvedReference,
 	ResolveOptions,
 } from './references/resolve-reference.js'

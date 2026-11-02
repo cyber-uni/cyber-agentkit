@@ -78,6 +78,7 @@ export function displayTrace(trace: ReferenceTrace, home: string): ReferenceTrac
 		...trace,
 		contributions: trace.contributions.map((row) => ({ ...row, path: show(row.path) })),
 		layers: trace.layers.map((layer) => ({ ...layer, path: show(layer.path) })),
+		projectSections: trace.projectSections.map((row) => ({ ...row, path: show(row.path) })),
 	}
 }
 
@@ -108,6 +109,20 @@ export function traceText(resolved: ResolvedReference, home: string): string {
 			layer.frontmatter && Object.keys(layer.frontmatter).length ? ` ${JSON.stringify(layer.frontmatter)}` : ''
 		lines.push(`  ${layer.tier}${who} ${layer.path}: ${layer.outcome}${how}${extendsNote}${selection}${frontmatter}`)
 	}
+	if (trace.projectSections.length) {
+		lines.push('project sections:')
+		for (const row of trace.projectSections) {
+			const frontmatter =
+				row.frontmatter && Object.keys(row.frontmatter).length ? ` ${JSON.stringify(row.frontmatter)}` : ''
+			lines.push(`  ${row.folder} ${row.path}: ${row.outcome}${frontmatter}`)
+			for (const section of row.sections ?? []) {
+				const how = section.contributions
+					.map(({ contribution, operation }) => `${contribution} (${operation})`)
+					.join(', ')
+				lines.push(`    ${section.path}: ${how || 'no text'}`)
+			}
+		}
+	}
 	return `${lines.join('\n')}\n`
 }
 
@@ -124,6 +139,22 @@ export function notFoundTag(entry: ResolvedReference): string {
 	const options = entry.options?.length ? `; options: ${entry.options.join(', ')}` : ''
 	const name = escapeAttribute(entry.name)
 	return `<reference name="${name}" status="${entry.status}" code="${entry.code}">${escapeText(`${entry.message ?? entry.status}${options}`)}</reference>`
+}
+
+/**
+ * A found name's text: the main document, then each project section wrapped with its folder, in path
+ * order, keeping its own heading levels (R44).
+ */
+export function deliveredText(entry: ResolvedReference): string {
+	const content = entry.content ?? ''
+	if (!entry.projectSections.length) return content
+	const blocks = [
+		...(content.trim() ? [content.trimEnd()] : []),
+		...entry.projectSections.map(
+			({ folder, content: text }) => `<project folder="${escapeAttribute(folder)}">\n${text}</project>`,
+		),
+	]
+	return `${blocks.join('\n\n')}\n`
 }
 
 /** A found name among several, in text. */

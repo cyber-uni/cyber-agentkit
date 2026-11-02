@@ -21,7 +21,7 @@ describe('list', () => {
 		expect(report.layers).toBeUndefined()
 	})
 
-	it('adds one row per name per layer under --trace, marking a selection', async () => {
+	it('adds one row per name per layer under --trace, marking a selection by its kind (R38)', async () => {
 		const root = repo()
 		plugins(root, { a: { name: base } })
 		write(root, '.agents/references/name.md', '---\nextends: [a]\n---\n')
@@ -33,7 +33,7 @@ describe('list', () => {
 				tier: 'repo',
 				path: join(root, '.agents/references/name.md'),
 				outcome: 'used',
-				selection: true,
+				kind: 'selection',
 			},
 			{ name: 'name', tier: 'plugin', plugin: 'a', path: expect.stringContaining('name.md'), outcome: 'used' },
 		])

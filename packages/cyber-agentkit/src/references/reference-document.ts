@@ -202,7 +202,13 @@ export function emptyComposed(): Composed {
 	return { top: undefined, preamble: [], preambleSources: [], children: [], removed: [], joined: false }
 }
 
-type Apply = { label: string; warn: WarnFn; composed: Composed }
+type Apply = {
+	label: string
+	warn: WarnFn
+	composed: Composed
+	/** Apply only over what the contribution matches: a section matching nothing is not added, and not warned about. */
+	matchedOnly: boolean
+}
 
 function pathOf(parent: string, title: string): string {
 	return parent ? `${parent} > ${title}` : title
@@ -270,6 +276,7 @@ function applyChildren(
 		const index = matched.has(key) ? -1 : base.findIndex((candidate) => sectionKey(candidate.title) === key)
 		matched.add(key)
 		if (index === -1) {
+			if (apply.matchedOnly) continue
 			if (section.marker) warnUnmatched(section, parent, apply)
 			if (operation !== 'remove') appended.push(place(section, operation, parent, apply))
 			continue
@@ -309,7 +316,9 @@ function applyChildren(
 
 /**
  * Applies one contribution's body over what is below it. `remove` and a body-less contribution are
- * the caller's to handle: this applies text.
+ * the caller's to handle: this applies text. With `matchedOnly`, it changes only what it matches: a
+ * section matching nothing is not added, and the text before the first heading applies only over
+ * text there.
  */
 export function applyContribution(
 	below: Composed,
@@ -317,13 +326,14 @@ export function applyContribution(
 	operation: Exclude<MergeOperation, 'remove'>,
 	label: string,
 	warn: WarnFn,
+	{ matchedOnly = false }: { matchedOnly?: boolean } = {},
 ): Composed {
 	const tree = parseSections(body, warn)
 	const base = operation === 'replace' ? emptyComposed() : below
 	const composed: Composed = { ...base, removed: [...base.removed] }
-	const apply: Apply = { label, warn, composed }
+	const apply: Apply = { label, warn, composed, matchedOnly }
 	warnRepeats(tree.children, '', apply)
-	const preamble = trimBlank(tree.preamble)
+	const preamble = matchedOnly && !base.preamble.length ? [] : trimBlank(tree.preamble)
 	if (operation === 'combine') {
 		if (preamble.length && base.preamble.length) composed.joined = true
 		composed.preamble = join(base.preamble, preamble)

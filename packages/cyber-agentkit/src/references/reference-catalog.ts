@@ -1,8 +1,13 @@
 import type { ReferenceStatusCode, ReferenceWarning } from './reference-codes.js'
 import { ReferenceFailure } from './reference-error.js'
 import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
+import { parseReferenceName } from './reference-name.js'
+import { projectSectionNames } from './reference-project-sections.js'
+import { comparePaths } from './reference-projects.js'
 import {
 	type ReferenceStatus,
+	type ReferenceTraceProjectSection,
+	type ResolvedProjectSection,
 	type ResolvedReference,
 	type ResolveOptions,
 	referenceNames,
@@ -22,6 +27,8 @@ export type ReferenceListRow = {
 	options?: string[]
 }
 
+export type ReferenceListRowKind = 'selection' | 'generated' | 'project-section'
+
 /** One row per name per layer holding it, with the outcome that contribution gets. */
 export type ReferenceListLayerRow = {
 	name: string
@@ -31,8 +38,10 @@ export type ReferenceListLayerRow = {
 	path: string
 	description: string
 	outcome: string
-	/** A contribution with `extends` and no body. */
-	selection?: boolean
+	/** What the row is, when it is one: a contribution with `extends` and no body, a generated document, or a project section. */
+	kind?: ReferenceListRowKind
+	/** A project section's folder, relative to the root. */
+	folder?: string
 	/** A skill's default: the `default` step reaches it when this skill loads the name. */
 	reachedBy?: string
 }
@@ -79,8 +88,27 @@ function layerRow(name: string, entry: ResolvedReference['trace']['layers'][numb
 	}
 	if (entry.plugin !== undefined) row.plugin = entry.plugin
 	if (entry.skill !== undefined) row.skill = entry.skill
-	if (entry.selection) row.selection = true
+	if (entry.selection) row.kind = 'selection'
 	return row
+}
+
+function projectRow(name: string, entry: ReferenceTraceProjectSection): ReferenceListLayerRow {
+	return {
+		name,
+		tier: 'project',
+		path: entry.path,
+		description: firstLine(entry.frontmatter?.['description']),
+		outcome: entry.outcome,
+		kind: 'project-section',
+		folder: entry.folder,
+	}
+}
+
+/** Every name a tier, a plugin, or a project section below the root holds. */
+function catalogNames(source: Source): string[] {
+	const layers = Array.isArray(source) ? undefined : (source as ReferenceLayers)
+	const projects = layers?.root === undefined ? [] : projectSectionNames(layers.root, layers.projects)
+	return [...new Set([...referenceNames(source), ...projects])]
 }
 
 /**
@@ -96,14 +124,16 @@ export function listReferences(source: Source, options: ListOptions = {}): Refer
 	if (unverified) listing.defaults = unverified
 	const seen = new Set<string>()
 	const holdings = skillHoldings(source)
-	const names = [...new Set([...referenceNames(source), ...holdings.map(({ name }) => name)])].sort((a, b) =>
+	const names = [...new Set([...catalogNames(source), ...holdings.map(({ name }) => name)])].sort((a, b) =>
 		a.localeCompare(b),
 	)
 	for (const name of names) {
 		if (matcher && !matcher.test(name)) continue
 		const held = holdings.filter((holding) => holding.name === name)
 		let resolved = resolveReference(name, source, resolveOptions)
-		const tiersHold = resolved.trace.layers.some(({ file, tier }) => file && tier !== 'default')
+		const tiersHold =
+			resolved.trace.layers.some(({ file, tier }) => file && tier !== 'default') ||
+			resolved.trace.projectSections.some(({ file }) => file)
 		if (!tiersHold && held[0])
 			resolved = resolveReference(name, withDefault(source, held[0].skill.folder), resolveOptions)
 		collect(listing.warnings, seen, resolved.warnings)
@@ -121,6 +151,9 @@ export function listReferences(source: Source, options: ListOptions = {}): Refer
 		listing.references.push(row)
 		for (const entry of resolved.trace.layers) {
 			if (entry.file !== undefined && entry.tier !== 'default') listing.layers.push(layerRow(name, entry))
+		}
+		for (const entry of resolved.trace.projectSections) {
+			if (entry.file !== undefined) listing.layers.push(projectRow(name, entry))
 		}
 		for (const { skill } of held)
 			listing.layers.push(defaultRow(name, skill.name, skill.folder, source, resolveOptions))
@@ -157,6 +190,8 @@ export type SearchMatch = {
 	skill?: string
 	/** A match found as this skill loads the name, its default joined. */
 	loadedBy?: string
+	/** A match in a project section: its folder, relative to the root. */
+	folder?: string
 }
 
 export type ReferenceSearch = {
@@ -209,10 +244,29 @@ function matchKind(name: string, reference: ResolvedReference, query: string): M
 	) {
 		return 'description'
 	}
-	const content = reference.content ?? ''
+	return textMatch(reference.content ?? '', holds)
+}
+
+function textMatch(content: string, holds: (text: string) => boolean): MatchKind | undefined {
 	if (holds(headings(content))) return 'heading'
 	if (holds(content)) return 'body'
 	return undefined
+}
+
+/** A project section is searched by its description and tags, its headings, and its body (R17); its name is the main document's. */
+function sectionMatchKind(section: ResolvedProjectSection, query: string): MatchKind | undefined {
+	const terms = query.split(/\s+/)
+	const holds = (text: string) => {
+		const lower = text.toLowerCase()
+		return terms.every((term) => lower.includes(term))
+	}
+	const { metadata } = section
+	if (
+		holds(`${typeof metadata['description'] === 'string' ? metadata['description'] : ''} ${tagText(metadata['tags'])}`)
+	) {
+		return 'description'
+	}
+	return textMatch(section.content, holds)
 }
 
 /**
@@ -228,8 +282,27 @@ export function searchReferences(query: string, source: Source, options: Resolve
 		})
 	}
 	const matches: SearchMatch[] = []
+	const sectionsSeen = new Set<string>()
+	const considerSections = (reference: ResolvedReference) => {
+		const bare = parseReferenceName(reference.name).name
+		for (const section of reference.projectSections) {
+			const key = `${bare}\0${section.folder}`
+			if (sectionsSeen.has(key)) continue
+			sectionsSeen.add(key)
+			const match = sectionMatchKind(section, normalized)
+			if (!match) continue
+			matches.push({
+				name: reference.name,
+				description: firstLine(section.metadata['description']),
+				match,
+				tier: 'project',
+				folder: section.folder,
+			})
+		}
+	}
 	const consider = (reference: ResolvedReference, loadedBy?: string) => {
 		if (reference.status !== 'found') return
+		considerSections(reference)
 		const match = matchKind(reference.name, reference, normalized)
 		if (!match) return
 		const top = reference.trace.contributions.at(-1)
@@ -245,7 +318,7 @@ export function searchReferences(query: string, source: Source, options: Resolve
 		matches.push(row)
 	}
 	const plain = new Map<string, string | undefined>()
-	for (const name of referenceNames(source)) {
+	for (const name of catalogNames(source)) {
 		const resolved = resolveReference(name, source, options)
 		plain.set(name, resolved.content)
 		if (resolved.status !== 'ambiguous') consider(resolved)
@@ -261,7 +334,12 @@ export function searchReferences(query: string, source: Source, options: Resolve
 		const used = loaded.trace.layers.some(({ tier, outcome }) => tier === 'default' && outcome === 'used')
 		if (used && loaded.content !== plain.get(name)) consider(loaded, skill.name)
 	}
-	matches.sort((a, b) => matchOrder.indexOf(a.match) - matchOrder.indexOf(b.match) || a.name.localeCompare(b.name))
+	matches.sort(
+		(a, b) =>
+			matchOrder.indexOf(a.match) - matchOrder.indexOf(b.match) ||
+			a.name.localeCompare(b.name) ||
+			comparePaths(a.folder ?? '', b.folder ?? ''),
+	)
 	const unverified = defaultsUnverified(source)
 	return unverified ? { matches, defaults: unverified } : { matches }
 }
