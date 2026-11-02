@@ -160,28 +160,36 @@ what can be found, and every fault is reported as a warning.
 
 - **Trigger:** a consumer's code (a skill's script, or a program using the library) needs fields from a result, not
   prose.
-- **Entry points:** Code: `--format json` on `show`, `where`, `list`, `search`, `check`, `implementations`, `create`,
-  `select`, and `delete`; the library functions return the same records.
+- **Entry points:** Code: `--format json` on `load`, `where`, `list`, `search`, `check`, `implementations`, `create`,
+  `customize`, and `delete`; the library functions return the same records.
 - **Inputs:** a command and its arguments; the output format.
 - **Outcome:** each result carries the same fields in every adapter: by default only those that answer the request, with
   `--metadata` and `--trace` adding the rest, so an agent pays for no detail it did not ask for, and a consumer reads
-  status, metadata, and codes instead of prose (repobuddy reads `metadata.contract` from `show --metadata` and `match`
-  from `search`). Removing or renaming a field is a breaking change. Each failure and warning carries a stable code; the
-  human wording is not a contract. `metadata` is the composed frontmatter, key by key with the higher contribution
-  winning, without `merge` and `extends`: those say how one contribution applies, and the trace carries each as written
-  (UC2).
+  status, metadata, and codes instead of prose (repobuddy reads `metadata.contract` from `load --metadata`, once its
+  `show` calls move to `load`, and `match` from `search`). Removing or renaming a field is a breaking change. Each
+  failure and warning carries a stable code; the human wording is not a contract. `metadata` is the composed
+  frontmatter, key by key with the higher contribution winning, without `merge`, `extends`, and a generated document's
+  record of its sources and request: those say how one contribution was built or applies, and the trace carries each as
+  written (UC2).
 - **Extensions:**
   - UC8.1 A name not `found`: its entry carries the status and code, and the other names still resolve.
   - UC8.2 A warning in structured output goes in the entry's `warnings`, so a consumer reads every fault from one
     place.
+  - UC8.3 The name has project sections: structured output gives each as its own record with its folder, and its text
+    or, with the routing option, its route, apart from the main document, so code can take the one for the folder it
+    works in without parsing headings, and code reading only the main document is unchanged. Such an entry is always a
+    record, never the bare content. Text output inlines them as UC1 says.
 
-**Surface trace.** `show`, `--trace`, `--default` (UC1, UC2, UC10, UC12); `--root` (all); `where`, `--default` (UC2);
-`list`, pattern (UC3); `search` (UC3); `create` with `--merge`, `--template`, `--implements`, `--scope`, `--plugin`,
-`--default`, `--dry-run` (UC5); `select` with `--scope`, `--clear` (UC9); `delete` with `--scope`, `--plugin`,
-`--default`, `--dry-run` (UC11); `check` (UC6); `implementations`, `--accept` (UC6); `--format`, `--metadata` (UC8).
-Frontmatter keys `merge`, `extends`, `implements`, `interface`, `description`, `tags` serve UC1, UC5, UC6, UC7, UC9; the
-section marker `<!-- merge: ... -->` serves UC1 and UC7. File names `<name>.md` and `<name>.default.md` serve UC5, UC9,
-UC11 and UC3, UC12. Informational, no contract: the trace's keys beyond those the Adapters group names.
+**Surface trace.** `load`, `--trace`, `--default` (UC1, UC2, UC10, UC12); the routing option and `--in` (UC1, UC12,
+UC17); `--root` (all); `where`, `--default`, `--in` (UC2); `list`, pattern (UC3); `search` (UC3); `create` with
+`--merge`, `--template`, `--implements`, `--scope`, `--plugin`, `--default`, `--dry-run` (UC5, UC15); `customize` with
+`--extends`, `--request`, `--body`, `--scope`, `--in`, `--merge`, `--dry-run` (UC9, UC18); `delete` with `--scope`,
+`--plugin`, `--default`, `--dry-run` (UC11); `check` (UC6); `implementations`, `--accept` (UC6); `--format`,
+`--metadata` (UC8). Frontmatter keys `merge`, `extends` (with the step keys `merge`, `extends`, `sections`),
+`implements`, `interface`, `description`, `tags`, and a generated document's record of sources and request serve UC1,
+UC5, UC6, UC7, UC9, UC14, UC18; the section marker `<!-- merge: ... -->` serves UC1 and UC7. File names `<name>.md`
+and `<name>.default.md` serve UC5, UC9, UC11, UC18 and UC3, UC12. Informational, no contract: the trace's keys beyond
+those the Adapters group names.
 
 ## Criteria
 
