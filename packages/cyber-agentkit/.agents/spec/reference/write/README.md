@@ -2,31 +2,36 @@
 spec-type: behavioral
 ---
 
-# reference/write — contributions are written, selected, and removed without editing an installed plugin
+# reference/write — contributions are created, customized, and removed without editing an installed plugin
 
 Part of [reference](../README.md). Its What, key terms, actors, adapters, names, and output contract apply here;
 IDs are shared across the parent and its children.
 
 ## Use Cases
 
-### UC5 — Customize a plugin's instructions (A5.1)
+### UC5 — Create a reference (A6.1, A6.2, A6.4)
 
-- **Trigger:** a customizer wants to change what a skill reads for a name: replace, patch, combine with, or remove what
-  is below; or an author writes a contribution or a default into their plugin's or skill's source.
+- **Trigger:** an author creates a reference: a new name, a skill's default, an implementation of an interface (the
+  owner's or another skill's), or an extension of an existing implementation. It goes into their plugin's or skill's
+  source, or into the `repo` or `user` tier for a name the repository or the user owns. `create` can do anything
+  `customize` (UC18) does, by hand.
 - **Entry points:** Skill: the `reference` skill's Create and Update modes; Update edits the file, then checks the
-  trace. Code: `reference create <name> [--scope user | --plugin <plugin folder> | --default <skill folder>] [--merge
-  <operation>] [--template <file> | --implements <id>] [--dry-run]`.
-- **Inputs:** a bare name; where it is written (the project tier by default, the user tier, or a plugin's or skill's
+  trace. Code: `reference create <name> [--scope repo|user | --plugin <plugin folder> | --default <skill folder>]
+  [--merge <operation>] [--template <file> | --implements <id>] [--dry-run]`.
+- **Inputs:** a bare name; where it is written (the `repo` tier by default, the `user` tier, or a plugin's or skill's
   source folder); the operation (default `patch`); a template or an interface; the root.
 - **Outcome:** `create` writes `<name>.md` in that tier's folder with `merge: <operation>`, and reports the path with
-  a hint that `show <name>` gives the composed document; with `--trace`, also the resulting trace, in which the new
-  file applies over everything below it (K17). The skill shows the user where each section came from and offers the
-  full document.
+  a hint that `load <name>` gives the resolved reference; with `--trace`, also the resulting trace, in which a `repo` or
+  `user` file applies over the stack (K23). The skill shows the user where each section came from and offers the
+  full document. A plugin file whose `extends` names another plugin records the version of that plugin it was written
+  against, so `check` can warn its author when the base moves on (UC6).
 - **Extensions:**
   - UC5.1 The file exists with a body: error, and nothing is written. `create` never overwrites; Update edits it.
   - UC5.2 The file holds only a selection: `create` adds the body and `merge`, and keeps its `extends`.
   - UC5.3 A qualified name: error naming the bare name to use.
-  - UC5.4 A `replace` or `remove` above would hide the new file: error naming that contribution.
+  - UC5.4 A contribution that would hide the new file (a managed `replace` or `remove`, or, for a plugin file, one
+    above it in the stack): error naming that contribution. A `user` file while this repository's `repo` tier holds
+    the name: written, with a warning that the `repo` contribution is used in this repository (UC2.7).
   - UC5.5 `--implements <id>`: the interface's sections are written with `merge: replace`.
   - UC5.6 `--merge remove`: no body is written. With `--template`: error.
   - UC5.7 Both `--template` and `--implements`, an unreadable template, a template whose frontmatter is not a mapping,
@@ -41,37 +46,77 @@ IDs are shared across the parent and its children.
   - UC5.11 The folder holds no plugin manifest (`--plugin`) or no `SKILL.md` (`--default`), or lies outside the
     repository, such as an installed copy: error, and nothing is written. More than one of `--scope`, `--plugin`, and
     `--default`: usage error.
+  - UC5.12 A `--plugin` file that extends another plugin with `merge: replace`: error, and nothing is written. A copy
+    would freeze every user on the base its author saw. The file states only the sections it changes, or, to replace
+    the base entirely, is an implementation of its own with no `extends` on that plugin.
 
-### UC9 — Select what a name builds on (A5.1)
+### UC18 — Customize a reference (A5.1, A8.1)
 
-- **Trigger:** a name is ambiguous, or a customizer wants to choose which plugins, or the default, a name builds on
-  and in what order.
-- **Entry points:** Skill: Load mode asks (UC4.2); otherwise the skill runs the command. Code:
-  `reference select <name> <option>... [--scope user] [--clear]`.
-- **Inputs:** a bare name; one or more options, bottom first, each a `<plugin>` or `default`; the tier written to
-  (`project` by default, or `user`); the root.
-- **Outcome:** `<name>.md` in that tier's folder holds an `extends` listing the options. An existing file keeps its
-  body and other keys; only its `extends` changes. The name then resolves through that stack (K14), with managed,
-  project, and user contributions applied over it in K17 order. A selection is a contribution, so `list` marks it and
-  `--trace` explains it.
+- **Trigger:** a customizer wants to change what a skill reads for a name, for the repository, for themselves, or for
+  one project folder: by picking which plugins and sections it builds on, by saying in their own words what to change
+  in the prose, or both.
+- **Entry points:** Skill: the `reference` skill's Customize mode. It helps the customizer pick, runs the generator (a
+  subagent on a low-cost model) when the prose must change, shows the draft, and writes it once they approve. Code:
+  `reference customize <name> [--extends <step>...] [--request <file> --body <file>] [--scope repo|user | --in
+  <folder>] [--merge <operation>] [--dry-run]`, which writes the file and its frontmatter; it runs no model.
+- **Inputs:** a name; the target (the `repo` tier by default, the `user` tier, or a folder below the root); the picks,
+  as UC9 gives them; the request (K22); the shape of a changed body (a delta by default, or a whole document with
+  `--merge replace`); the root; the calling skill's folder, for the `default` tier.
+- **Outcome:** what is written depends on what the customizer ended up changing. Picks alone write a selection
+  (UC9). A request also writes a body: the generator reads the resolved reference from `load` with the picks applied,
+  never the contribution files, and leaves the `user` tier out when the target is `repo` or a folder, so nothing
+  personal reaches a shared file. It writes one concise document that applies the request and keeps the stack's
+  heading paths: by default a delta holding only the sections it changes, with `patch` or `combine`; with
+  `--merge replace`, a whole document. For a folder, it is that folder's project section, stating only what differs
+  there. The command records in the frontmatter the picks (`extends`), each source with its plugin's version (K21),
+  and the request. A body goes stale as K26 says. A later `load` uses it as K23 says.
 - **Extensions:**
-  - UC9.1 A selected plugin is no longer installed: it is skipped with a warning (UC1.12). When every option is gone,
-    the selection counts as not written and the stack falls through; a name left ambiguous is asked again (UC4.2).
-  - UC9.2 An option that is neither `default` nor a plugin holding the name: error, and nothing is written.
-  - UC9.3 The project and user folders select differently: the project's builds the stack; the user's is `not used`,
-    with a warning (UC1.12).
+  - UC18.1 The customizer declines the draft: nothing is written.
+  - UC18.2 A request, and the target holds a body that records no request (written with `create` or by hand): error,
+    and nothing is written, since customizing would replace it. A body that records a request is replaced.
+  - UC18.3 The name resolves to nothing (`missing`): the body is written from the request alone, with no sources, as a
+    whole document.
+  - UC18.4 The name is `ambiguous`: the customizer picks first, then the request, if any, is applied.
+  - UC18.5 A project section for a name that is not Markdown: error (UC1.17).
+  - UC18.6 The command cannot run: the skill writes nothing and says so (UC4).
+  - UC18.7 `--plugin` or `--default`: usage error. `customize` never writes a file that ships; an author uses
+    `create` (UC5).
+  - UC18.8 Neither picks nor a request: error.
+  - UC18.9 Picks alone, and the target holds a body: the body is kept and only `extends` changes. A body that records a
+    request was written against the old stack: the output suggests customizing again with that request.
+
+### UC9 — Pick what a name builds on (A5.3)
+
+- **Trigger:** a name is ambiguous, or a customizer wants to choose which plugins, or the default, a name builds on,
+  in what order, and which of their sections.
+- **Entry points:** Skill: Load mode asks (UC4.2), or Customize mode (UC18). Code: `reference customize <name>
+  --extends <step>... [--scope repo|user]`.
+- **Inputs:** a bare name; one or more steps, bottom first, each a `<plugin>` or `default`, optionally with the keys
+  `merge`, `extends`, and `sections` (the top-level sections, by heading, that it contributes); the tier written to
+  (`repo` by default, or `user`); the root.
+- **Outcome:** `<name>.md` in that tier's folder holds an `extends` listing the steps. With no body, it is a selection
+  (K16). The name then resolves through that stack (K14), as K23 says. A step with `sections` contributes only those
+  sections, each with its operation; its other sections are not used. A selection is a contribution, so `list` marks
+  it and `--trace` explains it.
+- **Extensions:**
+  - UC9.1 A picked plugin is no longer installed: it is skipped with a warning (UC1.12). When every step is gone, the
+    selection counts as not written and the stack falls through; a name left ambiguous is asked again (UC4.2).
+  - UC9.2 A step that is neither `default` nor a plugin holding the name: error, and nothing is written.
+  - UC9.3 The `repo` and `user` tiers pick differently: the `repo` one builds the stack; the `user` one is
+    `not used` (UC2.7).
   - UC9.4 A qualified name: error naming the bare name to use.
-  - UC9.5 `--clear`: `extends` is removed from the file, and a file left with nothing in it is deleted. With no
-    selection in that tier: error stating what answers the name now.
+  - UC9.5 `--extends none`: `extends` is removed from the file, and a file left with nothing in it is deleted. With no
+    `extends` in that tier: error stating what answers the name now. Removing the whole file is UC11.
+  - UC9.6 A `sections` entry names a section the plugin's contribution does not hold: it is skipped with a warning.
 
 ### UC11 — Remove a customization (A5.2)
 
-- **Trigger:** a customizer wants a project or user contribution gone, or an author wants one gone from their plugin's
-  or skill's source.
-- **Entry points:** Skill: the `reference` skill's Delete mode. Code: `reference delete <name> [--scope user | --plugin
-  <plugin folder> | --default <skill folder>] [--dry-run]`.
-- **Inputs:** a bare name; where it is deleted from (the project tier by default, the user tier, or a plugin's or
-  skill's source folder); the root.
+- **Trigger:** a customizer wants a `repo`, `user`, or project-folder contribution gone, or an author wants one gone
+  from their plugin's or skill's source.
+- **Entry points:** Skill: the `reference` skill's Delete mode. Code: `reference delete <name> [--scope repo|user | --in
+  <folder> | --plugin <plugin folder> | --default <skill folder>] [--dry-run]`.
+- **Inputs:** a bare name; where it is deleted from (the `repo` tier by default, the `user` tier, a folder's
+  project section, or a plugin's or skill's source folder); the root.
 - **Outcome:** `delete` removes only that file, and reports what answers the name afterwards: its status, and the stack
   with what built it. The status can be `ambiguous`, with the options, when the file held the selection that ordered
   the plugins.
@@ -81,7 +126,7 @@ IDs are shared across the parent and its children.
   - UC11.2 A qualified name: error naming the bare name to use.
   - UC11.3 `--dry-run`: the path and the answer afterwards are printed, and nothing is deleted.
   - UC11.4 The file also holds a selection (`extends`): both go, and the report says the selection went too, naming
-    `reference select` to restore it.
+    `reference customize --extends` to restore it.
   - UC11.5 `--plugin <plugin folder>` or `--default <skill folder>`: deletes `<name>.md` or `<name>.default.md` there,
     under the folder checks of UC5.11.
 
