@@ -1,28 +1,30 @@
-import { type Dirent, readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { isRecord } from '../plugins/json-file.js'
 import {
-	applyContribution,
-	type Composed,
+	composedMetadata,
+	composeOrder,
+	type OrderedContribution,
+	trimLeadingBlank,
+	withNewline,
+} from './reference-compose.js'
+import { type Contribution, layerNames, readContribution } from './reference-contribution.js'
+import {
 	composedSections,
-	emptyComposed,
-	hasBody,
-	isMergeOperation,
 	type MergeOperation,
-	parseDocument,
-	readMergeOperation,
 	renderComposed,
 	type SectionSource,
 	stripMergeMarkers,
 } from './reference-document.js'
-import { dataExtensions, formatOfFile, type ReferenceFormat } from './reference-format.js'
+import type { ReferenceFormat } from './reference-format.js'
 import { interfaceIdOf } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
-import { defaultSuffix, namePattern, parseReferenceName, type ReferenceName } from './reference-name.js'
+import { parseReferenceName, type ReferenceName } from './reference-name.js'
+import { type Lookup, namesDefault, plan } from './reference-stack.js'
 import type { ReferenceCode, ReferenceWarning, WarnFn } from './reference-warning.js'
 
+export { candidateFiles, contributionLabel, layerNames } from './reference-contribution.js'
 export type { ReferenceName } from './reference-name.js'
 export { parseReferenceName } from './reference-name.js'
+export type { ExtendsStep } from './reference-stack.js'
+export { readExtends } from './reference-stack.js'
 
 export type ReferenceStatus = 'found' | 'missing' | 'ambiguous' | 'invalid'
 
@@ -118,25 +120,6 @@ export type ResolveOptions = {
 	below?: string | undefined
 }
 
-/** One `extends` entry: a plugin or `default`, with the keys to use for it in place of its own. */
-export type ExtendsStep = { target: string; merge?: MergeOperation; extends?: ExtendsStep[] }
-
-type Contribution = {
-	layer: ReferenceLayer
-	entry: ReferenceTraceLayer
-	label: string
-	path: string
-	metadata: Record<string, unknown>
-	body: string
-	hasBody: boolean
-	format: ReferenceFormat
-	/** Read as written: a data file. It never merges or extends. */
-	whole: boolean
-	merge: MergeOperation | undefined
-	/** Its own `extends`, when written and well formed. */
-	steps: ExtendsStep[] | undefined
-}
-
 type Source = ReferenceLayers | readonly ReferenceLayer[]
 
 function layersOf(source: Source): ReferenceLayers {
@@ -145,300 +128,8 @@ function layersOf(source: Source): ReferenceLayers {
 		: (source as ReferenceLayers)
 }
 
-function tryRead(path: string): string | undefined {
-	try {
-		return readFileSync(path, 'utf8')
-	} catch {
-		return undefined
-	}
-}
-
-/** The files that answer a name in a layer, in the order they answer. */
-export function candidateFiles(layer: Pick<ReferenceLayer, 'tier'>, name: string): string[] {
-	return layer.tier === 'default'
-		? [`${name}${defaultSuffix}.md`, ...dataExtensions.map(({ extension }) => `${name}${defaultSuffix}${extension}`)]
-		: [`${name}.md`, `${name}/README.md`, ...dataExtensions.map(({ extension }) => `${name}${extension}`)]
-}
-
-export function contributionLabel(layer: ReferenceLayer, path: string, display: (path: string) => string): string {
-	if (layer.tier === 'plugin') return `plugin ${layer.plugin}`
-	if (layer.tier === 'default') return `default of ${layer.skill}`
-	return `${layer.tier} ${display(path)}`
-}
-
-/** Reads `extends`: a plugin or `default` per step, bottom first. `undefined` when it is not written or malformed. */
-export function readExtends(value: unknown, warn: WarnFn): ExtendsStep[] | undefined {
-	if (value === undefined) return undefined
-	const malformed = (why: string) => {
-		warn('extends-invalid', `\`extends\` ${why}; it is read as not written`)
-		return undefined
-	}
-	const list: unknown[] | undefined = typeof value === 'string' ? [value] : Array.isArray(value) ? value : undefined
-	if (!list) return malformed('is not a list of plugins')
-	const steps: ExtendsStep[] = []
-	for (const item of list) {
-		const step = readStep(item, warn)
-		if (typeof step === 'string') return malformed(step)
-		steps.push(step)
-	}
-	return steps
-}
-
-function readStep(item: unknown, warn: WarnFn): ExtendsStep | string {
-	if (typeof item === 'string') {
-		return namePattern.test(item) ? { target: item } : `names "${item}", which is not a plugin name or default`
-	}
-	if (!isRecord(item) || Object.keys(item).length !== 1) return `holds ${JSON.stringify(item)}, which is not a step`
-	const [target, keys] = Object.entries(item)[0] as [string, unknown]
-	if (!namePattern.test(target)) return `names "${target}", which is not a plugin name or default`
-	if (keys === null || keys === undefined) return { target }
-	const step: ExtendsStep = { target }
-	if (typeof keys === 'string') {
-		step.merge = readStepMerge(keys, target, warn)
-		return step
-	}
-	if (!isRecord(keys) || Object.keys(keys).some((key) => key !== 'merge' && key !== 'extends')) {
-		return `gives "${target}" keys other than merge and extends`
-	}
-	if (keys['merge'] !== undefined) step.merge = readStepMerge(keys['merge'], target, warn)
-	if (keys['extends'] !== undefined) {
-		const nested = readExtends(keys['extends'], warn)
-		if (!nested) return `gives "${target}" a malformed extends`
-		step.extends = nested
-	}
-	return step
-}
-
-function readStepMerge(value: unknown, target: string, warn: WarnFn): MergeOperation {
-	if (isMergeOperation(value)) return value
-	warn('merge-unknown', `unknown merge "${String(value)}" on the step ${target}; read as patch`)
-	return 'patch'
-}
-
-type StackEntry = { target: string; contribution: Contribution; operation: MergeOperation; from: OperationSource }
-
-type Ambiguity = { cause: AmbiguousCause; message: string }
-
-type Expansion = {
-	entries: StackEntry[]
-	/** The steps that could not be used, each with why. */
-	missing: { target: string; reason: string }[]
-	/** Every listed step was missing: the `extends` counts as not written. */
-	allMissing: boolean
-	/** Plugins a step's own `extends` would have brought in, had the step not replaced it. */
-	replaced: { target: string; step: string }[]
-	ambiguous?: Ambiguity
-}
-
-type Lookup = (target: string) => Contribution | { reason: string }
-
-/**
- * Expands a list of steps bottom first: each step brings its own `extends` beneath it, recursively.
- * Under a written list (`written`), bringing in stops silently at a plugin already in the stack;
- * among the plugins' own `extends`, a cycle makes the name ambiguous.
- */
-function expand(top: readonly ExtendsStep[], owner: string, mode: 'written' | 'plugins', lookup: Lookup, warn: WarnFn) {
-	const result: Expansion = { entries: [], missing: [], allMissing: false, replaced: [] }
-	const placed = new Set<string>()
-	const inProgress = new Set<string>()
-	const normalize = (steps: readonly ExtendsStep[], who: string, self?: string): ExtendsStep[] => {
-		const out: ExtendsStep[] = []
-		for (const step of steps) {
-			if (step.target === self) {
-				warn('extends-self', `${who} lists itself in its extends; that entry is ignored`)
-				continue
-			}
-			if (out.at(-1)?.target === step.target) continue
-			if (out.some(({ target }) => target === step.target) && !result.ambiguous) {
-				result.ambiguous = { cause: 'repeat', message: `${who}'s extends lists ${step.target} at two places` }
-			}
-			out.push(step)
-		}
-		return out
-	}
-	const listed = normalize(top, owner)
-	const listedTargets = new Set(listed.map(({ target }) => target))
-	const visit = (step: ExtendsStep, isTop: boolean, chain: readonly string[]) => {
-		if (result.ambiguous || placed.has(step.target)) return
-		if (inProgress.has(step.target)) {
-			if (mode === 'plugins') {
-				result.ambiguous = {
-					cause: 'cycle',
-					message: `the plugins' own extends form a cycle: ${[...chain, step.target].join(' → ')}`,
-				}
-			}
-			return
-		}
-		if (!isTop && listedTargets.has(step.target)) return
-		const found = lookup(step.target)
-		if ('reason' in found) {
-			result.missing.push({ target: step.target, reason: found.reason })
-			if (step.target !== 'default') {
-				warn(
-					'extends-step-missing',
-					`the step ${step.target} in ${chain.at(-1) ?? owner}'s extends ${found.reason}; it is skipped`,
-				)
-			}
-			return
-		}
-		inProgress.add(step.target)
-		const own = found.steps ?? []
-		if (step.extends) {
-			const kept = new Set(step.extends.map(({ target }) => target))
-			for (const { target } of own) if (!kept.has(target)) result.replaced.push({ target, step: step.target })
-		}
-		for (const sub of normalize(step.extends ?? own, `plugin ${step.target}`, step.target)) {
-			visit(sub, false, [...chain, step.target])
-		}
-		inProgress.delete(step.target)
-		const operation = step.merge ?? found.merge ?? 'patch'
-		const from: OperationSource = step.merge ? 'step' : found.merge ? 'contribution' : 'default'
-		result.entries.push({ target: step.target, contribution: found, operation, from })
-		placed.add(step.target)
-	}
-	for (const step of listed) visit(step, true, [])
-	result.allMissing =
-		listed.length > 0 &&
-		listed.every(({ target }) => !placed.has(target)) &&
-		listed.some(({ target }) => target !== 'default')
-	return result
-}
-
-type Plan = {
-	entries: StackEntry[]
-	builtBy: string
-	/** Plugins a step's own `extends` would have brought in, and the step that replaced it. */
-	replaced: { target: string; step: string }[]
-	/** Who replaced a step's own `extends`, for the trace. */
-	replacedBy: string
-}
-
-type Failure = { status: 'missing' | 'ambiguous'; message: string; cause?: AmbiguousCause }
-
-const noWarn: WarnFn = () => {}
-
-/**
- * Decides the stack: the highest written `extends` in the managed, project, and user tiers; else
- * the plugins' own `extends`; for a qualified name, that plugin's own stack.
- */
-function plan(
-	ref: ReferenceName,
-	tiered: readonly Contribution[],
-	holders: ReadonlyMap<string, Contribution>,
-	lookup: Lookup,
-	defaultContribution: Contribution | undefined,
-	warn: WarnFn,
-): Plan | Failure {
-	let built: (Plan & { builder: Contribution; targets: string }) | undefined
-	for (const contribution of tiered) {
-		if (!contribution.steps) continue
-		if (ref.plugin !== undefined) {
-			contribution.entry.extendsOutcome = 'not used (qualified name)'
-			continue
-		}
-		if (built) {
-			const lower = expand(contribution.steps, contribution.label, 'written', lookup, noWarn)
-			if (lower.entries.map(({ target }) => target).join(' ') !== built.targets) {
-				contribution.entry.extendsOutcome = `not used (${built.builder.label}'s extends builds the stack)`
-				warn(
-					'extends-not-used',
-					`${contribution.label} builds a different stack from ${built.builder.label}, whose extends is used`,
-				)
-			}
-			continue
-		}
-		const expansion = expand(contribution.steps, contribution.label, 'written', lookup, warn)
-		if (expansion.ambiguous) return { status: 'ambiguous', ...expansion.ambiguous }
-		if (expansion.allMissing) {
-			contribution.entry.extendsOutcome = 'not used (every step is missing)'
-			warn('extends-all-missing', `every step in ${contribution.label}'s extends is missing; it is read as not written`)
-			continue
-		}
-		built = {
-			entries: expansion.entries,
-			builtBy: contribution.label,
-			replaced: expansion.replaced,
-			replacedBy: contribution.label,
-			builder: contribution,
-			targets: expansion.entries.map(({ target }) => target).join(' '),
-		}
-	}
-	if (built) return built
-	if (ref.plugin !== undefined) {
-		const found = lookup(ref.plugin)
-		if ('reason' in found) return { status: 'missing', message: `the plugin ${ref.plugin} ${found.reason}` }
-		const expansion = expand([{ target: ref.plugin }], `plugin ${ref.plugin}`, 'plugins', lookup, warn)
-		if (expansion.ambiguous) return { status: 'ambiguous', ...expansion.ambiguous }
-		return { entries: expansion.entries, builtBy: 'qualified name', replaced: [], replacedBy: '' }
-	}
-	return planFromPlugins(holders, lookup, defaultContribution, ref.name, warn)
-}
-
-function planFromPlugins(
-	holders: ReadonlyMap<string, Contribution>,
-	lookup: Lookup,
-	defaultContribution: Contribution | undefined,
-	name: string,
-	warn: WarnFn,
-): Plan | Failure {
-	const defaultEntry = (): StackEntry[] =>
-		defaultContribution
-			? [
-					{
-						target: 'default',
-						contribution: defaultContribution,
-						operation: defaultContribution.merge ?? 'patch',
-						from: defaultContribution.merge ? 'contribution' : 'default',
-					},
-				]
-			: []
-	const names = [...holders.keys()]
-	if (!names.length) return { entries: defaultEntry(), builtBy: 'none', replaced: [], replacedBy: '' }
-	const reach = new Map<string, Set<string>>()
-	for (const holder of names) {
-		const closure = expand([{ target: holder }], `plugin ${holder}`, 'plugins', lookup, noWarn)
-		if (closure.ambiguous) return { status: 'ambiguous', ...closure.ambiguous }
-		reach.set(holder, new Set(closure.entries.map(({ target }) => target).filter((target) => target !== holder)))
-	}
-	const tops = names.filter((holder) => !names.some((other) => other !== holder && reach.get(other)?.has(holder)))
-	const unordered = (): Failure => ({
-		status: 'ambiguous',
-		cause: 'unordered',
-		message: `the plugins ${names.join(', ')} hold it, and no extends orders them`,
-	})
-	if (tops.length !== 1) return unordered()
-	const top = tops[0] as string
-	const expansion = expand([{ target: top }], `plugin ${top}`, 'plugins', lookup, warn)
-	if (expansion.ambiguous) return { status: 'ambiguous', ...expansion.ambiguous }
-	const placed = new Set(expansion.entries.map(({ target }) => target))
-	if (names.some((holder) => !placed.has(holder))) return unordered()
-	const entries = expansion.entries
-	if (defaultContribution && !placed.has('default')) {
-		entries.unshift(...defaultEntry())
-		const plugins = names.join(', ')
-		warn(
-			'default-not-selected',
-			`${names.length > 1 ? 'the plugins' : 'the plugin'} ${plugins} ${names.length > 1 ? 'answer' : 'answers'} over the default of ${defaultContribution.layer.skill}, and no extends names either; run "reference select ${name} <option>..." to choose (options: ${[...names, 'default'].join(', ')})`,
-		)
-	}
-	const builtBy = top && (holders.get(top)?.steps?.length ?? 0) > 0 ? `plugin ${top}'s extends` : 'none'
-	return { entries, builtBy, replaced: [], replacedBy: '' }
-}
-
-function namesDefault(steps: readonly ExtendsStep[] | undefined): boolean {
-	return (steps ?? []).some((step) => step.target === 'default' || namesDefault(step.extends))
-}
-
 function emptyTrace(harnesses: readonly string[]): ReferenceTrace {
 	return { stack: [], builtBy: 'none', contributions: [], sections: [], layers: [], harnesses: [...harnesses] }
-}
-
-function withNewline(content: string): string {
-	return content.endsWith('\n') ? content : `${content}\n`
-}
-
-function trimLeadingBlank(content: string): string {
-	return content.replace(/^(?:[ \t]*\r?\n)+/, '')
 }
 
 /**
@@ -545,7 +236,7 @@ export function resolveReference(
 					: 'not used (not in extends)'
 	}
 
-	const order: { contribution: Contribution; operation: MergeOperation; from: OperationSource }[] = [
+	const order: OrderedContribution[] = [
 		...decided.entries,
 		...[...tiered].reverse().map((contribution) => ({
 			contribution,
@@ -553,70 +244,7 @@ export function resolveReference(
 			from: (contribution.merge ? 'contribution' : 'default') as OperationSource,
 		})),
 	]
-	let composed: Composed = emptyComposed()
-	let applied: Contribution[] = []
-	let removedBy: Contribution | undefined
-	const used: Contribution[] = []
-	let whole: Contribution | undefined
-	for (const { contribution, operation, from } of order) {
-		const { entry } = contribution
-		if (contribution.whole && contribution.hasBody) {
-			entry.operation = 'replace'
-			entry.operationFrom = 'default'
-			for (const below of applied) below.entry.outcome = `shadowed by ${contribution.label} (replace)`
-			applied = [contribution]
-			composed = { ...emptyComposed(), removed: composed.removed }
-			whole = contribution
-			removedBy = undefined
-			entry.outcome = 'used'
-			used.push(contribution)
-			continue
-		}
-		if (whole && operation !== 'remove' && contribution.hasBody) {
-			entry.operation = operation
-			entry.operationFrom = from
-			entry.outcome = `not used (format differs from ${whole.format})`
-			warnAt(contribution.label)(
-				'format-mismatch',
-				`it is ignored: ${whole.label} is ${whole.format}, which a Markdown contribution cannot compose with`,
-			)
-			continue
-		}
-		if (operation === 'remove') whole = undefined
-		entry.operation = operation
-		entry.operationFrom = from
-		const warnHere = warnAt(contribution.label)
-		if (operation === 'remove') {
-			if (contribution.hasBody)
-				warnHere('remove-body-ignored', 'a merge: remove contribution has a body; it is ignored')
-			for (const below of applied) below.entry.outcome = `shadowed by ${contribution.label} (remove)`
-			for (const row of composedSections(composed)) {
-				if (row.path !== '(before the first heading)') composed.removed.push({ path: row.path, by: contribution.label })
-			}
-			const removed = composed.removed
-			applied = []
-			composed = { ...emptyComposed(), removed }
-			removedBy = contribution
-			entry.outcome = 'used'
-			used.push(contribution)
-			continue
-		}
-		if (!contribution.hasBody) {
-			entry.outcome = entry.extendsOutcome ?? 'used'
-			if (!entry.extendsOutcome) used.push(contribution)
-			continue
-		}
-		if (operation === 'replace') {
-			for (const below of applied) below.entry.outcome = `shadowed by ${contribution.label} (replace)`
-			applied = []
-		}
-		composed = applyContribution(composed, contribution.body, operation, contribution.label, warnHere)
-		applied.push(contribution)
-		removedBy = undefined
-		entry.outcome = 'used'
-		used.push(contribution)
-	}
-
+	const { composed, applied, removedBy, used, whole } = composeOrder(order, warnAt)
 	trace.sections = composed.removed.map(({ path, by }) => ({ path, contributions: [], removedBy: by }))
 	if (!applied.length) {
 		if (removedBy) {
@@ -672,74 +300,6 @@ export function resolveReference(
 		format: 'markdown',
 		metadata: composedMetadata(shown),
 	}
-}
-
-/** Lower first, so a higher contribution wins a key both set; `merge` and `extends` say how one applies, so they stay out. */
-function composedMetadata(contributions: readonly Contribution[]): Record<string, unknown> {
-	const metadata: Record<string, unknown> = Object.assign({}, ...contributions.map(({ metadata }) => metadata))
-	delete metadata['merge']
-	delete metadata['extends']
-	return metadata
-}
-
-type ReadContext = {
-	display: (path: string) => string
-	without: string | undefined
-	warnAt: (where: string) => WarnFn
-}
-
-function readContribution(
-	layer: ReferenceLayer,
-	name: string,
-	entry: ReferenceTraceLayer,
-	{ display, without, warnAt }: ReadContext,
-): Contribution | undefined {
-	if (layer.tier !== 'default') {
-		const stray = join(layer.dir, `${name}${defaultSuffix}.md`)
-		if (stray !== without && tryRead(stray) !== undefined) {
-			warnAt(display(stray))('default-in-tier', "it is ignored: a default goes in a skill's references/ folder")
-		}
-	}
-	const hits = candidateFiles(layer, name).flatMap((file) => {
-		const path = join(layer.dir, file)
-		const raw = path === without ? undefined : tryRead(path)
-		return raw === undefined ? [] : [{ file, path, raw }]
-	})
-	const [hit, ...ignored] = hits
-	if (!hit) return undefined
-	for (const other of ignored) {
-		warnAt(display(other.path))('file-ignored', `it is ignored: ${hit.file} answers first in that folder`)
-	}
-	const label = contributionLabel(layer, hit.path, display)
-	const warn = warnAt(label)
-	const format = formatOfFile(hit.file)
-	if (format !== 'markdown') {
-		Object.assign(entry, { path: hit.path, file: hit.file, outcome: '' })
-		const held = hit.raw.trim().length > 0
-		if (!held) entry.empty = true
-		return {
-			layer,
-			entry,
-			label,
-			path: hit.path,
-			metadata: {},
-			body: hit.raw,
-			hasBody: held,
-			whole: true,
-			format,
-			merge: 'replace',
-			steps: undefined,
-		}
-	}
-	const { metadata, body } = parseDocument(hit.raw, warn)
-	const merge = readMergeOperation(metadata, warn)
-	const steps = readExtends(metadata['extends'], warn)
-	Object.assign(entry, { path: hit.path, file: hit.file, frontmatter: metadata, outcome: '' })
-	if (typeof metadata['description'] === 'string') entry.description = metadata['description']
-	const bodyHeld = hasBody(body)
-	if (!bodyHeld) entry.empty = true
-	if (steps && !bodyHeld && merge !== 'remove') entry.selection = true
-	return { layer, entry, label, path: hit.path, metadata, body, hasBody: bodyHeld, format, whole: false, merge, steps }
 }
 
 /**
@@ -838,38 +398,6 @@ function resolveInterface(
 		content: withNewline(trimLeadingBlank(stripMergeMarkers(lowest.body))),
 		metadata: composedMetadata([lowest]),
 	}
-}
-
-/** Every name a layer holds; empty for a layer that is missing, unreadable, or skipped. */
-export function layerNames(layer: Pick<ReferenceLayer, 'tier' | 'dir' | 'skipped'>): string[] {
-	if (layer.skipped) return []
-	let entries: Dirent[]
-	try {
-		entries = readdirSync(layer.dir, { withFileTypes: true })
-	} catch {
-		return []
-	}
-	const names = new Set<string>()
-	const isDefault = layer.tier === 'default'
-	for (const entry of entries) {
-		let name: string | undefined
-		if (isDefault) {
-			const suffix = [`${defaultSuffix}.md`, ...dataExtensions.map((item) => `${defaultSuffix}${item.extension}`)].find(
-				(item) => entry.name.endsWith(item),
-			)
-			if (suffix) name = entry.name.slice(0, -suffix.length)
-		} else if (
-			!entry.isDirectory() &&
-			['.md', ...dataExtensions.map((item) => item.extension)].some((extension) => entry.name.endsWith(extension))
-		) {
-			name = entry.name.slice(0, entry.name.lastIndexOf('.'))
-		} else if (!entry.isFile() && tryRead(join(layer.dir, entry.name, 'README.md')) !== undefined) {
-			name = entry.name
-		}
-		if (name === undefined || parseReferenceName(name).invalid) continue
-		names.add(name)
-	}
-	return [...names]
 }
 
 export function referenceNames(source: Source): string[] {
