@@ -16,7 +16,7 @@
 			"examples": [
 				{
 					"prompt": "Show me the release-checklist reference.",
-					"result": "The skill runs `show release-checklist` and prints the document that answers the name. It reads nothing from tier folders itself."
+					"result": "The skill runs `load release-checklist` and prints the document that answers the name. It reads nothing from tier folders itself."
 				},
 				{
 					"prompt": "Which references exist?",
@@ -27,8 +27,8 @@
 					"result": "The skill runs `search` with the topic and names the best matches. When nothing matches it says so and does not guess a name."
 				},
 				{
-					"prompt": "Create a project reference called release-checklist.",
-					"result": "The skill runs `create release-checklist --dry-run`, shows you the target path and the content, and writes the file under `.agents/references/` only after you approve. It then runs `show release-checklist --trace` and confirms the new file is `used`."
+					"prompt": "Create a repo reference called release-checklist.",
+					"result": "The skill runs `create release-checklist --dry-run`, shows you the target path and the content, and writes the file under `.agents/references/` only after you approve. It then runs `load release-checklist --trace` and confirms the new file is `used`."
 				},
 				{
 					"prompt": "Change what the commit-style reference says, just for me.",
@@ -36,7 +36,11 @@
 				},
 				{
 					"prompt": "Two plugins ship project-tracker.capabilities.github. Use repobuddy's.",
-					"result": "The skill runs `select project-tracker.capabilities.github repobuddy`, which writes the selection to `.agents/references/` after you approve, then confirms the name loads."
+					"result": "The skill runs `customize project-tracker.capabilities.github --extends repobuddy`, which writes the selection to `.agents/references/` after you approve, then confirms the name loads."
+				},
+				{
+					"prompt": "Make release-checklist ask for a changelog entry, just for this repo.",
+					"result": "The skill runs `customize release-checklist --base` to read what the name builds to, drafts a body from your request, and shows it. After you approve, it writes it with `--request` and `--body`, recording the picks, sources, and your request, so a changed source plugin shows up later as a `reference-stale` warning."
 				},
 				{
 					"prompt": "Delete my project contribution to release-checklist.",
@@ -44,29 +48,29 @@
 				},
 				{
 					"prompt": "How is commit-style built?",
-					"result": "The skill runs `show commit-style --trace` and reports the stack, the contributions behind each section with the operation each applied, and each layer that was `shadowed`, `not used`, or `not read`, with its reason."
+					"result": "The skill runs `load commit-style --trace` and reports the stack, the contributions behind each section with the operation each applied, and each layer that was `shadowed`, `not used`, or `not read`, with its reason."
 				}
 			]
 		}
 	},
 	"cli": {
 		"$run": "Install the package, or run it once with `npx`. The `reference` skill runs the same command from a launcher bundled in the plugin.\n\n```sh\nnpm install --save-dev cyber-agentkit\nnpx cyber-agentkit reference list\n\n# or, without installing\nnpx -y cyber-agentkit reference list\n```",
-		"$format": "`show`, `create`, `select`, and `delete` answer in `text` unless `--format` says otherwise. The other subcommands answer in `toon`, a compact format an agent reads. Pass `--format json` to pipe the answer. Each command prints only the fields that answer it. Errors and warnings go to stderr as `error: <code>: <message>` and `warning: <code>: <message>`, so stdout carries only the answer.",
-		"reference show": {
+		"$format": "`load`, `create`, `customize`, and `delete` answer in `text` unless `--format` says otherwise. The other subcommands answer in `toon`, a compact format an agent reads. Pass `--format json` to pipe the answer. Each command prints only the fields that answer it. A command that cannot complete (exit 1) or was called wrongly (exit 2) prints one error value on stdout with a stable `code`; a command that answered, including `load` for a name not found and a failing `check`, exits 0. Warnings go to stderr as `warning: <code>: <message>`.",
+		"reference load": {
 			"examples": [
 				{
 					"title": "Print one reference.",
-					"args": ["show", "release-checklist"],
+					"args": ["load", "release-checklist"],
 					"explain": "The document prints as it is composed, without frontmatter."
 				},
 				{
 					"title": "Give the status and composed frontmatter.",
-					"args": ["show", "release-checklist", "--metadata", "--format", "json"],
+					"args": ["load", "release-checklist", "--metadata", "--format", "json"],
 					"explain": "`--metadata` makes the entry a record with its `status` and `metadata`. Without it, a found name is its content alone."
 				},
 				{
 					"title": "Report how a name was built.",
-					"args": ["show", "release-checklist", "--trace", "--format", "text"],
+					"args": ["load", "release-checklist", "--trace", "--format", "text"],
 					"explain": "`--trace` writes a summary line, each section with the contributions behind it, and every layer checked with its outcome. It goes to stderr in `text` format, so this page shows only the document; run it to see the trace.",
 					"lines": 6
 				}
@@ -136,12 +140,17 @@
 				}
 			]
 		},
-		"reference select": {
+		"reference customize": {
 			"examples": [
 				{
-					"title": "Clear a selection that is not there.",
-					"args": ["select", "release-checklist", "--clear"],
-					"explain": "With no selection in the project tier, the command says what answers the name now."
+					"title": "Pick what a name builds on.",
+					"args": ["customize", "release-checklist", "--extends", "default", "--dry-run"],
+					"explain": "The report gives the target path and the selection it would write. Run it again without `--dry-run` to write it."
+				},
+				{
+					"title": "Print what a generator reads.",
+					"args": ["customize", "release-checklist", "--base"],
+					"explain": "Nothing is written. The output is the name resolved with your picks, which a body written from a request builds on."
 				}
 			]
 		}
