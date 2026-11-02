@@ -4,7 +4,7 @@ spec-type: behavioral
 
 # reference — an agent gets the instructions that apply wherever it works, however many places customize them
 
-The work to make the code meet this spec and its child specs is tracked in #113.
+The work to make the code meet this spec and its child specs is tracked in #130; its test cases hold the functional detail.
 
 ## What
 
