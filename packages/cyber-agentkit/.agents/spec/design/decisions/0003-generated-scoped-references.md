@@ -27,7 +27,7 @@ keeps the reasons. It supersedes the pin file, default marker, and ambiguity hin
 - **A file a `replace` or `remove` above would hide is written, with a warning.** The hiding contribution, managed
   ones included, may change later, so the customizer's intent is kept; `where`, `check`, and the trace show it is not
   applied.
-- **Exit values follow clibuilder's `axi` contract (R43, R45).** A command that answered exits 0, even when a name is
+- **Exit values follow clibuilder's `axi` contract (R43).** A command that answered exits 0, even when a name is
   not `found` or a check fails: those are statuses in the result. Exit 1 means it could not complete, exit 2 that it
   was called wrongly, each with one error value on stdout.
 - **The plugin tier reads only the root's `package.json` (R13).** The nearest one to the working folder would change
@@ -36,14 +36,20 @@ keeps the reasons. It supersedes the pin file, default marker, and ambiguity hin
   workspace package's plugins to its folder is a follow-up.
 - **A plugin-root `references/` is this library's convention (R13).** It is not part of the Agent Plugins spec, and no
   harness reads it (`.research/skill-resolution`), so the plugin tier is this library's to define.
-- **The skill passes `--default` (R41).** Every detected harness tells a loaded skill its folder, but none hands it to a
+- **The skill passes `--default`.** Every detected harness tells a loaded skill its folder, but none hands it to a
   script (`.research/skill-resolution`, D).
-- **A plugin or default file that extends a plugin may not `replace` it (R103).** A copy would freeze every user on the
+- **A plugin or default file that extends a plugin may not `replace` it.** A copy would freeze every user on the
   base its author saw; the file states only the sections it changes, or is a snapshot with no `extends`.
-- **A default's `merge` matters (R27).** A default can extend a plugin through its own `extends`, and R8 brings each
+- **A default's `merge` matters.** A default can extend a plugin through its own `extends`, and R8 brings each
   step's `extends` beneath it, so the default can sit above that plugin.
 - **A `user` document uses only the harness's enabled plugins (R84).** It applies in every repository, so it must not
   depend on one repository's `package.json`.
+- **The spec stays at design level; functional detail lives in the tests.** Four review rounds kept surfacing
+  command-line edge cases: flag combinations, which error wins, option checks. Prose settles those poorly, and code
+  and tests settle them well. The spec keeps the outcomes a skill, agent, customizer, or admin relies on, and the
+  statuses a skill acts on. Code names, exit lists, flag rules, and field lists left it for the build issue as test
+  cases; commit `cc92439` holds the last full text. This departs from the design-spec rule that counts the public
+  names a consumer depends on, such as error codes, as outcome: here the tests own them.
 - Rejected:
   - A pin file and a default marker (#110): a written `extends` selection does the same job and records the order.
   - Briefs (`.brief.md`): a brief does nothing until someone generates, and its author cannot test it.
