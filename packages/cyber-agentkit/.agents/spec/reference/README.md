@@ -57,21 +57,21 @@ what can be found, and every fault is reported as a warning.
 
 - K1 **tier**: where a contribution for a name comes from: `managed`, `repo`, `project`, `user`, `plugin`, or `default`.
   `plugin` and `default` build the stack (K14). `repo` and `user` each hold a contribution that applies over the stack,
-  and the nearer one is used (K23). `managed` applies over the main document (K27), and `project` adds sections after it
-  (K24). `--scope` names the tier a write goes to: `repo`, which reaches everyone working in the repository, or `user`,
-  which reaches only you, in every repository.
+  and the nearer one is used (K23). `managed` applies over the main document and each project section (K27), and
+  `project` adds sections after the main document (K24). `--scope` names the tier a write goes to: `repo`, which reaches
+  everyone working in the repository, or `user`, which reaches only you, in every repository.
 - K2 **layer**: one folder read for a name: one per plugin for `plugin`, the calling skill's folder for `default`,
   `~/.agents/references/` for `user`, `.agents/references/` at the root for `repo`, each `.agents/references/` below the
   root for `project`, and one per detected harness for `managed`, beside that harness's own managed settings.
 - K4 **qualified name**: `<plugin>/<name>`: that plugin's implementation of a name, with the stack it builds on. A
   selection or a pin names one.
 - K5 **merge operation**: how a contribution applies over what is below it: a plugin's over the stack below it, a `repo`
-  or `user` one over the stack, and a managed one over the main document (K27). `replace` puts mine in place of
-  everything below. `patch` (the default) keeps what is below and puts my text in place of the text it matches by
-  heading path. `combine` keeps what is below and adds my text after the text it matches. `remove` drops what is below.
-  The same four apply to a whole contribution (frontmatter `merge`), to a step, and to one section (a `<!-- merge: ...
-  -->` marker). A heading path is read from each document's own top heading level, so `# Review` and `## Review` match.
-  A `remove` in `repo` or `user` turns the name off.
+  or `user` one over the stack, and a managed one over the main document and each project section (K27). `replace` puts
+  mine in place of everything below. `patch` (the default) keeps what is below and puts my text in place of the text it
+  matches by heading path. `combine` keeps what is below and adds my text after the text it matches. `remove` drops what
+  is below. The same four apply to a whole contribution (frontmatter `merge`), to a step, and to one section (a
+  `<!-- merge: ... -->` marker). A heading path is read from each document's own top heading level, so `# Review` and
+  `## Review` match. A `remove` in `repo` or `user` turns the name off.
 - K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid`. A name is `ambiguous` when its plugins cannot
   be put in one order and no selection settles it.
 - K7 **outcome of a layer** (in the trace): `used`, `shadowed`, `ambiguous`, `missing`, `stale` (K26), or `not read` or
@@ -93,8 +93,8 @@ what can be found, and every fault is reported as a warning.
 - K17 **above and below**: the order the stack applies in, bottom first: its plugins and `default` in `extends` order,
   the first listed lowest; with no written `extends`, `default` lowest. Each contribution applies over the result of
   everything below it, so a higher one wins where they conflict. Lower and higher mean below and above. The `managed`
-  and `project` tiers are not in the stack: `managed` applies over the main document (K27), and project sections are
-  delivered after it (K24).
+  and `project` tiers are not in the stack: `managed` applies over the main document and each project section (K27), and
+  project sections are delivered after it (K24).
 - K18 **root**: the repository root, found from the working folder. Its `.agents/references/` holds the `repo` tier, and
   every `.agents/references/` below it holds a project section. `--root <folder>` names the root when it cannot be found
   that way: when the command runs from outside the repository, as a globally installed skill may, or when the work is in
@@ -117,7 +117,9 @@ what can be found, and every fault is reported as a warning.
 - K26 **stale**: said of a generated document when a source's recorded plugin version differs from the installed one, or
   a recorded source is gone. Load still uses it, and suggests revising it.
 - K27 **managed contribution**: `<name>.md` in `references/` of a detected harness's managed folder, placed there by an
-  admin. It applies over the main document at load, with its merge operation (K5), so it ranks above every other tier.
+  admin. It applies at load over the main document and each project section, with its merge operation (K5), so it ranks
+  above every other tier. Its text reaches the agent only through load: no written contribution holds it, generated or
+  not.
 - K28 **resolved reference**: what load returns for a name: the main document, followed by its project sections.
 
 ## Use Cases
@@ -126,7 +128,7 @@ what can be found, and every fault is reported as a warning.
 
 | ID | Actor | Goal |
 | --- | --- | --- |
-| A1.1 | A1 consumer (a skill, or the agent running it) | Load the instructions it names: the main document, with any managed contribution applied over it, and each project section after it, marked with the folder it applies to |
+| A1.1 | A1 consumer (a skill, or the agent running it) | Load the instructions it names: the main document and each project section after it, with any managed contribution applied over both, marked with the folder it applies to |
 | A1.2 | A1 | When a name can't be answered, know the reason, since each needs a different next step, and carry on |
 | A1.3 | A1 | Know the order of precedence for combining the document with instructions it cannot load: company and team instructions, and a single feature's own |
 | A2.1 | A2 inspector (anyone) | Know what an agent reads for a name, and why |
@@ -151,7 +153,7 @@ what can be found, and every fault is reported as a warning.
 | [resolve](./resolve/README.md) | UC1, UC2, UC3, UC7, UC10 | Composition, Stack, Reporting, Layers, Finding |
 | [write](./write/README.md) | UC5, UC9, UC11 | Writing |
 | [interfaces](./interfaces/README.md) | UC6 | Interfaces |
-| [skill](./skill/README.md) | UC4, UC12 | Fallback |
+| [skill](./skill/README.md) | UC4, UC12, UC17 | Fallback |
 | [formats](./formats/README.md) | UC13 | R65 to R72 |
 
 ### UC8 — Consumers read a stable output (A1.1)

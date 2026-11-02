@@ -18,7 +18,8 @@ IDs are shared across the parent and its children.
   harness; optionally the routing option, and `--in <path>...`.
 - **Outcome:** for each name, in the order asked, with status `found`, its resolved reference (K28): the main document
   (K23), composed as each contribution's `extends` and `merge` declare, followed by each project section below the root,
-  in path order, under a heading naming its folder. Project sections are read from every folder below the root that
+  in path order, under a heading naming its folder. Each managed contribution applies over each project section as it
+  does over the main document (K27). Project sections are read from every folder below the root that
   `.gitignore` does not exclude, tracked or not. With the routing option, a route stands in place of each project
   section's text, and `--in` expands the routes whose folder holds one of its paths. No contribution's frontmatter or
   merge marker is part of it.
@@ -152,15 +153,18 @@ IDs are shared across the parent and its children.
   and wants to confirm it is in effect.
 - **Entry points:** Skill: the `reference` skill's Inspect mode. Code: `reference load <name> --trace`.
 - **Inputs:** a name; the root of a repository to check from; the detected harness.
-- **Outcome:** the trace shows the managed contribution with its outcome, applied over the main document with its merge
-  operation (K27), and what it changed in each section (UC2). Placing the file is outside this capability: it is written
-  like any other contribution, in the managed folder that harness detection finds for each harness.
+- **Outcome:** the trace shows the managed contribution with its outcome, applied over the main document and each
+  project section with its merge operation (K27), and what it changed in each section (UC2). Placing the file is outside
+  this capability: it is written like any other contribution, in the managed folder that harness detection finds for
+  each harness.
 - **Extensions:**
   - UC10.1 The harness keeps its managed content where it cannot be read locally (an MDM domain, or a server): the
     trace shows that layer not read, with the reason.
   - UC10.2 The file sits in the managed folder of a harness that is not detected: that folder is not read, and the
     trace names the detected harnesses, so the admin sees why.
-  - UC10.3 A section of the managed contribution matches no section of the main document: as UC1.13 says.
+  - UC10.3 A section of the managed contribution matches no section of the main document: as UC1.13 says. One that
+    matches no section of a project section leaves that project section as it is.
+  - UC10.4 A managed `replace` or `remove` drops every project section too.
 
 ## Criteria
 

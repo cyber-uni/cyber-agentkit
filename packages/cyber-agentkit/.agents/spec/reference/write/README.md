@@ -65,7 +65,9 @@ IDs are shared across the parent and its children.
 - **Outcome:** what is written depends on what the customizer ended up changing. Picks alone write a selection
   (UC9). A request also writes a body: the generator reads the resolved reference from `load` with the picks applied,
   never the contribution files, and leaves the `user` tier out when the target is `repo` or a folder, so nothing
-  personal reaches a shared file. It writes one concise document that applies the request and keeps the stack's
+  personal reaches a shared file. It reads with managed contributions left out too, whatever the target, and writes
+  none of their text, even when the harness shows an admin's instructions to the agent: they reach the agent only at
+  load (K27). It writes one concise document that applies the request and keeps the stack's
   heading paths: by default a delta holding only the sections it changes, with `patch` or `combine`; with
   `--merge replace`, a whole document. For a folder, it is that folder's project section, stating only what differs
   there. The command records in the frontmatter the picks (`extends`), each source with its plugin's version (K21),
