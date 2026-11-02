@@ -88,18 +88,33 @@ IDs are shared across the parent and its children.
 
 Edge IDs are in [graph.md](./graph.md).
 
+Every criterion here, and R85 in [write](../write/README.md), is behavior of the skill's text, which no deterministic
+unit test reaches (C5). For now each is checked by a fixture run confirming the skill's text holds the instruction, not
+by what an agent does.
+
 **Fallback (UC4)**
 
 - R21 (UC4, E23): The skill reads its own `references/<name>.default.md` only when the command did not run, never for
   a name the command reported, whatever its status.
 - R59 (UC4, E49): With a user present, an `ambiguous` name lists every option, the skill's default included, even
-  when one is left; the pick is written with `reference select`, and the name loads from it. With no user, it is not
-  loaded, and the user is told to settle it.
+  when one is left; the pick is written with `reference customize <name> --extends <pick>` at the scope the user
+  chose, `repo` unless they say otherwise, and the name loads from it. With no user, it is not loaded, and the user is
+  told to settle it.
 - R22 (UC4, E24): Every name read from a fallback, and every name not loaded, is reported to the user with the
   reason, except a name a `remove` turned off; nothing is reported when every name came from the command.
 - R23 (UC4, E25): An `invalid` name's path is never read.
+- R88 (UC4, E61): Every warning a load returns is passed on to the user, one line each. A `reference-stale` warning
+  also names the plugins that changed and says Customize mode revises the document from its recorded request.
 
-## Open questions
+**Load (UC12, UC17)**
 
-- **Q6.** UC4 and UC17 are behavior of skill text, so it cannot be a deterministic unit test (C5). How is it checked: a skill
-  eval, or a fixture run of the Load steps?
+- R89 (UC12, E62): The load line names the references and "the `reference` skill of `cyber-agentkit`", or, for an
+  interface, "the implementations of the `<id>` interface". Load runs `load <name>... --default <the caller's
+  folder>`, adding `--root` only when the working folder is not in the repository, and, when the load line asks for
+  the routing table, the routing option with `--in` naming the paths the task already names.
+- R90 (UC17, E63): With the loaded references, Load states the order to follow where instructions conflict: company and
+  team instructions, then a single feature's own document, then the resolved reference; within it, the project section
+  for the folder the work is in over the main document, and an inner folder's over an outer one's.
+- R91 (UC17, E64): Load tells the agent to follow a project section whenever its work is in that folder, from the
+  moment the work moves there; and, with routes, to load the name again with `--in <path>` when the work enters a
+  routed folder.
