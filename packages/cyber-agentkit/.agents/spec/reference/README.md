@@ -152,7 +152,7 @@ what can be found, and every fault is reported as a warning.
 | --- | --- | --- |
 | [resolve](./resolve/README.md) | UC1, UC2, UC3, UC7, UC10 | Composition, Stack, Reporting, Layers, Finding |
 | [write](./write/README.md) | UC5, UC9, UC11 | Writing |
-| [interfaces](./interfaces/README.md) | UC6 | Interfaces |
+| [interfaces](./interfaces/README.md) | UC6, UC15 | Interfaces |
 | [skill](./skill/README.md) | UC4, UC12, UC17 | Fallback |
 | [formats](./formats/README.md) | UC13 | R65 to R72 |
 
