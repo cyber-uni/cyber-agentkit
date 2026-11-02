@@ -62,16 +62,16 @@ IDs are shared across the parent and its children.
 - **Inputs:** a name; the target (the `repo` tier by default, the `user` tier, or a folder below the root); the picks,
   as UC9 gives them; the request (K22); the shape of a changed body (a delta by default, or a whole document with
   `--merge replace`); the root; the calling skill's folder, for the `default` tier.
-- **Outcome:** what is written depends on what the customizer ended up changing. Picks alone write a selection
-  (UC9). A request also writes a body: the generator reads the resolved reference from `load` with the picks applied,
-  never the contribution files, and leaves the `user` tier out when the target is `repo` or a folder, so nothing
-  personal reaches a shared file. It reads with managed contributions left out too, whatever the target, and writes
-  none of their text, even when the harness shows an admin's instructions to the agent: they reach the agent only at
-  load (K27). It writes one concise document that applies the request and keeps the stack's
-  heading paths: by default a delta holding only the sections it changes, with `patch` or `combine`; with
-  `--merge replace`, a whole document. For a folder, it is that folder's project section, stating only what differs
-  there. The command records in the frontmatter the picks (`extends`), each source with its plugin's version (K21),
-  and the request. A body goes stale as K26 says. A later `load` uses it as K23 says.
+- **Outcome:** what is written depends on what the customizer ended up changing. Picks alone write a selection (UC9). A
+  request also writes a body: the generator reads the resolved reference from `load` with the picks applied, never the
+  contribution files, and leaves the `user` tier out when the target is `repo` or a folder, so nothing personal reaches
+  a shared file, and the `repo` tier out when the target is `user`, since it applies above. It reads with managed
+  contributions left out too, whatever the target, and writes none of their text, even when the harness shows an admin's
+  instructions to the agent: they reach the agent only at load (K27). It writes one concise document that applies the
+  request and keeps the stack's heading paths: by default a delta holding only the sections it changes, with `patch` or
+  `combine`; with `--merge replace`, a whole document. For a folder, it is that folder's project section, stating only
+  what differs there. The command records in the frontmatter the picks (`extends`), each source with its plugin's
+  version (K21), and the request. A body goes stale as K26 says. A later `load` uses it as K23 says.
 - **Extensions:**
   - UC18.1 The customizer declines the draft: nothing is written.
   - UC18.2 A request, and the target holds a body that records no request (written with `create` or by hand): error,
@@ -127,8 +127,8 @@ IDs are shared across the parent and its children.
   - UC9.1 A picked plugin is no longer installed: it is skipped with a warning (UC1.12). When every step is gone, the
     selection counts as not written and the stack falls through; a name left ambiguous is asked again (UC4.2).
   - UC9.2 A step that is neither `default` nor a plugin holding the name: error, and nothing is written.
-  - UC9.3 The `repo` and `user` tiers pick differently: the `repo` one builds the stack; the `user` one is
-    `not used` (UC2.7).
+  - UC9.3 The `repo` and `user` tiers pick differently: the `repo` one builds the stack; the `user` one's `extends` is
+    `not used` (UC7.6).
   - UC9.4 A qualified name: error naming the bare name to use.
   - UC9.5 `--extends none`: `extends` is removed from the file, and a file left with nothing in it is deleted. With no
     `extends` in that tier: error stating what answers the name now. Removing the whole file is UC11.
