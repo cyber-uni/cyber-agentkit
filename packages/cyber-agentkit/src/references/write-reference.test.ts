@@ -104,4 +104,28 @@ describe('customizeReference (C9)', () => {
 		})
 		expect(existsSync(join(root, '.agents/references/name.md'))).toBe(false)
 	})
+
+	it('createReference writes a plugin’s own file with pluginFolder, apart from the host plugin', async () => {
+		const root = repo()
+		const folder = join(root, 'plugins/house')
+		write(folder, 'plugin.json', JSON.stringify({ name: 'house' }))
+		const options = { root, home: tempDir(), env: {} }
+
+		const created = await createReference('name', { ...options, pluginFolder: folder })
+		expect(created).toMatchObject({ scope: 'plugin' })
+		expect(existsSync(join(folder, 'references/name.md'))).toBe(true)
+	})
+
+	it('createReference still takes the host plugin as plugin', async () => {
+		const root = repo()
+		const host = join(root, 'plugins/host')
+		write(host, 'plugin.json', JSON.stringify({ name: 'host' }))
+		write(host, 'references/name.md', 'Host text.\n')
+		const options = { root, home: tempDir(), env: {}, plugin: { name: 'host', root: host } }
+
+		const created = await createReference('name', options)
+		expect(created).toMatchObject({ scope: 'repo' })
+		expect(existsSync(join(root, '.agents/references/name.md'))).toBe(true)
+		expect(existsSync(join(host, 'references/name.md'))).toBe(true)
+	})
 })

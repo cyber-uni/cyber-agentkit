@@ -11,14 +11,14 @@ import {
 } from './reference-write.js'
 import { validateWrite, type WriteCommand } from './reference-write-checks.js'
 
-/** Where a write goes; a folder is relative to `cwd`. Pass at most one of `scope`, `in`, `plugin`, and `default`. */
+/** Where a write goes; a folder is relative to `cwd`. Pass at most one of `scope`, `in`, `pluginFolder`, and `default`. */
 export type PlaceOptions = {
 	/** `repo` (default) or `user`. */
 	scope?: string | undefined
 	/** A folder strictly below the root, which must exist and not be git-ignored: its project section. */
 	in?: string | undefined
 	/** A plugin's source folder in the repository: its `references/<name>.md`. */
-	plugin?: string | undefined
+	pluginFolder?: string | undefined
 	/** A skill's source folder in the repository: its `references/<name>.default.md`. It also joins as the `default` tier. */
 	default?: string | undefined
 	/** Report what would be written or deleted, and change nothing. */
@@ -39,7 +39,7 @@ export type DeleteReferenceOptions = LoadReferenceOptions & PlaceOptions
 
 /** Every option a write takes, `customize`'s included; a path is relative to `cwd`. */
 type WriteOptions = LoadReferenceOptions &
-	Omit<CreateReferenceOptions, 'plugin'> & {
+	CreateReferenceOptions & {
 		extends?: readonly string[] | undefined
 		extendsFile?: string | undefined
 		request?: string | undefined
@@ -67,8 +67,7 @@ export async function prepareWrite(
 		name,
 		scope: options.scope,
 		in: at(options.in),
-		// `customize` has no `--plugin`: its `plugin` is only the host plugin the layers read.
-		plugin: command === 'customize' ? undefined : at(options.plugin as unknown as string | undefined),
+		plugin: at(options.pluginFolder),
 		default: at(options.default),
 		merge: options.merge,
 		template: at(options.template),

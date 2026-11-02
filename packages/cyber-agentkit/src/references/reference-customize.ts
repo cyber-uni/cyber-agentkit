@@ -238,7 +238,7 @@ export function customizeContribution(
 }
 
 export type CustomizeReferenceOptions = LoadReferenceOptions &
-	Omit<PlaceOptions, 'plugin'> & {
+	Omit<PlaceOptions, 'pluginFolder'> & {
 		/** The picks, bottom first: each `<plugin>`, `<plugin>:<merge>`, or `default`; `['none']` removes them. */
 		extends?: readonly string[] | undefined
 		/** A YAML file holding the whole `extends` list. */
