@@ -185,13 +185,12 @@ what can be found, and every fault is reported as a warning.
 UC17); `--root` (all); `where`, `--default`, `--in` (UC2); `list`, pattern (UC3); `search` (UC3); `create` with
 `--merge`, `--template`, `--implements`, `--scope`, `--in`, `--plugin`, `--default`, `--dry-run` (UC5, UC15);
 `customize` with `--extends`, `--request`, `--body`, `--base`, `--scope`, `--in`, `--merge`, `--dry-run` (UC9, UC14,
-UC18); `delete` with `--scope`,
-`--plugin`, `--default`, `--dry-run` (UC11); `check` (UC6); `implementations`, `--accept` (UC6); `--format`,
-`--metadata` (UC8). Frontmatter keys `merge`, `extends` (with the step keys `merge`, `extends`, `sections`),
-`implements`, `interface`, `description`, `tags`, and a generated document's record of sources and request serve UC1,
-UC5, UC6, UC7, UC9, UC14, UC18; the section marker `<!-- merge: ... -->` serves UC1 and UC7. File names `<name>.md`
-and `<name>.default.md` serve UC5, UC9, UC11, UC18 and UC3, UC12. Informational, no contract: the trace's keys beyond
-those the Adapters group names.
+UC18); `delete` with `--scope`, `--plugin`, `--default`, `--dry-run` (UC11); `check` (UC6); `implementations`,
+`--accept` (UC6); `--format`, `--metadata` (UC8). Frontmatter keys `merge`, `extends` (with the step keys `merge`,
+`extends`, `sections`), `implements`, `interface`, `description`, `tags`, and a generated document's record of sources
+and request serve UC1, UC5, UC6, UC7, UC9, UC14, UC18; the section marker `<!-- merge: ... -->` serves UC1 and UC7. File
+names `<name>.md` and `<name>.default.md` serve UC5, UC9, UC11, UC18 and UC3, UC12. Informational, no contract: the
+trace's keys beyond those the Adapters group names.
 
 ## Criteria
 
@@ -204,12 +203,15 @@ Edge IDs are in [graph.md](./graph.md).
   (no name, an unknown flag).
 - R44 (UC1): In text, one name prints its resolved reference; several print each as
   `<reference name="...">...</reference>` in the order asked; a name not `found` prints
-  `<reference name="..." status="..." />` in its place. Each project section follows the main document as
+  `<reference name="..." status="..." code="...">` holding its message, and its options when `ambiguous`, in its
+  place. Each project section follows the main document as
   `<project folder="...">...</project>`, in path order; with the routing option, as
   `<project folder="..." route="..." />`. The wrapper, not a heading, marks where a section starts and ends, so its own
   headings keep their levels.
-- R45 (UC1, UC8, E13): In text, a failure is an `error: <code>: <message>` line and a warning a
-  `warning: <code>: <message>` line, both on stderr. Neither changes stdout, and a warning never changes the exit code.
+- R45 (UC1, UC8, E13): A failure that ends the command (a refused write, a usage error, a failed check) is reported
+  once, on stdout, as clibuilder's `axi` error value: `error` (the message), `code`, its details, and `help`; in text,
+  its text form. A warning is a diagnostic on stderr, `warning: <code>: <message>`; it never changes stdout or the exit
+  code.
 - R46 (UC2): `--trace` in text writes to stderr a summary line (status, stack, what built it), then each section's
   heading path with its contributions and operations, then each layer, then each project section with its folder and
   path; for a generated document, each source with its recorded and installed plugin versions, and the request. Stdout
@@ -251,12 +253,15 @@ Edge IDs are in [graph.md](./graph.md).
     `unsupported`.
   - `implementations`: each `pin`, `description`, and `unsupported`; `--trace` adds `name`, `tier`, `version`, the
     interface's `cardinality` and `accept`, and `excluded` with `name` and `reasons`.
-  Removing or renaming one of these fields is a breaking change. The fields of `where`, `create`, `customize`, and
-  `delete` follow R57 and the Writing criteria, and are not a contract yet (Q4).
-- R39 (UC8, E41): Every failure and warning carries a stable `code`; a warning in `warnings` is `{code, message}`. A
-  name not `found` has `reference-missing`, `reference-ambiguous`, or `reference-invalid`; a stale generated document's
-  warning has `reference-stale` (UC4.6 acts on it); a check failure's code is its check's name (R33). The other codes
-  are Q4. The human wording is not a contract.
+  - `where`: `files`, each with `scope` (`repo`, `user`, or the `--in` folder), `path`, and `reaches`; `headings`, the
+    main document's heading paths; `used`, the plugins and default the stack uses; and `options` when `ambiguous`.
+    `--trace` adds the layers with their outcomes.
+  Removing or renaming one of these fields is a breaking change. The reports of `create`, `customize`, and `delete`
+  follow the Writing criteria and are informational, not a contract.
+- R39 (UC8, E41): Every failure and warning carries a `code`, following clibuilder's `axi` error contract; a warning in
+  `warnings` is `{code, message}`. A name not `found` has `reference-missing`, `reference-ambiguous`, or
+  `reference-invalid`; a stale generated document's warning has `reference-stale` (UC4.6 acts on it); a check failure's
+  code is its check's name (R33). The human wording is not a contract.
 
 **Read-only reads**
 
@@ -266,8 +271,6 @@ Edge IDs are in [graph.md](./graph.md).
 
 ## Open questions
 
-- **Q4.** The codes for warnings and refused writes, and the fields of `where`, `create`, `customize`, and `delete`
-  (R38, R39). Needs the owner and a check with repobuddy, which parses the output today.
 - **Q12.** (#114) Narrowed by `.research/skill-resolution`, which answers it for Claude Code, Cursor, Codex, Copilot
   CLI, OpenCode, and Gemini CLI: where a plugin's skills sit, how an installed plugin maps to its folder, which copy of
   a skill runs, and that every one tells a loaded skill its folder (R41). A plugin-root `references/` folder is a
