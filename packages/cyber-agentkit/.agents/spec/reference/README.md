@@ -330,7 +330,7 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
   | `reference-qualified` | refused | 1 | a qualified name given to a write (R25) |
   | `folder-invalid` | refused | 1 | a `--plugin` or `--default` folder that does not qualify (R24) |
   | `file-exists` | refused | 1 | `create` on a file with a body (R60) |
-  | `extends-replace` | refused | 1 | a `--plugin` file extending another plugin with `replace` (R103) |
+  | `extends-replace` | refused | 1 | a `--plugin` or `--default` file extending a plugin with `replace` (R103) |
   | `interface-invalid` | refused | 1 | `--implements` with an unknown interface (R28, R111) |
   | `interface-unknown` | refused | 1 | `implementations` of an unknown interface (R35) |
   | `template-title` | refused | 1 | a title template (R32) |
@@ -340,6 +340,7 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
   | `no-selection` | refused | 1 | `--extends none` with no `extends` there (R80) |
   | `body-not-generated` | refused | 1 | `--request` on a body that records no request (R82) |
   | `pick-required` | refused | 1 | `--request` without `--extends` on an `ambiguous` name (R82) |
+  | `name-outside-interface` | refused | 1 | `customize --implements` on a name outside the interface's namespace (R111) |
   | `implements-required` | refused | 1 | `--request` without `--implements` on a `missing` name under a found interface's namespace (R111) |
   | `in-not-markdown` | refused | 1 | `customize --in` for a name that is not Markdown (R82) |
   | `no-file` | refused | 1 | `delete` with no file there (R30) |

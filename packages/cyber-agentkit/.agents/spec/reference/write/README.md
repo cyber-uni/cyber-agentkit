@@ -54,9 +54,10 @@ IDs are shared across the parent and its children.
     `--scope`, `--in`, `--plugin`, and `--default`: usage error `options-conflict`. `--merge` with `--in`: usage error
     `options-conflict`, since a project section carries no `merge` (K24). `--in` naming the root or a folder outside it:
     usage error `in-not-below-root`.
-  - UC5.12 A `--plugin` file that extends another plugin with `merge: replace`: error, and nothing is written. A copy
-    would freeze every user on the base its author saw. The file states only the sections it changes, or, to replace
-    the base entirely, is an implementation of its own with no `extends` on that plugin.
+  - UC5.12 A `--plugin` file that extends another plugin, or a `--default` file that extends a plugin, with
+    `merge: replace`: refused, `extends-replace` (R103), and nothing is written. A copy would freeze every user
+    on the base its author saw. The file states only the sections it changes, or, to replace the base entirely, is a
+    snapshot of its own with no `extends` on that plugin.
 
 ### UC18 — Customize a reference (A5.1, A8.1)
 
@@ -113,6 +114,9 @@ IDs are shared across the parent and its children.
     `--implements <id>` mirrors `create --implements` (UC5.5). The generator's base (`--base`) is the interface's stub,
     each section a `##` heading with its "what it holds" line, as R28 writes them. The written document is a whole
     document recording `implements: <id>@<version>` with `merge: replace` (R111).
+  - UC18.17 `--implements` on a name that is already found: allowed; the whole implementation replaces the stack
+    (R111). On a name outside the interface's namespace: refused, `name-outside-interface` (exit 1), and nothing is
+    written.
   - UC18.13 A `missing` name that falls under a found interface's namespace (cardinality `one`: `<id>`; `many`:
     `<id>.<key>`), customized with `--request` and no `--implements`: refused, `implements-required` (exit 1), and
     nothing is written. Its `help` gives the `--implements` command.
@@ -232,9 +236,10 @@ Edge IDs are in [graph.md](./graph.md).
   `merge` or `implements` (K24). Otherwise `--implements` writes `merge: replace` whatever the other options.
   `--merge remove` writes no body, and with `--template` is a usage error (`remove-with-template`, exit 2). An
   unknown `--merge` operation is a usage error (`option-invalid`, exit 2).
-- R103 (UC5, E29): A `--plugin` file gets an `extends` naming another plugin only from a `--template`, since `create`
-  has no `--extends`. Such a file is refused with `merge: replace`, and is written with that plugin's installed version
-  recorded in `sources`, which `check` compares (R86, UC6.9).
+- R103 (UC5, E29): A `--plugin` or `--default` file gets an `extends` naming a plugin only from a `--template`, since
+  `create` has no `--extends`. Such a file is refused with `merge: replace` (`extends-replace`, exit 1), since a
+  whole document makes the `extends` pointless: a snapshot is written with no `extends`. A `--plugin` file is written
+  with that plugin's installed version recorded in `sources`, which `check` compares (R86, UC6.9).
 - R28 (UC5, E30): `create --implements <id>` writes the interface's sections as `##` headings in order and
   `implements: <id>@<version>`, each section stubbed `**Unsupported.**` followed by the line saying what it holds; it
   is refused for an unknown interface (`interface-invalid`, exit 1), and is a usage error with `--template`
@@ -291,11 +296,13 @@ Edge IDs are in [graph.md](./graph.md).
   (`template-invalid`); for a missing
   `description` it writes the file with a hint, not a warning.
 - R111 (UC18, E67): `customize <name> --implements <id> --request <file> --body <file>` mirrors `create --implements`
-  (R28) for a name nothing implements (no default and no plugin, so the name is `missing`). The generator's base
-  (`--base`, R84) is the interface's stub: each section a `##` heading in order, with its "what it holds" line. The
-  written document is whole and records `implements: <id>@<version>`, `merge: replace`, and the request, with no
-  `sources`. A `missing` name that falls under a found interface's namespace (cardinality `one`: `<id>`; `many`:
-  `<id>.<key>`), customized with `--request` and no `--implements`, is refused with `implements-required` (exit 1),
-  writing nothing, and its `help` gives the `--implements` command. `--implements` with `--in` is a usage error
-  (`options-conflict`, exit 2), since a project section carries no `implements` (K24); an unknown interface is refused
-  as R28 says (`interface-invalid`).
+  (R28), for a name nothing implements (no default and no plugin, so the name is `missing`) or for one already found,
+  whose stack the whole document then replaces. The name must fall under the interface's namespace (cardinality `one`:
+  `<id>`; `many`: `<id>.<key>`), else it is refused with `name-outside-interface` (exit 1), writing nothing. The
+  generator's base (`--base`, R84) is the interface's stub: each section a `##` heading in order, with its "what it
+  holds" line. The written document is whole and records `implements: <id>@<version>`, `merge: replace`, and the
+  request, with no `sources`. A `missing` name that falls under a found interface's namespace (cardinality `one`:
+  `<id>`; `many`: `<id>.<key>`), customized with `--request` and no `--implements`, is refused with
+  `implements-required` (exit 1), writing nothing, and its `help` gives the `--implements` command. `--implements` with
+  `--in` is a usage error (`options-conflict`, exit 2), since a project section carries no `implements` (K24); an
+  unknown interface is refused as R28 says (`interface-invalid`).
