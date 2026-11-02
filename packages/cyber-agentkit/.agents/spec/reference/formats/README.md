@@ -20,7 +20,7 @@ the `references/` folder and the tiers. It never reads `assets/`; [asset](../../
 
 - N10 Merging inside a non-Markdown file. No section, key, or path is patched or combined.
 - N11 Creating or editing a non-Markdown reference through `create`; an author writes the file by hand, and a
-  customizer generates one with `customize` (UC18). `delete` is not offered for one either (Q5).
+  customizer generates one with `customize` (UC18).
 - N12 Parsing or validating the content. The file is returned as text.
 
 **Key terms:**
@@ -80,11 +80,9 @@ the `references/` folder and the tiers. It never reads `assets/`; [asset](../../
   `<name>.meta.md` beside it. It goes stale as R75 says.
 - R93 (UC13.9): A metadata file with `extends` and no non-Markdown file beside it is that tier's selection for the
   name: the stack is built from it, and the top step's file answers whole.
+- R95 (UC11, UC13): `delete` on a non-Markdown name removes its file and the metadata file beside it; on a selection
+  that is a metadata file alone, it removes that file.
 - R94 (UC13.10): A metadata file beside a Markdown contribution, or with neither a non-Markdown file nor `extends`, is
   ignored with a warning. A body in a metadata file is ignored with a warning, and its frontmatter still applies.
 - R71 (UC13): Markdown output, trace fields, and codes are unchanged for every name that no non-Markdown file answers.
 - R72 (UC13): No reference command reads an `assets/` folder or accepts a path.
-
-## Open questions
-
-- **Q5.** Whether `delete` should remove a non-Markdown contribution (N11).

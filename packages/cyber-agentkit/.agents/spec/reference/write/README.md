@@ -158,6 +158,8 @@ IDs are shared across the parent and its children.
     `reference customize --extends` to restore it.
   - UC11.5 `--plugin <plugin folder>` or `--default <skill folder>`: deletes `<name>.md` or `<name>.default.md` there,
     under the folder checks of UC5.11.
+  - UC11.6 A non-Markdown name: its file goes, with its metadata file (K31); a selection that is a metadata file alone
+    goes by itself.
 
 ## Criteria
 
