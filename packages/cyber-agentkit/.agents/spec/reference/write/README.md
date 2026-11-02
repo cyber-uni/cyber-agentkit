@@ -87,6 +87,29 @@ IDs are shared across the parent and its children.
   - UC18.9 Picks alone, and the target holds a body: the body is kept and only `extends` changes. A body that records a
     request was written against the old stack: the output suggests customizing again with that request.
 
+### UC14 — Revise a stale generated document (A5.4, A7.2)
+
+- **Trigger:** load reports a generated document stale (UC1.14) and Load passes that on (UC4.6), or a customizer wants
+  a generated document brought up to date after updating plugins.
+- **Entry points:** Skill: the `reference` skill's Customize mode, which reads the recorded picks and request from
+  `load --trace` (UC2), runs the generator, shows the draft, and writes it once the customizer approves. Code:
+  `reference customize <name> --request <file> --body <file>` with the same target; the command runs no model.
+- **Inputs:** a name; the target that holds the stale document (`repo`, `user`, or a folder); its recorded picks and
+  request.
+- **Outcome:** the customizer revises without restating their request. The generator reads the resolved reference as
+  UC18 does, with the recorded picks, and applies the recorded request to it. The draft replaces the stale document
+  (UC18.2) and records the installed plugin versions, so load stops reporting it stale.
+- **Extensions:**
+  - UC14.1 The customizer declines the draft: nothing is written, and the document stays stale.
+  - UC14.2 A recorded source is gone (its plugin was removed): the customizer is told before generating, and picks
+    again (UC9) or goes on without it.
+  - UC14.3 The customizer changes the request while revising: that is customizing again (UC18) with the new request.
+  - UC14.4 A stale main document and stale project sections: the main document is revised first, then each project
+    section, since each records the sources of the main document it was written against (K21).
+  - UC14.5 No user is present: nothing is revised, and load keeps reporting it stale.
+  - UC14.6 A non-Markdown document: regenerated whole, and its metadata file updated (UC13.7).
+  - UC14.7 The command cannot run: nothing is written, and the skill says so (UC4.4).
+
 ### UC9 — Pick what a name builds on (A5.3)
 
 - **Trigger:** a name is ambiguous, or a customizer wants to choose which plugins, or the default, a name builds on,
