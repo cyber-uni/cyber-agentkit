@@ -49,8 +49,8 @@ what can be found, and every fault is reported as a warning.
 - N6 Detecting where the agent works, or reloading when its work moves. Every folder's additions are delivered up front.
 - N7 Finding a document for a single use, such as one feature's spec. The consuming skill points the agent at it.
 - N8 Noticing changes to a source's content. Only a plugin's version is compared; a customizer who changes their
-  instructions generates the document again.
-- N9 Editing a generated document by hand. A change goes in the customizer's instructions, and the document is generated
+  request generates the document again.
+- N9 Editing a generated document by hand. A change goes in the customizer's request, and the document is generated
   again.
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
@@ -99,13 +99,14 @@ what can be found, and every fault is reported as a warning.
   every `.agents/references/` below it holds a project section. `--root <folder>` names the root when it cannot be found
   that way: when the command runs from outside the repository, as a globally installed skill may, or when the work is in
   a folder that is not a git repository.
-- K20 **generated document**: a contribution a generator writes from the customizer's instructions: a `repo` or `user`
-  contribution with `merge: replace`, written from the stack, or a project section, written from the main document. Its
-  frontmatter keeps the selection it was built on (`extends`), each source with its plugin's version, and the
-  instructions.
+- K20 **generated document**: a contribution a generator writes from the customizer's request: a `repo` or `user`
+  contribution written from the stack, as a delta by default or a whole document with `merge: replace`, or a project
+  section, written from the main document. Its frontmatter keeps the selection it was built on (`extends`), each source
+  with its plugin's version, and the request.
 - K21 **source**: a contribution a generated document is built from: each step of its stack. A project section records
   the sources of the main document it was written against.
-- K22 **instructions**: what the customizer told the generator to change, in their own words.
+- K22 **request**: what the customizer asked to change in the prose, in their own words. Choices of plugins, their
+  order, and their sections are metadata (`extends`), not part of the request.
 - K23 **main document**: what the tiers compose for a name: the stack; over it, the `repo` contribution, else the
   `user` one, with its merge operation; then each managed contribution over that. The `repo` and `user` contributions
   never apply over each other. A selection changes the stack and adds nothing.
@@ -134,7 +135,7 @@ what can be found, and every fault is reported as a warning.
 | A5.1 | A5 customizer (a team for its repository, or a user for themselves) | Change what a skill reads without forking the plugin: say in their own words what to change, and get one concise document generated from it, or turn the name off |
 | A5.2 | A5 | Remove a customization, and learn what answers afterwards |
 | A5.3 | A5 | Pick which implementation answers a name, and the order in which plugins extend it |
-| A5.4 | A5 | Revise a generated document when a plugin it was built from changes, without restating their instructions |
+| A5.4 | A5 | Revise a generated document when a plugin it was built from changes, without restating their request |
 | A6.1 | A6 plugin author | Ship skills that load references by name, with defaults others can implement or extend |
 | A6.2 | A6 | Extend another plugin's implementation, or the loading skill's default, by replacing or adding to some of its sections, in effect once installed |
 | A6.3 | A6 | Publish an interface that states which sections an implementation must hold and what each holds, and know an implementation meets it |
