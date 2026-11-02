@@ -118,8 +118,10 @@ IDs are shared across the parent and its children.
 
 - **Trigger:** a name is ambiguous, or a customizer wants to choose which plugins, or the default, a name builds on,
   in what order, and which of their sections.
-- **Entry points:** Skill: Load mode asks (UC4.2), or Customize mode (UC18). Code: `reference customize <name>
-  --extends <step>... [--scope repo|user]`.
+- **Entry points:** Skill: Load mode asks (UC4.2), or Customize mode (UC18). Code:
+  `reference customize <name> (--extends <step>... | --extends-file <file>) [--scope repo|user]`, where a step is
+  `<plugin>` or `default`, optionally `:<merge>` (`house-style:combine`), and the file holds a YAML `extends` list with
+  every key.
 - **Inputs:** a bare name; one or more steps, bottom first, each a `<plugin>` or `default`, optionally with the keys
   `merge`, `extends`, and `sections` (the top-level sections, by heading, that it contributes); the tier written to
   (`repo` by default, or `user`); the root.
@@ -189,18 +191,21 @@ Edge IDs are in [graph.md](./graph.md).
 - R28 (UC5, E30): `create --implements <id>` writes the interface's sections as `##` headings in order and
   `implements: <id>@<version>`, each section stubbed `**Unsupported.**` followed by the line saying what it holds; it
   fails for an unknown interface and with `--template`.
-- R79 (UC9, E50): `customize <name> --extends <step>...` writes `extends` listing the steps bottom first, each with its
-  keys (`merge`, `extends`, `sections`), leaving the body and other keys unchanged; a file with no body is a selection.
-  A step that is neither `default` nor a plugin holding the name fails, and nothing is written.
+- R79 (UC9, E50): `customize <name> --extends <step>...` writes `extends` listing the steps bottom first, a step written
+  `<plugin>:<merge>` taking that `merge`; `--extends-file <file>` writes the YAML `extends` list it holds, with every
+  key (`merge`, `extends`, `sections`). Either leaves the body and other keys unchanged; a file with no body is a
+  selection. A step that is neither `default` nor a plugin holding the name fails, and nothing is written.
 - R80 (UC9, E51): `customize --extends none` removes `extends` and deletes a file left with nothing in it; with no
   `extends` in that tier, it fails stating what answers the name now.
 - R81 (UC20, UC18, E58): `customize --request <file> --body <file>` writes the body with frontmatter `extends` (the
-  picks, if any), `sources` (each source's plugin and installed version; for a project section, those of the main
-  document), `request` (the file's text), and `merge` (`--merge`, else `patch`). The command runs no model.
-- R82 (UC18, E58): `customize` refuses, writing nothing: with neither `--extends` nor `--request`; with only one of
-  `--request` and `--body`; with `--plugin` or `--default` (exit 2); with `--request` when the target holds a body that
-  records no request; with `--in` for a name that is not Markdown; and with `--request` and no `--extends` on an
-  `ambiguous` name. A body that records a request is replaced.
+  picks given, else the target's existing `extends`, kept), `sources` (each source's plugin and installed version; for a
+  project section, those of the main document), `request` (the file's text), and `merge` (`--merge`, else `patch`). The
+  command runs no model.
+- R82 (UC18, E58): `customize` refuses, writing nothing: with neither `--extends` nor `--request`; with `--in` and
+  `--extends`, since a project section has no stack; with only one of `--request` and `--body`; with `--plugin` or
+  `--default` (exit 2); with `--request` when the target holds a body that records no request; with `--in` for a name
+  that is not Markdown; and with `--request` and no `--extends` on an `ambiguous` name. A body that records a request is
+  replaced.
 - R83 (UC18, E50): `customize --extends` on a target holding a body keeps the body; when that body records a request,
   the output suggests customizing again with it.
 - R84 (UC20, UC18, E59): `customize --base` prints, and writes nothing, the document the generator reads for that

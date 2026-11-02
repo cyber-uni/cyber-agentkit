@@ -18,7 +18,7 @@ IDs are shared across the parent and its children.
   harness; optionally the routing option, and `--in <path>...`.
 - **Outcome:** for each name, in the order asked, with status `found`, its resolved reference (K28): the main document
   (K23), composed as each contribution's `extends` and `merge` declare, followed by each project section below the root,
-  in path order, each wrapped with the folder it applies to (R44). Each managed contribution applies over each project
+  in path order, each wrapped with the folder it applies to (R44). The managed contribution applies over each project
   section as it does over the main document (K27). Project sections are read from every folder below the root that
   `.gitignore` does not exclude, tracked or not. With the routing option, a route stands in place of each project
   section's text, and `--in` expands the routes whose folder holds one of its paths. No contribution's frontmatter or
@@ -134,7 +134,7 @@ IDs are shared across the parent and its children.
   once, at its listed place. Each step applies with its own operation: the step's key, else the plugin's own `merge`,
   else `patch`. The contribution's body applies on top with its own `merge`. The highest written `extends` among the
   contributions used builds the stack: a managed contribution's, else the `repo` one's, else the `user` one's, else the
-  plugins' own. The `user` contribution applies over the stack, the `repo` one over that, and each managed contribution
+  plugins' own. The `user` contribution applies over the stack, the `repo` one over that, and the managed contribution
   over both (K23). Anything left out of that `extends`, a plugin or `default`, is `not used`. So a house-style plugin
   changes what a generic skill reads without forking it.
 - **Extensions:**
@@ -161,8 +161,8 @@ IDs are shared across the parent and its children.
 - **Extensions:**
   - UC10.1 The harness keeps its managed content where it cannot be read locally (an MDM domain, or a server): the
     trace shows that layer not read, with the reason.
-  - UC10.2 The file sits in the managed folder of a harness that is not detected: that folder is not read, and the
-    trace names the detected harnesses, so the admin sees why.
+  - UC10.2 The file sits in the managed folder of a harness other than the current one, or detection names no harness:
+    that folder is not read, and the trace names the detected harnesses, so the admin sees why.
   - UC10.3 A section of the managed contribution matches no section of the main document: as UC1.13 says. One that
     matches no section of a project section leaves that project section as it is.
   - UC10.4 A managed `replace` or `remove` drops every project section too.
@@ -197,17 +197,18 @@ Edge IDs are in [graph.md](./graph.md).
 **Composition**
 
 - R3 (UC1, E3): The stack applies bottom first in K17 order, each contribution over the result of everything below it
-  with its own operation; then the `user` contribution, then the `repo` one, then each managed contribution, each over
+  with its own operation; then the `user` contribution, then the `repo` one, then the managed contribution, each over
   the result below it with its own (K23). With no `merge` written anywhere, every contribution patches. Within the
   project tier, the nearer folder is higher: an inner folder's section follows an outer one's and wins where they
   conflict (UC17.3).
 - R100 (UC1, UC2, E57): When both `repo` and `user` hold a contribution, both apply, the `repo` one over the `user` one;
   a `repo` `replace` or `remove` makes the `user` one `shadowed`. The `user` one's `extends` is not used (R8).
-- R99 (UC1, UC10, E54): Project sections follow the main document in path order, never composed into it. Each managed
-  contribution applies over each project section by heading path: a managed section that matches none of the project
-  section's is not added to it, and a managed `replace` or `remove` drops every project section. With no main document
-  but a project section, the name is `found` with only its project sections. A project section that is not Markdown is
-  not read, with a warning.
+- R99 (UC1, UC10, E54): Project sections follow the main document in path order, never composed into it: paths compared
+  segment by segment by character code, so a folder comes before the folders inside it. Each managed contribution
+  applies over each project section by heading path: a managed section that matches none of the project section's is not
+  added to it, and a managed `replace` or `remove` drops every project section. With no main document but a project
+  section, the name is `found` with only its project sections. A project section that is not Markdown is not read, with
+  a warning.
 - R6 (UC1, E6): `patch` keeps what is below and puts each section's text in place of the text it matches by heading
   path, unless that text is empty. Unmarked subsections replace. A section that matches nothing is added at the end. A
   heading path is read from each document's own top heading level.
@@ -274,8 +275,8 @@ Edge IDs are in [graph.md](./graph.md).
   instead, and with neither, the working folder is the root. The `repo` tier reads the root's `.agents/references/`. The
   `project` tier reads every `.agents/references/` strictly below the root, in folders git does not ignore (by any
   ignore file git reads), tracked or not; outside a git repository, none is ignored. The `user` tier reads
-  `~/.agents/references/`. The managed tier reads `references/` in each detected harness's managed folder; the library
-  keeps no managed folder of its own.
+  `~/.agents/references/`. The managed tier reads `references/` in the current harness's managed folder only; when
+  detection names no harness, none is read, and the trace says so; the library keeps no managed folder of its own.
 - R102 (UC1, E55): With the routing option, each project section is a route naming its folder, in place of its text.
   `--in <path>...` expands each route whose folder holds one of the paths, so a path in nested folders expands both. An
   `--in` path outside the root is ignored, with a warning. Without the routing option, `--in` changes nothing.

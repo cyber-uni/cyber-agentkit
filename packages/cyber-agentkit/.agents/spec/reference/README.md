@@ -64,7 +64,8 @@ what can be found, and every fault is reported as a warning.
   which reaches only you, in every repository.
 - K2 **layer**: one folder read for a name: one per plugin for `plugin`, the calling skill's folder for `default`,
   `~/.agents/references/` for `user`, `.agents/references/` at the root for `repo`, each `.agents/references/` below the
-  root for `project`, and one per detected harness for `managed`, beside that harness's own managed settings.
+  root for `project`, and, for `managed`, the one beside the current harness's own managed settings: the harness
+  detection names as running. Other harnesses' managed folders are never read.
 - K4 **qualified name**: `<plugin>/<name>`: that plugin's implementation of a name, with the stack it builds on.
   `implementations` gives each as its `pin`.
 - K5 **merge operation**: how a contribution applies over what is below it: a plugin's over the stack below it, a `user`
@@ -112,7 +113,7 @@ what can be found, and every fault is reported as a warning.
 - K22 **request**: what the customizer asked to change in the prose, in their own words. Choices of plugins, their
   order, and their sections are metadata (`extends`), not part of the request.
 - K23 **main document**: what the tiers compose for a name: the stack; over it, the `user` contribution; over that, the
-  `repo` one; then each managed contribution over that; each with its merge operation. A selection changes the stack
+  `repo` one; then the managed contribution over that; each with its merge operation. A selection changes the stack
   and adds nothing.
 - K24 **project section**: a `.agents/references/<name>.md` below the root, which states only what differs in its
   folder. It follows the main document in the resolved reference, wrapped with that folder (R44).
@@ -120,7 +121,7 @@ what can be found, and every fault is reported as a warning.
   section's text. `--in <path>` expands the routes whose folder holds the path.
 - K26 **stale**: said of a generated document when a source's recorded plugin version differs from the installed one, or
   a recorded source is gone. Load still uses it, and suggests revising it.
-- K27 **managed contribution**: `<name>.md` in `references/` of a detected harness's managed folder, placed there by an
+- K27 **managed contribution**: `<name>.md` in `references/` of the current harness's managed folder, placed there by an
   admin. It applies at load over the main document and each project section, with its merge operation (K5), so it ranks
   above every other tier. Its text reaches the agent only through load: no written contribution holds it, generated or
   not.
@@ -189,11 +190,11 @@ what can be found, and every fault is reported as a warning.
 **Surface trace.** `load`, `--trace`, `--default` (UC1, UC2, UC10, UC12); the routing option and `--in` (UC1, UC12,
 UC17); `--root` (all); `where`, `--default`, `--in` (UC2); `list`, pattern (UC3); `search` (UC3); `create` with
 `--merge`, `--template`, `--implements`, `--scope`, `--in`, `--plugin`, `--default`, `--dry-run`, `--trace` (UC5, UC15);
-`customize` with `--extends`, `--request`, `--body`, `--base`, `--scope`, `--in`, `--merge`, `--dry-run`, `--trace`
-(UC9, UC20, UC18); `delete` with `--scope`, `--in`, `--plugin`, `--default`, `--dry-run` (UC11); `check` (UC6);
-`implementations`, `--accept` (UC6); `--format`, `--metadata` (UC8). Frontmatter keys `merge`, `extends` (with the step
-keys `merge`, `extends`, `sections`), `implements`, `interface`, `description`, `tags`, `aliases`, and a generated
-document's record of sources and request serve UC1, UC5, UC6, UC7, UC9, UC20, UC18, UC19; the section marker
+`customize` with `--extends`, `--extends-file`, `--request`, `--body`, `--base`, `--scope`, `--in`, `--merge`,
+`--dry-run`, `--trace` (UC9, UC20, UC18); `delete` with `--scope`, `--in`, `--plugin`, `--default`, `--dry-run` (UC11);
+`check` (UC6); `implementations`, `--accept` (UC6); `--format`, `--metadata` (UC8). Frontmatter keys `merge`, `extends`
+(with the step keys `merge`, `extends`, `sections`), `implements`, `interface`, `description`, `tags`, `aliases`, and a
+generated document's record of sources and request serve UC1, UC5, UC6, UC7, UC9, UC20, UC18, UC19; the section marker
 `<!-- merge: ... -->` serves UC1 and UC7. File names `<name>.md` and `<name>.default.md` serve UC5, UC9, UC11, UC18 and
 UC3, UC12. Informational, no contract: the trace's keys beyond those the Adapters group names.
 
@@ -267,8 +268,52 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
 - R39 (UC8, E41): Every failure and warning carries a `code`, following clibuilder's `axi` error contract; a warning in
   `warnings` is `{code, message}`. A name not `found` has `reference-missing`, `reference-ambiguous`, or
   `reference-invalid`; a stale generated document's warning has `reference-stale` (UC4.6 acts on it); a renamed one's
-  has `reference-renamed` (UC19); a check failure's code is its check's name (R33). The human wording is not a
-  contract.
+  has `reference-renamed` (UC19); every code is in R104. The human wording is not a contract.
+- R104 (UC8, E41): Every code is one of these, and this table is its one home. Adding a code is not breaking; removing
+  or renaming one is. A check failure's code is its check's name (R33, R64): `interface found`, `version`, `name`,
+  `order`, `required`, `interface`, `compose`.
+
+  | Code | Kind | When |
+  | --- | --- | --- |
+  | `reference-missing`, `reference-ambiguous`, `reference-invalid` | name status | UC1.1, UC1.2, R1 |
+  | `frontmatter-invalid` | warning | malformed frontmatter (UC1.5) |
+  | `merge-unknown`, `marker-unknown` | warning | an unknown `merge` value or marker (R7) |
+  | `marker-unmatched` | warning | an explicit marker that matches nothing below (R7) |
+  | `heading-repeated` | warning | a document repeating a heading (R7) |
+  | `remove-body-ignored` | warning | a `remove` with a body (R49) |
+  | `extends-invalid` | warning | a malformed `extends` (UC7.3) |
+  | `extends-self` | warning | a plugin listing itself (R54) |
+  | `extends-step-missing`, `extends-all-missing` | warning | a step, or every step, that cannot be used (R55) |
+  | `extends-not-used` | warning | a lower `extends` that builds a different stack (R53) |
+  | `section-not-held` | warning | a `sections` entry the plugin does not hold (R52) |
+  | `default-not-selected` | warning | a plugin answering over the default with no `extends` naming either (R56) |
+  | `default-folder-missing` | warning | a `--default` folder that does not exist (R41) |
+  | `default-in-tier` | warning | a `<name>.default.md` in a tier folder (R51) |
+  | `file-ignored` | warning | a second file for a name in one folder (R67) |
+  | `format-mismatch` | warning | a Markdown contribution above a non-Markdown one (R68) |
+  | `metadata-ignored` | warning | a misplaced metadata file, or a body in one (R94) |
+  | `interface-not-composed` | warning | `extends`, `merge`, or a higher copy on an interface document (R14) |
+  | `interface-check` | warning | a loaded document failing its interface check (R37) |
+  | `base-moved` | warning | `check` on a plugin file whose extended base has a newer version (R86) |
+  | `reference-stale` | warning | a generated document or project section with a changed or missing source (R101) |
+  | `reference-renamed` | warning | a name or file under an older name (R96, R97) |
+  | `alias-not-used`, `alias-invalid` | warning | an alias a name holds as its own; an invalid or misplaced one (R96, R98) |
+  | `project-section-not-markdown` | warning | a project section that is not Markdown (R99) |
+  | `in-outside-root` | warning | an `--in` path outside the root (R102) |
+  | `repo-hides-user` | warning | a `user` file this repository's `repo` contribution hides (R26) |
+  | `reference-qualified` | refused | a qualified name given to a write (R25) |
+  | `folder-invalid` | refused | a `--plugin` or `--default` folder that does not qualify (R24) |
+  | `file-exists` | refused | `create` on a file with a body (R60) |
+  | `reference-hidden` | refused | a `replace` or `remove` above would hide the new file (R26) |
+  | `extends-replace` | refused | a `--plugin` file extending another plugin with `replace` (R103) |
+  | `interface-invalid` | refused | `--implements` with an unknown interface (R28) |
+  | `template-title`, `template-invalid` | refused | a title template; an unreadable or non-mapping one (R32) |
+  | `step-invalid` | refused | a step neither `default` nor a plugin holding the name (R79) |
+  | `no-selection` | refused | `--extends none` with no `extends` there (R80) |
+  | `body-not-generated` | refused | `--request` on a body that records no request (R82) |
+  | `pick-required` | refused | `--request` without `--extends` on an `ambiguous` name (R82) |
+  | `no-file` | refused | `delete` with no file there (R30) |
+  | `options-conflict`, `options-missing`, `options-invalid`, `option-invalid` | usage | flags that exclude each other, a missing or wrong flag, a wrong value (R24, R82, R43) |
 
 **Read-only reads**
 
