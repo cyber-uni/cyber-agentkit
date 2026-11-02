@@ -64,15 +64,24 @@ the `references/` folder and the tiers. It never reads `assets/`; [asset](../../
 ## Criteria
 
 - R65 (UC13): `<name>.<ext>` for each K29 extension answers a name in every tier, in K30 order within a folder; the
-  content is the file's text unchanged.
-- R66 (UC13): A result reports its `format` (K29); `show --metadata` and `--trace` carry it, and each trace layer's
+  content is the file's text unchanged. A metadata file (K31) never answers a name.
+- R66 (UC13): A result reports its `format` (K29); `load --metadata` and `--trace` carry it, and each trace layer's
   `file` shows the extension. `list` and `search` rows carry it for a non-Markdown name.
 - R67 (UC13.1): Two formats in one folder: K30 first answers, each other warns `file-ignored`.
 - R68 (UC13.2, UC13.3): The highest non-Markdown contribution replaces all below it, which are
   `shadowed by <contribution> (replace)`. A Markdown contribution above is `not used (format differs from <format>)`,
   with a warning `format-mismatch`, unless it is `merge: remove`.
 - R69 (UC13.4): A name ending in a K29 extension is `invalid`, and nothing is read.
-- R70 (UC13.5): A non-Markdown reference has no metadata but `format`; `where` lists no sections for it.
+- R70 (UC13.5): A non-Markdown reference's metadata is its metadata file's frontmatter, without `extends` and the
+  generated record (as for Markdown, UC8), plus `format`; with no metadata file, only `format`, and it lists with an
+  empty description. `where` lists no sections for it.
+- R92 (UC13.7): `customize` with a request for a non-Markdown name writes the body whole, in the format of the
+  document it was generated from, never a delta, and writes the picks, sources with installed versions, and request to
+  `<name>.meta.md` beside it. It goes stale as R75 says.
+- R93 (UC13.9): A metadata file with `extends` and no non-Markdown file beside it is that tier's selection for the
+  name: the stack is built from it, and the top step's file answers whole.
+- R94 (UC13.10): A metadata file beside a Markdown contribution, or with neither a non-Markdown file nor `extends`, is
+  ignored with a warning. A body in a metadata file is ignored with a warning, and its frontmatter still applies.
 - R71 (UC13): Markdown output, trace fields, and codes are unchanged for every name that no non-Markdown file answers.
 - R72 (UC13): No reference command reads an `assets/` folder or accepts a path.
 
