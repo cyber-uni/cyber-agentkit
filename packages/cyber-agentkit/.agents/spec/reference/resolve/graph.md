@@ -90,3 +90,9 @@ flowchart TD
 | E19 | `search` | each name resolved as `load` would; match kinds ranked `name` to `body`, then by name |
 | E20 | no match | an explicit zero, exit 0 |
 | E48 | skill defaults | found in the skill folders the detected harness reads; on an unverified harness none, and the answer says so |
+
+## Renames
+
+| Edge | Decision | Outcome |
+| --- | --- | --- |
+| E65 | a name or a file name listed in another name's `aliases`, and held by no contribution as its own | resolves the new name, with a `reference-renamed` warning; listed by two names, `ambiguous` |

@@ -166,6 +166,29 @@ IDs are shared across the parent and its children.
     matches no section of a project section leaves that project section as it is.
   - UC10.4 A managed `replace` or `remove` drops every project section too.
 
+### UC19 — Rename a name (A6.5)
+
+- **Trigger:** a plugin author renames a name their plugin owns, for example to a neutral name other plugins can
+  implement.
+- **Entry points:** Code: frontmatter `aliases: [<older name>...]` on the owner's contribution of the new name: its
+  plugin contribution, its default, or its interface document.
+- **Inputs:** the new name; the older names it replaces.
+- **Outcome:** a load of an older name resolves the new name, with a `reference-renamed` warning naming it, which Load
+  passes on (UC4.7) so the skill's load line gets updated. A contribution filed under an older name in the managed,
+  `repo`, `user`, or `project` tier applies as one of the new name, with a warning naming the file to rename. `list`
+  and `search` show only the new name; the trace names the alias used.
+- **Extensions:**
+  - UC19.1 A contribution still holds the older name as its own (an old copy of a plugin, say): that name answers as
+    itself, and the alias is not used, with a warning.
+  - UC19.2 Two names list the same alias: a load of it is `ambiguous`, with both names as options.
+  - UC19.3 One tier folder holds files under both the older and the new name: the new one applies, and the older one
+    is ignored with a warning.
+  - UC19.4 `aliases` in a `repo`, `user`, `project`, or managed contribution: ignored with a warning. Only an owner
+    renames.
+  - UC19.5 An alias of an alias: not followed. The owner lists every older name.
+  - UC19.6 A qualified older name `<plugin>/<older name>`: resolves as `<plugin>/<new name>`.
+  - UC19.7 An alias that is not a valid name (R1): ignored with a warning.
+
 ## Criteria
 
 Edge IDs are in [graph.md](./graph.md).
@@ -288,3 +311,16 @@ Edge IDs are in [graph.md](./graph.md).
   not verified, no defaults are listed, and the answer says so. A skill is known by the `name` in its `SKILL.md`, not by
   its folder's name, and a symlinked skill folder is followed. Where each harness keeps a plugin's skills and how an
   installed plugin maps to its folder: `.research/skill-resolution` A and B.
+
+**Renames (UC19)**
+
+- R96 (UC19, E65): `aliases` on a plugin's or a default's contribution of a name, or on an interface document, lists
+  older names. A load of an older name resolves the name listing it, with a `reference-renamed` warning naming it, and
+  a qualified older name resolves as the same plugin's new name. Aliases are not followed transitively; an invalid one,
+  or `aliases` in any other tier, is ignored with a warning.
+- R97 (UC19, E65): A contribution filed under an older name in the managed, `repo`, `user`, or `project` tier applies
+  as one of the new name, with a `reference-renamed` warning naming its path and the new name. A file under the new
+  name in the same folder wins, and the older one is ignored with a warning.
+- R98 (UC19, E65): A name a contribution holds as its own is never read as an alias, with a warning that the alias is
+  not used. An alias two names list is `ambiguous`, with both as options. `list` and `search` show only the new name,
+  and the trace names the alias used.

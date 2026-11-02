@@ -122,6 +122,8 @@ what can be found, and every fault is reported as a warning.
   above every other tier. Its text reaches the agent only through load: no written contribution holds it, generated or
   not.
 - K28 **resolved reference**: what load returns for a name: the main document, followed by its project sections.
+- K32 **alias**: an older name a plugin's or a default's contribution of a name lists in `aliases`, so load lines and
+  customizations written for the older name still reach it after a rename.
 
 ## Use Cases
 
@@ -143,6 +145,7 @@ what can be found, and every fault is reported as a warning.
 | A6.2 | A6 | Extend another plugin's implementation, or the loading skill's default, by replacing or adding to some of its sections, in effect once installed |
 | A6.3 | A6 | Publish an interface that states which sections an implementation must hold and what each holds, and know an implementation meets it |
 | A6.4 | A6 | Ship its own implementation of another skill's interface, loaded by itself under a name the plugin owns |
+| A6.5 | A6 | Rename a name its plugin owns without breaking the load lines and customizations written for the old one |
 | A7.1 | A7 agent user | Be told when the agent ran without instructions it asked for, or without the customizations placed for it |
 | A7.2 | A7 | Be told when a document was built from plugins that have since changed, and how to revise it |
 | A8.1 | A8 project maintainer (a team owning one folder of a monorepo) | Add only what differs in their folder, and have the agent follow it whenever its work is there |
@@ -151,7 +154,7 @@ what can be found, and every fault is reported as a warning.
 
 | Child | Use cases | Criteria |
 | --- | --- | --- |
-| [resolve](./resolve/README.md) | UC1, UC2, UC3, UC7, UC10 | Composition, Stack, Reporting, Layers, Finding |
+| [resolve](./resolve/README.md) | UC1, UC2, UC3, UC7, UC10, UC19 | Composition, Stack, Reporting, Layers, Finding, Renames |
 | [write](./write/README.md) | UC5, UC9, UC11, UC14, UC18 | Writing |
 | [interfaces](./interfaces/README.md) | UC6, UC15 | Interfaces |
 | [skill](./skill/README.md) | UC4, UC12, UC17 | Fallback |
@@ -187,10 +190,10 @@ UC17); `--root` (all); `where`, `--default`, `--in` (UC2); `list`, pattern (UC3)
 `customize` with `--extends`, `--request`, `--body`, `--base`, `--scope`, `--in`, `--merge`, `--dry-run` (UC9, UC14,
 UC18); `delete` with `--scope`, `--plugin`, `--default`, `--dry-run` (UC11); `check` (UC6); `implementations`,
 `--accept` (UC6); `--format`, `--metadata` (UC8). Frontmatter keys `merge`, `extends` (with the step keys `merge`,
-`extends`, `sections`), `implements`, `interface`, `description`, `tags`, and a generated document's record of sources
-and request serve UC1, UC5, UC6, UC7, UC9, UC14, UC18; the section marker `<!-- merge: ... -->` serves UC1 and UC7. File
-names `<name>.md` and `<name>.default.md` serve UC5, UC9, UC11, UC18 and UC3, UC12. Informational, no contract: the
-trace's keys beyond those the Adapters group names.
+`extends`, `sections`), `implements`, `interface`, `description`, `tags`, `aliases`, and a generated document's record
+of sources and request serve UC1, UC5, UC6, UC7, UC9, UC14, UC18, UC19; the section marker `<!-- merge: ... -->` serves
+UC1 and UC7. File names `<name>.md` and `<name>.default.md` serve UC5, UC9, UC11, UC18 and UC3, UC12. Informational, no
+contract: the trace's keys beyond those the Adapters group names.
 
 ## Criteria
 
@@ -260,8 +263,9 @@ Edge IDs are in [graph.md](./graph.md).
   follow the Writing criteria and are informational, not a contract.
 - R39 (UC8, E41): Every failure and warning carries a `code`, following clibuilder's `axi` error contract; a warning in
   `warnings` is `{code, message}`. A name not `found` has `reference-missing`, `reference-ambiguous`, or
-  `reference-invalid`; a stale generated document's warning has `reference-stale` (UC4.6 acts on it); a check failure's
-  code is its check's name (R33). The human wording is not a contract.
+  `reference-invalid`; a stale generated document's warning has `reference-stale` (UC4.6 acts on it); a renamed one's
+  has `reference-renamed` (UC19); a check failure's code is its check's name (R33). The human wording is not a
+  contract.
 
 **Read-only reads**
 
