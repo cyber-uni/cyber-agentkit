@@ -79,7 +79,9 @@ export function implementationsCommand(layersFor: LayersFor): cli.Command {
 				})
 				const rows = found.implementations.map(({ pin, description, unsupported, name, tier, version }) =>
 					compact(
-						args.trace ? { pin, description, unsupported, name, tier, version } : { pin, description, unsupported },
+						args.trace
+							? { pin, description, unsupported, name, tier, version }
+							: { pin, ...(tier === 'plugin' ? {} : { tier }), description, unsupported },
 					),
 				)
 				if (!rows.length && !args.trace) {

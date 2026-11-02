@@ -1,4 +1,7 @@
-import type { ReferenceStatusCode } from './reference-codes.js'
+import { aliasIndex } from './reference-aliases.js'
+import { catalogNames } from './reference-catalog.js'
+import { baseMovedWarnings, hiddenWarnings, splitComposeWarnings } from './reference-check-warnings.js'
+import type { ReferenceStatusCode, ReferenceWarning } from './reference-codes.js'
 import {
 	checkImplementation,
 	type InterfaceCheck,
@@ -9,11 +12,11 @@ import {
 	readInterface,
 } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers } from './reference-layers.js'
+import { projectSectionNames } from './reference-project-sections.js'
 import {
 	parseReferenceName,
 	type ResolvedReference,
 	type ResolveOptions,
-	referenceNames,
 	resolveReference,
 } from './resolve-reference.js'
 import { skillHoldings, withDefault } from './skill-defaults.js'
@@ -34,8 +37,13 @@ export type ReferenceCheckEntry = {
 	/** `passed` and `failed` are about the composed document; the others mean none was composed. */
 	status: 'passed' | 'failed' | 'missing' | 'ambiguous' | 'invalid'
 	failures: ReferenceCheckFailure[]
-	/** For an implementation: the listed sections it marks `**Unsupported.**` or leaves out. */
+	/** For an implementation: the optional listed sections it marks `**Unsupported.**` or leaves out. */
 	unsupported: string[]
+	/**
+	 * What is passed on and never fails a check: a warning composing raised that depends on what is
+	 * installed or chosen (UC6.8), an interface's older id (R96), a moved base (R86), a hidden file (R112).
+	 */
+	warnings: ReferenceWarning[]
 	/** Checked as this skill loads the name, its default joined. */
 	loadedBy?: string
 }
@@ -47,8 +55,15 @@ export type CheckOptions = ResolveOptions & {
 
 type Source = ReferenceLayers | readonly ReferenceLayer[]
 
-/** An interface, resolved once per id within one run. */
-export type InterfaceLookup = (id: string) => { value?: ReferenceInterface; failure?: ReferenceCheckFailure }
+/**
+ * An interface, resolved once per id within one run. `renamed` is set when `id` is an older id an
+ * interface document lists in its `aliases` (R96): the interface is that document's.
+ */
+export type InterfaceLookup = (id: string) => {
+	value?: ReferenceInterface
+	failure?: ReferenceCheckFailure
+	renamed?: string
+}
 
 export function interfaceLookup(source: Source, options: ResolveOptions = {}): InterfaceLookup {
 	const cache = new Map<string, ReturnType<InterfaceLookup>>()
@@ -64,14 +79,35 @@ export function interfaceLookup(source: Source, options: ResolveOptions = {}): I
 function lookUp(id: string, source: Source, options: ResolveOptions): ReturnType<InterfaceLookup> {
 	const name = `${id}${interfaceSuffix}`
 	const resolved = resolveReference(name, source, options)
-	const failure = (message: string) => ({ failure: { check: 'interface found' as const, interface: id, message } })
-	if (resolved.status === 'invalid') return failure(`${id} is not an interface id`)
-	if (resolved.status === 'missing') return failure(`no interface document ${name}`)
+	if (resolved.status === 'missing') {
+		const owners = [...aliasIndex(source).interfaces]
+			.filter(([, aliases]) => aliases.some(({ alias }) => alias === id))
+			.map(([owner]) => owner)
+		if (owners.length > 1) {
+			return lookupFailure(id, `${id} is an older id of ${owners.join(' and ')}; implement one of them by its own id`)
+		}
+		if (owners.length === 1) {
+			const owner = owners[0] as string
+			const found = readFound(owner, resolveReference(`${owner}${interfaceSuffix}`, source, options))
+			return found.value ? { ...found, renamed: owner } : found
+		}
+	}
+	return readFound(id, resolved)
+}
+
+function lookupFailure(id: string, message: string): ReturnType<InterfaceLookup> {
+	return { failure: { check: 'interface-found', interface: id, message } }
+}
+
+function readFound(id: string, resolved: ResolvedReference): ReturnType<InterfaceLookup> {
+	const name = `${id}${interfaceSuffix}`
+	if (resolved.status === 'invalid') return lookupFailure(id, `${id} is not an interface id`)
+	if (resolved.status === 'missing') return lookupFailure(id, `no interface document ${name}`)
 	if (resolved.status === 'ambiguous') {
-		return failure(`${name} is ambiguous between ${(resolved.options ?? []).join(' and ')}`)
+		return lookupFailure(id, `${name} is ambiguous between ${(resolved.options ?? []).join(' and ')}`)
 	}
 	const { value, problems } = readInterface(id, resolved.metadata ?? {})
-	return value ? { value } : failure(`${name} is malformed: ${problems.join('; ')}`)
+	return value ? { value } : lookupFailure(id, `${name} is malformed: ${problems.join('; ')}`)
 }
 
 function bareName(name: string): string {
@@ -85,23 +121,29 @@ export function kindOf(resolved: ResolvedReference): ReferenceCheckKind {
 	return metadata['implements'] === undefined ? 'none' : 'implementation'
 }
 
-export type CheckResult = { failures: ReferenceCheckFailure[]; unsupported: string[] }
+export type CheckResult = {
+	failures: ReferenceCheckFailure[]
+	unsupported: string[]
+	/** What the check itself raises and passes on: an `implements` naming an interface's older id (R96). */
+	warnings: ReferenceWarning[]
+}
 
 /**
  * Checks a composed document against the interface it declares, or an interface document against
  * its own shape. `accept` replaces the versions accepted for one interface id. The `compose` check
- * fails when composing the document raised any warning.
+ * fails when composing the document raised a warning that is a defect in the document itself
+ * (UC6.8); the `kind` check is the caller's, since `load` checks a plain document too.
  */
 export function checkResolved(
 	resolved: ResolvedReference,
 	lookup: InterfaceLookup,
 	accept?: { id: string; versions: readonly number[] },
 ): CheckResult {
-	if (resolved.status !== 'found') return { failures: [], unsupported: [] }
+	const result: CheckResult = { failures: [], unsupported: [], warnings: [] }
+	if (resolved.status !== 'found') return result
+	const { failures, warnings } = result
 	const name = bareName(resolved.name)
 	const metadata = resolved.metadata ?? {}
-	const failures: ReferenceCheckFailure[] = []
-	let unsupported: string[] = []
 	if (kindOf(resolved) === 'interface') {
 		const id = interfaceIdOf(name)
 		if (id === undefined) {
@@ -116,31 +158,59 @@ export function checkResolved(
 		}
 	} else {
 		const { entry, problems } = readImplements(metadata)
-		for (const problem of problems) failures.push({ check: 'interface found', message: problem })
+		for (const problem of problems) failures.push({ check: 'interface-found', message: problem })
 		if (entry) {
 			const iface = lookup(entry.id)
 			if (iface.value) {
+				const id = iface.value.id
+				if (iface.renamed !== undefined) {
+					warnings.push({
+						code: 'reference-renamed',
+						message: `implements names ${entry.id}@${entry.version}, an older id of ${id}; declare implements: ${id}@${entry.version}`,
+					})
+				}
 				const checked = checkImplementation(iface.value, {
 					name,
 					version: entry.version,
 					content: resolved.content ?? '',
-					accept: accept?.id === entry.id ? accept.versions : undefined,
+					accept: accept?.id === id ? accept.versions : undefined,
+					declaredId: entry.id,
 				})
 				failures.push(...checked.failures)
-				unsupported = checked.unsupported
+				result.unsupported = checked.unsupported
 			} else failures.push(iface.failure as ReferenceCheckFailure)
 		}
 	}
-	if (resolved.warnings.length) {
+	const { defects } = splitComposeWarnings(resolved.warnings)
+	if (defects.length) {
 		failures.push({
 			check: 'compose',
-			message: `composing it raised ${resolved.warnings.length === 1 ? 'a warning' : `${resolved.warnings.length} warnings`}: ${resolved.warnings.map(({ code, message }) => `${code}: ${message}`).join('; ')}`,
+			message: `composing it raised ${defects.length === 1 ? 'a warning' : `${defects.length} warnings`}: ${defects.map(({ code, message }) => `${code}: ${message}`).join('; ')}`,
 		})
 	}
-	return { failures, unsupported }
+	return result
 }
 
-function entryOf(resolved: ResolvedReference, lookup: InterfaceLookup): ReferenceCheckEntry {
+function dedupe(warnings: readonly ReferenceWarning[]): ReferenceWarning[] {
+	const seen = new Set<string>()
+	return warnings.filter(({ code, message }) => {
+		const key = `${code} ${message}`
+		if (seen.has(key)) return false
+		seen.add(key)
+		return true
+	})
+}
+
+/** An entry that is not checked but carries warnings: a hidden file (J2) or a moved base on a plain document. */
+function warningEntry(name: string, warnings: readonly ReferenceWarning[]): ReferenceCheckEntry {
+	return { name, kind: 'none', status: 'passed', failures: [], unsupported: [], warnings: dedupe(warnings) }
+}
+
+function entryOf(
+	resolved: ResolvedReference,
+	lookup: InterfaceLookup,
+	extra: readonly ReferenceWarning[] = [],
+): ReferenceCheckEntry {
 	if (resolved.status !== 'found') {
 		return {
 			name: resolved.name,
@@ -148,22 +218,29 @@ function entryOf(resolved: ResolvedReference, lookup: InterfaceLookup): Referenc
 			status: resolved.status,
 			failures: [{ check: resolved.code as ReferenceStatusCode, message: resolved.message ?? resolved.status }],
 			unsupported: [],
+			warnings: dedupe(extra),
 		}
 	}
 	const kind = kindOf(resolved)
-	const { failures, unsupported } =
+	const checked = checkResolved(resolved, lookup)
+	const failures: ReferenceCheckFailure[] =
 		kind === 'none'
-			? {
-					failures: [
-						{
-							check: 'interface found' as const,
-							message: `${resolved.name} declares no \`implements\` and is not an interface document`,
-						},
-					],
-					unsupported: [],
-				}
-			: checkResolved(resolved, lookup)
-	return { name: resolved.name, kind, status: failures.length ? 'failed' : 'passed', failures, unsupported }
+			? [
+					{
+						check: 'kind',
+						message: `${resolved.name} declares no \`implements\` and is not an interface document`,
+					},
+					...checked.failures,
+				]
+			: checked.failures
+	return {
+		name: resolved.name,
+		kind,
+		status: failures.length ? 'failed' : 'passed',
+		failures,
+		unsupported: checked.unsupported,
+		warnings: dedupe([...checked.warnings, ...splitComposeWarnings(resolved.warnings).passed, ...extra]),
+	}
 }
 
 /** The plugins holding a name, as qualified names, when more than one does. */
@@ -177,29 +254,58 @@ function pluginCopies(name: string, resolved: ResolvedReference): string[] {
 /**
  * Checks each named reference, or, with no names, every interface document and implementation found.
  * A name several plugins hold is also checked as each `<plugin>/<name>`, so each author sees their own
- * result, and each skill's default as its skill loads it.
+ * result, and each skill's default as its skill loads it. With no names, a name that is neither is
+ * visited too, for the warnings passed on: a hidden `repo`, `user`, or project-section file (J2,
+ * R112), and a plugin's or default's file whose base moved (R86). A warning never fails a check.
  */
 export function checkReferences(source: Source, options: CheckOptions = {}): ReferenceCheckEntry[] {
-	const { names, ...resolveOptions } = options
-	const lookup = interfaceLookup(source, resolveOptions)
+	const { names, ...rest } = options
+	const display = rest.display ?? ((path: string) => path)
+	// The main document alone: a project section is not checked (R33).
+	const resolveOptions: ResolveOptions = { ...rest, projectSections: false }
+	const lookup = interfaceLookup(source, rest)
 	const resolve = (name: string) => resolveReference(parseReferenceName(name), source, resolveOptions)
-	if (names?.length) return names.map((name) => entryOf(resolve(name), lookup))
+	const layers = Array.isArray(source) ? undefined : (source as ReferenceLayers)
+	const sectionNames = new Set(layers?.root === undefined ? [] : projectSectionNames(layers.root, layers.projects))
+	/** The warnings a checked name's files raise: each hidden file, and each moved base. */
+	const fileWarnings = (name: string, resolved: ResolvedReference) => {
+		const ref = parseReferenceName(name)
+		const full = ref.plugin === undefined && sectionNames.has(ref.name) ? resolveReference(ref, source, rest) : resolved
+		return [...hiddenWarnings(full, display), ...baseMovedWarnings(resolved, source)]
+	}
+	if (names?.length) {
+		return names.map((name) => {
+			const resolved = resolve(name)
+			return entryOf(resolved, lookup, fileWarnings(name, resolved))
+		})
+	}
 	const entries: ReferenceCheckEntry[] = []
 	const plain = new Map<string, string | undefined>()
-	for (const name of referenceNames(source)) {
+	for (const name of catalogNames(source)) {
 		const resolved = resolve(name)
 		plain.set(name, resolved.content)
-		const copies = [...(resolved.status === 'found' ? [resolved] : []), ...pluginCopies(name, resolved).map(resolve)]
-		for (const copy of copies) {
-			if (copy.status === 'found' && kindOf(copy) !== 'none') entries.push(entryOf(copy, lookup))
+		const extra = fileWarnings(name, resolved)
+		if (resolved.status === 'found' && kindOf(resolved) !== 'none') entries.push(entryOf(resolved, lookup, extra))
+		else if (extra.length) entries.push(warningEntry(resolved.name, extra))
+		for (const copy of pluginCopies(name, resolved).map(resolve)) {
+			if (copy.status === 'found' && kindOf(copy) !== 'none') {
+				entries.push(entryOf(copy, lookup, baseMovedWarnings(copy, source)))
+			}
 		}
 	}
 	// Each skill's default as its skill loads it, where the default changes what the name composes to.
 	for (const { name, skill } of skillHoldings(source)) {
-		const loaded = resolveReference(name, withDefault(source, skill.folder), resolveOptions)
+		const loadedSource = withDefault(source, skill.folder)
+		const loaded = resolveReference(name, loadedSource, resolveOptions)
 		const used = loaded.trace.layers.some(({ tier, outcome }) => tier === 'default' && outcome === 'used')
-		if (loaded.status !== 'found' || !used || kindOf(loaded) === 'none' || loaded.content === plain.get(name)) continue
-		entries.push({ ...entryOf(loaded, lookup), loadedBy: skill.name })
+		if (loaded.status !== 'found' || !used) continue
+		const moved = baseMovedWarnings(loaded, loadedSource)
+		if (kindOf(loaded) === 'none') {
+			if (moved.length) entries.push({ ...warningEntry(name, moved), loadedBy: skill.name })
+			continue
+		}
+		if (loaded.content === plain.get(name) && !moved.length) continue
+		entries.push({ ...entryOf(loaded, lookup, moved), loadedBy: skill.name })
 	}
 	return entries
 }

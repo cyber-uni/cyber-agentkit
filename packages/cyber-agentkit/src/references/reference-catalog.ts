@@ -108,7 +108,7 @@ function projectRow(name: string, entry: ReferenceTraceProjectSection): Referenc
 }
 
 /** Every name a tier, a plugin, or a project section below the root holds; a file under an older name counts as the new name's (R98). */
-function catalogNames(source: Source): string[] {
+export function catalogNames(source: Source): string[] {
 	const layers = Array.isArray(source) ? undefined : (source as ReferenceLayers)
 	const projects = layers?.root === undefined ? [] : projectSectionNames(layers.root, layers.projects)
 	const aliases = aliasIndex(source)

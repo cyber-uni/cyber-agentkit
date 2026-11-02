@@ -12,12 +12,13 @@ describe('implementations', () => {
 		return root
 	}
 
-	it('gives each pin, description, and unsupported sections', async () => {
+	it('gives each pin, its tier when repo or user, description, and unsupported sections', async () => {
 		expect(await implementations('scaffold.recipe', { root: fixture() })).toBe(0)
 		expect(json<ReferenceImplementationsReport>()).toEqual({
 			implementations: [
 				{
 					pin: 'scaffold.recipe.typescript-lib',
+					tier: 'repo',
 					description: 'A TypeScript library.',
 					unsupported: ['Inputs', 'Config', 'Verify', 'Post'],
 				},

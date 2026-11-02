@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { checkReferences } from './reference-check.js'
+import { checkWarningClass } from './reference-check-warnings.js'
+import { referenceCodes } from './reference-codes.js'
 import {
 	capabilitiesInterface,
 	githubCapabilities,
@@ -10,16 +12,23 @@ import {
 	routingInterface,
 	typescriptRecipe,
 } from './reference-interface.fixtures.js'
-import type { ReferenceLayer } from './reference-layers.js'
+import type { ReferenceLayer, ReferenceLayers } from './reference-layers.js'
+import { resolveReference } from './resolve-reference.js'
 
-function layer(tier: ReferenceLayer['tier'], documents: Record<string, string>, plugin?: string): ReferenceLayer {
+function layer(
+	tier: ReferenceLayer['tier'],
+	documents: Record<string, string>,
+	plugin?: string,
+	version?: string,
+): ReferenceLayer {
 	const dir = mkdtempSync(join(tmpdir(), 'reference-check-'))
 	for (const [name, content] of Object.entries(documents)) {
 		const path = join(dir, `${name}.md`)
 		mkdirSync(dirname(path), { recursive: true })
 		writeFileSync(path, content)
 	}
-	return plugin === undefined ? { tier, dir } : { tier, dir, plugin }
+	if (plugin === undefined) return { tier, dir }
+	return version === undefined ? { tier, dir, plugin } : { tier, dir, plugin, version }
 }
 
 function failures(layers: ReferenceLayer[], name: string) {
@@ -50,6 +59,7 @@ describe('checkReferences', () => {
 				status: 'passed',
 				failures: [],
 				unsupported: ['Retype'],
+				warnings: [],
 			},
 		])
 	})
@@ -66,13 +76,37 @@ describe('checkReferences', () => {
 		])
 	})
 
-	it('treats every section as optional, and ignores a required mark and a tiers key', () => {
+	it('fails a required section left out or marked unsupported, naming each, and lists an optional one (R64, R34)', () => {
 		const layers = [
 			layer('plugin', { 'project-tracker.routing.interface': routingInterface }, 'repobuddy'),
-			layer('user', { 'project-tracker.routing': '---\nimplements: project-tracker.routing@1\n---\n\n## Moves\n' }),
+			layer('user', {
+				'project-tracker.routing': '---\nimplements: project-tracker.routing@1\n---\n\n## Moves\n',
+				'project-tracker.routing.x':
+					'---\nimplements: project-tracker.routing@1\n---\n\n## Routes\n\n**Unsupported.** No.\n',
+			}),
+			layer('plugin', { 'project-tracker.capabilities.interface': capabilitiesInterface }, 'repobuddy'),
 		]
+		const capabilities = layer('repo', {
+			'project-tracker.capabilities.x': '---\nimplements: project-tracker.capabilities@1\n---\n\n## Search\n',
+			'project-tracker.capabilities.y':
+				'---\nimplements: project-tracker.capabilities@1\n---\n\n## Tracker\n\n## Detect\n',
+		})
 
-		expect(failures(layers, 'project-tracker.routing')).toEqual([])
+		expect(failures(layers, 'project-tracker.routing')).toEqual([
+			'required: required section Routes is left out or marked **Unsupported.**',
+		])
+		expect(failures(layers, 'project-tracker.routing.x')).toEqual([
+			'name: name project-tracker.routing.x is not project-tracker.routing',
+			'required: required section Routes is left out or marked **Unsupported.**',
+		])
+		expect(failures([capabilities, ...layers], 'project-tracker.capabilities.x')).toEqual([
+			'required: required sections Tracker, Detect are left out or marked **Unsupported.**',
+		])
+		const [passing] = checkReferences([capabilities, ...layers], { names: ['project-tracker.capabilities.y'] })
+		expect(passing).toMatchObject({
+			status: 'passed',
+			unsupported: ['Kinds', 'Search', 'Create', 'Link', 'Retype', 'Close', 'Url'],
+		})
 	})
 
 	it('lets a section the interface does not list sit anywhere, and orders only the listed ones', () => {
@@ -118,13 +152,13 @@ describe('checkReferences', () => {
 		]
 
 		expect(failures(layers, 'scaffold.recipe.a')).toEqual([
-			'interface found: implements "scaffold.recipe" is not <id>@<version>',
+			'interface-found: implements "scaffold.recipe" is not <id>@<version>',
 		])
 		expect(failures(layers, 'scaffold.recipe.b')).toEqual([
-			'interface found: implements lists 2 interfaces; an implementation implements one',
+			'interface-found: implements lists 2 interfaces; an implementation implements one',
 		])
 		expect(failures(layers, 'scaffold.recipe.c')).toEqual([
-			'interface found: no interface document scaffold.recipe.interface',
+			'interface-found: no interface document scaffold.recipe.interface',
 		])
 	})
 
@@ -134,7 +168,7 @@ describe('checkReferences', () => {
 				'plugin',
 				{
 					'x.interface':
-						'---\ninterface:\n  cardinality: some\n  version: 0\n  versions: [a]\n  sections: [A, A, {}]\n---\n',
+						'---\ninterface:\n  cardinality: some\n  version: 0\n  versions: [a]\n  sections: [A, A, {}, {heading: B, required: yes, holds: [x]}]\n---\n',
 				},
 				'p',
 			),
@@ -145,8 +179,89 @@ describe('checkReferences', () => {
 			'interface: version is 0; it is a positive integer',
 			'interface: versions is not a list of positive integers',
 			'interface: section "A" is listed more than once',
-			'interface: section {} is not a heading name',
+			'interface: section {} has no heading',
+			'interface: section "B": required is "yes"; it is true or false',
+			'interface: section "B": holds is ["x"]; it is one line of text',
 		])
+	})
+
+	it('fails an interface block missing a key, and ignores a key it does not know (R63)', () => {
+		const layers = [
+			layer(
+				'plugin',
+				{
+					'x.interface': '---\ninterface:\n  version: 1\n---\n',
+					'y.interface': '---\ninterface:\n  cardinality: one\n  version: 1\n  tiers: [repo]\n  sections: [A]\n---\n',
+				},
+				'p',
+			),
+		]
+
+		expect(failures(layers, 'x.interface')).toEqual([
+			'interface: cardinality is undefined; it is one or many',
+			'interface: sections is not a list of headings',
+		])
+		expect(failures(layers, 'y.interface')).toEqual([])
+	})
+
+	it('fails the old single-key section form, showing the new one (C7)', () => {
+		const layers = [
+			layer(
+				'plugin',
+				{
+					'x.interface':
+						'---\ninterface:\n  cardinality: one\n  version: 1\n  sections:\n    - A: required\n    - B\n---\n',
+				},
+				'p',
+			),
+		]
+
+		expect(failures(layers, 'x.interface')).toEqual([
+			'interface: section {"A":"required"} is in the old form; write it as {heading: A, required: true}',
+		])
+	})
+
+	it('passes on a warning that depends on what is installed, without failing compose (UC6.8)', () => {
+		const layers = [
+			layer('repo', { 'scaffold.recipe.a': '---\nextends: [gone]\n---\n' }),
+			layer(
+				'plugin',
+				{ 'scaffold.recipe.interface': recipeInterface, 'scaffold.recipe.a': typescriptRecipe },
+				'repobuddy',
+			),
+		]
+
+		const [entry] = checkReferences(layers, { names: ['scaffold.recipe.a'] })
+
+		expect(entry?.status).toBe('passed')
+		expect(entry?.warnings.map(({ code }) => code)).toEqual(['extends-step-missing', 'extends-all-missing'])
+	})
+
+	it('classifies every warning code as a defect, an environment warning, or a project-section one', () => {
+		const warnings = Object.entries(referenceCodes).flatMap(([code, { kind }]) => (kind === 'warning' ? [code] : []))
+		expect(Object.keys(checkWarningClass).sort()).toEqual(warnings.sort())
+		expect(
+			Object.entries(checkWarningClass)
+				.filter(([, kind]) => kind === 'environment')
+				.map(([code]) => code)
+				.sort(),
+		).toEqual(
+			[
+				'extends-step-missing',
+				'extends-all-missing',
+				'extends-not-used',
+				'section-not-held',
+				'alias-not-used',
+				'default-not-selected',
+				'default-folder-missing',
+				'reference-stale',
+				'reference-renamed',
+				'repo-hides-user',
+				'interface-check',
+				'base-moved',
+				'reference-hidden',
+			].sort(),
+		)
 	})
 
 	it('fails the compose check when composing the document raised a warning', () => {
@@ -164,22 +279,24 @@ describe('checkReferences', () => {
 		])
 	})
 
-	it('fails a name that is missing, ambiguous, invalid, or neither an interface nor an implementation', () => {
+	it('fails a name that is missing, removed, ambiguous, invalid, or neither an interface nor an implementation', () => {
 		const layers = [
-			layer('repo', { notes: '## Notes\n' }),
+			layer('managed', { off: '---\nmerge: remove\n---\n' }),
+			layer('repo', { notes: '## Notes\n', off: '## Off\n' }),
 			layer('plugin', { shared: '## A\n' }, 'a'),
 			layer('plugin', { shared: '## A\n' }, 'b'),
 		]
 
 		expect(
-			checkReferences(layers, { names: ['gone', 'shared', 'a.md', 'notes'] }).map(
+			checkReferences(layers, { names: ['gone', 'off', 'shared', 'a.md', 'notes'] }).map(
 				({ status, failures: [first] }) => `${status} ${first?.check}`,
 			),
 		).toEqual([
 			'missing reference-missing',
+			'missing reference-removed',
 			'ambiguous reference-ambiguous',
 			'invalid reference-invalid',
-			'failed interface found',
+			'failed kind',
 		])
 	})
 
@@ -221,5 +338,111 @@ describe("checking a skill's default", () => {
 			'scaffold.recipe.lib scaffold failed',
 		])
 		expect(entries[1]?.failures.map(({ check }) => check)).toEqual(['compose'])
+	})
+})
+
+describe('interface aliases (UC19.8, R96)', () => {
+	it("passes implements naming an interface's older id, with a reference-renamed warning", () => {
+		const renamed = recipeInterface.replace('interface:\n', 'aliases: [scaffold.template]\ninterface:\n')
+		const layers = [
+			layer('repo', { 'scaffold.template.lib': recipe('## Recipe\n', 'implements: scaffold.template@1') }),
+			layer('plugin', { 'scaffold.recipe.interface': renamed }, 'repobuddy'),
+		]
+
+		const [entry] = checkReferences(layers, { names: ['scaffold.template.lib'] })
+
+		expect(entry).toMatchObject({ status: 'passed', failures: [] })
+		expect(entry?.warnings).toEqual([
+			{ code: 'reference-renamed', message: expect.stringContaining('implements: scaffold.recipe@1') },
+		])
+	})
+})
+
+describe('hidden files (J2, R112, UC6.11)', () => {
+	it('warns of a repo file a managed replace hides, and a user file the repo one hides, never failing', () => {
+		const layers = [
+			layer('managed', { notes: '---\nmerge: replace\n---\n\n## Managed\n' }),
+			layer('repo', { notes: '## Repo\n', mine: '---\nmerge: replace\n---\n\n## Repo\n' }),
+			layer('user', { notes: '## User\n', mine: '## User\n' }),
+		]
+
+		const entries = checkReferences(layers)
+
+		expect(
+			entries.map(({ name, kind, status, failures: failed }) => `${name} ${kind} ${status} ${failed.length}`),
+		).toEqual(['mine none passed 0', 'notes none passed 0'])
+		expect(entries[0]?.warnings).toEqual([
+			{ code: 'repo-hides-user', message: expect.stringMatching(/mine\.md is hidden: repo .*mine\.md \(replace\)/) },
+		])
+		expect(entries[1]?.warnings.map(({ code }) => code)).toEqual(['reference-hidden', 'reference-hidden'])
+	})
+
+	it('warns of a project section a managed replace hides', () => {
+		const root = mkdtempSync(join(tmpdir(), 'reference-check-root-'))
+		mkdirSync(join(root, 'app', '.agents', 'references'), { recursive: true })
+		writeFileSync(join(root, 'app', '.agents', 'references', 'notes.md'), '## App\n')
+		const source: ReferenceLayers = {
+			layers: [
+				layer('managed', { notes: '---\nmerge: replace\n---\n\n## Managed\n' }),
+				{ tier: 'repo', dir: join(root, '.agents', 'references') },
+			],
+			root,
+			projects: new Map(),
+			harnesses: [],
+		}
+
+		expect(checkReferences(source)).toEqual([
+			expect.objectContaining({
+				name: 'notes',
+				status: 'passed',
+				warnings: [{ code: 'reference-hidden', message: expect.stringContaining('app/.agents/references/notes.md') }],
+			}),
+		])
+	})
+})
+
+describe('a moved base (R86, UC6.9)', () => {
+	const delta = '---\nextends: [a]\nsources:\n  - plugin: a\n    version: 1.0.0\n---\n\n## More\n'
+
+	it("warns when a plugin's file records a base version other than the installed one, and passes", () => {
+		const layers = [
+			layer(
+				'plugin',
+				{ 'scaffold.recipe.interface': recipeInterface, 'scaffold.recipe.lib': typescriptRecipe },
+				'a',
+				'2.0.0',
+			),
+			layer('plugin', { 'scaffold.recipe.lib': delta, notes: delta }, 'b'),
+			layer('plugin', { notes: '## Notes\n' }, 'a', '2.0.0'),
+		]
+
+		const [entry] = checkReferences(layers, { names: ['scaffold.recipe.lib'] })
+
+		expect(entry).toMatchObject({ status: 'passed', failures: [] })
+		expect(entry?.warnings).toEqual([
+			{
+				code: 'base-moved',
+				message: expect.stringMatching(/^plugin b: it records plugin a at 1\.0\.0, and 2\.0\.0 is installed/),
+			},
+		])
+		expect(
+			checkReferences(layers)
+				.find(({ name }) => name === 'notes')
+				?.warnings.map(({ code }) => code),
+		).toEqual(['base-moved'])
+	})
+
+	it('says nothing at load', () => {
+		const layers = [
+			layer(
+				'plugin',
+				{ 'scaffold.recipe.interface': recipeInterface, 'scaffold.recipe.lib': typescriptRecipe },
+				'a',
+				'2.0.0',
+			),
+			layer('plugin', { 'scaffold.recipe.lib': delta }, 'b'),
+		]
+
+		expect(resolveReference('scaffold.recipe.lib', layers).warnings).toEqual([])
 	})
 })

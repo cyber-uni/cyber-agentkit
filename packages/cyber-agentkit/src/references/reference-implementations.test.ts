@@ -48,7 +48,7 @@ describe('referenceImplementations', () => {
 		})
 		expect(report.implementations).toEqual([
 			{
-				pin: 'project-tracker.capabilities.github',
+				pin: 'repobuddy/project-tracker.capabilities.github',
 				description: 'What the GitHub tracker can do for issue, epic, and initiative skills.',
 				unsupported: ['Retype'],
 				name: 'project-tracker.capabilities.github',
@@ -58,16 +58,68 @@ describe('referenceImplementations', () => {
 		])
 	})
 
-	it('pins each plugin’s qualified name when no extends orders the plugins holding it', () => {
-		const layers = [
+	it('leaves out every plugin holding a name no extends orders, until a customizer picks one (R87, UC15.3)', () => {
+		const plugins = [
 			layer('plugin', { 'scaffold.recipe.interface': recipeInterface, 'scaffold.recipe.lib': typescriptRecipe }, 'a'),
 			layer('plugin', { 'scaffold.recipe.lib': typescriptRecipe }, 'b'),
 		]
 
-		expect(referenceImplementations('scaffold.recipe', layers).implementations.map(({ pin }) => pin)).toEqual([
-			'a/scaffold.recipe.lib',
-			'b/scaffold.recipe.lib',
+		const unpicked = referenceImplementations('scaffold.recipe', plugins)
+		expect(unpicked.implementations).toEqual([])
+		expect(unpicked.excluded).toEqual([
+			{
+				name: 'a/scaffold.recipe.lib',
+				reasons: [expect.stringMatching(/^ambiguous: .*until a customizer picks one$/)],
+			},
+			{ name: 'b/scaffold.recipe.lib', reasons: [expect.stringMatching(/^ambiguous: /)] },
 		])
+
+		const picked = referenceImplementations('scaffold.recipe', [
+			layer('repo', { 'scaffold.recipe.lib': '---\nextends: [b]\n---\n' }),
+			...plugins,
+		])
+		expect(picked.implementations.map(({ pin, tier }) => `${pin} ${tier}`)).toEqual(['b/scaffold.recipe.lib plugin'])
+		expect(picked.excluded).toEqual([
+			{ name: 'a/scaffold.recipe.lib', reasons: [expect.stringContaining('the pick; load b/scaffold.recipe.lib')] },
+		])
+	})
+
+	it('lists a repo or user implementation by its bare name, and leaves out the plugin holding it too (C1, J3)', () => {
+		const layers = [
+			layer('repo', { 'scaffold.recipe.lib': recipe('lib') }),
+			layer('user', { 'scaffold.recipe.mine': recipe('mine') }),
+			layer('plugin', { 'scaffold.recipe.interface': recipeInterface, 'scaffold.recipe.lib': typescriptRecipe }, 'a'),
+		]
+
+		const report = referenceImplementations('scaffold.recipe', layers)
+
+		expect(report.implementations.map(({ pin, tier }) => `${pin} ${tier}`)).toEqual([
+			'scaffold.recipe.lib repo',
+			'scaffold.recipe.mine user',
+		])
+		expect(report.excluded).toEqual([
+			{
+				name: 'a/scaffold.recipe.lib',
+				reasons: ['the repo implementation answers scaffold.recipe.lib; a consumer loads it by that name'],
+			},
+		])
+	})
+
+	it('lists an implementation declaring an older id of the interface (UC19.8)', () => {
+		const renamed = recipeInterface.replace('interface:\n', 'aliases: [scaffold.template]\ninterface:\n')
+		const layers = [
+			layer('plugin', { 'scaffold.recipe.interface': renamed }, 'repobuddy'),
+			layer(
+				'plugin',
+				{ 'scaffold.template.lib': recipe('lib').replace('scaffold.recipe@1', 'scaffold.template@1') },
+				'a',
+			),
+		]
+
+		const report = referenceImplementations('scaffold.recipe', layers)
+
+		expect(report.implementations.map(({ pin }) => pin)).toEqual(['a/scaffold.template.lib'])
+		expect(report.warnings.map(({ code }) => code)).toEqual(['reference-renamed'])
 	})
 
 	it('excludes candidates with why: a version not accepted, a name that does not fit, no implements', () => {
@@ -109,28 +161,33 @@ describe('referenceImplementations', () => {
 				},
 				'repobuddy',
 			),
-			layer('repo', {
-				'project-tracker.routing': '---\nimplements: project-tracker.routing@1\n---\n\n## Routes\n',
-			}),
+			layer(
+				'plugin',
+				{ 'project-tracker.routing': '---\nimplements: project-tracker.routing@1\n---\n\n## Routes\n' },
+				'tracker',
+			),
 		]
 
 		expect(referenceImplementations('project-tracker', layers).implementations).toEqual([])
 		expect(referenceImplementations('project-tracker.routing', layers).implementations.map(({ pin }) => pin)).toEqual([
-			'project-tracker.routing',
+			'tracker/project-tracker.routing',
 		])
 	})
 
-	it("never lists a skill's default: it has no qualified name to pin", () => {
+	it("never lists a skill's default: it has no qualified name to pin (UC6.6)", () => {
 		const layers = [
 			layer('plugin', { 'scaffold.recipe.interface': recipeInterface, 'scaffold.recipe.lib': typescriptRecipe }, 'a'),
-			layer('plugin', { 'scaffold.recipe.lib': typescriptRecipe }, 'b'),
-			layer('default', { 'scaffold.recipe.lib': typescriptRecipe }, 'scaffold'),
+			layer(
+				'default',
+				{ 'scaffold.recipe.lib': typescriptRecipe, 'scaffold.recipe.own': typescriptRecipe },
+				'scaffold',
+			),
 		]
 
-		expect(referenceImplementations('scaffold.recipe', layers).implementations.map(({ pin }) => pin)).toEqual([
-			'a/scaffold.recipe.lib',
-			'b/scaffold.recipe.lib',
-		])
+		const report = referenceImplementations('scaffold.recipe', layers)
+
+		expect(report.implementations.map(({ pin }) => pin)).toEqual(['a/scaffold.recipe.lib'])
+		expect(report.excluded).toEqual([])
 	})
 
 	it('throws when the interface is missing or malformed, or the id is not a name', () => {

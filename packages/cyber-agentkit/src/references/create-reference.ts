@@ -23,8 +23,8 @@ export type Template = { content: string; metadata: Record<string, unknown>; bod
  */
 export function implementationTemplate(iface: ReferenceInterface): Template {
 	const sections = iface.sections.map(
-		(name) =>
-			`## ${name}\n\n**Unsupported.** ${iface.holds?.[name] ?? 'Replace this line with the section, or say in one sentence why it is not supported.'}\n`,
+		({ heading, holds }) =>
+			`## ${heading}\n\n**Unsupported.** ${holds ?? 'Replace this line with the section, or say in one sentence why it is not supported.'}\n`,
 	)
 	return parseTemplate(
 		`---\ndescription: What this ${iface.id} implementation covers, and when an agent should read it.\nimplements: ${iface.id}@${iface.version}\n---\n\n${sections.join('\n')}`,

@@ -4,6 +4,15 @@ import { parseSections, type Section } from './reference-document.js'
 /** `one`: the implementation is named `<id>`. `many`: each is named `<id>.<key>`. */
 export type InterfaceCardinality = 'one' | 'many'
 
+/** One section an implementation holds, as the interface lists it (R63, C7). Heading text is API. */
+export type InterfaceSection = {
+	heading: string
+	/** A required section left out or marked `**Unsupported.**` fails the `required` check (R64). */
+	required: boolean
+	/** One line saying what it holds: an implementation's stub states it (R28). It is never checked. */
+	holds?: string
+}
+
 /** The machine-readable part of an interface document, read from its `interface:` frontmatter. */
 export type ReferenceInterface = {
 	id: string
@@ -11,16 +20,23 @@ export type ReferenceInterface = {
 	version: number
 	/** The versions the owner's consumers accept; `[version]` when the document names none. */
 	versions: number[]
-	/** The implementation's top-level sections, in order. Every one is optional. Heading text is API. */
-	sections: string[]
-	/** What each section holds, by heading, when the interface says (C7): an implementation's stub states it (R28). */
-	holds?: Record<string, string>
+	/** The implementation's top-level sections, in order. */
+	sections: InterfaceSection[]
 }
 
 /** One `implements:` value, `<id>@<version>`. */
 export type ImplementsEntry = { id: string; version: number }
 
-export type InterfaceCheck = 'interface found' | 'version' | 'name' | 'order' | 'interface' | 'compose'
+/** The checks `check` runs, each named in kebab-case (R33). */
+export type InterfaceCheck =
+	| 'interface-found'
+	| 'version'
+	| 'name'
+	| 'order'
+	| 'required'
+	| 'kind'
+	| 'interface'
+	| 'compose'
 
 export type InterfaceCheckFailure = {
 	check: InterfaceCheck
@@ -44,24 +60,50 @@ function isVersion(value: unknown): value is number {
 	return typeof value === 'number' && Number.isInteger(value) && value > 0
 }
 
+function describe(value: unknown): string {
+	return JSON.stringify(value) ?? String(value)
+}
+
+/** The new form of a section written the old way, `- <heading>: required` (C7). */
+function newForm(heading: string, value: unknown): string {
+	return value === 'required' || value === true ? `{heading: ${heading}, required: true}` : `{heading: ${heading}}`
+}
+
 /**
- * A section is its heading text; a `required` mark on one is read and ignored, since every section is
- * optional. The `{heading, required, holds}` form (C7) also gives the line saying what it holds.
+ * A section is a plain heading, short for `{heading: <heading>}`, or `{heading, required, holds}`.
+ * The old single-key form, `- <heading>: required`, is a problem whose message shows the new form.
  */
-function readSection(value: unknown): string | { heading: string; holds?: string } | { problem: string } {
-	if (typeof value === 'string' && value.trim()) return value.trim()
-	if (isRecord(value) && typeof value['heading'] === 'string' && value['heading'].trim()) {
-		const holds = value['holds']
-		return typeof holds === 'string' && holds.trim()
-			? { heading: value['heading'].trim(), holds: holds.trim() }
-			: { heading: value['heading'].trim() }
-	}
-	if (isRecord(value)) {
+function readSection(value: unknown): InterfaceSection | { problems: string[] } {
+	if (typeof value === 'string' && value.trim()) return { heading: value.trim(), required: false }
+	if (!isRecord(value)) return { problems: [`section ${describe(value)} is not a heading`] }
+	const heading = value['heading']
+	if (heading === undefined) {
 		const keys = Object.keys(value)
-		const [name] = keys
-		if (keys.length === 1 && name?.trim()) return name.trim()
+		const [only] = keys
+		if (keys.length === 1 && only?.trim()) {
+			return {
+				problems: [`section ${describe(value)} is in the old form; write it as ${newForm(only.trim(), value[only])}`],
+			}
+		}
+		return { problems: [`section ${describe(value)} has no heading`] }
 	}
-	return { problem: `section ${JSON.stringify(value)} is not a heading name` }
+	if (typeof heading !== 'string' || !heading.trim()) {
+		return { problems: [`section ${describe(value)}: heading is not text`] }
+	}
+	const title = heading.trim()
+	const problems: string[] = []
+	const required = value['required']
+	if (required !== undefined && typeof required !== 'boolean') {
+		problems.push(`section "${title}": required is ${describe(required)}; it is true or false`)
+	}
+	const holds = value['holds']
+	if (holds !== undefined && (typeof holds !== 'string' || !holds.trim() || holds.trim().includes('\n'))) {
+		problems.push(`section "${title}": holds is ${describe(holds)}; it is one line of text`)
+	}
+	if (problems.length) return { problems }
+	const section: InterfaceSection = { heading: title, required: required === true }
+	if (typeof holds === 'string') section.holds = holds.trim()
+	return section
 }
 
 function sectionKey(title: string): string {
@@ -98,35 +140,25 @@ export function readInterface(
 		else problems.push('versions is not a list of positive integers')
 	}
 	const sectionsValue = block['sections']
-	const sections: string[] = []
-	const holds: Record<string, string> = {}
+	const sections: InterfaceSection[] = []
 	if (!Array.isArray(sectionsValue) || !sectionsValue.length) problems.push('sections is not a list of headings')
 	else {
 		const seen = new Set<string>()
 		for (const item of sectionsValue) {
 			const read = readSection(item)
-			if (typeof read !== 'string' && 'problem' in read) {
-				problems.push(read.problem)
+			if ('problems' in read) {
+				problems.push(...read.problems)
 				continue
 			}
-			const section = typeof read === 'string' ? read : read.heading
-			if (typeof read !== 'string' && read.holds !== undefined) holds[section] = read.holds
-			const key = sectionKey(section)
-			if (seen.has(key)) problems.push(`section "${section}" is listed more than once`)
+			const key = sectionKey(read.heading)
+			if (seen.has(key)) problems.push(`section "${read.heading}" is listed more than once`)
 			seen.add(key)
-			sections.push(section)
+			sections.push(read)
 		}
 	}
 	if (problems.length) return { problems }
 	return {
-		value: {
-			id,
-			cardinality: cardinality as InterfaceCardinality,
-			version: version as number,
-			versions,
-			sections,
-			...(Object.keys(holds).length ? { holds } : {}),
-		},
+		value: { id, cardinality: cardinality as InterfaceCardinality, version: version as number, versions, sections },
 		problems,
 	}
 }
@@ -183,29 +215,32 @@ export type ImplementationFacts = {
 	content: string
 	/** The versions to accept; the interface's own `versions` when omitted. */
 	accept?: readonly number[] | undefined
+	/** The id `implements` names, when it is an older id the interface lists (R96); the name fits that id. */
+	declaredId?: string | undefined
 }
 
 /**
- * Checks one composed implementation against its interface. Every section is optional, and a
- * section the interface does not list may sit anywhere; `order` compares only the listed ones.
- * `unsupported` lists the listed sections it marks `**Unsupported.**` or leaves out, in order.
+ * Checks one composed implementation against its interface. A section the interface does not list
+ * may sit anywhere; `order` compares only the listed ones. A required section left out or marked
+ * `**Unsupported.**` fails `required` (R64); an optional one is listed in `unsupported` (R34), in order.
  */
 export function checkImplementation(
 	iface: ReferenceInterface,
-	{ name, version, content, accept = iface.versions }: ImplementationFacts,
+	{ name, version, content, accept = iface.versions, declaredId = iface.id }: ImplementationFacts,
 ): { failures: InterfaceCheckFailure[]; unsupported: string[] } {
 	const failures: InterfaceCheckFailure[] = []
 	const fail = (check: InterfaceCheck, message: string) => failures.push({ check, interface: iface.id, message })
 	if (!accept.includes(version)) fail('version', `unknown version ${version}`)
-	if (!fitsName(iface, name)) {
-		fail('name', `name ${name} is not ${iface.cardinality === 'one' ? iface.id : `${iface.id}.<key>`}`)
+	if (!fitsName({ id: declaredId, cardinality: iface.cardinality }, name)) {
+		fail('name', `name ${name} is not ${iface.cardinality === 'one' ? declaredId : `${declaredId}.<key>`}`)
 	}
 	const sections = documentSections(content)
-	const declared = iface.sections.map(sectionKey)
-	const unsupported = iface.sections.filter((section) => {
-		const present = sections.find((candidate) => sectionKey(candidate.title) === sectionKey(section))
+	const declared = iface.sections.map(({ heading }) => sectionKey(heading))
+	const absent = iface.sections.filter(({ heading }) => {
+		const present = sections.find((candidate) => sectionKey(candidate.title) === sectionKey(heading))
 		return !present || present.unsupported
 	})
+	const unsupported = absent.filter(({ required }) => !required).map(({ heading }) => heading)
 	let last = -1
 	let lastTitle = ''
 	const seen = new Set<string>()
@@ -220,6 +255,13 @@ export function checkImplementation(
 			last = index
 			lastTitle = section.title
 		}
+	}
+	const missing = absent.filter(({ required }) => required).map(({ heading }) => heading)
+	if (missing.length) {
+		fail(
+			'required',
+			`required ${missing.length === 1 ? 'section' : 'sections'} ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} left out or marked **Unsupported.**`,
+		)
 	}
 	return { failures, unsupported }
 }

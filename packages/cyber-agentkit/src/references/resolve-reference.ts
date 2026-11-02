@@ -140,6 +140,8 @@ export type ResolveOptions = {
 	without?: string | undefined
 	/** Read only the layers below this folder, so `where` can report the document below a file it would write. */
 	below?: string | undefined
+	/** `false` reads no project section, so `check` checks the main document alone (R33). */
+	projectSections?: boolean | undefined
 }
 
 type Source = ReferenceLayers | readonly ReferenceLayer[]
@@ -204,7 +206,7 @@ export function resolveReference(
 export function resolveAdjusted(
 	input: string | ReferenceName,
 	source: Source,
-	{ display = (path) => path, without, below }: ResolveOptions,
+	{ display = (path) => path, without, below, projectSections = true }: ResolveOptions,
 	adjust: ContributionAdjust | undefined,
 ): ResolvedReference {
 	const asked = typeof input === 'string' ? parseReferenceName(input) : input
@@ -287,7 +289,7 @@ export function resolveAdjusted(
 
 	// `where` reads only the layers below a file, which no project section is part of.
 	const sectionsOver = (format: ReferenceFormat | undefined): ProjectSections => {
-		if (root === undefined || below !== undefined) return { sections: [], trace: [] }
+		if (root === undefined || below !== undefined || !projectSections) return { sections: [], trace: [] }
 		const managed = tiered.find(({ layer }) => layer.tier === 'managed')
 		const catalog = sourceCatalog(source, { tier: 'project' })
 		const found = readProjectSections(ref.name, {

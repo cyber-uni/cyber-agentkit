@@ -128,7 +128,9 @@ export function loadCommand(layersFor: LayersFor): cli.Command {
 				const lookup = interfaceLookup(layers, { display })
 				const resolved = args.names.map((name) => {
 					const entry = resolveReference(parseReferenceName(name), layers, { display })
-					for (const failure of checkResolved(entry, lookup).failures) {
+					const checked = checkResolved(entry, lookup)
+					entry.warnings.push(...checked.warnings)
+					for (const failure of checked.failures) {
 						if (failure.check === 'compose') continue
 						entry.warnings.push({
 							code: 'interface-check',

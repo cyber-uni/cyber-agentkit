@@ -126,6 +126,7 @@ export type {
 	InterfaceCardinality,
 	InterfaceCheck,
 	InterfaceCheckFailure,
+	InterfaceSection,
 	ReferenceInterface,
 } from './references/reference-interface.js'
 export type {

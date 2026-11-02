@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import type { ReferenceCheckReport } from './reference.command.js'
-import { check, errors, failure, json, plugins, repo, stdout, write, written } from './reference-command.fixtures.js'
+import {
+	check,
+	errors,
+	failure,
+	fakeHome,
+	json,
+	plugins,
+	repo,
+	stdout,
+	write,
+	written,
+} from './reference-command.fixtures.js'
 import {
 	githubCapabilities,
 	recipeInterface,
@@ -67,6 +78,39 @@ describe('check', () => {
 
 		expect(await check(['project-tracker.routing.interface'], { root })).toBe(0)
 		expect(json<ReferenceCheckReport>().failed?.[0]?.failures.map(({ check }) => check)).toEqual(['compose'])
+	})
+
+	it('fails the kind check on a reference that is neither an interface nor an implementation', async () => {
+		const root = repo()
+		write(root, '.agents/references/notes.md', '## Notes\n')
+
+		expect(await check(['notes'], { root })).toBe(0)
+		expect(json<ReferenceCheckReport>().failed?.[0]?.failures.map(({ check }) => check)).toEqual(['kind'])
+	})
+
+	it('lists a hidden user file under warned with no names, and still passes (J2, R112)', async () => {
+		const root = repo()
+		write(root, '.agents/references/notes.md', '---\nmerge: replace\n---\n\n## Repo\n')
+		write(fakeHome.value, '.agents/references/notes.md', '## User\n')
+
+		expect(await check(undefined, { root })).toBe(0)
+		expect(json<ReferenceCheckReport>()).toEqual({
+			warned: [
+				{ name: 'notes', warnings: [{ code: 'repo-hides-user', message: expect.stringContaining('is hidden') }] },
+			],
+			passed: 1,
+		})
+
+		stdout.mockClear()
+		expect(await check(undefined, { root, trace: true })).toBe(0)
+		expect(json<ReferenceCheckReport>().references).toEqual([
+			{
+				name: 'notes',
+				kind: 'none',
+				status: 'passed',
+				warnings: [expect.objectContaining({ code: 'repo-hides-user' })],
+			},
+		])
 	})
 
 	it('reports a thrown failure', async () => {

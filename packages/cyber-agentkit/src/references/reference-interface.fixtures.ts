@@ -9,8 +9,10 @@ interface:
   cardinality: many
   version: 1
   sections:
-    - Tracker: required
-    - Detect: required
+    - heading: Tracker
+      required: true
+    - heading: Detect
+      required: true
     - Kinds
     - Search
     - Create
@@ -32,7 +34,8 @@ interface:
   version: 1
   tiers: [project]
   sections:
-    - Routes: required
+    - heading: Routes
+      required: true
     - Moves
 ---
 
@@ -50,7 +53,8 @@ interface:
   versions: [1]
   tiers: [managed, project, user, plugin]
   sections:
-    - Recipe: required
+    - heading: Recipe
+      required: true
     - Inputs
     - Files
     - Config

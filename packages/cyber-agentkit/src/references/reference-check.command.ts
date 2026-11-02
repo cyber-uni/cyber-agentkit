@@ -4,6 +4,7 @@ import { command, t } from 'clibuilder'
 import { result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
 import { checkReferences } from './reference-check.js'
+import type { ReferenceWarning } from './reference-codes.js'
 import {
 	asCliError,
 	type CommonArgs,
@@ -14,7 +15,14 @@ import {
 } from './reference-command-support.js'
 
 export type ReferenceCheckReport = {
-	failed?: { name: string; loadedBy?: string; failures: { check: string; message: string }[] }[]
+	failed?: {
+		name: string
+		loadedBy?: string
+		failures: { check: string; message: string }[]
+		warnings?: ReferenceWarning[]
+	}[]
+	/** The entries that pass with a warning, which never fails a check. */
+	warned?: { name: string; loadedBy?: string; warnings: ReferenceWarning[] }[]
 	passed: number
 	references?: {
 		name: string
@@ -23,6 +31,7 @@ export type ReferenceCheckReport = {
 		status: string
 		failures?: { check: string; message: string }[]
 		unsupported?: string[]
+		warnings?: ReferenceWarning[]
 	}[]
 }
 
@@ -30,7 +39,7 @@ export function checkCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'check',
 		description:
-			'Check interface documents and their implementations, each composed as `load` composes it. With no names, checks every one found. A failure is an entry in `failed`, not an error.',
+			'Check interface documents and their implementations, each composed as `load` composes it. With no names, checks every one found and warns of hidden files. A failure is an entry in `failed`, not an error; a warning never fails a check.',
 		arguments: [
 			{
 				name: 'names',
@@ -53,11 +62,16 @@ export function checkCommand(layersFor: LayersFor): cli.Command {
 				const strip = (failures: { check: string; message: string }[]) =>
 					failures.map(({ check, message }) => ({ check, message }))
 				const report: ReferenceCheckReport = compact({
-					failed: failing.map(({ name, loadedBy, failures }) => compact({ name, loadedBy, failures: strip(failures) })),
+					failed: failing.map(({ name, loadedBy, failures, warnings }) =>
+						compact({ name, loadedBy, failures: strip(failures), warnings }),
+					),
+					warned: entries
+						.filter((entry) => entry.status === 'passed' && entry.warnings.length)
+						.map(({ name, loadedBy, warnings }) => compact({ name, loadedBy, warnings })),
 					passed: entries.length - failing.length,
 					references: args.trace
-						? entries.map(({ name, loadedBy, kind, status, failures, unsupported }) =>
-								compact({ name, loadedBy, kind, status, failures: strip(failures), unsupported }),
+						? entries.map(({ name, loadedBy, kind, status, failures, unsupported, warnings }) =>
+								compact({ name, loadedBy, kind, status, failures: strip(failures), unsupported, warnings }),
 							)
 						: undefined,
 				})
