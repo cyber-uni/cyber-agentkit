@@ -17,6 +17,6 @@ Decisions a consumer can observe. Criteria in [README.md](./README.md) cite the 
 
 | Edge | Decision | Outcome |
 | --- | --- | --- |
-| E62 | the working folder in the repository, and the load line asking for routes | `--root` only when it is not; the routing option and `--in` only when asked |
+| E62 | the working folder in the repository | `--root` only when it is not |
 | E63 | instructions conflict | company and team, then the feature's own document, then the resolved reference; the work's folder's section over the main document, inner over outer |
-| E64 | the work moves into a folder | its project section followed from then on; with routes, the name loaded again with `--in` |
+| E64 | the work moves into a folder | its project section followed from then on, without loading again |

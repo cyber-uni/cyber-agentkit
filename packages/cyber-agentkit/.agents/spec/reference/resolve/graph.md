@@ -60,10 +60,7 @@ flowchart TD
   projonly -->|no| missing
   projonly -->|yes| sections
   body -->|yes| sections["E54 project sections after the main document, in path order; managed applied over each"]
-  sections --> routing{"E55 the routing option?"}
-  routing -->|yes| routes["a route per section; --in expands the routes whose folder holds a path"]
-  routing -->|no| found
-  routes --> found(["found: the resolved reference"])
+  sections --> found(["found: the resolved reference, every project section inlined"])
   found --> stale{"E56 a recorded source's version changed, or the source gone?"}
   stale -->|yes| stalew["stale: still used; reference-stale warning"]
   stale -->|no| warn

@@ -58,9 +58,6 @@ IDs are shared across the parent and its children.
     install.
   - UC12.5 A skill ships its copy as `references/<name>.md` (the old layout): it is not read as a default. A name no
     other contribution holds is then `missing`, and UC4.1 tells the user.
-  - UC12.6 The skill asks for the routing table: the load line says so, and Load passes the routing option to `load`,
-    with `--in` naming the paths the task already names. Each project section is then listed as a route (K25). Nothing
-    stores the choice; it is made at each load.
 
 ### UC17 — Follow the reference in order of precedence (A1.3)
 
@@ -80,8 +77,6 @@ IDs are shared across the parent and its children.
     section from then on, without loading again, and stops when the work leaves the folder.
   - UC17.3 Nested folders both hold a section, and the work is in the inner one: the agent follows both, and the inner
     one wins where they conflict.
-  - UC17.4 With the routing table, the work enters a routed folder: the agent loads the name again with
-    `--in <path>` and follows the section that comes back.
   - UC17.5 The command did not run (UC4.4): the default is followed in the same order.
 
 ## Criteria
@@ -112,12 +107,10 @@ by what an agent does.
   interface, "the implementations of the `<id>` interface"; for a skill written for one harness, it may add that
   harness's typed form of the skill. When the agent cannot tell the caller's folder, Load runs without `--default` and
   tells the user. Load runs `load <name>... --default <the caller's folder>`, adding `--root` only when the working
-  folder is not in the repository, and, when the load line asks for the routing table, the routing option with `--in`
-  naming the paths the task already names.
+  folder is not in the repository.
 - R90 (UC17, E63): With the loaded references, Load states the order to follow where instructions conflict: company and
   team instructions, then a single feature's own document, then the resolved reference, or the default read by fallback
   (UC4.4); within it, the project section for the folder the work is in over the main document, and an inner folder's
   over an outer one's.
-- R91 (UC17, E64): Load tells the agent to follow a project section whenever its work is in that folder, from the
-  moment the work moves there; and, with routes, to load the name again with `--in <path>` when the work enters a
-  routed folder.
+- R91 (UC17, E64): Load tells the agent to follow a project section whenever its work is in that folder, from the moment
+  the work moves there, without loading again.

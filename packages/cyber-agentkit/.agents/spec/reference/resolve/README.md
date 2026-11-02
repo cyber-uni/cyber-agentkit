@@ -15,14 +15,13 @@ IDs are shared across the parent and its children.
 - **Entry points:** Skill: the `reference` skill's Load mode, which runs the command. Code: `reference load <name>...`;
   `loadReference(name, options)`.
 - **Inputs:** one or more names; the root (K18); the calling skill's folder, for the `default` tier; the detected
-  harness; optionally the routing option, and `--in <path>...`.
+  harness.
 - **Outcome:** for each name, in the order asked, with status `found`, its resolved reference (K28): the main document
   (K23), composed as each contribution's `extends` and `merge` declare, followed by each project section below the root,
   in path order, each wrapped with the folder it applies to (R44). The managed contribution applies over each project
-  section as it does over the main document (K27). Project sections are read from every folder below the root that
-  `.gitignore` does not exclude, tracked or not. With the routing option, a route stands in place of each project
-  section's text, and `--in` expands the routes whose folder holds one of its paths. No contribution's frontmatter or
-  merge marker is part of it.
+  section as it does over the main document (K27). Project sections are read from every folder below the root that git
+  does not ignore, tracked or not, and every one is inlined (N17). No contribution's frontmatter or merge marker is part
+  of it.
 - **Extensions:** each name resolves on its own; a fault in one never stops the others.
   - UC1.1 No contribution answers: status `missing`, with the reason: no tier holds the name (`default` included); the
     plugin a qualified name asks for is not installed; or a `merge: remove` contribution leaves nothing and no
@@ -56,8 +55,6 @@ IDs are shared across the parent and its children.
   - UC1.16 No main document, but project sections exist: status `found`, with only the project sections. A generated
     section whose recorded sources are gone is stale (UC1.14).
   - UC1.17 A project section for a name that is not Markdown: not read, with a warning.
-  - UC1.18 An `--in` path outside the root: ignored, with a warning. `--in` without the routing option changes nothing:
-    every project section is already inline.
 
 ### UC2 — Explain a resolution (A2.1)
 
@@ -277,9 +274,6 @@ Edge IDs are in [graph.md](./graph.md).
   ignore file git reads), tracked or not; outside a git repository, none is ignored. The `user` tier reads
   `~/.agents/references/`. The managed tier reads `references/` in the current harness's managed folder only; when
   detection names no harness, none is read, and the trace says so; the library keeps no managed folder of its own.
-- R102 (UC1, E55): With the routing option, each project section is a route naming its folder, in place of its text.
-  `--in <path>...` expands each route whose folder holds one of the paths, so a path in nested folders expands both. An
-  `--in` path outside the root is ignored, with a warning. Without the routing option, `--in` changes nothing.
 - R13 (UC1, E15): The plugin tier holds, for the detected harness, each enabled plugin's `references/`, and the declared
   `dependencies` and `devDependencies` of the nearest `package.json` that are plugins and ship one, each named by its
   plugin manifest's `name`, never by its package name; never a transitive package. Any other dependency adds no plugin

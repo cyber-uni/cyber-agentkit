@@ -52,6 +52,8 @@ what can be found, and every fault is reported as a warning.
 - N7 Finding a document for a single use, such as one feature's spec. The consuming skill points the agent at it.
 - N8 Noticing changes to a source's content. Only a plugin's version is compared; a customizer who changes their
   request generates the document again.
+- N17 A routing table that lists project sections in place of their text. Every project section is inlined: no one can
+  predict which folders the agent will touch after it loads a name, or rely on it to open a route when its work moves.
 - N9 Editing a generated document by hand. A change goes in the customizer's request, and the document is generated
   again.
 
@@ -117,8 +119,6 @@ what can be found, and every fault is reported as a warning.
   and adds nothing.
 - K24 **project section**: a `.agents/references/<name>.md` below the root, which states only what differs in its
   folder. It follows the main document in the resolved reference, wrapped with that folder (R44).
-- K25 **route**: in the opt-in routing table, a line naming a folder that has a project section, in place of the
-  section's text. `--in <path>` expands the routes whose folder holds the path.
 - K26 **stale**: said of a generated document when a source's recorded plugin version differs from the installed one, or
   a recorded source is gone. Load still uses it, and suggests revising it.
 - K27 **managed contribution**: `<name>.md` in `references/` of the current harness's managed folder, placed there by an
@@ -182,21 +182,21 @@ what can be found, and every fault is reported as a warning.
   - UC8.1 A name not `found`: its entry carries the status and code, and the other names still resolve.
   - UC8.2 A warning in structured output goes in the entry's `warnings`, so a consumer reads every fault from one
     place.
-  - UC8.3 The name has project sections: structured output gives each as its own record with its folder, and its text
-    or, with the routing option, its route, apart from the main document, so code can take the one for the folder it
-    works in without parsing headings, and code reading only the main document is unchanged. Such an entry is always a
-    record, never the bare content. Text output inlines them as UC1 says.
+  - UC8.3 The name has project sections: structured output gives each as its own record with its folder, and its text,
+    apart from the main document, so code can take the one for the folder it works in without parsing headings, and code
+    reading only the main document is unchanged. Such an entry is always a record, never the bare content. Text output
+    inlines them as UC1 says.
 
-**Surface trace.** `load`, `--trace`, `--default` (UC1, UC2, UC10, UC12); the routing option and `--in` (UC1, UC12,
-UC17); `--root` (all); `where`, `--default`, `--in` (UC2); `list`, pattern (UC3); `search` (UC3); `create` with
-`--merge`, `--template`, `--implements`, `--scope`, `--in`, `--plugin`, `--default`, `--dry-run`, `--trace` (UC5, UC15);
-`customize` with `--extends`, `--extends-file`, `--request`, `--body`, `--base`, `--scope`, `--in`, `--merge`,
-`--dry-run`, `--trace` (UC9, UC20, UC18); `delete` with `--scope`, `--in`, `--plugin`, `--default`, `--dry-run` (UC11);
-`check` (UC6); `implementations`, `--accept` (UC6); `--format`, `--metadata` (UC8). Frontmatter keys `merge`, `extends`
-(with the step keys `merge`, `extends`, `sections`), `implements`, `interface`, `description`, `tags`, `aliases`, and a
-generated document's record of sources and request serve UC1, UC5, UC6, UC7, UC9, UC20, UC18, UC19; the section marker
-`<!-- merge: ... -->` serves UC1 and UC7. File names `<name>.md` and `<name>.default.md` serve UC5, UC9, UC11, UC18 and
-UC3, UC12. Informational, no contract: the trace's keys beyond those the Adapters group names.
+**Surface trace.** `load`, `--trace`, `--default` (UC1, UC2, UC10, UC12); `--root` (all); `where`, `--default`, `--in`
+(UC2); `list`, pattern (UC3); `search` (UC3); `create` with `--merge`, `--template`, `--implements`, `--scope`, `--in`,
+`--plugin`, `--default`, `--dry-run`, `--trace` (UC5, UC15); `customize` with `--extends`, `--extends-file`,
+`--request`, `--body`, `--base`, `--scope`, `--in`, `--merge`, `--dry-run`, `--trace` (UC9, UC20, UC18); `delete` with
+`--scope`, `--in`, `--plugin`, `--default`, `--dry-run` (UC11); `check` (UC6); `implementations`, `--accept` (UC6);
+`--format`, `--metadata` (UC8). Frontmatter keys `merge`, `extends` (with the step keys `merge`, `extends`, `sections`),
+`implements`, `interface`, `description`, `tags`, `aliases`, and a generated document's record of sources and request
+serve UC1, UC5, UC6, UC7, UC9, UC20, UC18, UC19; the section marker `<!-- merge: ... -->` serves UC1 and UC7. File names
+`<name>.md` and `<name>.default.md` serve UC5, UC9, UC11, UC18 and UC3, UC12. Informational, no contract: the trace's
+keys beyond those the Adapters group names.
 
 ## Criteria
 
@@ -209,11 +209,9 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
   (no name, an unknown flag). `list` and `search` exit 0 whatever their rows' statuses.
 - R44 (UC1): In text, one name prints its resolved reference; several print each as
   `<reference name="...">...</reference>` in the order asked; a name not `found` prints
-  `<reference name="..." status="..." code="...">` holding its message, and its options when `ambiguous`, in its
-  place. Each project section follows the main document as
-  `<project folder="...">...</project>`, in path order; with the routing option, as
-  `<project folder="..." route="..." />`. The wrapper, not a heading, marks where a section starts and ends, so its own
-  headings keep their levels.
+  `<reference name="..." status="..." code="...">` holding its message, and its options when `ambiguous`, in its place.
+  Each project section follows the main document as `<project folder="...">...</project>`, in path order. The wrapper,
+  not a heading, marks where a section starts and ends, so its own headings keep their levels.
 - R45 (UC1, UC8, E13): A failure that ends the command (a refused write, a usage error, a failed check) is reported
   once, on stdout, as clibuilder's `axi` error value: `error` (the message), `code`, its details, and `help`; in text,
   its text form. A warning is a diagnostic on stderr, `warning: <code>: <message>`; it never changes stdout or the exit
@@ -245,12 +243,11 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
 - R38 (UC8, E40): A command prints only the fields that answer it; `--metadata` (on `load`) and `--trace` add more, and
   a field with nothing to say is left out. In `--format json` and `toon`:
   - `load`: one entry per name asked, in order. A `found` name with no warnings and no project sections is its content
-    as a string; otherwise a record of `name`, `status`, `content`, `projectSections` (each `folder`, and `content`, or
-    `route` with the routing option), and `warnings`. A name not `found` is a record of `name`, `status`, `code`, and
-    `options` when `ambiguous`. `--metadata` makes every entry a record and adds `status` and `metadata`. `--trace` adds
-    `trace`: the stack, the contributions used (tier, plugin or skill, path, operation), the sections, the layers, each
-    project section's `folder` and `path`, and for a generated document its `sources` (each plugin, recorded version,
-    and installed version) and `request`.
+    as a string; otherwise a record of `name`, `status`, `content`, `projectSections` (each `folder` and `content`), and
+    `warnings`. A name not `found` is a record of `name`, `status`, `code`, and `options` when `ambiguous`. `--metadata`
+    makes every entry a record and adds `status` and `metadata`. `--trace` adds `trace`: the stack, the contributions
+    used (tier, plugin or skill, path, operation), the sections, the layers, each project section's `folder` and `path`,
+    and for a generated document its `sources` (each plugin, recorded version, and installed version) and `request`.
   - `list`: rows of `name` and `description`, with `status` and `options` when not `found`; `--trace` adds the rows per
     layer (R16) with `tier`, `plugin` or `skill`, `path`, outcome, and `kind` (`selection`, `generated`, or
     `project-section` with its `folder`) when the row is one.
@@ -299,7 +296,6 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
   | `reference-renamed` | warning | a name or file under an older name (R96, R97) |
   | `alias-not-used`, `alias-invalid` | warning | an alias a name holds as its own; an invalid or misplaced one (R96, R98) |
   | `project-section-not-markdown` | warning | a project section that is not Markdown (R99) |
-  | `in-outside-root` | warning | an `--in` path outside the root (R102) |
   | `repo-hides-user` | warning | a `user` file this repository's `repo` contribution hides (R26) |
   | `reference-qualified` | refused | a qualified name given to a write (R25) |
   | `folder-invalid` | refused | a `--plugin` or `--default` folder that does not qualify (R24) |
