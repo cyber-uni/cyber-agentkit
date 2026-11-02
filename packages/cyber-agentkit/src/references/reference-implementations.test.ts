@@ -73,7 +73,7 @@ describe('referenceImplementations', () => {
 	it('excludes candidates with why: a version not accepted, a name that does not fit, no implements', () => {
 		const layers = [
 			layer('plugin', { 'scaffold.recipe.interface': recipeInterface }, 'repobuddy'),
-			layer('project', {
+			layer('repo', {
 				'scaffold.recipe.old': recipe('old', 2),
 				'scaffold.recipe.plain': '---\ndescription: plain\n---\n\n## Recipe\n',
 				misnamed: recipe('misnamed'),
@@ -90,7 +90,7 @@ describe('referenceImplementations', () => {
 	it("accepts the versions a consumer passes instead of the interface's own", () => {
 		const layers = [
 			layer('plugin', { 'scaffold.recipe.interface': recipeInterface }, 'repobuddy'),
-			layer('project', { 'scaffold.recipe.next': recipe('next', 2) }),
+			layer('repo', { 'scaffold.recipe.next': recipe('next', 2) }),
 		]
 
 		expect(
@@ -109,7 +109,7 @@ describe('referenceImplementations', () => {
 				},
 				'repobuddy',
 			),
-			layer('project', {
+			layer('repo', {
 				'project-tracker.routing': '---\nimplements: project-tracker.routing@1\n---\n\n## Routes\n',
 			}),
 		]
@@ -144,7 +144,7 @@ describe('referenceImplementations', () => {
 	it('reports the warnings composing a candidate raised', () => {
 		const layers = [
 			layer('plugin', { 'scaffold.recipe.interface': recipeInterface }, 'repobuddy'),
-			layer('project', {
+			layer('repo', {
 				'scaffold.recipe.lib': '---\nmerge: bogus\nimplements: scaffold.recipe@1\n---\n\n## Recipe\n',
 			}),
 		]

@@ -19,7 +19,7 @@ function setup() {
 	const home = tempDir()
 	const plugin = tempDir()
 	const layers: ReferenceLayer[] = [
-		{ tier: 'project', dir: join(root, '.agents', 'references') },
+		{ tier: 'repo', dir: join(root, '.agents', 'references') },
 		{ tier: 'user', dir: join(home, '.agents', 'references') },
 		{ tier: 'plugin', dir: plugin, plugin: 'a' },
 	]
@@ -37,7 +37,7 @@ describe('whereReference', () => {
 		expect(report.status).toBe('found')
 		expect(report.places).toEqual([
 			{
-				scope: 'project',
+				scope: 'repo',
 				path: join('.agents', 'references', 'guide.md'),
 				reaches: 'everyone working in this repository',
 				status: 'empty',
@@ -51,7 +51,7 @@ describe('whereReference', () => {
 				sections: ['Setup', 'Setup > Steps', 'Usage'],
 			},
 		])
-		expect(report.layers.map(({ tier }) => tier)).toEqual(['project', 'user', 'plugin'])
+		expect(report.layers.map(({ tier }) => tier)).toEqual(['repo', 'user', 'plugin'])
 	})
 
 	it('gives the options and the places a selection goes on an ambiguous name', () => {
@@ -64,7 +64,7 @@ describe('whereReference', () => {
 
 		expect(report.status).toBe('ambiguous')
 		expect(report.options).toEqual(['a/guide', 'b/guide'])
-		expect(report.places.map(({ scope }) => scope)).toEqual(['project', 'user'])
+		expect(report.places.map(({ scope }) => scope)).toEqual(['repo', 'user'])
 	})
 
 	it('gives no places for an invalid name', () => {

@@ -71,7 +71,7 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 	return command({
 		name: 'reference',
 		description:
-			'Read reference documents by name, composed from the managed, project, user, plugin, and default tiers, and write, select, or delete a contribution.',
+			'Read reference documents by name, composed from the managed, repo, user, plugin, and default tiers, and write, select, or delete a contribution.',
 		commands: [load, list, search, where, create, select, remove, implementations, check],
 	})
 }

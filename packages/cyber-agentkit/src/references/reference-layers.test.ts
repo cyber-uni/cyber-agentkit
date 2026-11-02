@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { defaultLayer, projectChain, referenceLayers, repositoryRoot } from './reference-layers.js'
+import { ReferenceFailure } from './reference-error.js'
+import { defaultLayer, findRoot, referenceLayers, referenceRoot, workingChain } from './reference-layers.js'
 
 function tempDir(prefix = 'reference-layers-'): string {
 	return mkdtempSync(join(tmpdir(), prefix))
@@ -18,18 +19,19 @@ function write(root: string, relPath: string, content: string): string {
 const claudeCode = { CLAUDECODE: '1', CLAUDE_CODE_SESSION_ID: 'session' }
 
 describe('referenceLayers', () => {
-	it('reads the tiers highest first: managed, project nearest first, user, plugin, default', async () => {
+	it('reads the tiers highest first: managed, repo, user, plugin, default (R12)', async () => {
 		const repo = tempDir()
 		write(repo, '.git/HEAD', 'ref: refs/heads/main\n')
-		const root = join(repo, 'packages', 'a')
-		mkdirSync(root, { recursive: true })
+		const cwd = join(repo, 'packages', 'a')
+		mkdirSync(cwd, { recursive: true })
 		const home = tempDir()
 		const plugin = tempDir()
+		write(plugin, 'plugin.json', JSON.stringify({ name: 'host', version: '4.0.0' }))
 		const skill = tempDir()
 		write(skill, 'SKILL.md', '---\nname: tracker\n---\n')
 
-		const { layers } = await referenceLayers({
-			root,
+		const { layers, root } = await referenceLayers({
+			cwd,
 			home,
 			platform: 'linux',
 			env: {},
@@ -37,16 +39,56 @@ describe('referenceLayers', () => {
 			defaultSkill: skill,
 		})
 
+		expect(root).toBe(repo)
 		expect(layers.map(({ tier, dir }) => `${tier} ${dir}`)).toEqual([
 			'managed (no harness detected)',
-			`project ${join(root, '.agents', 'references')}`,
-			`project ${join(repo, 'packages', '.agents', 'references')}`,
-			`project ${join(repo, '.agents', 'references')}`,
+			`repo ${join(repo, '.agents', 'references')}`,
 			`user ${join(home, '.agents', 'references')}`,
 			`plugin ${join(plugin, 'references')}`,
 			`default ${join(skill, 'references')}`,
 		])
+		expect(layers.find(({ tier }) => tier === 'plugin')).toMatchObject({ origin: 'host', version: '4.0.0' })
 		expect(layers.at(-1)?.skill).toBe('tracker')
+	})
+
+	it('reads no folder between the working folder and the root as a tier', async () => {
+		const repo = tempDir()
+		write(repo, '.git/HEAD', 'ref: refs/heads/main\n')
+		write(repo, 'packages/a/.agents/references/x.md', '# near\n')
+		const cwd = join(repo, 'packages', 'a')
+
+		const { layers } = await referenceLayers({ cwd, home: tempDir(), platform: 'linux', env: {} })
+
+		expect(layers.some(({ dir }) => dir.startsWith(join(repo, 'packages')))).toBe(false)
+	})
+
+	it('throws root-missing for a root that does not exist, reading nothing (J24, UC1.20)', async () => {
+		const root = join(tempDir(), 'gone')
+
+		const failure = await referenceLayers({ root, home: tempDir(), platform: 'linux', env: {} }).catch(
+			(error: unknown) => error,
+		)
+
+		expect(failure).toBeInstanceOf(ReferenceFailure)
+		expect(failure).toMatchObject({ code: 'root-missing', usage: false })
+	})
+
+	it('reads no managed folder when several harnesses are detected, and names them', async () => {
+		const { layers, harnesses } = await referenceLayers({
+			root: tempDir(),
+			home: tempDir(),
+			platform: 'linux',
+			env: { ...claudeCode, CODEX_THREAD_ID: 'thread' },
+		})
+
+		expect(harnesses).toEqual(['claude-code', 'codex'])
+		expect(layers.filter(({ tier }) => tier === 'managed')).toEqual([
+			{
+				tier: 'managed',
+				dir: '(several harnesses detected)',
+				skipped: 'detection names several harnesses (claude-code, codex), so no managed folder is read',
+			},
+		])
 	})
 
 	it('reads no governances folder and no managed folder of its own, only the harness’s', async () => {
@@ -73,7 +115,28 @@ describe('referenceLayers', () => {
 
 		const { layers } = await referenceLayers({ root, home: tempDir(), platform: 'linux', env: {} })
 
-		expect(layers.find(({ tier }) => tier === 'plugin')).toMatchObject({ plugin: 'dep-a' })
+		expect(layers.find(({ tier }) => tier === 'plugin')).toMatchObject({
+			plugin: 'dep-a',
+			origin: 'dependency',
+			version: '1.0.0',
+		})
+	})
+
+	it("reads the root's package.json only: a workspace package's own adds no plugin (R13)", async () => {
+		const root = tempDir()
+		write(root, '.git/HEAD', 'ref: refs/heads/main\n')
+		write(root, 'package.json', JSON.stringify({ name: 'workspace' }))
+		const cwd = join(root, 'packages', 'a')
+		write(cwd, 'package.json', JSON.stringify({ dependencies: { 'dep-a': '1.0.0' } }))
+		write(cwd, 'node_modules/dep-a/package.json', JSON.stringify({ name: 'dep-a', version: '1.0.0' }))
+		write(cwd, 'node_modules/dep-a/plugin.json', JSON.stringify({ name: 'dep-a' }))
+		write(cwd, 'node_modules/dep-a/references/testing.md', '# dep-a\n')
+
+		const fromPackage = await referenceLayers({ cwd, home: tempDir(), platform: 'linux', env: {} })
+		const fromRoot = await referenceLayers({ cwd: root, home: tempDir(), platform: 'linux', env: {} })
+
+		expect(fromPackage.layers.filter(({ tier }) => tier === 'plugin')).toEqual([])
+		expect(fromRoot.layers.filter(({ tier }) => tier === 'plugin')).toEqual([])
 	})
 
 	it('shows a dependency that ships references/ without a plugin manifest as not a plugin', async () => {
@@ -145,7 +208,7 @@ describe('referenceLayers', () => {
 		const { layers } = await referenceLayers({ root: home, home, platform: 'linux', env: {} })
 
 		expect(layers.filter(({ dir }) => dir === join(home, '.agents', 'references'))).toEqual([
-			{ tier: 'project', dir: join(home, '.agents', 'references') },
+			{ tier: 'repo', dir: join(home, '.agents', 'references') },
 		])
 	})
 })
@@ -178,22 +241,58 @@ describe('defaultLayer', () => {
 	})
 })
 
-describe('the repository root', () => {
-	it('is the first folder above the root with a .git, a pnpm-workspace.yaml, or a package.json with workspaces', () => {
+describe('the repository root (R12)', () => {
+	it('is the nearest folder at or above the working folder holding a .git folder', () => {
 		const repo = tempDir()
-		write(repo, 'package.json', JSON.stringify({ workspaces: ['packages/*'] }))
-		const root = join(repo, 'packages', 'a')
-		mkdirSync(root, { recursive: true })
+		mkdirSync(join(repo, '.git'))
+		const cwd = join(repo, 'packages', 'a')
+		mkdirSync(cwd, { recursive: true })
 
-		expect(repositoryRoot(root)).toBe(repo)
-		expect(projectChain(root)).toEqual([root, join(repo, 'packages'), repo])
+		expect(findRoot(cwd)).toBe(repo)
+		expect(findRoot(repo)).toBe(repo)
 	})
 
-	it('is none above a root outside any repository, so the root alone is read', () => {
-		const root = tempDir()
+	it('counts a .git file, so a git worktree is its own root', () => {
+		const repo = tempDir()
+		mkdirSync(join(repo, '.git'))
+		const worktree = join(repo, 'worktrees', 'one')
+		write(worktree, '.git', 'gitdir: ../../.git/worktrees/one\n')
 
-		expect(projectChain(root)).toEqual([root])
-		expect(repositoryRoot(root)).toBeUndefined()
+		expect(findRoot(join(worktree))).toBe(worktree)
+	})
+
+	it('ignores pnpm-workspace.yaml and package.json workspaces', () => {
+		const repo = tempDir()
+		write(repo, 'pnpm-workspace.yaml', '')
+		write(repo, 'package.json', JSON.stringify({ workspaces: ['packages/*'] }))
+		const cwd = join(repo, 'packages', 'a')
+		mkdirSync(cwd, { recursive: true })
+
+		expect(findRoot(cwd)).toBe(cwd)
+	})
+
+	it('is the working folder when no folder above holds .git', () => {
+		const cwd = tempDir()
+
+		expect(findRoot(cwd)).toBe(cwd)
+	})
+
+	it('is the --root folder when given, even below a repository root', () => {
+		const repo = tempDir()
+		mkdirSync(join(repo, '.git'))
+		const given = join(repo, 'packages')
+		mkdirSync(given)
+
+		expect(referenceRoot(given)).toBe(given)
+		expect(() => referenceRoot(join(repo, 'gone'))).toThrow(expect.objectContaining({ code: 'root-missing' }))
+	})
+
+	it('walks from the working folder up to the root only for harness matching, or reads the root alone', () => {
+		const repo = tempDir()
+		const cwd = join(repo, 'packages', 'a')
+
+		expect(workingChain(cwd, repo)).toEqual([cwd, join(repo, 'packages'), repo])
+		expect(workingChain(tempDir(), repo)).toEqual([repo])
 	})
 })
 

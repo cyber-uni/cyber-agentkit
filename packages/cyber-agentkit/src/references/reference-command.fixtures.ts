@@ -138,10 +138,10 @@ export function write(root: string, relPath: string, content: string): string {
 	return path
 }
 
-/** A repository root: the project tier reads up to it, and a source-folder write must stay inside it. */
+/** A repository root: it holds `.git`, its `.agents/references/` is the repo tier, and a source-folder write must stay inside it. */
 export function repo(): string {
 	const root = tempDir('reference-repo-')
-	writeFileSync(join(root, 'pnpm-workspace.yaml'), '')
+	mkdirSync(join(root, '.git'))
 	return root
 }
 

@@ -165,7 +165,7 @@ export type Failure = { status: 'missing' | 'ambiguous'; message: string; cause?
 const noWarn: WarnFn = () => {}
 
 /**
- * Decides the stack: the highest written `extends` in the managed, project, and user tiers; else
+ * Decides the stack: the highest written `extends` in the managed, repo, and user tiers; else
  * the plugins' own `extends`; for a qualified name, that plugin's own stack.
  */
 export function plan(

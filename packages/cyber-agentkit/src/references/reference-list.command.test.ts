@@ -30,7 +30,7 @@ describe('list', () => {
 		expect(json<ReferenceListReport>().layers).toEqual([
 			{
 				name: 'name',
-				tier: 'project',
+				tier: 'repo',
 				path: join(root, '.agents/references/name.md'),
 				outcome: 'used',
 				selection: true,
@@ -49,7 +49,7 @@ describe('list', () => {
 		expect(report.references).toEqual([{ name: 'name', status: 'missing', code: 'reference-removed' }])
 		expect(report.layers?.map(({ outcome }) => outcome)).toEqual([
 			'used',
-			expect.stringMatching(/^shadowed by project .*\(remove\)$/),
+			expect.stringMatching(/^shadowed by repo .*\(remove\)$/),
 		])
 	})
 

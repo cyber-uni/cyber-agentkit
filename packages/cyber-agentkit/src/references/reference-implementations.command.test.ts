@@ -35,7 +35,7 @@ describe('implementations', () => {
 			excluded: [{ name: 'scaffold.recipe.bad', reasons: ['version: unknown version 9'] }],
 		})
 		expect(report.implementations).toEqual([
-			expect.objectContaining({ name: 'scaffold.recipe.typescript-lib', tier: 'project', version: 1 }),
+			expect.objectContaining({ name: 'scaffold.recipe.typescript-lib', tier: 'repo', version: 1 }),
 		])
 	})
 

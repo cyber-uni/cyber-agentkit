@@ -55,7 +55,7 @@ describe('names (R1)', () => {
 		['a bad character', 'na me'],
 		['an npm-scoped qualifier', '@scope/pkg/name'],
 	])('reads %s as invalid, reading nothing', (_, value) => {
-		const resolved = resolve([layer('project', { 'name.md': 'x' })], value)
+		const resolved = resolve([layer('repo', { 'name.md': 'x' })], value)
 
 		expect(resolved).toMatchObject({ status: 'invalid', code: 'reference-invalid' })
 		expect(resolved.trace.layers).toEqual([])
@@ -73,7 +73,7 @@ describe('names (R1)', () => {
 describe('composition (R3 to R7, R42, R49, R50)', () => {
 	it('patches by default: a section replaces the text it matches, and the rest is kept', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: '## Create\n\nmine\n' }),
+			layer('repo', { [`${name}.md`]: '## Create\n\nmine\n' }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
@@ -85,7 +85,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 
 	it('matches a heading path from each document’s own top level', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: '# Create\n\nmine\n' }),
+			layer('repo', { [`${name}.md`]: '# Create\n\nmine\n' }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
@@ -95,7 +95,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 	it('keeps the text below a patched section with empty text, and patches its subsections', () => {
 		const below = '## Review\n\nintro\n\n### Steps\n\nold steps\n\n### Notes\n\nnotes\n'
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: '## Review\n\n### Steps\n\nnew steps\n' }),
+			layer('repo', { [`${name}.md`]: '## Review\n\n### Steps\n\nnew steps\n' }),
 			plugin('a', { [`${name}.md`]: below }),
 		])
 
@@ -104,7 +104,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 
 	it('adds a section that matches nothing at the end, with no warning', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: '## Extra\n\nextra\n' }),
+			layer('repo', { [`${name}.md`]: '## Extra\n\nextra\n' }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
@@ -114,7 +114,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 
 	it('combines lower text first and says once that the later text wins', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('merge: combine', '## Create\n\nmine\n') }),
+			layer('repo', { [`${name}.md`]: doc('merge: combine', '## Create\n\nmine\n') }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
@@ -125,22 +125,22 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 
 	it('replaces everything below, shadowing it', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('merge: replace', '## Only\n\nmine\n') }),
+			layer('repo', { [`${name}.md`]: doc('merge: replace', '## Only\n\nmine\n') }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
 		expect(resolved.content).toBe('## Only\n\nmine\n')
-		expect(resolved.trace.layers[1]?.outcome).toMatch(/^shadowed by project .*\(replace\)$/)
+		expect(resolved.trace.layers[1]?.outcome).toMatch(/^shadowed by repo .*\(replace\)$/)
 	})
 
 	it('turns a name off with remove when nothing above has a body, naming the remove', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('merge: remove', 'ignored body\n') }),
+			layer('repo', { [`${name}.md`]: doc('merge: remove', 'ignored body\n') }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
 		expect(resolved).toMatchObject({ status: 'missing', code: 'reference-removed' })
-		expect(resolved.trace.removedBy).toMatch(/^project /)
+		expect(resolved.trace.removedBy).toMatch(/^repo /)
 		expect(codes(resolved)).toEqual(['remove-body-ignored'])
 		expect(resolved.trace.layers[1]?.outcome).toMatch(/\(remove\)$/)
 		expect(resolved.trace.stack).toEqual(['a'])
@@ -153,7 +153,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 	it('answers with a contribution above a remove', () => {
 		const resolved = resolve([
 			layer('managed', { [`${name}.md`]: '## Fresh\n\nnew\n' }),
-			layer('project', { [`${name}.md`]: doc('merge: remove', '') }),
+			layer('repo', { [`${name}.md`]: doc('merge: remove', '') }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
@@ -163,7 +163,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 
 	it('applies a marker to its section alone; an unmarked section takes its document operation', () => {
 		const resolved = resolve([
-			layer('project', {
+			layer('repo', {
 				[`${name}.md`]: doc('merge: combine', '## Create\n<!-- merge: replace -->\n\nmine\n\n## Close\n\nmore\n'),
 			}),
 			plugin('a', { [`${name}.md`]: base }),
@@ -175,7 +175,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 
 	it('accepts a patch marker, and drops a section marked remove', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('merge: replace', '## Close\n<!-- merge: remove -->\n') }),
+			layer('repo', { [`${name}.md`]: doc('merge: replace', '## Close\n<!-- merge: remove -->\n') }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
@@ -185,7 +185,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 
 	it('changes nothing with a contribution that has no body', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('merge: replace', '') }),
+			layer('repo', { [`${name}.md`]: doc('merge: replace', '') }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
@@ -195,7 +195,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 
 	it('reads an unknown merge as patch, with a warning', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('merge: first-wins', '## Create\n\nmine\n') }),
+			layer('repo', { [`${name}.md`]: doc('merge: first-wins', '## Create\n\nmine\n') }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
@@ -205,7 +205,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 
 	it('warns on a document repeating a heading, and matches the first', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: '## Create\n\none\n\n## Create\n\ntwo\n' }),
+			layer('repo', { [`${name}.md`]: '## Create\n\none\n\n## Create\n\ntwo\n' }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
@@ -215,7 +215,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 
 	it('composes metadata key by key, the higher winning, without merge and extends', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('merge: patch\ndescription: mine', '## Create\n\nmine\n') }),
+			layer('repo', { [`${name}.md`]: doc('merge: patch\ndescription: mine', '## Create\n\nmine\n') }),
 			plugin('a', { [`${name}.md`]: doc('description: base\ncontract: 1\nextends: []', base) }),
 		])
 
@@ -224,12 +224,12 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 
 	it('reports each section with the contributions that supplied it', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: '## Create\n\nmine\n' }),
+			layer('repo', { [`${name}.md`]: '## Create\n\nmine\n' }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
 		expect(resolved.trace.sections).toEqual([
-			{ path: 'Create', contributions: [{ contribution: expect.stringMatching(/^project /), operation: 'patch' }] },
+			{ path: 'Create', contributions: [{ contribution: expect.stringMatching(/^repo /), operation: 'patch' }] },
 			{ path: 'Close', contributions: [{ contribution: 'plugin a', operation: 'patch' }] },
 		])
 	})
@@ -274,7 +274,7 @@ describe('the stack (R8, R52 to R56)', () => {
 
 	it('builds the stack from the highest written extends; a plugin left out is not used', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('extends: [b]', '') }),
+			layer('repo', { [`${name}.md`]: doc('extends: [b]', '') }),
 			plugin('a', { [`${name}.md`]: base }),
 			plugin('b', { [`${name}.md`]: '## Create\n\nb create\n' }),
 		])
@@ -282,14 +282,19 @@ describe('the stack (R8, R52 to R56)', () => {
 		expect(resolved.status).toBe('found')
 		expect(resolved.content).toBe('## Create\n\nb create\n')
 		expect(resolved.trace.stack).toEqual(['b'])
-		expect(resolved.trace.builtBy).toMatch(/^project /)
-		expect(resolved.trace.layers.map(({ outcome }) => outcome)).toEqual(['used', 'not used (not in extends)', 'used'])
+		expect(resolved.trace.builtBy).toMatch(/^repo /)
+		// The trace lists the tiers, then the stack from its top, then the plugins left out (R9).
+		expect(resolved.trace.layers.map(({ plugin, outcome }) => [plugin, outcome])).toEqual([
+			[undefined, 'used'],
+			['b', 'used'],
+			['a', 'not used (not in extends)'],
+		])
 		expect(resolved.trace.layers[0]?.selection).toBe(true)
 	})
 
 	it('applies each step with its own merge key, else the plugin’s own merge, else patch', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('extends: [a, {b: combine}]', '') }),
+			layer('repo', { [`${name}.md`]: doc('extends: [a, {b: combine}]', '') }),
 			plugin('a', { [`${name}.md`]: base }),
 			plugin('b', { [`${name}.md`]: doc('merge: replace', '## Create\n\nb\n') }),
 		])
@@ -313,20 +318,20 @@ describe('the stack (R8, R52 to R56)', () => {
 
 	it("replaces a step's own extends with the step's extends key", () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('extends:\n  - house: {extends: []}', '') }),
+			layer('repo', { [`${name}.md`]: doc('extends:\n  - house: {extends: []}', '') }),
 			plugin('a', { [`${name}.md`]: base }),
 			plugin('house', { [`${name}.md`]: doc('extends: [a]', '## Create\n\nhouse\n') }),
 		])
 
 		expect(resolved.trace.stack).toEqual(['house'])
 		expect(resolved.trace.layers.find(({ plugin }) => plugin === 'a')?.outcome).toMatch(
-			/^not used \(house's extends replaced by project .*\)$/,
+			/^not used \(house's extends replaced by repo .*\)$/,
 		)
 	})
 
 	it('collapses an adjacent repeat, and makes a plugin at two separate places ambiguous', () => {
 		const layers = (list: string) => [
-			layer('project', { [`${name}.md`]: doc(`extends: ${list}`, '') }),
+			layer('repo', { [`${name}.md`]: doc(`extends: ${list}`, '') }),
 			plugin('a', { [`${name}.md`]: base }),
 			plugin('b', { [`${name}.md`]: base }),
 		]
@@ -337,7 +342,7 @@ describe('the stack (R8, R52 to R56)', () => {
 
 	it('stops bringing in silently at a plugin already in the stack under a written list', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('extends: [a, b]', '') }),
+			layer('repo', { [`${name}.md`]: doc('extends: [a, b]', '') }),
 			plugin('a', { [`${name}.md`]: doc('extends: [b]', base) }),
 			plugin('b', { [`${name}.md`]: doc('extends: [a]', base) }),
 		])
@@ -356,7 +361,7 @@ describe('the stack (R8, R52 to R56)', () => {
 
 	it('skips a step not installed, with a warning', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('extends: [gone, a]', '') }),
+			layer('repo', { [`${name}.md`]: doc('extends: [gone, a]', '') }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
@@ -366,7 +371,7 @@ describe('the stack (R8, R52 to R56)', () => {
 
 	it('reads an extends whose every step is missing as not written, and falls through', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('extends: [gone]', '') }),
+			layer('repo', { [`${name}.md`]: doc('extends: [gone]', '') }),
 			layer('user', { [`${name}.md`]: doc('extends: [b]', '') }),
 			plugin('a', { [`${name}.md`]: base }),
 			plugin('b', { [`${name}.md`]: '## Create\n\nb\n' }),
@@ -379,7 +384,7 @@ describe('the stack (R8, R52 to R56)', () => {
 
 	it("warns that a lower contribution's different extends is not used", () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('extends: [a]', '') }),
+			layer('repo', { [`${name}.md`]: doc('extends: [a]', '') }),
 			layer('user', { [`${name}.md`]: doc('extends: [b]', '') }),
 			plugin('a', { [`${name}.md`]: base }),
 			plugin('b', { [`${name}.md`]: base }),
@@ -387,12 +392,12 @@ describe('the stack (R8, R52 to R56)', () => {
 
 		expect(resolved.trace.stack).toEqual(['a'])
 		expect(codes(resolved)).toEqual(['extends-not-used'])
-		expect(resolved.trace.layers[1]?.outcome).toMatch(/^not used \(project .*'s extends builds the stack\)$/)
+		expect(resolved.trace.layers[1]?.outcome).toMatch(/^not used \(repo .*'s extends builds the stack\)$/)
 	})
 
 	it('skips a default step with nothing there with no warning, and the trace shows it', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('extends: [default, a]', '') }),
+			layer('repo', { [`${name}.md`]: doc('extends: [default, a]', '') }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
@@ -414,7 +419,7 @@ describe('the stack (R8, R52 to R56)', () => {
 
 	it('stops warning once an extends names the default', () => {
 		const resolved = resolve([
-			layer('project', { [`${name}.md`]: doc('extends: [default, a]', '') }),
+			layer('repo', { [`${name}.md`]: doc('extends: [default, a]', '') }),
 			plugin('a', { [`${name}.md`]: '## Create\n\nplugin\n' }),
 			skillDefault('tracker', { [`${name}.default.md`]: base }),
 		])
@@ -435,7 +440,7 @@ describe('a qualified name (R2)', () => {
 	it("builds that plugin's own stack; a written extends is not used", () => {
 		const resolved = resolve(
 			[
-				layer('project', { [`${name}.md`]: doc('extends: [b]', '## Close\n\nproject close\n') }),
+				layer('repo', { [`${name}.md`]: doc('extends: [b]', '## Close\n\nproject close\n') }),
 				plugin('a', { [`${name}.md`]: base }),
 				plugin('b', { [`${name}.md`]: base }),
 				plugin('house', { [`${name}.md`]: doc('extends: [a]', '## Create\n\nhouse\n') }),
@@ -459,20 +464,20 @@ describe('a qualified name (R2)', () => {
 
 describe('files a layer reads (UC1.6, R51)', () => {
 	it('answers only from <name>.md and <name>/README.md; the second is ignored with a warning', () => {
-		const resolved = resolve([layer('project', { [`${name}.md`]: 'file\n', [`${name}/README.md`]: 'folder\n' })])
+		const resolved = resolve([layer('repo', { [`${name}.md`]: 'file\n', [`${name}/README.md`]: 'folder\n' })])
 
 		expect(resolved.content).toBe('file\n')
 		expect(codes(resolved)).toEqual(['file-ignored'])
 	})
 
 	it('does not answer from <name>/index.md or <name>/SKILL.md', () => {
-		const resolved = resolve([layer('project', { [`${name}/index.md`]: 'x\n', [`${name}/SKILL.md`]: 'y\n' })])
+		const resolved = resolve([layer('repo', { [`${name}/index.md`]: 'x\n', [`${name}/SKILL.md`]: 'y\n' })])
 
 		expect(resolved.status).toBe('missing')
 	})
 
 	it('ignores a <name>.default.md in a tier folder, with a warning', () => {
-		const resolved = resolve([layer('project', { [`${name}.default.md`]: 'x\n' })])
+		const resolved = resolve([layer('repo', { [`${name}.default.md`]: 'x\n' })])
 
 		expect(resolved.status).toBe('missing')
 		expect(codes(resolved)).toEqual(['default-in-tier'])
@@ -491,7 +496,7 @@ describe('interface documents (R14)', () => {
 	it('answers from the lowest, ignoring a higher one, extends, and merge, with warnings', () => {
 		const resolved = resolve(
 			[
-				layer('project', { [`${iface}.md`]: doc('merge: patch', 'project\n') }),
+				layer('repo', { [`${iface}.md`]: doc('merge: patch', 'project\n') }),
 				plugin('a', { [`${iface}.md`]: 'owner\n' }),
 			],
 			iface,
@@ -510,7 +515,7 @@ describe('interface documents (R14)', () => {
 
 describe('layerNames and referenceNames', () => {
 	it('skips an entry whose name is not a reference name, and a default file in a tier folder', () => {
-		const project = layer('project', {
+		const project = layer('repo', {
 			'name.md': 'x',
 			'.hidden.md': 'x',
 			'other.default.md': 'x',
@@ -526,7 +531,7 @@ describe('layerNames and referenceNames', () => {
 	})
 
 	it('reads every name any layer holds, deduplicated and sorted', () => {
-		expect(referenceNames([layer('project', { 'b.md': 'x' }), layer('user', { 'a.md': 'x', 'b.md': 'x' })])).toEqual([
+		expect(referenceNames([layer('repo', { 'b.md': 'x' }), layer('user', { 'a.md': 'x', 'b.md': 'x' })])).toEqual([
 			'a',
 			'b',
 		])

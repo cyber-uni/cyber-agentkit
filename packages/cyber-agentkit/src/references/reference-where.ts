@@ -2,7 +2,7 @@ import { join, relative } from 'node:path'
 import type { ReferenceWarning } from './reference-codes.js'
 import { headingPaths } from './reference-document.js'
 import { dataExtensions } from './reference-format.js'
-import { projectReferencesDir, type ReferenceLayer, type ReferenceLayers } from './reference-layers.js'
+import { type ReferenceLayer, type ReferenceLayers, repoReferencesDir } from './reference-layers.js'
 import { type ReferenceName, requireName } from './reference-name.js'
 import {
 	parseReferenceName,
@@ -13,8 +13,8 @@ import {
 
 /** A file a customization or a selection of the name is written to. */
 export type ReferenceWherePlace = {
-	scope: 'project' | 'user'
-	/** The project path is relative to the root; the user path is shown as the command displays it. */
+	scope: 'repo' | 'user'
+	/** The repo path is relative to the root; the user path is shown as the command displays it. */
 	path: string
 	reaches: string
 	/** `used`, `shadowed by ...`, or `not used (...)` when the file exists; `empty` when it does not. */
@@ -35,18 +35,18 @@ export type ReferenceWhereReport = {
 }
 
 export type WhereOptions = {
-	/** Absolute; a project write goes to its `.agents/references/`, and a project path is shown relative to it. */
+	/** Absolute; a repo write goes to its `.agents/references/`, and a repo path is shown relative to it. */
 	root: string
 	/** How a path outside the project is shown, such as with the home directory collapsed to `~`. */
 	display?: ((path: string) => string) | undefined
 }
 
 const reaches = {
-	project: 'everyone working in this repository',
+	repo: 'everyone working in this repository',
 	user: 'only you, in every repository',
 } as const
 
-/** The project and user files a customization of `name` is written to, with the document below each. */
+/** The repo and user files a customization of `name` is written to, with the document below each. */
 export function whereReference(
 	input: string | ReferenceName,
 	source: ReferenceLayers | readonly ReferenceLayer[],
@@ -65,10 +65,10 @@ export function whereReference(
 	if (resolved.options) report.options = resolved.options
 	if (name.invalid) return report
 	const layers = Array.isArray(source) ? (source as readonly ReferenceLayer[]) : (source as ReferenceLayers).layers
-	const projectDir = projectReferencesDir(root)
+	const repoDir = repoReferencesDir(root)
 	const userDir = layers.find(({ tier }) => tier === 'user')?.dir
-	const targets: { scope: 'project' | 'user'; dir: string }[] = [
-		{ scope: 'project', dir: projectDir },
+	const targets: { scope: 'repo' | 'user'; dir: string }[] = [
+		{ scope: 'repo', dir: repoDir },
 		...(userDir ? [{ scope: 'user' as const, dir: userDir }] : []),
 	]
 	for (const { scope, dir } of targets) {
@@ -78,7 +78,7 @@ export function whereReference(
 		const below = resolveReference(name, source, { display, below: dir })
 		report.places.push({
 			scope,
-			path: scope === 'project' ? relative(root, path) : display(path),
+			path: scope === 'repo' ? relative(root, path) : display(path),
 			reaches: reaches[scope],
 			status: entry?.file ? entry.outcome : 'empty',
 			sections: below.status === 'found' && below.format === 'markdown' ? headingPaths(below.content ?? '') : [],

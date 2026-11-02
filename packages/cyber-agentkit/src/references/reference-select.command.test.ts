@@ -85,7 +85,7 @@ describe('select', () => {
 
 		expect(await select('name', [], { root, clear: true })).toBe(0)
 		expect(written()).toMatch(
-			/no-selection: the project tier holds no selection of "name", so nothing was cleared\. "name" is answered by plugin a/,
+			/no-selection: the repo tier holds no selection of "name", so nothing was cleared\. "name" is answered by plugin a/,
 		)
 		stdout.mockClear()
 		expect(await select('name', [], { root, clear: true, format: 'json' })).toBe(0)

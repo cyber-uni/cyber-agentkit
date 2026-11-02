@@ -294,7 +294,8 @@ The tiers, highest first:
 In each folder, only `<name>.md` and `<name>/README.md` answer a name, in that order.
 
 Contributions apply bottom first: the plugins and the default, in the order `extends` gives them,
-then user, project, and managed. Each applies over what is below it with its frontmatter `merge`:
+then user, repo (the `.agents/references/` at the repository root), and managed. Each applies over
+what is below it with its frontmatter `merge`:
 
 - `patch` (the default): its sections replace the text they match by heading path, and the rest is
   kept.
@@ -305,7 +306,7 @@ then user, project, and managed. Each applies over what is below it with its fro
 
 A `<!-- merge: <operation> -->` marker under a heading applies an operation to that section alone.
 Frontmatter `extends` lists what a contribution builds on, bottom first: plugins by their manifest
-name, and `default`. The highest `extends` written in the managed, project, or user tier builds the
+name, and `default`. The highest `extends` written in the managed, repo, or user tier builds the
 stack; without one, the plugins' own `extends` order them. `resolved.metadata` holds the composed
 frontmatter, the higher contribution winning each key, without `merge` and `extends`. Frontmatter
 that is not a YAML mapping is ignored with a warning.
@@ -318,8 +319,8 @@ that is not a YAML mapping is ignored with a warning.
 | `listReferences(layers)`, `referenceNames(layers)` | Every name the layers hold, one row each, and a row per layer holding it |
 | `listReferences(layers, { pattern })` | Every reference by exact name pattern |
 | `searchReferences(query, layers)` | Names matching a query by name, description, heading, or body |
-| `whereReference(name, layers, options)` | The project and user files a customization is written to, and the heading paths below each |
-| `projectReferencesDir()`, `userReferencesDir()`, `defaultLayer()` | Single folders and layers |
+| `whereReference(name, layers, options)` | The repo and user files a customization is written to, and the heading paths below each |
+| `repoReferencesDir()`, `userReferencesDir()`, `defaultLayer()` | Single folders and layers |
 | `declaredDependencies()`, `packageDir()`, `pluginManifestName()` | A manifest's declared packages, where each is installed, and a plugin's manifest name |
 | `harnessSkillFolders()`, `pluginSkillFolders()`, `skillsIn()` | The skill folders a harness reads, and the skills in them, known by their `SKILL.md` name |
 | `referenceImplementations(id, layers)` | The implementations of an interface a consumer can load, and those left out with why |
@@ -338,7 +339,7 @@ npx -y cyber-agentkit reference implementations <interface id> --accept 1,2
 npx -y cyber-agentkit reference check
 npx -y cyber-agentkit reference create <name> --merge combine
 npx -y cyber-agentkit reference select <name> <plugin> --scope user
-npx -y cyber-agentkit reference delete <name> --scope project --dry-run
+npx -y cyber-agentkit reference delete <name> --scope repo --dry-run
 ```
 
 `implementations` lists what a consumer can load for an interface (a `<id>.interface` document) with

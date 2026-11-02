@@ -23,7 +23,7 @@ import {
 import { recipeInterface } from './reference-interface.fixtures.js'
 
 describe('create', () => {
-	it('writes the project file with merge: patch by default, and points to load', async () => {
+	it('writes the repo file with merge: patch by default, and points to load', async () => {
 		const root = repo()
 
 		expect(await create('name', { root })).toBe(0)
@@ -35,6 +35,22 @@ describe('create', () => {
 	it('writes to the user tier with --scope user', async () => {
 		expect(await create('name', { root: repo(), scope: 'user' })).toBe(0)
 		expect(existsSync(join(fakeHome.value, '.agents/references/name.md'))).toBe(true)
+	})
+
+	it('writes to the root with --scope repo, and refuses --scope project, which is no tier to write', async () => {
+		const root = repo()
+		expect(await create('name', { root, scope: 'repo' })).toBe(0)
+		expect(existsSync(join(root, '.agents/references/name.md'))).toBe(true)
+
+		expect(await create('other', { root, scope: 'project' })).toBe(2)
+		expect(lastError()).toEqual({ error: '--scope is repo or user; got "project".', code: 'option-invalid' })
+	})
+
+	it('refuses a --root that does not exist with root-missing, exit 1, writing nothing', async () => {
+		const root = join(repo(), 'gone')
+		expect(await create('name', { root })).toBe(1)
+		expect(lastError().code).toBe('root-missing')
+		expect(existsSync(root)).toBe(false)
 	})
 
 	it('writes --merge, else the template’s own merge', async () => {
@@ -153,7 +169,7 @@ describe('create', () => {
 		expect(await create('other', { root, scope: 'user' })).toBe(1)
 		expect(lastError()).toMatchObject({
 			code: 'reference-hidden',
-			error: expect.stringMatching(/project .*\(remove\)/),
+			error: expect.stringMatching(/repo .*\(remove\)/),
 		})
 	})
 
@@ -230,12 +246,12 @@ describe('create', () => {
 		plugins(root, { a: { name: base } })
 
 		expect(await create('name', { root, trace: true })).toBe(0)
-		expect(errors()).toMatch(/project .*name\.md: used/)
+		expect(errors()).toMatch(/repo .*name\.md: used/)
 
 		stdout.mockClear()
 		expect(await create('other', { root, trace: true, format: 'json' })).toBe(0)
 		const report = json<ReferenceCreateReport>()
-		expect(report.trace?.layers.find(({ tier }) => tier === 'project')?.outcome).toBe('used')
+		expect(report.trace?.layers.find(({ tier }) => tier === 'repo')?.outcome).toBe('used')
 	})
 
 	it('prints the path and content with --dry-run, and writes nothing', async () => {

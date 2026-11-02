@@ -18,7 +18,7 @@ import {
 } from './reference-command.fixtures.js'
 
 describe('delete', () => {
-	it('deletes the project file and reports the status and stack afterwards', async () => {
+	it('deletes the repo file and reports the status and stack afterwards', async () => {
 		const root = repo()
 		plugins(root, { a: { name: base } })
 		const path = write(root, '.agents/references/name.md', '## Create\n\nmine\n')
@@ -62,7 +62,7 @@ describe('delete', () => {
 
 		expect(await remove('name', { root, scope: 'user', 'dry-run': true })).toBe(0)
 		expect(existsSync(path)).toBe(true)
-		expect(written()).toMatch(/would delete\. "name" is answered by the project file/)
+		expect(written()).toMatch(/would delete\. "name" is answered by the repo file/)
 	})
 
 	it('deletes a folder-form file and its emptied folder', async () => {

@@ -14,19 +14,14 @@ import { interfaceLookup } from './reference-check.js'
 import { hasBody, isMergeOperation, type MergeOperation, parseDocument } from './reference-document.js'
 import { ReferenceFailure } from './reference-error.js'
 import { dataExtensions } from './reference-format.js'
+import { hiddenBy } from './reference-hiding.js'
 import { fitsName, type ReferenceInterface } from './reference-interface.js'
-import {
-	canonical,
-	projectReferencesDir,
-	type ReferenceLayers,
-	repositoryRoot,
-	userReferencesDir,
-} from './reference-layers.js'
+import { canonical, type ReferenceLayers, repoReferencesDir, userReferencesDir } from './reference-layers.js'
 import { parseReferenceName, type ReferenceName, requireName } from './reference-name.js'
 import { type ResolvedReference, type ResolveOptions, readExtends, resolveReference } from './resolve-reference.js'
 
-/** Where a write lands: the project or user tier, or a plugin's or a skill's source folder in the repository. */
-export type WriteScope = 'project' | 'user' | 'plugin' | 'default'
+/** Where a write lands: the repo or user tier, or a plugin's or a skill's source folder in the repository. */
+export type WriteScope = 'repo' | 'user' | 'plugin' | 'default'
 
 export type WriteTarget = {
 	scope: WriteScope
@@ -37,6 +32,7 @@ export type WriteTarget = {
 }
 
 export type WhereArgs = {
+	/** The repository root: a `repo` write goes to its `.agents/references/`, and a source-folder write stays inside it. */
 	root: string
 	home: string
 	scope?: string | undefined
@@ -58,9 +54,9 @@ export function bareName(value: string): ReferenceName {
 	return name
 }
 
-/** The repository the root sits in: a write to a source folder must land inside it, and never in an installed copy. */
+/** A write to a source folder must land inside the repository root, and never in an installed copy. */
 export function insideRepository(folder: string, root: string): boolean {
-	const repository = canonical(repositoryRoot(root) ?? resolve(root))
+	const repository = canonical(resolve(root))
 	const target = canonical(folder)
 	if (target !== repository && !target.startsWith(repository + sep)) return false
 	return !target.slice(repository.length).split(sep).includes('node_modules')
@@ -103,11 +99,11 @@ export function writeTarget(
 		const dir = join(folder, 'references')
 		return { scope: 'default', dir, path: join(dir, `${name.name}.default.md`) }
 	}
-	if (scope !== undefined && scope !== 'project' && scope !== 'user') {
-		throw new ReferenceFailure('option-invalid', '--scope is project or user.')
+	if (scope !== undefined && scope !== 'repo' && scope !== 'user') {
+		throw new ReferenceFailure('option-invalid', `--scope is repo or user; got "${scope}".`)
 	}
-	const dir = scope === 'user' ? userReferencesDir(home) : projectReferencesDir(resolve(root))
-	return { scope: scope === 'user' ? 'user' : 'project', dir, path: join(dir, `${name.name}.md`) }
+	const dir = scope === 'user' ? userReferencesDir(home) : repoReferencesDir(resolve(root))
+	return { scope: scope === 'user' ? 'user' : 'repo', dir, path: join(dir, `${name.name}.md`) }
 }
 
 function tryRead(path: string): string | undefined {
@@ -175,31 +171,6 @@ export type CreateResult = {
 	hints: string[]
 	/** The name resolved again after the write, when the file is a layer the stack reads. */
 	after?: ResolvedReference
-}
-
-/**
- * Hides the new file: a `replace` with a body, or a `remove`, that applies above it. A folder that
- * is not a layer the stack reads has nothing above it.
- */
-function hiddenBy(resolved: ResolvedReference, dir: string, path: string): string | undefined {
-	const layers = resolved.trace.layers
-	const at = layers.findIndex((layer) => layer.path === dir || layer.path === path)
-	if (at === -1) return undefined
-	const target = layers[at]
-	const tiered = (tier: string) => tier === 'managed' || tier === 'project' || tier === 'user'
-	const stackAt =
-		target && !tiered(target.tier)
-			? resolved.trace.stack.indexOf(target.tier === 'default' ? 'default' : (target.plugin ?? ''))
-			: -1
-	const above = layers.filter((layer, index) => {
-		if (!layer.file || layer.outcome !== 'used') return false
-		if (target && tiered(target.tier)) return index < at && tiered(layer.tier)
-		if (tiered(layer.tier)) return true
-		const position = resolved.trace.stack.indexOf(layer.tier === 'default' ? 'default' : (layer.plugin ?? ''))
-		return stackAt !== -1 && position > stackAt
-	})
-	const hider = above.find((layer) => layer.operation === 'remove' || (layer.operation === 'replace' && !layer.empty))
-	return hider ? `${hider.tier}${hider.plugin ? ` ${hider.plugin}` : ''} ${hider.path} (${hider.operation})` : undefined
 }
 
 /** A selection-only file keeps its own keys, `extends` among them; the template adds the keys it lacks. */
@@ -313,7 +284,7 @@ export type SelectArgs = {
 
 export type SelectResult = {
 	name: string
-	scope: 'project' | 'user'
+	scope: 'repo' | 'user'
 	path: string
 	/** The options written, bottom first; empty after `--clear`. */
 	extends: string[]
@@ -333,7 +304,7 @@ export function selectContribution(
 ): SelectResult {
 	const name = bareName(args.name)
 	const target = writeTarget(name, { root: args.root, home: args.home, scope: args.scope })
-	const scope = target.scope as 'project' | 'user'
+	const scope = target.scope as 'repo' | 'user'
 	const existing = tryRead(target.path)
 	if (args.clear) {
 		if (args.options.length) throw new ReferenceFailure('options-conflict', '--clear takes no option.')
@@ -426,7 +397,7 @@ export function deleteContribution(
 	const shown = options.display ?? ((path: string) => path)
 	const before = resolveReference(name, layers, options)
 	const candidates =
-		target.scope === 'project' || target.scope === 'user'
+		target.scope === 'repo' || target.scope === 'user'
 			? [target.path, join(target.dir, name.name, 'README.md'), ...dataFiles(target.dir, name.name)]
 			: [target.path]
 	const path = candidates.find((candidate) => candidate !== options.without && existsSync(candidate))

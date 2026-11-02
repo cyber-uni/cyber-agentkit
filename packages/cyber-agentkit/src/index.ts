@@ -121,6 +121,7 @@ export type {
 	ReferenceInterface,
 } from './references/reference-interface.js'
 export type {
+	PluginOrigin,
 	ReferenceLayer,
 	ReferenceLayerOptions,
 	ReferenceLayers,
@@ -130,8 +131,8 @@ export type {
 } from './references/reference-layers.js'
 export {
 	defaultLayer,
-	projectReferencesDir,
 	referenceLayers,
+	repoReferencesDir,
 	userReferencesDir,
 } from './references/reference-layers.js'
 export type { ReferenceName } from './references/reference-name.js'

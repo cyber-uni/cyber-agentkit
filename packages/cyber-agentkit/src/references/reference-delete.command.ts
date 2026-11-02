@@ -50,11 +50,11 @@ export function deleteCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'delete',
 		description:
-			"Delete a project or user contribution, or one in a plugin's or a skill's source folder, and report what answers the name afterwards. Never deletes an installed or managed one.",
+			"Delete a repo or user contribution, or one in a plugin's or a skill's source folder, and report what answers the name afterwards. Never deletes an installed or managed one.",
 		arguments: [{ name: 'name', description: 'Reference name, without the `.md` extension.', type: t.string() }],
 		options: {
 			root: rootOption,
-			scope: { ...scopeOption, description: 'Tier to delete from: project (default) or user.' },
+			scope: { ...scopeOption, description: 'Tier to delete from: repo (default) or user.' },
 			plugin: pluginOption,
 			default: skillOption,
 			'dry-run': {
@@ -74,9 +74,10 @@ export function deleteCommand(layersFor: LayersFor): cli.Command {
 			const format = this.format
 			try {
 				const home = homedir()
-				const root = resolve(args.root ?? process.cwd())
+				const layers = await layersFor({ root: args.root, default: args.default }, home)
+				const root = layers.root ?? resolve(args.root ?? process.cwd())
 				const deleted = deleteContribution(
-					await layersFor({ root, default: args.default }, home),
+					layers,
 					{
 						root,
 						home,

@@ -23,7 +23,7 @@ import { recipeInterface } from './reference-interface.fixtures.js'
 import type { ReferenceTrace } from './resolve-reference.js'
 
 describe('load: tiers', () => {
-	it('applies managed over project over user over the plugins, each patching what is below', async () => {
+	it('applies managed over repo over user over the plugins, each patching what is below', async () => {
 		const root = repo()
 		plugins(root, { a: { name: '## A\n\nplugin\n' } })
 		write(fakeHome.value, '.agents/references/name.md', '## U\n\nuser\n')
@@ -34,14 +34,54 @@ describe('load: tiers', () => {
 		expect(written()).toBe('## A\n\nproject\n\n## U\n\nuser\n\n## M\n\nmanaged\n')
 	})
 
-	it('puts the nearer project folder above the repository root', async () => {
+	it('reads the repo tier at the root only, never a folder below it as a tier (R12)', async () => {
 		const root = repo()
 		const sub = join(root, 'packages', 'app')
 		write(root, '.agents/references/name.md', '## A\n\nroot\n\n## B\n\nroot b\n')
 		write(sub, '.agents/references/name.md', '## A\n\nnear\n')
 
-		expect(await load(['name'], { root: sub })).toBe(0)
-		expect(written()).toBe('## A\n\nnear\n\n## B\n\nroot b\n')
+		expect(await load(['name'], { root })).toBe(0)
+		expect(written()).toBe('## A\n\nroot\n\n## B\n\nroot b\n')
+	})
+
+	it('refuses a --root that does not exist with root-missing, exit 1, reading nothing (UC1.20)', async () => {
+		const root = join(repo(), 'gone')
+
+		expect(await load(['name'], { root, format: 'json' })).toBe(1)
+		expect(json()).toMatchObject({ code: 'root-missing' })
+	})
+
+	it('reads no managed folder when several harnesses are detected, and the trace names them (UC10.2)', async () => {
+		const root = repo()
+		write(root, '.agents/references/name.md', '## A\n\nrepo\n')
+		managed({ name: '## M\n\nmanaged\n' })
+		harness.candidates = ['claude-code', 'codex']
+
+		expect(await load(['name'], { root, format: 'json', trace: true })).toBe(0)
+		const [entry] = json<{ content: string; trace: ReferenceTrace }[]>()
+		expect(entry?.content).toBe('## A\n\nrepo\n')
+		expect(entry?.trace.harnesses).toEqual(['claude-code', 'codex'])
+		expect(entry?.trace.layers[0]).toEqual({
+			tier: 'managed',
+			path: '(several harnesses detected)',
+			outcome: 'not read (detection names several harnesses (claude-code, codex), so no managed folder is read)',
+		})
+	})
+
+	it('shows a managed folder the harness keeps in MDM as not read, with the reason (UC10.1)', async () => {
+		const root = repo()
+		harness.candidates = ['claude-code']
+		harness.managed = [
+			{ kind: 'macos-managed-preferences', location: 'com.example.harness', description: '', research: '' },
+		]
+
+		expect(await load(['name'], { root, format: 'json', trace: true })).toBe(0)
+		const [entry] = json<{ trace: ReferenceTrace }[]>()
+		expect(entry?.trace.layers[0]).toMatchObject({
+			tier: 'managed',
+			path: 'com.example.harness',
+			outcome: expect.stringMatching(/^not read \(claude-code keeps this policy in a macOS managed-preferences domain/),
+		})
 	})
 
 	it('reads no governances folder in any tier', async () => {
@@ -195,7 +235,7 @@ describe('load: text output', () => {
 
 		expect(await load(['name'], { root })).toBe(0)
 		expect(written()).toMatch(
-			/^<reference name="name" status="missing" code="reference-removed">"name" is turned off by project .* \(remove\)<\/reference>\n$/,
+			/^<reference name="name" status="missing" code="reference-removed">"name" is turned off by repo .* \(remove\)<\/reference>\n$/,
 		)
 	})
 
@@ -236,10 +276,10 @@ describe('load: text output', () => {
 		expect(await load(['name'], { root, trace: true })).toBe(0)
 		expect(written()).toBe('## Create\n\nmine\n\n## Close\n\nbase close\n')
 		const trace = errors()
-		expect(trace).toMatch(/^name: found; stack: a; built by project .*; harnesses: none detected$/m)
-		expect(trace).toMatch(/^sections:\n {2}Create: project .* \(patch\)\n {2}Close: plugin a \(patch\)$/m)
+		expect(trace).toMatch(/^name: found; stack: a; built by repo .*; harnesses: none detected$/m)
+		expect(trace).toMatch(/^sections:\n {2}Create: repo .* \(patch\)\n {2}Close: plugin a \(patch\)$/m)
 		expect(trace).toMatch(/^layers:$/m)
-		expect(trace).toMatch(/^ {2}project .*name\.md: used; patch from default {"extends":\["a"\]}$/m)
+		expect(trace).toMatch(/^ {2}repo .*name\.md: used; patch from default {"extends":\["a"\]}$/m)
 	})
 
 	it('shows a removed section and the shadowed layers in the text trace', async () => {
@@ -248,7 +288,7 @@ describe('load: text output', () => {
 		write(root, '.agents/references/name.md', '---\nmerge: replace\n---\n\n## Only\n\nmine\n')
 
 		expect(await load(['name'], { root, trace: true })).toBe(0)
-		expect(errors()).toMatch(/plugin a .*: shadowed by project .* \(replace\)/)
+		expect(errors()).toMatch(/plugin a .*: shadowed by repo .* \(replace\)/)
 	})
 
 	it('names the reason in the text trace of a name not found', async () => {
@@ -257,7 +297,7 @@ describe('load: text output', () => {
 		write(root, '.agents/references/name.md', '---\nmerge: remove\n---\n')
 
 		expect(await load(['name'], { root, trace: true })).toBe(0)
-		expect(errors()).toMatch(/^ {2}"name" is turned off by project .* \(remove\)$/m)
+		expect(errors()).toMatch(/^ {2}"name" is turned off by repo .* \(remove\)$/m)
 	})
 })
 

@@ -31,7 +31,7 @@ export function whereCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'where',
 		description:
-			'Give the project and user files a customization or a selection of a reference is written to, who each reaches, and the heading paths of the document below each.',
+			'Give the repo and user files a customization or a selection of a reference is written to, who each reaches, and the heading paths of the document below each.',
 		arguments: [
 			{
 				name: 'name',
@@ -49,8 +49,9 @@ export function whereCommand(layersFor: LayersFor): cli.Command {
 			try {
 				const home = homedir()
 				const display = (path: string) => collapseHome(home, path)
-				const report = whereReference(args.name, await layersFor(args, home), {
-					root: resolve(args.root ?? process.cwd()),
+				const layers = await layersFor(args, home)
+				const report = whereReference(args.name, layers, {
+					root: layers.root ?? resolve(args.root ?? process.cwd()),
 					display,
 				})
 				const output: ReferenceWhereOutput = compact({

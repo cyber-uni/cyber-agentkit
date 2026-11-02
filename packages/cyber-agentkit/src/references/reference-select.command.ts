@@ -31,7 +31,7 @@ export function selectCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'select',
 		description:
-			'Choose what a name builds on: write an `extends` listing the options, bottom first, in the project or user file. Its body and other keys are kept.',
+			'Choose what a name builds on: write an `extends` listing the options, bottom first, in the repo or user file. Its body and other keys are kept.',
 		arguments: [
 			{ name: 'name', description: 'Reference name, without the `.md` extension.', type: t.string() },
 			{
@@ -59,10 +59,11 @@ export function selectCommand(layersFor: LayersFor): cli.Command {
 			const format = this.format
 			try {
 				const home = homedir()
-				const root = resolve(args.root ?? process.cwd())
+				const layers = await layersFor({ root: args.root }, home)
+				const root = layers.root ?? resolve(args.root ?? process.cwd())
 				const display = (path: string) => collapseHome(home, path)
 				const selected = selectContribution(
-					await layersFor({ root }, home),
+					layers,
 					{
 						root,
 						home,

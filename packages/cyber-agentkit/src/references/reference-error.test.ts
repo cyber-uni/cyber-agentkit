@@ -8,7 +8,7 @@ import { searchReferences } from './reference-catalog.js'
 import { checkReferences } from './reference-check.js'
 import { ReferenceFailure } from './reference-error.js'
 import { referenceImplementations } from './reference-implementations.js'
-import type { ReferenceLayer, ReferenceLayers } from './reference-layers.js'
+import { type ReferenceLayer, type ReferenceLayers, referenceLayers } from './reference-layers.js'
 import { whereReference } from './reference-where.js'
 import { createContribution } from './reference-write.js'
 
@@ -65,6 +65,18 @@ describe('ReferenceError (R48, C9)', () => {
 		await expect(loadReference('', { root: tempDir(), home: tempDir(), env: {} })).rejects.toMatchObject({
 			code: 'name-missing',
 			usage: true,
+		})
+	})
+
+	it('is thrown with root-missing when a read is given a root that does not exist (J24)', async () => {
+		const root = join(tempDir(), 'gone')
+		await expect(loadReference('name', { root, home: tempDir(), env: {} })).rejects.toMatchObject({
+			name: 'ReferenceError',
+			code: 'root-missing',
+			usage: false,
+		})
+		await expect(referenceLayers({ root, home: tempDir(), platform: 'linux', env: {} })).rejects.toMatchObject({
+			code: 'root-missing',
 		})
 	})
 

@@ -33,7 +33,7 @@ export function createCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'create',
 		description:
-			"Start a contribution in the project or user tier, or in a plugin's or a skill's source folder, from a template or an interface. Never overwrites a file with a body.",
+			"Start a contribution in the repo or user tier, or in a plugin's or a skill's source folder, from a template or an interface. Never overwrites a file with a body.",
 		arguments: [{ name: 'name', description: 'Reference name, without the `.md` extension.', type: t.string() }],
 		options: {
 			root: rootOption,
@@ -65,9 +65,9 @@ export function createCommand(layersFor: LayersFor): cli.Command {
 			const format = this.format
 			try {
 				const home = homedir()
-				const root = resolve(args.root ?? process.cwd())
 				const display = (path: string) => collapseHome(home, path)
-				const layers = await layersFor({ root, default: args.default }, home)
+				const layers = await layersFor({ root: args.root, default: args.default }, home)
+				const root = layers.root ?? resolve(args.root ?? process.cwd())
 				const created = createContribution(
 					layers,
 					{

@@ -14,7 +14,7 @@ describe('where', () => {
 			status: 'found',
 			places: [
 				{
-					scope: 'project',
+					scope: 'repo',
 					path: '.agents/references/name.md',
 					reaches: 'everyone working in this repository',
 					status: 'empty',
@@ -39,7 +39,7 @@ describe('where', () => {
 		const report = json<ReferenceWhereOutput>()
 		expect(report.status).toBe('ambiguous')
 		expect(report.options).toEqual(['a/name', 'b/name'])
-		expect(report.places.map(({ scope }) => scope)).toEqual(['project', 'user'])
+		expect(report.places.map(({ scope }) => scope)).toEqual(['repo', 'user'])
 	})
 
 	it('takes --default, so the sections below include the default', async () => {

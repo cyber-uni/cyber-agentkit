@@ -56,7 +56,7 @@ describe('checkReferences', () => {
 
 	it('checks every interface document and implementation when no name is given', () => {
 		const layers = [
-			layer('project', { 'scaffold.recipe.typescript-lib': typescriptRecipe, notes: '## Notes\n' }),
+			layer('repo', { 'scaffold.recipe.typescript-lib': typescriptRecipe, notes: '## Notes\n' }),
 			layer('plugin', { 'scaffold.recipe.interface': recipeInterface }, 'repobuddy'),
 		]
 
@@ -80,13 +80,13 @@ describe('checkReferences', () => {
 
 		expect(
 			failures(
-				[layer('project', { 'scaffold.recipe.a': recipe('## Extra\n\n## Recipe\n\n## Notes\n\n## Files\n') }), iface],
+				[layer('repo', { 'scaffold.recipe.a': recipe('## Extra\n\n## Recipe\n\n## Notes\n\n## Files\n') }), iface],
 				'scaffold.recipe.a',
 			),
 		).toEqual([])
 		expect(
 			failures(
-				[layer('project', { 'scaffold.recipe.a': recipe('## Files\n\n## Recipe\n\n## Files\n') }), iface],
+				[layer('repo', { 'scaffold.recipe.a': recipe('## Files\n\n## Recipe\n\n## Files\n') }), iface],
 				'scaffold.recipe.a',
 			),
 		).toEqual([
@@ -98,7 +98,7 @@ describe('checkReferences', () => {
 
 	it('fails a version the interface does not accept, and a name that does not fit it', () => {
 		const layers = [
-			layer('project', { 'scaffold.recipe': recipe('## Recipe\n', 'implements: scaffold.recipe@2') }),
+			layer('repo', { 'scaffold.recipe': recipe('## Recipe\n', 'implements: scaffold.recipe@2') }),
 			layer('plugin', { 'scaffold.recipe.interface': recipeInterface }, 'repobuddy'),
 		]
 
@@ -110,7 +110,7 @@ describe('checkReferences', () => {
 
 	it('fails implements that is malformed, lists more than one interface, or names no interface document', () => {
 		const layers = [
-			layer('project', {
+			layer('repo', {
 				'scaffold.recipe.a': recipe('## Recipe\n', 'implements: scaffold.recipe'),
 				'scaffold.recipe.b': recipe('## Recipe\n', 'implements: [scaffold.recipe@1, other@1]'),
 				'scaffold.recipe.c': recipe('## Recipe\n'),
@@ -151,7 +151,7 @@ describe('checkReferences', () => {
 
 	it('fails the compose check when composing the document raised a warning', () => {
 		const layers = [
-			layer('project', { 'scaffold.recipe.a': '---\nmerge: bogus\n---\n\n## Recipe\n' }),
+			layer('repo', { 'scaffold.recipe.a': '---\nmerge: bogus\n---\n\n## Recipe\n' }),
 			layer(
 				'plugin',
 				{ 'scaffold.recipe.interface': recipeInterface, 'scaffold.recipe.a': typescriptRecipe },
@@ -166,7 +166,7 @@ describe('checkReferences', () => {
 
 	it('fails a name that is missing, ambiguous, invalid, or neither an interface nor an implementation', () => {
 		const layers = [
-			layer('project', { notes: '## Notes\n' }),
+			layer('repo', { notes: '## Notes\n' }),
 			layer('plugin', { shared: '## A\n' }, 'a'),
 			layer('plugin', { shared: '## A\n' }, 'b'),
 		]
@@ -185,7 +185,7 @@ describe('checkReferences', () => {
 
 	it('checks a name several plugins hold also as each <plugin>/<name> in a sweep', () => {
 		const layers = [
-			layer('project', { 'scaffold.recipe.lib': '---\nextends: [a]\n---\n' }),
+			layer('repo', { 'scaffold.recipe.lib': '---\nextends: [a]\n---\n' }),
 			layer('plugin', { 'scaffold.recipe.interface': recipeInterface, 'scaffold.recipe.lib': typescriptRecipe }, 'a'),
 			layer('plugin', { 'scaffold.recipe.lib': typescriptRecipe }, 'b'),
 		]

@@ -133,8 +133,24 @@ function emptyTrace(harnesses: readonly string[]): ReferenceTrace {
 }
 
 /**
+ * The trace's layers in R9 order: the tiers as read (managed, repo, user), then the stack from its
+ * top, then every other plugin and `default` layer as read.
+ */
+function stackOrder(layers: readonly ReferenceTraceLayer[], stack: readonly string[]): ReferenceTraceLayer[] {
+	const rank = (layer: ReferenceTraceLayer) => {
+		if (layer.tier !== 'plugin' && layer.tier !== 'default') return -1
+		const at = stack.indexOf(layer.tier === 'default' ? 'default' : (layer.plugin ?? ''))
+		return at === -1 ? stack.length : stack.length - 1 - at
+	}
+	return layers
+		.map((layer, index) => ({ layer, index, rank: rank(layer) }))
+		.sort((a, b) => a.rank - b.rank || a.index - b.index)
+		.map(({ layer }) => layer)
+}
+
+/**
  * Resolves one name: reads each layer, puts the contributions in one order (the stack under the
- * user, project, and managed tiers), and composes them bottom first, each with its operation.
+ * user, repo, and managed tiers), and composes them bottom first, each with its operation.
  */
 export function resolveReference(
 	input: string | ReferenceName,
@@ -221,6 +237,7 @@ export function resolveReference(
 	}
 	trace.stack = decided.entries.map(({ target }) => target)
 	trace.builtBy = decided.builtBy
+	trace.layers = stackOrder(trace.layers, trace.stack)
 	const inStack = new Set(trace.stack)
 	for (const [target, contribution] of [
 		...holders.entries(),

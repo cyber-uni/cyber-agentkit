@@ -13,7 +13,7 @@ export type CommonArgs = { root: string | undefined }
 
 export const rootOption: StringOption = {
 	description:
-		'Directory the project tier is read from, and each folder above it up to the repository root; a project write goes to its `.agents/references/`. Defaults to the current directory.',
+		'The repository root: its `.agents/references/` is the repo tier, and its `package.json` names the dependency plugins. Defaults to the nearest folder at or above the current directory holding `.git`, else the current directory.',
 	type: t.string().optional(),
 }
 
@@ -32,7 +32,8 @@ export type LayersFor = (args: CommonArgs & { default?: string | undefined }, ho
 export function layerSource(plugin: ReferencePlugin | undefined): LayersFor {
 	return (args, home) =>
 		referenceLayers({
-			root: args.root ?? process.cwd(),
+			root: args.root,
+			cwd: process.cwd(),
 			home,
 			platform: process.platform,
 			env: process.env,
@@ -131,7 +132,7 @@ export function referenceTag(name: string, content: string): string {
 }
 
 export const scopeOption: StringOption = {
-	description: 'Tier to write: project (default), `.agents/references/` at the root, or user, `~/.agents/references/`.',
+	description: 'Tier to write: repo (default), `.agents/references/` at the root, or user, `~/.agents/references/`.',
 	type: t.string().optional(),
 }
 
