@@ -139,14 +139,14 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
-		expect(resolved).toMatchObject({ status: 'missing', code: 'reference-missing' })
-		expect(resolved.removedBy).toMatch(/^project /)
+		expect(resolved).toMatchObject({ status: 'missing', code: 'reference-removed' })
+		expect(resolved.trace.removedBy).toMatch(/^project /)
 		expect(codes(resolved)).toEqual(['remove-body-ignored'])
 		expect(resolved.trace.layers[1]?.outcome).toMatch(/\(remove\)$/)
 		expect(resolved.trace.stack).toEqual(['a'])
 		expect(resolved.trace.sections).toEqual([
-			{ path: 'Create', contributions: [], removedBy: resolved.removedBy },
-			{ path: 'Close', contributions: [], removedBy: resolved.removedBy },
+			{ path: 'Create', contributions: [], removedBy: resolved.trace.removedBy },
+			{ path: 'Close', contributions: [], removedBy: resolved.trace.removedBy },
 		])
 	})
 

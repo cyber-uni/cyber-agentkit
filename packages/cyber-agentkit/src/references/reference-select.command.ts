@@ -5,9 +5,9 @@ import { command, t } from 'clibuilder'
 import { document, result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
 import {
+	asCliError,
 	type CommonArgs,
 	compact,
-	fail,
 	type LayersFor,
 	rootOption,
 	scopeOption,
@@ -17,6 +17,9 @@ import { describeAnswer, selectContribution } from './reference-write.js'
 
 export type ReferenceSelectReport = {
 	path: string
+	/** `no-selection` when `--clear` found none: a no-op, exit 0. */
+	code?: 'no-selection'
+	message?: string
 	extends?: string[]
 	deleted?: boolean
 	status: string
@@ -72,6 +75,8 @@ export function selectCommand(layersFor: LayersFor): cli.Command {
 				)
 				const report: ReferenceSelectReport = compact({
 					path: display(selected.path),
+					code: selected.code,
+					message: selected.message,
 					extends: selected.extends,
 					deleted: selected.deleted || undefined,
 					status: selected.after.status,
@@ -80,6 +85,7 @@ export function selectCommand(layersFor: LayersFor): cli.Command {
 				})
 				if (format !== 'text') return result(report)
 				writeWarnings(selected.after.warnings)
+				if (selected.code) return document(`${report.path}\n\n${selected.code}: ${selected.message}\n`)
 				const what = args.clear
 					? selected.deleted
 						? 'selection cleared; the file was left empty and deleted'
@@ -87,7 +93,7 @@ export function selectCommand(layersFor: LayersFor): cli.Command {
 					: `extends: [${selected.extends.join(', ')}]`
 				return document(`${report.path}\n\n${what}. ${report.answer}\n`)
 			} catch (error) {
-				return fail(error, 'Reference selection failed.')
+				return asCliError(error, 'Reference selection failed.')
 			}
 		},
 	})

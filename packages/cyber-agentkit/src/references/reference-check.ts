@@ -1,3 +1,4 @@
+import type { ReferenceStatusCode } from './reference-codes.js'
 import {
 	checkImplementation,
 	type InterfaceCheck,
@@ -8,7 +9,6 @@ import {
 	readInterface,
 } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers } from './reference-layers.js'
-import type { ReferenceCode } from './reference-warning.js'
 import {
 	parseReferenceName,
 	type ResolvedReference,
@@ -22,7 +22,7 @@ export type ReferenceCheckKind = 'interface' | 'implementation' | 'none'
 
 /** A failed check, named by the check; a name not `found` fails with its status code. */
 export type ReferenceCheckFailure = {
-	check: InterfaceCheck | ReferenceCode
+	check: InterfaceCheck | ReferenceStatusCode
 	/** The interface id the failure is about, when the document names one. */
 	interface?: string
 	message: string
@@ -146,7 +146,7 @@ function entryOf(resolved: ResolvedReference, lookup: InterfaceLookup): Referenc
 			name: resolved.name,
 			kind: 'none',
 			status: resolved.status,
-			failures: [{ check: resolved.code as ReferenceCode, message: resolved.message ?? resolved.status }],
+			failures: [{ check: resolved.code as ReferenceStatusCode, message: resolved.message ?? resolved.status }],
 			unsupported: [],
 		}
 	}

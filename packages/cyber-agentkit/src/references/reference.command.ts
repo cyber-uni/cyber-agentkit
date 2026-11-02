@@ -7,9 +7,9 @@ import { deleteCommand } from './reference-delete.command.js'
 import { implementationsCommand } from './reference-implementations.command.js'
 import type { ReferencePlugin } from './reference-layers.js'
 import { listCommand } from './reference-list.command.js'
+import { loadCommand } from './reference-load.command.js'
 import { searchCommand } from './reference-search.command.js'
 import { selectCommand } from './reference-select.command.js'
-import { showCommand } from './reference-show.command.js'
 import { whereCommand } from './reference-where.command.js'
 
 export type { ReferenceCheckReport } from './reference-check.command.js'
@@ -18,9 +18,9 @@ export type { ReferenceCreateReport } from './reference-create.command.js'
 export type { ReferenceDeleteReport } from './reference-delete.command.js'
 export type { ReferenceImplementationsReport } from './reference-implementations.command.js'
 export type { ReferenceListReport } from './reference-list.command.js'
+export type { ReferenceLoadEntry } from './reference-load.command.js'
 export type { ReferenceSearchReport } from './reference-search.command.js'
 export type { ReferenceSelectReport } from './reference-select.command.js'
-export type { ReferenceShowEntry } from './reference-show.command.js'
 export type { ReferenceWhereOutput } from './reference-where.command.js'
 
 export type ReferenceCommandOptions = {
@@ -29,7 +29,7 @@ export type ReferenceCommandOptions = {
 }
 
 export type ReferenceCommands = {
-	show: cli.Command
+	load: cli.Command
 	list: cli.Command
 	search: cli.Command
 	where: cli.Command
@@ -44,7 +44,7 @@ export type ReferenceCommands = {
 export function createReferenceCommands({ plugin }: ReferenceCommandOptions = {}): ReferenceCommands {
 	const layersFor = layerSource(plugin)
 	return {
-		show: showCommand(layersFor),
+		load: loadCommand(layersFor),
 		list: listCommand(layersFor),
 		search: searchCommand(layersFor),
 		where: whereCommand(layersFor),
@@ -58,7 +58,7 @@ export function createReferenceCommands({ plugin }: ReferenceCommandOptions = {}
 
 export function createReferenceCommand(options: ReferenceCommandOptions = {}): cli.Command {
 	const {
-		show,
+		load,
 		list,
 		search,
 		where,
@@ -72,6 +72,6 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 		name: 'reference',
 		description:
 			'Read reference documents by name, composed from the managed, project, user, plugin, and default tiers, and write, select, or delete a contribution.',
-		commands: [show, list, search, where, create, select, remove, implementations, check],
+		commands: [load, list, search, where, create, select, remove, implementations, check],
 	})
 }

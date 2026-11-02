@@ -7,7 +7,7 @@ describe('reference command', () => {
 
 		expect(command.name).toBe('reference')
 		expect(command.commands.map(({ name }) => name)).toEqual([
-			'show',
+			'load',
 			'list',
 			'search',
 			'where',

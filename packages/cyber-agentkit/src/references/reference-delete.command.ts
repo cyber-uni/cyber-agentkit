@@ -5,9 +5,9 @@ import { command, t } from 'clibuilder'
 import { document, result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
 import {
+	asCliError,
 	type CommonArgs,
 	compact,
-	fail,
 	type LayersFor,
 	pluginOption,
 	rootOption,
@@ -18,6 +18,9 @@ import { type DeleteResult, deleteContribution, describeAnswer } from './referen
 
 export type ReferenceDeleteReport = {
 	path: string
+	/** `no-file` when there was no file to delete: a no-op, exit 0. */
+	code?: 'no-file'
+	message?: string
 	dryRun?: boolean
 	status: string
 	stack?: string[]
@@ -32,6 +35,8 @@ function deleteReport(deleted: DeleteResult, home: string): ReferenceDeleteRepor
 		: undefined
 	return compact({
 		path: collapseHome(home, deleted.path),
+		code: deleted.code,
+		message: deleted.message,
 		dryRun: deleted.dryRun || undefined,
 		status: deleted.after.status,
 		stack: deleted.after.trace.stack,
@@ -85,12 +90,13 @@ export function deleteCommand(layersFor: LayersFor): cli.Command {
 				)
 				const report = deleteReport(deleted, home)
 				if (format !== 'text') return result(report)
+				if (deleted.code) return document(`${report.path}\n\n${deleted.code}: ${deleted.message}\n`)
 				const selection = report.selection ? ` Also, ${report.selection}.` : ''
 				return document(
 					`${report.path}\n\n${deleted.dryRun ? 'would delete' : 'deleted'}. ${report.answer}${selection}\n`,
 				)
 			} catch (error) {
-				return fail(error, 'Reference deletion failed.')
+				return asCliError(error, 'Reference deletion failed.')
 			}
 		},
 	})

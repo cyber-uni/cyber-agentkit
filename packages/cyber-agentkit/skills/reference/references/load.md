@@ -9,7 +9,7 @@ When the caller names an interface ("Load the implementations of the `<id>` inte
 Find the caller's folder from what the harness told you when the caller loaded: a `Base directory for this skill: <folder>` line, or the path of its `SKILL.md`, whose folder is the caller's. Then collect every name the caller listed, in its order, and run one command for all of them, from anywhere:
 
 ```sh
-node <this skill's folder>/scripts/reference.mjs show <name>... --default <caller folder> --root <repository root>
+node <this skill's folder>/scripts/reference.mjs load <name>... --default <caller folder> --root <repository root>
 ```
 
 - `<this skill's folder>` is the directory the `reference` skill's `SKILL.md` is in.
@@ -22,15 +22,15 @@ Do not read `.agents/references/`, `~/.agents/`, any plugin's `references/`, or 
 
 ## 2. Read what it printed
 
-One name prints its document. Several print each as `<reference name="…">` … `</reference>`, in the order asked. A name that did not resolve prints `<reference name="…" status="…" />` in its place, and an `error: <code>: <message>` line on stderr names it. Exit 0 means every name resolved; 1 means at least one did not.
+One name prints its document. Several print each as `<reference name="…">` … `</reference>`, in the order asked. A name that was not found prints `<reference name="…" status="…" code="…">message</reference>` in its place, also when only one name was asked; for an ambiguous name the message ends with `; options: a/name, b/name`. Exit 0, even when a name was not found.
 
-**The command ran** when every name you asked for appears in the output as a document or a `status=` marker; for a single name, exit 0 with a document on stdout, or exit 1 with an `error:` line naming it, also counts. Anything else (`Cannot find module`, `node: not found`, a stack trace, no mention of the names) means it did not run: go to step 3.
+**The command ran** when every name you asked for appears in the output as a document or a `<reference … status=… code=…>` tag (exit 0). Exit 1 or 2 with one error value on stdout (`error:` and `code:` lines) also means the command ran but could not answer: go to step 3 and report the error. Anything else (`Cannot find module`, `node: not found`, a stack trace, no mention of the names) means it did not run: go to step 3.
 
 Per name:
 
 - **found**: use the document.
-- **missing** (`reference-missing`): carry on without it, and tell the user it was not loaded. Do not read the caller's default or search for a substitute: the command already included the default. When the error says a `remove` turned the name off, say nothing about it.
-- **ambiguous** (`reference-ambiguous`): more than one plugin holds the name and nothing says which to build on. The error lists the options: each `<plugin>/<name>`, and `default` when the caller has one.
+- **missing** (`reference-missing`, or `reference-removed` when a `remove` turned the name off): carry on without it, and tell the user it was not loaded, except for `reference-removed`, about which you say nothing. Do not read the caller's default or search for a substitute: the command already included the default.
+- **ambiguous** (`reference-ambiguous`): more than one plugin holds the name and nothing says which to build on. The tag lists the options: each `<plugin>/<name>`, and `default` when the caller has one.
   - With a user present, list every option, even when only one is left, and ask which the name should build on. Write the pick with `reference select <name> <option>` (add `--scope user` when the user wants it for themselves only), then run step 1 again for that name alone and use what it prints.
   - With no user present, carry on without it, and tell the user to settle it with `reference select <name> <option>`.
 - **invalid** (`reference-invalid`): the caller's load line names something that is not a reference name. Never read the path or file it names. Carry on without it, and tell the user it is a fault in the caller's instructions, to report to the caller's author.
@@ -63,7 +63,7 @@ Then return to the caller. Follow each loaded document as part of the caller's i
    ```
 
    Add `--accept <versions>`, such as `--accept 1,2`, when the caller names the interface versions it knows. The same rules as step 1 apply: no package runner, no download, and no reading tier folders yourself.
-2. Exit 0 prints one JSON object. `implementations` lists each one the caller can load, with its `pin`, `description`, and the `unsupported` sections it does not honor; it is a string when there are none. `excluded` lists each one left out, with its `reasons`. Exit 1 prints an `error:` line on stderr, such as `no interface document <id>.interface`; then the interface is **not loaded**.
+2. Exit 0 prints one JSON object. `implementations` lists each one the caller can load, with its `pin`, `description`, and the `unsupported` sections it does not honor. It is an empty list when there are none. `excluded` lists each one left out, with its `reasons`. An unknown interface exits 1 with one error value on stdout instead, `{"error": "…", "code": "interface-unknown"}`; then the interface is **not loaded**.
 3. Hand the list to the caller. The caller picks the implementations it needs; load each by its `pin` with steps 1 to 4.
 4. Tell the user, briefly, about each excluded implementation and its reasons, and about an interface not loaded and its error. The caller carries on without the implementations.
 

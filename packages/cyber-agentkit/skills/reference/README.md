@@ -10,7 +10,7 @@ Loads, creates, updates, selects, deletes, and finds [references](https://cyber-
 | Select | choosing which plugins, or the skill's default, a name builds on, which settles an ambiguous name |
 | Delete | removing a project or user contribution, saying first what answers the name afterwards |
 | Find | `search` for a topic, `list` every reference, or `implementations` of an interface |
-| Inspect | `show`; `show --trace` for how a name composed; `where` for the project and user files a customization goes to; `check` against an interface |
+| Inspect | `load`; `load --trace` for how a name composed; `where` for the project and user files a customization goes to; `check` against an interface |
 | Wire a skill | giving a skill the line below |
 
 It ships in the `cyber-agentkit` plugin:

@@ -1,9 +1,9 @@
 import { exitCodes, t } from 'clibuilder'
-import { type Answer, CliError, type Format, isCliError, printAnswer } from 'clibuilder/axi'
+import { CliError, isCliError } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
+import type { ReferenceWarning } from './reference-codes.js'
+import { ReferenceFailure } from './reference-error.js'
 import { type ReferenceLayers, type ReferencePlugin, referenceLayers } from './reference-layers.js'
-import type { ReferenceWarning } from './reference-warning.js'
-import { ReferenceWriteError } from './reference-write.js'
 import type { ReferenceTrace, ResolvedReference } from './resolve-reference.js'
 
 type StringOption = { description: string; type: ReturnType<ReturnType<typeof t.string>['optional']> }
@@ -50,27 +50,21 @@ export function compact<T extends Record<string, unknown>>(value: T): T {
 	) as T
 }
 
-/** stderr, not stdout: an agent parses stdout. Rethrows what the cli already reports. */
-export function fail(error: unknown, fallback: string): never {
+/**
+ * A thrown failure as the one axi error value the cli prints on stdout: a `ReferenceFailure` keeps its
+ * code and exits 1, or 2 for a usage error; a `CliError` passes through.
+ */
+export function asCliError(error: unknown, fallback: string): never {
 	if (isCliError(error)) throw error
-	if (error instanceof ReferenceWriteError) {
-		process.stderr.write(`error: ${error.code}: ${error.message}\n`)
-		throw CliError.reported(error.usage ? exitCodes.usage : exitCodes.error)
+	if (error instanceof ReferenceFailure) {
+		throw new CliError(error.message, {
+			code: error.code,
+			exitCode: error.usage ? exitCodes.usage : exitCodes.error,
+			details: error.details,
+			help: error.help,
+		})
 	}
-	process.stderr.write(`error: ${error instanceof Error ? error.message : fallback}\n`)
-	throw CliError.reported(exitCodes.error)
-}
-
-export function usage(message: string): never {
-	process.stderr.write(`error: usage: ${message}\n`)
-	throw CliError.reported(exitCodes.usage)
-}
-
-/** An answer with a failing exit code: the cli prints only what a returned answer holds, so print it first. */
-export function answerThenFail(answer: Answer<any>, format: Format): never {
-	const text = printAnswer(answer, format)
-	if (text !== undefined) process.stdout.write(text)
-	throw CliError.reported(exitCodes.error)
+	throw new CliError(error instanceof Error ? error.message : fallback, { cause: error })
 }
 
 export function writeWarnings(warnings: readonly ReferenceWarning[]): void {
@@ -116,10 +110,24 @@ export function traceText(resolved: ResolvedReference, home: string): string {
 	return `${lines.join('\n')}\n`
 }
 
-/** A name not found, for a person: the name, why, and, when ambiguous, the options `reference select` takes. */
-export function errorText(entry: ResolvedReference): string {
+function escapeText(value: string): string {
+	return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function escapeAttribute(value: string): string {
+	return escapeText(value).replace(/"/g, '&quot;')
+}
+
+/** A name not `found`, in text: its status and code, holding its message, and its options when ambiguous. */
+export function notFoundTag(entry: ResolvedReference): string {
 	const options = entry.options?.length ? `; options: ${entry.options.join(', ')}` : ''
-	return `${entry.name}: ${entry.message}${options}`
+	const name = escapeAttribute(entry.name)
+	return `<reference name="${name}" status="${entry.status}" code="${entry.code}">${escapeText(`${entry.message ?? entry.status}${options}`)}</reference>`
+}
+
+/** A found name among several, in text. */
+export function referenceTag(name: string, content: string): string {
+	return `<reference name="${escapeAttribute(name)}">\n${content}</reference>`
 }
 
 export const scopeOption: StringOption = {

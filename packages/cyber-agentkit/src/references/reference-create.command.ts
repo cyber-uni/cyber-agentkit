@@ -5,10 +5,10 @@ import { command, t } from 'clibuilder'
 import { document, result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
 import {
+	asCliError,
 	type CreateArgs,
 	compact,
 	displayTrace,
-	fail,
 	type LayersFor,
 	pluginOption,
 	rootOption,
@@ -88,7 +88,7 @@ export function createCommand(layersFor: LayersFor): cli.Command {
 					path: display(created.path),
 					hint: created.dryRun
 						? 'Nothing was written. Run again without --dry-run to write it.'
-						: `Run \`show ${created.name}\` for the composed document.`,
+						: `Run \`load ${created.name}\` for the composed document.`,
 					content: created.dryRun ? created.content : undefined,
 					hints: created.hints,
 					trace: args.trace && created.after ? displayTrace(created.after.trace, home) : undefined,
@@ -98,7 +98,7 @@ export function createCommand(layersFor: LayersFor): cli.Command {
 				if (args.trace && created.after) process.stderr.write(traceText(created.after, home))
 				return document(created.dryRun ? `${report.path}\n\n${created.content}` : `${report.path}\n\n${report.hint}\n`)
 			} catch (error) {
-				return fail(error, 'Reference creation failed.')
+				return asCliError(error, 'Reference creation failed.')
 			}
 		},
 	})

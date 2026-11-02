@@ -1,15 +1,28 @@
 import { homedir } from 'node:os'
 import type { cli } from 'clibuilder'
 import { command, t } from 'clibuilder'
-import { result } from 'clibuilder/axi'
+import { empty, result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
 import { listReferences } from './reference-catalog.js'
-import { type CommonArgs, compact, fail, type LayersFor, rootOption, traceOption } from './reference-command-support.js'
-import type { ReferenceWarning } from './reference-warning.js'
+import type { ReferenceStatusCode, ReferenceWarning } from './reference-codes.js'
+import {
+	asCliError,
+	type CommonArgs,
+	compact,
+	type LayersFor,
+	rootOption,
+	traceOption,
+} from './reference-command-support.js'
 
 export type ReferenceListReport = {
-	/** A string when nothing matches, so a run states its zero explicitly. */
-	references: { name: string; description?: string; format?: string; status?: string; options?: string[] }[] | string
+	references: {
+		name: string
+		description?: string
+		format?: string
+		status?: string
+		code?: ReferenceStatusCode
+		options?: string[]
+	}[]
 	/** Why some skills' defaults are not listed; left out when every detected harness's skill folders were read. */
 	defaults?: string
 	layers?: {
@@ -48,27 +61,35 @@ export function listCommand(layersFor: LayersFor): cli.Command {
 				const home = homedir()
 				const display = (path: string) => collapseHome(home, path)
 				const listing = listReferences(await layersFor(args, home), { display, pattern: args.pattern })
-				const report: ReferenceListReport = compact({
-					references: listing.references.length
-						? listing.references.map((row) =>
-								compact({
-									name: row.name,
-									description: row.description,
-									format: row.format,
-									status: row.status === 'found' ? undefined : row.status,
-									options: row.options,
-								}),
-							)
-						: args.pattern
-							? `0 references match "${args.pattern}"`
-							: '0 references — no layer holds one',
-					defaults: listing.defaults,
-				})
+				const traced = args.trace && listing.layers.length > 0
+				if (!listing.references.length && !traced && !listing.warnings.length) {
+					return empty(args.pattern ? `0 references match "${args.pattern}"` : '0 references — no layer holds one', {
+						help: [
+							...(listing.defaults ? [listing.defaults] : []),
+							args.pattern
+								? 'Run `reference list` with no pattern for every name, or `reference search <query>` by topic.'
+								: 'Run `reference create <name>` to start one.',
+						],
+					})
+				}
+				const report: ReferenceListReport = {
+					references: listing.references.map((row) =>
+						compact({
+							name: row.name,
+							description: row.description,
+							format: row.format,
+							status: row.status === 'found' ? undefined : row.status,
+							code: row.code,
+							options: row.options,
+						}),
+					),
+				}
+				if (listing.defaults) report.defaults = listing.defaults
 				if (args.trace) report.layers = listing.layers.map((row) => compact({ ...row, path: display(row.path) }))
 				if (listing.warnings.length) report.warnings = listing.warnings
 				return result(report)
 			} catch (error) {
-				return fail(error, 'Reference listing failed.')
+				return asCliError(error, 'Reference listing failed.')
 			}
 		},
 	})

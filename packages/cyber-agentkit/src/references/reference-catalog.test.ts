@@ -27,7 +27,13 @@ describe('listReferences', () => {
 		const listing = listReferences(layers)
 
 		expect(listing.references).toEqual([
-			{ name: 'shared', description: '', status: 'ambiguous', options: ['a/shared', 'b/shared'] },
+			{
+				name: 'shared',
+				description: '',
+				status: 'ambiguous',
+				code: 'reference-ambiguous',
+				options: ['a/shared', 'b/shared'],
+			},
 			{ name: 'testing', description: 'project testing', status: 'found' },
 		])
 		expect(listing.defaults).toBeUndefined()
@@ -58,7 +64,7 @@ describe('listReferences', () => {
 
 		const listing = listReferences(layers)
 
-		expect(listing.references).toEqual([{ name: 'x', description: '', status: 'missing' }])
+		expect(listing.references).toEqual([{ name: 'x', description: '', status: 'missing', code: 'reference-removed' }])
 		expect(listing.layers[1]?.outcome).toMatch(/^shadowed by project .*\(remove\)$/)
 	})
 

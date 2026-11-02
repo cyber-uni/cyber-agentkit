@@ -4,14 +4,15 @@ import { describe, expect, it } from 'vitest'
 import type { ReferenceDeleteReport } from './reference.command.js'
 import {
 	base,
-	errors,
 	failure,
 	fakeHome,
 	json,
+	lastError,
 	plugins,
 	remove,
 	repo,
 	skill,
+	stdout,
 	write,
 	written,
 } from './reference-command.fixtures.js'
@@ -43,12 +44,15 @@ describe('delete', () => {
 		)
 	})
 
-	it('fails with no file there, stating what answers the name now', async () => {
+	it('answers with a no-file notice when no file is there, exit 0, saying what answers now (R30)', async () => {
 		const root = repo()
 		plugins(root, { a: { name: base } })
 
-		expect(await remove('name', { root })).toBe(1)
-		expect(errors()).toMatch(/error: no-file: .*does not exist.*"name" is answered by plugin a/)
+		expect(await remove('name', { root })).toBe(0)
+		expect(written()).toMatch(/no-file: .*does not exist.*nothing was deleted\. "name" is answered by plugin a/)
+		stdout.mockClear()
+		expect(await remove('name', { root, format: 'json' })).toBe(0)
+		expect(json()).toMatchObject({ code: 'no-file', status: 'found' })
 	})
 
 	it('prints the answer afterwards with --dry-run, deleting nothing', async () => {
@@ -84,8 +88,10 @@ describe('delete', () => {
 
 	it('refuses a qualified name, and exits 2 on conflicting places', async () => {
 		const root = repo()
-		expect(await remove('a/name', { root })).toBe(1)
+		expect(await remove('a/name', { root })).toBe(2)
+		expect(lastError().code).toBe('reference-qualified')
 		expect(await remove('name', { root, scope: 'user', default: root })).toBe(2)
+		expect(lastError().code).toBe('options-conflict')
 	})
 
 	it('reports a thrown failure', async () => {
@@ -93,6 +99,6 @@ describe('delete', () => {
 		write(root, '.agents/references/name.md', 'x\n')
 		failure.value = 'nope'
 		expect(await remove('name', { root })).toBe(1)
-		expect(errors()).toBe('error: Reference deletion failed.\n')
+		expect(lastError()).toEqual({ error: 'Reference deletion failed.', code: 'error' })
 	})
 })

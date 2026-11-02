@@ -2,7 +2,18 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { ReferenceSelectReport } from './reference.command.js'
-import { base, errors, fakeHome, json, plugins, repo, select, write, written } from './reference-command.fixtures.js'
+import {
+	base,
+	fakeHome,
+	json,
+	lastError,
+	plugins,
+	repo,
+	select,
+	stdout,
+	write,
+	written,
+} from './reference-command.fixtures.js'
 
 describe('select', () => {
 	it('writes extends listing the options bottom first, and reports what answers', async () => {
@@ -40,16 +51,19 @@ describe('select', () => {
 		plugins(root, { a: { name: base }, b: { other: 'x\n' } })
 
 		expect(await select('name', ['b'], { root })).toBe(1)
-		expect(errors()).toMatch(
-			/error: option-invalid: b is neither default nor a plugin holding "name"; the plugins holding it are a\./,
-		)
+		expect(lastError()).toEqual({
+			code: 'step-invalid',
+			error: 'b is neither default nor a plugin holding "name"; the plugins holding it are a.',
+		})
 		expect(existsSync(join(root, '.agents/references/name.md'))).toBe(false)
 	})
 
 	it('refuses a qualified name, and exits 2 with no option', async () => {
 		const root = repo()
-		expect(await select('a/name', ['a'], { root })).toBe(1)
+		expect(await select('a/name', ['a'], { root })).toBe(2)
+		expect(lastError().code).toBe('reference-qualified')
 		expect(await select('name', [], { root })).toBe(2)
+		expect(lastError().code).toBe('options-missing')
 	})
 
 	it('removes extends with --clear, deleting a file left with nothing in it', async () => {
@@ -65,14 +79,17 @@ describe('select', () => {
 		expect(readFileSync(kept, 'utf8')).toBe('body\n')
 	})
 
-	it('fails --clear with no selection, stating what answers the name now', async () => {
+	it('answers --clear with no selection as a no-selection notice, exit 0, saying what answers now', async () => {
 		const root = repo()
 		plugins(root, { a: { name: base } })
 
-		expect(await select('name', [], { root, clear: true })).toBe(1)
-		expect(errors()).toMatch(
-			/error: no-selection: the project tier holds no selection of "name"\. "name" is answered by plugin a/,
+		expect(await select('name', [], { root, clear: true })).toBe(0)
+		expect(written()).toMatch(
+			/no-selection: the project tier holds no selection of "name", so nothing was cleared\. "name" is answered by plugin a/,
 		)
+		stdout.mockClear()
+		expect(await select('name', [], { root, clear: true, format: 'json' })).toBe(0)
+		expect(json()).toMatchObject({ code: 'no-selection' })
 		expect(await select('name', ['a'], { root, clear: true })).toBe(2)
 	})
 })

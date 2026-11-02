@@ -10,12 +10,11 @@ import {
 	harness,
 	hostRoot,
 	json,
+	load,
 	managed,
 	plugins,
 	repo,
-	show,
 	skill,
-	stderr,
 	stdout,
 	write,
 	written,
@@ -23,7 +22,7 @@ import {
 import { recipeInterface } from './reference-interface.fixtures.js'
 import type { ReferenceTrace } from './resolve-reference.js'
 
-describe('show: tiers', () => {
+describe('load: tiers', () => {
 	it('applies managed over project over user over the plugins, each patching what is below', async () => {
 		const root = repo()
 		plugins(root, { a: { name: '## A\n\nplugin\n' } })
@@ -31,7 +30,7 @@ describe('show: tiers', () => {
 		write(root, '.agents/references/name.md', '## A\n\nproject\n')
 		managed({ name: '## M\n\nmanaged\n' })
 
-		expect(await show(['name'], { root })).toBe(0)
+		expect(await load(['name'], { root })).toBe(0)
 		expect(written()).toBe('## A\n\nproject\n\n## U\n\nuser\n\n## M\n\nmanaged\n')
 	})
 
@@ -41,7 +40,7 @@ describe('show: tiers', () => {
 		write(root, '.agents/references/name.md', '## A\n\nroot\n\n## B\n\nroot b\n')
 		write(sub, '.agents/references/name.md', '## A\n\nnear\n')
 
-		expect(await show(['name'], { root: sub })).toBe(0)
+		expect(await load(['name'], { root: sub })).toBe(0)
 		expect(written()).toBe('## A\n\nnear\n\n## B\n\nroot b\n')
 	})
 
@@ -50,15 +49,15 @@ describe('show: tiers', () => {
 		write(root, '.agents/governances/name.md', 'legacy\n')
 		write(fakeHome.value, '.agents/governances/name.md', 'legacy\n')
 
-		expect(await show(['name'], { root })).toBe(1)
-		expect(errors()).toContain('error: reference-missing:')
+		expect(await load(['name'], { root })).toBe(0)
+		expect(written()).toContain('code="reference-missing"')
 	})
 
 	it("reads the running plugin's own references once", async () => {
 		const root = repo()
 		write(hostRoot, 'references/name.md', 'host\n')
 
-		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
+		expect(await load(['name'], { root, format: 'json', trace: true })).toBe(0)
 		const [entry] = json<{ trace: ReferenceTrace }[]>()
 		expect(entry?.trace.layers.filter(({ plugin }) => plugin === 'host')).toHaveLength(1)
 	})
@@ -67,18 +66,18 @@ describe('show: tiers', () => {
 		const root = repo()
 		dependencies(root, { '@scope/pkg': { manifest: 'house', documents: { name: 'house\n' } } })
 
-		expect(await show(['house/name'], { root })).toBe(0)
+		expect(await load(['house/name'], { root })).toBe(0)
 		expect(written()).toBe('house\n')
 		stdout.mockClear()
-		expect(await show(['@scope/pkg/name'], { root })).toBe(1)
-		expect(errors()).toContain('error: reference-invalid:')
+		expect(await load(['@scope/pkg/name'], { root })).toBe(0)
+		expect(written()).toContain('code="reference-invalid"')
 	})
 
 	it('reads no layer for a dependency that is not a plugin, and the trace says so', async () => {
 		const root = repo()
 		dependencies(root, { lib: { documents: { name: 'lib\n' } } })
 
-		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(1)
+		expect(await load(['name'], { root, format: 'json', trace: true })).toBe(0)
 		const [entry] = json<{ status: string; trace: ReferenceTrace }[]>()
 		expect(entry?.status).toBe('missing')
 		expect(entry?.trace.layers.find(({ path }) => path.includes('lib'))?.outcome).toBe('not read (not a plugin)')
@@ -92,7 +91,7 @@ describe('show: tiers', () => {
 		const root = repo()
 		write(root, '.agents/references/name.md', 'project\n')
 
-		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
+		expect(await load(['name'], { root, format: 'json', trace: true })).toBe(0)
 		const [entry] = json<{ trace: ReferenceTrace }[]>()
 		expect(entry?.trace.harnesses).toEqual(['claude-code'])
 		expect(entry?.trace.layers.find(({ path }) => path === 'com.anthropic.claudecode')?.outcome).toMatch(
@@ -104,7 +103,7 @@ describe('show: tiers', () => {
 		const root = repo()
 		write(root, '.agents/references/name.md', 'project\n')
 
-		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
+		expect(await load(['name'], { root, format: 'json', trace: true })).toBe(0)
 		const [entry] = json<{ trace: ReferenceTrace }[]>()
 		expect(entry?.trace.layers[0]).toMatchObject({
 			tier: 'managed',
@@ -113,12 +112,12 @@ describe('show: tiers', () => {
 	})
 })
 
-describe('show: the default tier', () => {
+describe('load: the default tier', () => {
 	it("reads <skill>/references/<name>.default.md with --default, under a plugin's contribution", async () => {
 		const root = repo()
 		const folder = skill(root, 'skills/tracker', { name: base })
 
-		expect(await show(['name'], { root, default: folder })).toBe(0)
+		expect(await load(['name'], { root, default: folder })).toBe(0)
 		expect(written()).toBe(base)
 	})
 
@@ -127,14 +126,15 @@ describe('show: the default tier', () => {
 		const folder = skill(root, 'skills/tracker')
 		write(folder, 'references/name.md', 'old layout\n')
 
-		expect(await show(['name'], { root, default: folder })).toBe(1)
+		expect(await load(['name'], { root, default: folder })).toBe(0)
+		expect(written()).toContain('status="missing"')
 	})
 
 	it('warns when the skill folder does not exist, and resolves without it', async () => {
 		const root = repo()
 		write(root, '.agents/references/name.md', 'project\n')
 
-		expect(await show(['name'], { root, default: join(root, 'nowhere') })).toBe(0)
+		expect(await load(['name'], { root, default: join(root, 'nowhere') })).toBe(0)
 		expect(written()).toBe('project\n')
 		expect(errors()).toMatch(/^warning: default-folder-missing: /m)
 	})
@@ -144,62 +144,88 @@ describe('show: the default tier', () => {
 		plugins(root, { a: { name: '## Create\n\nplugin\n' } })
 		const folder = skill(root, 'skills/tracker', { name: base })
 
-		expect(await show(['name'], { root, default: folder })).toBe(0)
+		expect(await load(['name'], { root, default: folder })).toBe(0)
 		expect(written()).toBe('## Create\n\nplugin\n\n## Close\n\nbase close\n')
 		expect(errors()).toMatch(/warning: default-not-selected: .*reference select name/)
 	})
 })
 
-describe('show: text output', () => {
+describe('load: text output', () => {
 	it('prints one document alone, and several as <reference> blocks in the order asked', async () => {
 		const root = repo()
 		write(root, '.agents/references/a.md', 'alpha\n')
 		write(root, '.agents/references/b.md', 'beta\n')
 
-		expect(await show(['b', 'a'], { root })).toBe(0)
+		expect(await load(['b', 'a'], { root })).toBe(0)
 		expect(written()).toBe('<reference name="b">\nbeta\n</reference>\n\n<reference name="a">\nalpha\n</reference>\n')
 		expect(errors()).toBe('')
 	})
 
-	it('marks a name not found in place, writes its coded error to stderr, and exits 1', async () => {
+	it('marks a name not found in place with its status, code, and message, and exits 0 (R43, R44)', async () => {
 		const root = repo()
 		write(root, '.agents/references/a.md', 'alpha\n')
 
-		expect(await show(['a', 'gone', 'x.md'], { root })).toBe(1)
+		expect(await load(['a', 'gone', 'x.md'], { root })).toBe(0)
 		expect(written()).toBe(
-			'<reference name="a">\nalpha\n</reference>\n\n<reference name="gone" status="missing" />\n\n<reference name="x.md" status="invalid" />\n',
+			[
+				'<reference name="a">\nalpha\n</reference>',
+				'<reference name="gone" status="missing" code="reference-missing">no tier holds a document for "gone"</reference>',
+				'<reference name="x.md" status="invalid" code="reference-invalid">"x.md" names a file. Ask for the reference by name, without the .md extension.</reference>',
+			].join('\n\n') + '\n',
 		)
-		expect(errors()).toMatch(/^error: reference-missing: /m)
-		expect(errors()).toMatch(/^error: reference-invalid: /m)
+		expect(errors()).toBe('')
 	})
 
-	it('exits 1 with nothing on stdout when the one name is not found', async () => {
-		expect(await show(['gone'], { root: repo() })).toBe(1)
-		expect(written()).toBe('')
+	it('prints the tag for a single name not found too, exit 0 (C8)', async () => {
+		expect(await load(['gone'], { root: repo() })).toBe(0)
+		expect(written()).toBe(
+			'<reference name="gone" status="missing" code="reference-missing">no tier holds a document for "gone"</reference>\n',
+		)
 	})
 
-	it('exits 2 when no name is given', async () => {
-		expect(await show([], { root: repo() })).toBe(2)
-		expect(errors()).toMatch(/^error: usage: /)
+	it('escapes a name in the tag', async () => {
+		expect(await load(['a"<b'], { root: repo() })).toBe(0)
+		expect(written()).toMatch(/^<reference name="a&quot;&lt;b" status="invalid" code="reference-invalid">/)
 	})
+
+	it('says a remove turned the name off with reference-removed', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		write(root, '.agents/references/name.md', '---\nmerge: remove\n---\n')
+
+		expect(await load(['name'], { root })).toBe(0)
+		expect(written()).toMatch(
+			/^<reference name="name" status="missing" code="reference-removed">"name" is turned off by project .* \(remove\)<\/reference>\n$/,
+		)
+	})
+
+	it.each([[[]], [['']], [['a', ' ']]])(
+		'exits 2 with one name-missing error value on stdout when no name is given (%j)',
+		async (names) => {
+			expect(await load(names, { root: repo() })).toBe(2)
+			expect(written()).toMatch(/^error: .*\ncode: name-missing\n\nhelp:\n/)
+			expect(errors()).toBe('')
+		},
+	)
 
 	it('writes a warning to stderr with its code, leaving stdout and the exit code alone', async () => {
 		const root = repo()
 		write(root, '.agents/references/name.md', '---\nmerge: first-wins\n---\n\nbody\n')
 
-		expect(await show(['name'], { root })).toBe(0)
+		expect(await load(['name'], { root })).toBe(0)
 		expect(written()).toBe('body\n')
 		expect(errors()).toMatch(/^warning: merge-unknown: .*read as patch$/m)
 	})
 
-	it('reports an ambiguous name with its error, exit 1', async () => {
+	it('reports an ambiguous name in its tag with its options, exit 0', async () => {
 		const root = repo()
 		plugins(root, { a: { name: 'a\n' }, b: { name: 'b\n' } })
 
-		expect(await show(['name'], { root })).toBe(1)
-		expect(errors()).toMatch(
-			/^error: reference-ambiguous: name: the plugins a, b hold it, and no extends orders them; options: a\/name, b\/name$/m,
+		expect(await load(['name'], { root })).toBe(0)
+		expect(written()).toBe(
+			'<reference name="name" status="ambiguous" code="reference-ambiguous">the plugins a, b hold it, and no extends orders them; options: a/name, b/name</reference>\n',
 		)
+		expect(errors()).toBe('')
 	})
 
 	it('writes the trace to stderr: a summary line, the sections, then the layers', async () => {
@@ -207,7 +233,7 @@ describe('show: text output', () => {
 		plugins(root, { a: { name: base } })
 		write(root, '.agents/references/name.md', '---\nextends: [a]\n---\n\n## Create\n\nmine\n')
 
-		expect(await show(['name'], { root, trace: true })).toBe(0)
+		expect(await load(['name'], { root, trace: true })).toBe(0)
 		expect(written()).toBe('## Create\n\nmine\n\n## Close\n\nbase close\n')
 		const trace = errors()
 		expect(trace).toMatch(/^name: found; stack: a; built by project .*; harnesses: none detected$/m)
@@ -221,7 +247,7 @@ describe('show: text output', () => {
 		plugins(root, { a: { name: base } })
 		write(root, '.agents/references/name.md', '---\nmerge: replace\n---\n\n## Only\n\nmine\n')
 
-		expect(await show(['name'], { root, trace: true })).toBe(0)
+		expect(await load(['name'], { root, trace: true })).toBe(0)
 		expect(errors()).toMatch(/plugin a .*: shadowed by project .* \(replace\)/)
 	})
 
@@ -230,17 +256,17 @@ describe('show: text output', () => {
 		plugins(root, { a: { name: base } })
 		write(root, '.agents/references/name.md', '---\nmerge: remove\n---\n')
 
-		expect(await show(['name'], { root, trace: true })).toBe(1)
+		expect(await load(['name'], { root, trace: true })).toBe(0)
 		expect(errors()).toMatch(/^ {2}"name" is turned off by project .* \(remove\)$/m)
 	})
 })
 
-describe('show: structured output (R38, R47)', () => {
+describe('load: structured output (R38, R47)', () => {
 	it('gives a found name with no warnings as its content string', async () => {
 		const root = repo()
 		write(root, '.agents/references/name.md', 'body\n')
 
-		expect(await show(['name'], { root, format: 'json' })).toBe(0)
+		expect(await load(['name'], { root, format: 'json' })).toBe(0)
 		expect(json()).toEqual(['body\n'])
 	})
 
@@ -248,7 +274,7 @@ describe('show: structured output (R38, R47)', () => {
 		const root = repo()
 		write(root, '.agents/references/name.md', '---\nmerge: bogus\n---\n\nbody\n')
 
-		expect(await show(['name'], { root, format: 'json' })).toBe(0)
+		expect(await load(['name'], { root, format: 'json' })).toBe(0)
 		expect(json()).toEqual([
 			{
 				name: 'name',
@@ -264,7 +290,7 @@ describe('show: structured output (R38, R47)', () => {
 		const root = repo()
 		plugins(root, { a: { amb: 'a\n' }, b: { amb: 'b\n' } })
 
-		expect(await show(['gone', 'amb', 'a/b/c'], { root, format: 'json' })).toBe(1)
+		expect(await load(['gone', 'amb', 'a/b/c'], { root, format: 'json' })).toBe(0)
 		expect(json()).toEqual([
 			{ name: 'gone', status: 'missing', code: 'reference-missing' },
 			{ name: 'amb', status: 'ambiguous', code: 'reference-ambiguous', options: ['a/amb', 'b/amb'] },
@@ -276,7 +302,7 @@ describe('show: structured output (R38, R47)', () => {
 		const root = repo()
 		write(root, '.agents/references/name.md', '---\ndescription: d\ncontract: 2\nmerge: patch\n---\n\nbody\n')
 
-		expect(await show(['name'], { root, format: 'json', metadata: true })).toBe(0)
+		expect(await load(['name'], { root, format: 'json', metadata: true })).toBe(0)
 		expect(json()).toEqual([
 			{ name: 'name', status: 'found', content: 'body\n', metadata: { description: 'd', contract: 2 } },
 		])
@@ -286,10 +312,10 @@ describe('show: structured output (R38, R47)', () => {
 		const root = repo()
 		write(fakeHome.value, '.agents/references/name.md', 'user\n')
 
-		expect(await show(['name'], { root, format: 'toon', trace: true })).toBe(0)
+		expect(await load(['name'], { root, format: 'toon', trace: true })).toBe(0)
 		expect(written()).toContain('~/.agents/references/name.md')
 		stdout.mockClear()
-		expect(await show(['name'], { root, format: 'json', trace: true })).toBe(0)
+		expect(await load(['name'], { root, format: 'json', trace: true })).toBe(0)
 		const [entry] = json<{ trace: ReferenceTrace }[]>()
 		expect(entry?.trace.contributions).toEqual([
 			{ tier: 'user', path: '~/.agents/references/name.md', operation: 'patch' },
@@ -302,21 +328,22 @@ describe('show: structured output (R38, R47)', () => {
 		plugins(root, { repobuddy: { 'scaffold.recipe.interface': recipeInterface } })
 		write(root, '.agents/references/scaffold.recipe.bad.md', '---\nimplements: scaffold.recipe@9\n---\n\n## Recipe\n')
 
-		expect(await show(['scaffold.recipe.bad'], { root, format: 'json' })).toBe(0)
+		expect(await load(['scaffold.recipe.bad'], { root, format: 'json' })).toBe(0)
 		const [entry] = json<{ warnings: { code: string; message: string }[] }[]>()
 		expect(entry?.warnings).toEqual([{ code: 'interface-check', message: expect.stringContaining('(version)') }])
 	})
 
-	it('reports a thrown failure as an error, exit 1', async () => {
+	it('reports a thrown failure as one error value on stdout, exit 1 (R45)', async () => {
 		const root = repo()
 		failure.value = new Error('boom')
-		expect(await show(['name'], { root })).toBe(1)
-		expect(errors()).toBe('error: boom\n')
+		expect(await load(['name'], { root })).toBe(1)
+		expect(written()).toBe('error: boom\ncode: error\n')
+		expect(errors()).toBe('')
 
-		stderr.mockClear()
+		stdout.mockClear()
 		failure.value = 'not an error'
-		expect(await show(['name'], { root })).toBe(1)
-		expect(errors()).toBe('error: Reference lookup failed.\n')
+		expect(await load(['name'], { root, format: 'json' })).toBe(1)
+		expect(json()).toEqual({ error: 'Reference lookup failed.', code: 'error' })
 	})
 })
 
@@ -328,7 +355,7 @@ describe('symlinked skill folders', () => {
 		mkdirSync(dirname(link), { recursive: true })
 		symlinkSync(real, link)
 
-		expect(await show(['name'], { root, default: link })).toBe(0)
+		expect(await load(['name'], { root, default: link })).toBe(0)
 		expect(written()).toBe('linked\n')
 	})
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ReferenceSearchReport } from './reference.command.js'
-import { errors, failure, json, plugins, repo, search, write } from './reference-command.fixtures.js'
+import { failure, json, plugins, repo, search, write } from './reference-command.fixtures.js'
 
 describe('search', () => {
 	it('gives matches of name, description, and match, best first, with no echoed query', async () => {
@@ -36,11 +36,15 @@ describe('search', () => {
 		write(root, '.agents/references/guide.md', '---\nmerge: remove\n---\n')
 
 		expect(await search('guide', { root })).toBe(0)
-		expect(json<ReferenceSearchReport>().references).toBe('0 references match "guide"')
+		expect(json()).toEqual({
+			empty: '0 references match "guide"',
+			help: [expect.any(String), expect.stringContaining('reference list')],
+		})
 	})
 
-	it('exits 2 on an empty query', async () => {
+	it('exits 2 on an empty query with query-missing', async () => {
 		expect(await search('  ', { root: repo() })).toBe(2)
+		expect(json()).toMatchObject({ code: 'query-missing' })
 	})
 
 	it('reports a thrown failure', async () => {
@@ -48,6 +52,6 @@ describe('search', () => {
 		write(root, '.agents/references/a.md', 'x\n')
 		failure.value = 'nope'
 		expect(await search('a', { root })).toBe(1)
-		expect(errors()).toBe('error: Reference search failed.\n')
+		expect(json()).toEqual({ error: 'Reference search failed.', code: 'error' })
 	})
 })

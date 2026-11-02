@@ -1,11 +1,11 @@
 import { type Dirent, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { WarnFn } from './reference-codes.js'
 import { hasBody, type MergeOperation, parseDocument, readMergeOperation } from './reference-document.js'
 import { dataExtensions, formatOfFile, type ReferenceFormat } from './reference-format.js'
 import type { ReferenceLayer } from './reference-layers.js'
 import { defaultSuffix, parseReferenceName } from './reference-name.js'
 import { type ExtendsStep, readExtends } from './reference-stack.js'
-import type { WarnFn } from './reference-warning.js'
 import type { ReferenceTraceLayer } from './resolve-reference.js'
 
 export type Contribution = {

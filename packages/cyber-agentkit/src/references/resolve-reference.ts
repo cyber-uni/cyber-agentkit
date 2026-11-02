@@ -1,3 +1,4 @@
+import type { ReferenceStatusCode, ReferenceWarning, WarnFn } from './reference-codes.js'
 import {
 	composedMetadata,
 	composeOrder,
@@ -18,7 +19,6 @@ import { interfaceIdOf } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
 import { parseReferenceName, type ReferenceName } from './reference-name.js'
 import { type Lookup, namesDefault, plan } from './reference-stack.js'
-import type { ReferenceCode, ReferenceWarning, WarnFn } from './reference-warning.js'
 
 export { candidateFiles, contributionLabel, layerNames } from './reference-contribution.js'
 export type { ReferenceName } from './reference-name.js'
@@ -87,6 +87,8 @@ export type ReferenceTrace = {
 	layers: ReferenceTraceLayer[]
 	/** The harnesses detected, whose managed folders and enabled plugins were read. */
 	harnesses: string[]
+	/** When a `remove` turned the whole name off (`reference-removed`): that contribution. */
+	removedBy?: string
 }
 
 /** A name resolved, with every field: the command prints a subset. A bad name is a status, never thrown. */
@@ -94,7 +96,7 @@ export type ResolvedReference = {
 	name: string
 	status: ReferenceStatus
 	/** Set when not `found`. */
-	code?: ReferenceCode
+	code?: ReferenceStatusCode
 	/** Why it is not `found`, for a person. */
 	message?: string
 	content?: string
@@ -105,8 +107,6 @@ export type ResolvedReference = {
 	/** When `ambiguous`: each `<plugin>/<name>`, and `default` when the skill has one. */
 	options?: string[]
 	cause?: AmbiguousCause
-	/** When a `remove` turned the name off: that contribution. */
-	removedBy?: string
 	warnings: ReferenceWarning[]
 	trace: ReferenceTrace
 }
@@ -248,12 +248,12 @@ export function resolveReference(
 	trace.sections = composed.removed.map(({ path, by }) => ({ path, contributions: [], removedBy: by }))
 	if (!applied.length) {
 		if (removedBy) {
+			trace.removedBy = removedBy.label
 			return {
 				...result,
 				status: 'missing',
-				code: 'reference-missing',
+				code: 'reference-removed',
 				message: `"${ref.name}" is turned off by ${removedBy.label} (remove)`,
-				removedBy: removedBy.label,
 			}
 		}
 		const message =

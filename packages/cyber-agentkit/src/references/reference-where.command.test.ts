@@ -58,9 +58,10 @@ describe('where', () => {
 		expect(json<ReferenceWhereOutput>().layers?.find(({ plugin }) => plugin === 'a')?.outcome).toBe('used')
 	})
 
-	it('exits 1 on an invalid name', async () => {
-		expect(await where('a/b/c', { root: repo() })).toBe(1)
-		expect(errors()).toMatch(/^error: reference-invalid: /)
+	it('exits 0 on an invalid name, answering its status (J1, E12)', async () => {
+		expect(await where('a/b/c', { root: repo() })).toBe(0)
+		expect(json()).toMatchObject({ name: 'a/b/c', status: 'invalid' })
+		expect(errors()).toBe('')
 	})
 
 	it('writes warnings to stderr in text', async () => {
@@ -73,6 +74,6 @@ describe('where', () => {
 	it('reports a thrown failure', async () => {
 		failure.value = 'nope'
 		expect(await where('name', { root: repo() })).toBe(1)
-		expect(errors()).toBe('error: Reference placement lookup failed.\n')
+		expect(json()).toEqual({ error: 'Reference placement lookup failed.', code: 'error' })
 	})
 })

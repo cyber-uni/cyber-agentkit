@@ -1,9 +1,9 @@
 import { join, relative } from 'node:path'
+import type { ReferenceWarning } from './reference-codes.js'
 import { headingPaths } from './reference-document.js'
 import { dataExtensions } from './reference-format.js'
 import { projectReferencesDir, type ReferenceLayer, type ReferenceLayers } from './reference-layers.js'
-import type { ReferenceName } from './reference-name.js'
-import type { ReferenceWarning } from './reference-warning.js'
+import { type ReferenceName, requireName } from './reference-name.js'
 import {
 	parseReferenceName,
 	type ReferenceStatus,
@@ -52,6 +52,7 @@ export function whereReference(
 	source: ReferenceLayers | readonly ReferenceLayer[],
 	{ root, display = (path) => path }: WhereOptions,
 ): ReferenceWhereReport {
+	if (typeof input === 'string') requireName(input)
 	const name = typeof input === 'string' ? parseReferenceName(input) : input
 	const resolved = resolveReference(name, source, { display })
 	const report: ReferenceWhereReport = {

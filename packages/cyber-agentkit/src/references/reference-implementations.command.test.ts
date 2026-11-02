@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ReferenceImplementationsReport } from './reference.command.js'
-import { errors, implementations, json, plugins, repo, write } from './reference-command.fixtures.js'
+import { errors, implementations, json, plugins, repo, stdout, write } from './reference-command.fixtures.js'
 import { recipeInterface, typescriptRecipe } from './reference-interface.fixtures.js'
 
 describe('implementations', () => {
@@ -39,16 +39,27 @@ describe('implementations', () => {
 		])
 	})
 
-	it('states an explicit zero, and takes --accept', async () => {
+	it("states an explicit zero with axi's empty state, and takes --accept (R43)", async () => {
 		const root = repo()
 		plugins(root, { repobuddy: { 'scaffold.recipe.interface': recipeInterface } })
+
 		expect(await implementations('scaffold.recipe', { root, accept: '1, 2' })).toBe(0)
-		expect(json<ReferenceImplementationsReport>().implementations).toBe('0 implementations of scaffold.recipe')
+		expect(json()).toEqual({
+			empty: '0 implementations of scaffold.recipe',
+			help: [expect.stringContaining('reference implementations scaffold.recipe --trace')],
+		})
 	})
 
 	it('exits 2 on a malformed --accept, and 1 on an unknown interface', async () => {
 		expect(await implementations('scaffold.recipe', { root: repo(), accept: 'one' })).toBe(2)
+		expect(json()).toMatchObject({ code: 'option-invalid', option: '--accept', value: 'one' })
+
+		stdout.mockClear()
 		expect(await implementations('nope', { root: repo() })).toBe(1)
-		expect(errors()).toMatch(/error: no interface document nope\.interface/)
+		expect(json()).toEqual({
+			error: expect.stringMatching(/no interface document nope\.interface/),
+			code: 'interface-unknown',
+		})
+		expect(errors()).toBe('')
 	})
 })

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { type cli, exitCodes } from 'clibuilder'
-import { isCliError, printAnswer } from 'clibuilder/axi'
+import { encode, errorOutput, type Format, isCliError, printAnswer } from 'clibuilder/axi'
 import { afterEach, beforeEach, vi } from 'vitest'
 import { createReferenceCommands } from './reference.command.js'
 
@@ -73,8 +73,9 @@ export const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() =>
 export const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
 
 /**
- * Runs a command the way the cli does: with the resolved `format` on `this`, printing what `run()`
- * returns on stdout and mapping a thrown `CliError` to its exit code.
+ * Runs a command the way the cli does under `output: 'axi'`: with the resolved `format` on `this`,
+ * printing what `run()` returns on stdout, and a thrown `CliError` as its one error value on stdout,
+ * exiting with its exit code.
  */
 async function exec(command: cli.Command, args: Record<string, unknown> & { format?: string }): Promise<number> {
 	const { format = 'toon', ...rest } = args
@@ -83,18 +84,20 @@ async function exec(command: cli.Command, args: Record<string, unknown> & { form
 			{ format },
 			rest,
 		)
-		const text = printAnswer(answer, format as 'toon' | 'json' | 'text')
+		const text = printAnswer(answer, format as Format)
 		if (text !== undefined) process.stdout.write(text)
 		return exitCodes.success
 	} catch (error) {
-		if (isCliError(error)) return error.exitCode
-		throw error
+		if (!isCliError(error)) throw error
+		const { message, code, details, help } = error
+		process.stdout.write(`${encode(errorOutput({ message, code, details, help }), format as Format)}\n`)
+		return error.exitCode
 	}
 }
 
 export type Args = Record<string, unknown>
 
-export const show = (names: string[], args: Args = {}) => exec(commands.show, { format: 'text', names, ...args })
+export const load = (names: string[], args: Args = {}) => exec(commands.load, { format: 'text', names, ...args })
 export const list = (args: Args = {}) => exec(commands.list, { format: 'json', ...args })
 export const search = (query: string, args: Args = {}) => exec(commands.search, { format: 'json', query, ...args })
 export const where = (name: string, args: Args = {}) => exec(commands.where, { format: 'json', name, ...args })
@@ -114,6 +117,13 @@ export function written(): string {
 
 export function json<T>(): T {
 	return JSON.parse(written()) as T
+}
+
+/** The last axi error value a text run printed on stdout: its `error` message and its `code`. */
+export function lastError(): { error: string; code: string } {
+	const values = [...written().matchAll(/^error: (.*)\ncode: (.*)$/gm)]
+	const last = values.at(-1)
+	return last ? { error: last[1] as string, code: last[2] as string } : { error: '', code: '' }
 }
 
 export function errors(): string {

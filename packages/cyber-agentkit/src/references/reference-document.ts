@@ -1,6 +1,6 @@
 import { parse } from 'yaml'
 import { isRecord } from '../plugins/json-file.js'
-import type { WarnFn } from './reference-warning.js'
+import type { WarnFn } from './reference-codes.js'
 
 /**
  * How a contribution applies over what is below it. `replace` puts it in place of everything below;

@@ -44,7 +44,7 @@ function parseTemplate(content: string, label: string): Template {
 	const { metadata, body } = parseDocument(content, () => {
 		mapping = false
 	})
-	// `show` would drop such frontmatter, so the reference would lose every key in it.
+	// `load` would drop such frontmatter, so the reference would lose every key in it.
 	if (!mapping) throw new Error(`${label} has frontmatter that is not a YAML mapping.`)
 	return { content, metadata, body }
 }

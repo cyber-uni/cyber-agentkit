@@ -4,19 +4,17 @@ import type { cli } from 'clibuilder'
 import { command, t } from 'clibuilder'
 import { result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
+import type { ReferenceWarning } from './reference-codes.js'
 import {
-	answerThenFail,
+	asCliError,
 	type CommonArgs,
 	compact,
 	defaultOption,
-	fail,
 	type LayersFor,
 	rootOption,
 	traceOption,
 	writeWarnings,
 } from './reference-command-support.js'
-import { parseReferenceName } from './reference-name.js'
-import type { ReferenceWarning } from './reference-warning.js'
 import { whereReference } from './reference-where.js'
 import type { ReferenceTrace } from './resolve-reference.js'
 
@@ -64,12 +62,9 @@ export function whereCommand(layersFor: LayersFor): cli.Command {
 					warnings: report.warnings,
 				})
 				if (format === 'text') writeWarnings(report.warnings)
-				const answer = result(output)
-				if (report.status !== 'invalid') return answer
-				process.stderr.write(`error: reference-invalid: ${parseReferenceName(args.name).invalid}\n`)
-				return answerThenFail(answer, format)
+				return result(output)
 			} catch (error) {
-				return fail(error, 'Reference placement lookup failed.')
+				return asCliError(error, 'Reference placement lookup failed.')
 			}
 		},
 	})

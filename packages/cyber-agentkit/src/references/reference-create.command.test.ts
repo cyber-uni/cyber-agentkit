@@ -9,6 +9,7 @@ import {
 	fakeHome,
 	harness,
 	json,
+	lastError,
 	managed,
 	plugins,
 	repo,
@@ -22,13 +23,13 @@ import {
 import { recipeInterface } from './reference-interface.fixtures.js'
 
 describe('create', () => {
-	it('writes the project file with merge: patch by default, and points to show', async () => {
+	it('writes the project file with merge: patch by default, and points to load', async () => {
 		const root = repo()
 
 		expect(await create('name', { root })).toBe(0)
 		const content = readFileSync(join(root, '.agents/references/name.md'), 'utf8')
 		expect(content).toMatch(/^---\ndescription: .*\ntags: \[topic\]\nmerge: patch\n---\n\n## Overview\n/)
-		expect(written()).toContain('Run `show name` for the composed document.')
+		expect(written()).toContain('Run `load name` for the composed document.')
 	})
 
 	it('writes to the user tier with --scope user', async () => {
@@ -54,8 +55,8 @@ describe('create', () => {
 		expect(readFileSync(join(root, '.agents/references/name.md'), 'utf8')).toBe('---\nmerge: remove\n---\n')
 
 		const template = write(root, 't.md', '## A\n')
-		expect(await create('other', { root, merge: 'remove', template })).toBe(1)
-		expect(errors()).toMatch(/error: options-conflict: --merge remove/)
+		expect(await create('other', { root, merge: 'remove', template })).toBe(2)
+		expect(lastError()).toMatchObject({ code: 'remove-with-template', error: expect.stringMatching(/--merge remove/) })
 	})
 
 	it('exits 2 on an unknown --merge', async () => {
@@ -81,8 +82,9 @@ describe('create', () => {
 
 		expect(await create('x', { root, implements: 'nope' })).toBe(1)
 		expect(await create('wrong', { root, implements: 'scaffold.recipe' })).toBe(1)
-		expect(errors()).toMatch(/is named scaffold\.recipe\.<key>, not "wrong"/)
-		expect(await create('scaffold.recipe.x', { root, implements: 'scaffold.recipe', template })).toBe(1)
+		expect(lastError().error).toMatch(/is named scaffold\.recipe\.<key>, not "wrong"/)
+		expect(await create('scaffold.recipe.x', { root, implements: 'scaffold.recipe', template })).toBe(2)
+		expect(lastError().code).toBe('template-with-implements')
 		expect(await create('scaffold.recipe.x', { root, implements: 'a/b/c' })).toBe(1)
 	})
 
@@ -91,7 +93,7 @@ describe('create', () => {
 		const template = write(root, 't.md', '---\ndescription: d\n---\n\n# Title\n\n## A\n\na\n')
 
 		expect(await create('name', { root, template })).toBe(1)
-		expect(errors()).toMatch(/error: template-title: .*"# Title"/)
+		expect(lastError()).toMatchObject({ code: 'template-title', error: expect.stringMatching(/.*"# Title"/) })
 		expect(existsSync(join(root, '.agents/references/name.md'))).toBe(false)
 	})
 
@@ -108,10 +110,10 @@ describe('create', () => {
 	it('refuses an unreadable template, and one whose frontmatter is not a mapping', async () => {
 		const root = repo()
 		expect(await create('name', { root, template: join(root, 'missing.md') })).toBe(1)
-		expect(errors()).toMatch(/cannot read the template/)
+		expect(lastError().error).toMatch(/cannot read the template/)
 		const list = write(root, 'l.md', '---\n- a\n---\n\n## A\n')
 		expect(await create('name', { root, template: list })).toBe(1)
-		expect(errors()).toMatch(/not a YAML mapping/)
+		expect(lastError().error).toMatch(/not a YAML mapping/)
 	})
 
 	it('adds a body and merge to a selection-only file, keeping its extends', async () => {
@@ -131,7 +133,7 @@ describe('create', () => {
 		write(root, '.agents/references/name.md', 'body\n')
 
 		expect(await create('name', { root })).toBe(1)
-		expect(errors()).toMatch(/error: file-exists: .*Update mode/)
+		expect(lastError()).toMatchObject({ code: 'file-exists', error: expect.stringMatching(/.*Update mode/) })
 	})
 
 	it('refuses when a replace or a remove above would hide the new file, naming it', async () => {
@@ -139,14 +141,20 @@ describe('create', () => {
 		managed({ name: '---\nmerge: replace\n---\n\nmanaged\n' })
 
 		expect(await create('name', { root })).toBe(1)
-		expect(errors()).toMatch(/error: hidden: managed .*name\.md \(replace\) applies above it/)
+		expect(lastError()).toMatchObject({
+			code: 'reference-hidden',
+			error: expect.stringMatching(/managed .*name\.md \(replace\) applies above it/),
+		})
 
 		stderr.mockClear()
 		harness.managed = undefined
 		harness.candidates = []
 		write(root, '.agents/references/other.md', '---\nmerge: remove\n---\n')
 		expect(await create('other', { root, scope: 'user' })).toBe(1)
-		expect(errors()).toMatch(/error: hidden: project .*\(remove\)/)
+		expect(lastError()).toMatchObject({
+			code: 'reference-hidden',
+			error: expect.stringMatching(/project .*\(remove\)/),
+		})
 	})
 
 	it('is not hidden by a replace with no body', async () => {
@@ -155,11 +163,11 @@ describe('create', () => {
 		expect(await create('name', { root, scope: 'user' })).toBe(0)
 	})
 
-	it('refuses a qualified name, naming the bare one', async () => {
-		expect(await create('a/name', { root: repo() })).toBe(1)
-		expect(errors()).toMatch(/error: reference-qualified: .*ask for "name"/)
-		expect(await create('x.md', { root: repo() })).toBe(1)
-		expect(errors()).toMatch(/error: reference-invalid:/)
+	it('refuses a qualified name, naming the bare one, and an invalid name, as usage errors (J1)', async () => {
+		expect(await create('a/name', { root: repo() })).toBe(2)
+		expect(lastError()).toMatchObject({ code: 'reference-qualified', error: expect.stringMatching(/.*ask for "name"/) })
+		expect(await create('x.md', { root: repo() })).toBe(2)
+		expect(lastError().code).toBe('name-invalid')
 	})
 
 	it('exits 2 when more than one of --scope, --plugin, and --default is given, or --scope is unknown', async () => {
@@ -184,12 +192,12 @@ describe('create', () => {
 	it('refuses a --plugin folder with no manifest, outside the repository, or under node_modules', async () => {
 		const root = repo()
 		expect(await create('name', { root, plugin: join(root, 'plain') })).toBe(1)
-		expect(errors()).toMatch(/error: folder-invalid: .*no plugin manifest/)
+		expect(lastError()).toMatchObject({ code: 'folder-invalid', error: expect.stringMatching(/.*no plugin manifest/) })
 
 		const outside = tempDir('reference-outside-')
 		write(outside, 'plugin.json', JSON.stringify({ name: 'out' }))
 		expect(await create('name', { root, plugin: outside })).toBe(1)
-		expect(errors()).toMatch(/outside the repository/)
+		expect(lastError().error).toMatch(/outside the repository/)
 
 		const installed = join(root, 'node_modules/house')
 		write(installed, 'plugin.json', JSON.stringify({ name: 'house' }))
@@ -205,13 +213,14 @@ describe('create', () => {
 		expect(readFileSync(join(folder, 'references/name.default.md'), 'utf8')).toBe(
 			'---\ndescription: d\n---\n\n## A\n\na\n',
 		)
-		expect(await create('other', { root, default: folder, merge: 'patch' })).toBe(1)
+		expect(await create('other', { root, default: folder, merge: 'patch' })).toBe(2)
+		expect(lastError().code).toBe('options-conflict')
 	})
 
 	it('refuses a --default folder with no SKILL.md, or outside the repository', async () => {
 		const root = repo()
 		expect(await create('name', { root, default: join(root, 'plain') })).toBe(1)
-		expect(errors()).toMatch(/no SKILL\.md/)
+		expect(lastError().error).toMatch(/no SKILL\.md/)
 		const outside = skill(tempDir('reference-outside-'), 'tracker')
 		expect(await create('name', { root, default: outside })).toBe(1)
 	})

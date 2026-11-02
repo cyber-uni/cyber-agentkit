@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { ReferenceListReport } from './reference.command.js'
-import { base, errors, failure, json, list, plugins, repo, stdout, write } from './reference-command.fixtures.js'
+import { base, failure, json, list, plugins, repo, stdout, write, written } from './reference-command.fixtures.js'
 
 describe('list', () => {
 	it('gives one row per name, its status and options when not found, and a defaults note', async () => {
@@ -13,9 +13,9 @@ describe('list', () => {
 		expect(await list({ root })).toBe(0)
 		const report = json<ReferenceListReport>()
 		expect(report.references).toEqual([
-			{ name: 'amb', status: 'ambiguous', options: ['a/amb', 'b/amb'] },
+			{ name: 'amb', status: 'ambiguous', code: 'reference-ambiguous', options: ['a/amb', 'b/amb'] },
 			{ name: 'doc', description: 'First line.' },
-			{ name: 'gone', status: 'missing' },
+			{ name: 'gone', status: 'missing', code: 'reference-removed' },
 		])
 		expect(report.defaults).toMatch(/no harness detected/)
 		expect(report.layers).toBeUndefined()
@@ -46,7 +46,7 @@ describe('list', () => {
 
 		expect(await list({ root, trace: true })).toBe(0)
 		const report = json<ReferenceListReport>()
-		expect(report.references).toEqual([{ name: 'name', status: 'missing' }])
+		expect(report.references).toEqual([{ name: 'name', status: 'missing', code: 'reference-removed' }])
 		expect(report.layers?.map(({ outcome }) => outcome)).toEqual([
 			'used',
 			expect.stringMatching(/^shadowed by project .*\(remove\)$/),
@@ -66,15 +66,19 @@ describe('list', () => {
 		])
 	})
 
-	it('states an explicit zero', async () => {
+	it("states an explicit zero with axi's empty state and help, exit 0 (R43)", async () => {
 		const root = repo()
+
 		expect(await list({ root })).toBe(0)
-		expect(json<ReferenceListReport>().references).toBe('0 references — no layer holds one')
+		expect(json()).toEqual({
+			empty: '0 references — no layer holds one',
+			help: [expect.stringMatching(/no harness detected/), expect.stringContaining('reference create <name>')],
+		})
 
 		stdout.mockClear()
 		write(root, '.agents/references/a.md', 'x\n')
-		expect(await list({ root, pattern: 'zzz*' })).toBe(0)
-		expect(json<ReferenceListReport>().references).toBe('0 references match "zzz*"')
+		expect(await list({ root, pattern: 'zzz*', format: 'text' })).toBe(0)
+		expect(written()).toMatch(/^empty: 0 references match "zzz\*"\n/)
 	})
 
 	it('gives the warnings resolving raised', async () => {
@@ -90,6 +94,6 @@ describe('list', () => {
 		write(root, '.agents/references/a.md', 'x\n')
 		failure.value = 'nope'
 		expect(await list({ root })).toBe(1)
-		expect(errors()).toBe('error: Reference listing failed.\n')
+		expect(json()).toEqual({ error: 'Reference listing failed.', code: 'error' })
 	})
 })

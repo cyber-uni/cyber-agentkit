@@ -33,7 +33,7 @@ Ask only when the request fits two modes. Otherwise pick one; outside Load, say 
 node <this skill's folder>/scripts/reference.mjs <subcommand> ... --root <repository root>
 ```
 
-`scripts/reference.mjs` is the package's `reference` command bundled into one file; it needs no `node_modules`. Pass `--root` every time, so the repository's own `.agents/references/` is read. A failure prints `error: <code>: <message>` and a warning `warning: <code>: <message>`, both on stderr.
+`scripts/reference.mjs` is the package's `reference` command bundled into one file; it needs no `node_modules`. Pass `--root` every time, so the repository's own `.agents/references/` is read. A command that cannot complete exits 1 (or 2 for a usage error) and prints one error value on stdout, with `error` and `code` lines. A warning prints `warning: <code>: <message>` on stderr in text output, and does not change the exit code.
 
 Outside Load, when it is missing or cannot run, use `pnpm exec cyber-agentkit reference` when the package is a direct dependency, else `npx -y cyber-agentkit@1.2.0 reference`, with the same arguments. Load never falls back to a package runner.
 
@@ -47,27 +47,27 @@ Load `references/create.md` from this skill's folder and follow it.
 
 ## Update
 
-1. Run `show <name> --trace`. Use the bare name. If the name is ambiguous, go to [Select](#select) first.
+1. Run `load <name> --trace`. Use the bare name. If the name is ambiguous, go to [Select](#select) first.
 2. Choose the folder to write: `.agents/references/` for the project, or `~/.agents/references/` for the user alone.
 3. If the trace shows a `used` file with a body in that folder, it is the user's own contribution. Edit that file in place, then go to step 6.
 4. Otherwise, write a customization above what is there. Run `where <name>` (add `--default <skill folder>` when a skill loads the name) for the heading paths of the document below each place. Write only the sections the user changes, each under the heading path it has there; `patch` keeps every section you do not name. To add after a section's text instead of replacing it, use `--merge combine`, or mark that one section `<!-- merge: combine -->` under its heading. To drop one section, mark it `<!-- merge: remove -->`.
 5. Start it with `create <name> --dry-run`, adding `--scope user` for the user's folder and `--template <path>` with the file holding those sections. Show the user the path and content, then run it without `--dry-run` on approval.
-6. Run `show <name> --trace` again. The written file must be `used`, and each section the user changed must list it.
+6. Run `load <name> --trace` again. The written file must be `used`, and each section the user changed must list it.
 
 ## Select
 
 1. Run `where <name>`. Its `options` are the plugins holding the name, each as `<plugin>/<name>`, and `default` when a skill's default holds it.
 2. Ask the user which to build on, bottom first, even when one option is left. Ask whether it is for the project or the user alone.
 3. Run `select <name> <option>...`, adding `--scope user` for the user alone. It writes `extends` into `<name>.md` and keeps any body the file has.
-4. Run `show <name> --trace`. The stack must be what the user picked. To undo a selection, run `select <name> --clear`.
+4. Run `load <name> --trace`. The stack must be what the user picked. To undo a selection, run `select <name> --clear`.
 
 ## Delete
 
-1. Run `show <name> --trace`. Use the bare name: delete removes only a file under `.agents/references/` or `~/.agents/references/`, or, for an author, in a plugin's or a skill's source folder in this repository.
+1. Run `load <name> --trace`. Use the bare name: delete removes only a file under `.agents/references/` or `~/.agents/references/`, or, for an author, in a plugin's or a skill's source folder in this repository.
 2. Choose the folder: `.agents/references/` for the project, or `~/.agents/references/` with `--scope user`. If the trace shows no file there, say so and stop. An installed plugin's, a managed, or an installed skill's contribution is never deleted; offer a customization with `merge: remove` through [Update](#update) instead.
 3. Run `delete <name> --dry-run`, adding `--scope user` for the user's folder. Show the user the path and what will answer the name afterwards, and say so when a selection goes with the file.
 4. On approval, run it without `--dry-run`.
-5. Run `show <name> --trace` again. The deleted file must be gone from the trace.
+5. Run `load <name> --trace` again. The deleted file must be gone from the trace.
 
 ## Find
 
@@ -79,9 +79,9 @@ Load `references/create.md` from this skill's folder and follow it.
 
 ## Inspect
 
-- To read a reference, run `show <name>`; add `--metadata` for its composed frontmatter.
-- To learn why a name composed as it did, run `show <name> --trace`. Report the stack and what built it, the contributions each section came from, and each layer that was `shadowed`, `not used`, or `not read`, with its reason.
-- To check a reference against its interface, run `check <name>...`; with no name, it checks every interface document and implementation. Report each failure with its check. Exit 1 means at least one failed.
+- To read a reference, run `load <name>`; add `--metadata` for its composed frontmatter.
+- To learn why a name composed as it did, run `load <name> --trace`. Report the stack and what built it, the contributions each section came from, and each layer that was `shadowed`, `not used`, or `not read`, with its reason.
+- To check a reference against its interface, run `check <name>...`; with no name, it checks every interface document and implementation. Report each failure with its check. It exits 0; the failures are listed under `failed`.
 - To learn where a customization goes, run `where <name>`; when a skill loads the name, add `--default <that skill's folder>`. Report each place, who it reaches, and the heading paths below it. A plugin's or a skill's default contribution is read-only; never offer it as a place to write. If the user then wants the customization written, go to [Update](#update).
 
 ## Wire a skill
@@ -101,9 +101,9 @@ Before reporting a Create, Update, Select, or Delete done:
 - The written or deleted file is under `.agents/references/` or `~/.agents/references/`, or, for Create and Delete, in a plugin's or a skill's source folder in this repository.
 - No file in an installed plugin or skill, or in a managed folder, changed.
 - The file and its path were shown to the user before the write or the delete, and a delete also said what answers the name afterwards.
-- After Create or Update, `show <name> --trace` reports the written file as `used`.
-- After Select, `show <name> --trace` reports the stack the user picked.
-- After Delete, `show <name> --trace` no longer finds the deleted file.
+- After Create or Update, `load <name> --trace` reports the written file as `used`.
+- After Select, `load <name> --trace` reports the stack the user picked.
+- After Delete, `load <name> --trace` no longer finds the deleted file.
 - A created reference's top level is not a single heading holding all the others.
 - A created reference that declares `implements` passes `check <name>`.
-- `show <name>` gives no `marker-unmatched` warning for a file written or changed.
+- `load <name>` gives no `marker-unmatched` warning for a file written or changed.

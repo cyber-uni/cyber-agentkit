@@ -1,8 +1,8 @@
 import { isRecord } from '../plugins/json-file.js'
+import type { WarnFn } from './reference-codes.js'
 import type { Contribution } from './reference-contribution.js'
 import { isMergeOperation, type MergeOperation } from './reference-document.js'
 import { namePattern, type ReferenceName } from './reference-name.js'
-import type { WarnFn } from './reference-warning.js'
 import type { AmbiguousCause, OperationSource } from './resolve-reference.js'
 
 /** One `extends` entry: a plugin or `default`, with the keys to use for it in place of its own. */

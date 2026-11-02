@@ -1,3 +1,4 @@
+import { ReferenceFailure } from './reference-error.js'
 import { dataExtensions } from './reference-format.js'
 
 export type ReferenceName = {
@@ -14,6 +15,15 @@ export type ReferenceName = {
 export const namePattern: RegExp = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/i
 
 export const defaultSuffix = '.default'
+
+/** No name at all is a usage error (`name-missing`), unlike a string that is not a name, which is `invalid`. */
+export function requireName(value: string): void {
+	if (!value.trim()) {
+		throw new ReferenceFailure('name-missing', 'name a reference.', {
+			help: 'Run `reference list` for every name.',
+		})
+	}
+}
 
 /**
  * Rejects rather than sanitizes — silently answering a different question is how untrusted input

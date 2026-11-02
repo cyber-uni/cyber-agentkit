@@ -1,8 +1,9 @@
 import { checkResolved, interfaceLookup } from './reference-check.js'
+import type { ReferenceWarning } from './reference-codes.js'
+import { ReferenceFailure } from './reference-error.js'
 import { fitsName, type InterfaceCardinality, interfaceSuffix, readImplements } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
 import { parseReferenceName } from './reference-name.js'
-import type { ReferenceWarning } from './reference-warning.js'
 import { type ResolvedReference, type ResolveOptions, referenceNames, resolveReference } from './resolve-reference.js'
 
 export type ReferenceImplementation = {
@@ -58,11 +59,12 @@ export function referenceImplementations(
 ): ReferenceImplementations {
 	const { accept: acceptOption, ...resolveOptions } = options
 	const ifaceName = parseReferenceName(`${id}${interfaceSuffix}`)
-	if (ifaceName.invalid || ifaceName.plugin !== undefined) throw new Error(`"${id}" is not an interface id.`)
+	if (ifaceName.invalid || ifaceName.plugin !== undefined)
+		throw new ReferenceFailure('interface-unknown', `"${id}" is not an interface id.`)
 	const lookup = interfaceLookup(source, resolveOptions)
 	const iface = lookup(id)
 	const value = iface.value
-	if (!value) throw new Error(iface.failure?.message ?? `no interface ${id}`)
+	if (!value) throw new ReferenceFailure('interface-unknown', iface.failure?.message ?? `no interface ${id}`)
 	const accept = [...(acceptOption?.length ? acceptOption : value.versions)]
 	const report: ReferenceImplementations = {
 		interface: id,

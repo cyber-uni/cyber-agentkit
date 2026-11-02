@@ -8,7 +8,7 @@ import { pluginManifestName } from '../plugins/plugin-manifest.js'
 import { harnessSkillFolders, pluginSkillFolders } from '../skills/harness-skill-folders.js'
 import { type FoundSkill, skillName, skillsIn } from '../skills/skill-folder.js'
 import { detectedHarnesses, enabledPluginLayers, harnessManagedLayers } from './harness-layers.js'
-import type { ReferenceWarning } from './reference-warning.js'
+import type { ReferenceWarning } from './reference-codes.js'
 
 /** Where a contribution lives. Listed highest first; the stack (plugins and `default`) is ordered by `extends`. */
 export type ReferenceTier = 'managed' | 'project' | 'user' | 'plugin' | 'default'

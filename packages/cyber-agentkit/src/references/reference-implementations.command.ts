@@ -1,24 +1,29 @@
 import { homedir } from 'node:os'
 import type { cli } from 'clibuilder'
 import { command, t } from 'clibuilder'
-import { result } from 'clibuilder/axi'
+import { empty, result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
+import type { ReferenceWarning } from './reference-codes.js'
 import {
+	asCliError,
 	type CommonArgs,
 	compact,
-	fail,
 	type LayersFor,
 	rootOption,
 	traceOption,
-	usage,
 } from './reference-command-support.js'
+import { ReferenceFailure } from './reference-error.js'
 import { referenceImplementations } from './reference-implementations.js'
-import type { ReferenceWarning } from './reference-warning.js'
 
 export type ReferenceImplementationsReport = {
-	implementations:
-		| { pin: string; description?: string; unsupported?: string[]; name?: string; tier?: string; version?: number }[]
-		| string
+	implementations: {
+		pin: string
+		description?: string
+		unsupported?: string[]
+		name?: string
+		tier?: string
+		version?: number
+	}[]
 	interface?: string
 	cardinality?: string
 	accept?: number[]
@@ -30,7 +35,11 @@ function parseAccept(value: string | undefined): number[] | undefined {
 	if (value === undefined) return undefined
 	const versions = value.split(',').map((part) => part.trim())
 	if (!versions.length || versions.some((part) => !/^[1-9]\d*$/.test(part))) {
-		usage(`--accept is a comma-separated list of versions, such as 1,2; got "${value}".`)
+		throw new ReferenceFailure(
+			'option-invalid',
+			`--accept is a comma-separated list of versions, such as 1,2; got "${value}".`,
+			{ details: { option: '--accept', value } },
+		)
 	}
 	return versions.map(Number)
 }
@@ -61,8 +70,8 @@ export function implementationsCommand(layersFor: LayersFor): cli.Command {
 			},
 		},
 		async run(args: CommonArgs & { id: string; accept: string | undefined; trace: boolean | undefined }) {
-			const accept = parseAccept(args.accept)
 			try {
+				const accept = parseAccept(args.accept)
 				const home = homedir()
 				const found = referenceImplementations(args.id, await layersFor(args, home), {
 					accept,
@@ -73,9 +82,12 @@ export function implementationsCommand(layersFor: LayersFor): cli.Command {
 						args.trace ? { pin, description, unsupported, name, tier, version } : { pin, description, unsupported },
 					),
 				)
-				const report: ReferenceImplementationsReport = {
-					implementations: rows.length ? rows : `0 implementations of ${args.id}`,
+				if (!rows.length && !args.trace) {
+					return empty(`0 implementations of ${args.id}`, {
+						help: `Run \`reference implementations ${args.id} --trace\` for the ones left out, with why.`,
+					})
 				}
+				const report: ReferenceImplementationsReport = { implementations: rows }
 				if (args.trace) {
 					Object.assign(
 						report,
@@ -90,7 +102,7 @@ export function implementationsCommand(layersFor: LayersFor): cli.Command {
 				}
 				return result(report)
 			} catch (error) {
-				return fail(error, 'Implementation lookup failed.')
+				return asCliError(error, 'Implementation lookup failed.')
 			}
 		},
 	})

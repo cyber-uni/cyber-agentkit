@@ -5,10 +5,9 @@ import { result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
 import { checkReferences } from './reference-check.js'
 import {
-	answerThenFail,
+	asCliError,
 	type CommonArgs,
 	compact,
-	fail,
 	type LayersFor,
 	rootOption,
 	traceOption,
@@ -31,7 +30,7 @@ export function checkCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'check',
 		description:
-			'Check interface documents and their implementations, each composed as `show` composes it. With no names, checks every one found. Exits 1 on any failure.',
+			'Check interface documents and their implementations, each composed as `load` composes it. With no names, checks every one found. A failure is an entry in `failed`, not an error.',
 		arguments: [
 			{
 				name: 'names',
@@ -44,7 +43,6 @@ export function checkCommand(layersFor: LayersFor): cli.Command {
 			trace: { ...traceOption, description: 'Add every entry checked, with its kind and unsupported sections.' },
 		},
 		async run(args: CommonArgs & { names?: string[] | undefined; trace: boolean | undefined }) {
-			const format = this.format
 			try {
 				const home = homedir()
 				const entries = checkReferences(await layersFor(args, home), {
@@ -63,16 +61,9 @@ export function checkCommand(layersFor: LayersFor): cli.Command {
 							)
 						: undefined,
 				})
-				const answer = result(report)
-				if (!failing.length) return answer
-				if (format === 'text') {
-					process.stderr.write(
-						`error: interface-check: ${failing.length} of ${entries.length} references fail their check.\n`,
-					)
-				}
-				return answerThenFail(answer, format)
+				return result(report)
 			} catch (error) {
-				return fail(error, 'Reference check failed.')
+				return asCliError(error, 'Reference check failed.')
 			}
 		},
 	})

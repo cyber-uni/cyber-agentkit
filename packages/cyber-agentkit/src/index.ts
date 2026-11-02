@@ -93,7 +93,19 @@ export type {
 	ReferenceCheckKind,
 } from './references/reference-check.js'
 export { checkReferences } from './references/reference-check.js'
+export type {
+	ReferenceCode,
+	ReferenceCodeKind,
+	ReferenceErrorCode,
+	ReferenceNoticeCode,
+	ReferenceStatusCode,
+	ReferenceWarning,
+	ReferenceWarningCode,
+} from './references/reference-codes.js'
+export { referenceCodeExit, referenceCodes } from './references/reference-codes.js'
 export type { MergeOperation, SectionSource } from './references/reference-document.js'
+export type { ReferenceErrorOptions } from './references/reference-error.js'
+export { ReferenceFailure as ReferenceError } from './references/reference-error.js'
 export type {
 	ExcludedImplementation,
 	ImplementationsOptions,
@@ -123,7 +135,6 @@ export {
 	userReferencesDir,
 } from './references/reference-layers.js'
 export type { ReferenceName } from './references/reference-name.js'
-export type { ReferenceCode, ReferenceWarning, ReferenceWarningCode } from './references/reference-warning.js'
 export type { ReferenceWherePlace, ReferenceWhereReport, WhereOptions } from './references/reference-where.js'
 export { whereReference } from './references/reference-where.js'
 export type {

@@ -40,8 +40,8 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 }
 
 /**
- * `show`, `create`, `select`, and `delete` answer in `text` unless `--format` says otherwise; the other
- * subcommands answer in `toon`. clibuilder 12 has one global `--format` default, so it is chosen
+ * `load`, `create`, `select`, and `delete`, and `asset show` and `update`, answer in `text` unless
+ * `--format` says otherwise; the other subcommands answer in `toon`. clibuilder 12 has one global `--format` default, so it is chosen
  * from the subcommand the argv names.
  */
 function defaultFormat(argv: string[]): 'toon' | 'text' {

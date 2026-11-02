@@ -1,3 +1,4 @@
+import type { WarnFn } from './reference-codes.js'
 import type { Contribution } from './reference-contribution.js'
 import {
 	applyContribution,
@@ -6,7 +7,6 @@ import {
 	emptyComposed,
 	type MergeOperation,
 } from './reference-document.js'
-import type { WarnFn } from './reference-warning.js'
 import type { OperationSource } from './resolve-reference.js'
 
 export type OrderedContribution = { contribution: Contribution; operation: MergeOperation; from: OperationSource }

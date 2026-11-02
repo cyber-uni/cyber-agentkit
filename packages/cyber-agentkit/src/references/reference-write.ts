@@ -12,6 +12,7 @@ import {
 } from './create-reference.js'
 import { interfaceLookup } from './reference-check.js'
 import { hasBody, isMergeOperation, type MergeOperation, parseDocument } from './reference-document.js'
+import { ReferenceFailure } from './reference-error.js'
 import { dataExtensions } from './reference-format.js'
 import { fitsName, type ReferenceInterface } from './reference-interface.js'
 import {
@@ -21,19 +22,8 @@ import {
 	repositoryRoot,
 	userReferencesDir,
 } from './reference-layers.js'
-import { parseReferenceName, type ReferenceName } from './reference-name.js'
+import { parseReferenceName, type ReferenceName, requireName } from './reference-name.js'
 import { type ResolvedReference, type ResolveOptions, readExtends, resolveReference } from './resolve-reference.js'
-
-/** A write refused. `usage` marks a wrong invocation (exit 2) rather than a refusal (exit 1). */
-export class ReferenceWriteError extends Error {
-	readonly code: string
-	readonly usage: boolean
-	constructor(code: string, message: string, usage = false) {
-		super(message)
-		this.code = code
-		this.usage = usage
-	}
-}
 
 /** Where a write lands: the project or user tier, or a plugin's or a skill's source folder in the repository. */
 export type WriteScope = 'project' | 'user' | 'plugin' | 'default'
@@ -56,10 +46,11 @@ export type WhereArgs = {
 
 /** A bare, valid name, or a refusal naming the bare name to use. */
 export function bareName(value: string): ReferenceName {
+	requireName(value)
 	const name = parseReferenceName(value)
-	if (name.invalid) throw new ReferenceWriteError('reference-invalid', name.invalid)
+	if (name.invalid) throw new ReferenceFailure('name-invalid', name.invalid)
 	if (name.plugin !== undefined) {
-		throw new ReferenceWriteError(
+		throw new ReferenceFailure(
 			'reference-qualified',
 			`a contribution is written under the bare name, which every tier resolves; ask for "${name.name}".`,
 		)
@@ -82,18 +73,15 @@ export function writeTarget(
 ): WriteTarget {
 	const given = [scope, plugin, skill].filter((value) => value !== undefined)
 	if (given.length > 1) {
-		throw new ReferenceWriteError('options-conflict', 'pass one of --scope, --plugin, and --default.', true)
+		throw new ReferenceFailure('options-conflict', 'pass one of --scope, --plugin, and --default.')
 	}
 	if (plugin !== undefined) {
 		const folder = resolve(plugin)
 		if (!pluginManifestName(folder)) {
-			throw new ReferenceWriteError(
-				'folder-invalid',
-				`${folder} holds no plugin manifest, so it is not a plugin folder.`,
-			)
+			throw new ReferenceFailure('folder-invalid', `${folder} holds no plugin manifest, so it is not a plugin folder.`)
 		}
 		if (!insideRepository(folder, root)) {
-			throw new ReferenceWriteError(
+			throw new ReferenceFailure(
 				'folder-invalid',
 				`${folder} is outside the repository, such as an installed copy; write to the plugin's source instead.`,
 			)
@@ -104,10 +92,10 @@ export function writeTarget(
 	if (skill !== undefined) {
 		const folder = resolve(skill)
 		if (skillName(folder) === undefined) {
-			throw new ReferenceWriteError('folder-invalid', `${folder} holds no SKILL.md, so it is not a skill folder.`)
+			throw new ReferenceFailure('folder-invalid', `${folder} holds no SKILL.md, so it is not a skill folder.`)
 		}
 		if (!insideRepository(folder, root)) {
-			throw new ReferenceWriteError(
+			throw new ReferenceFailure(
 				'folder-invalid',
 				`${folder} is outside the repository, such as an installed copy; write to the skill's source instead.`,
 			)
@@ -116,7 +104,7 @@ export function writeTarget(
 		return { scope: 'default', dir, path: join(dir, `${name.name}.default.md`) }
 	}
 	if (scope !== undefined && scope !== 'project' && scope !== 'user') {
-		throw new ReferenceWriteError('options-invalid', '--scope is project or user.', true)
+		throw new ReferenceFailure('option-invalid', '--scope is project or user.')
 	}
 	const dir = scope === 'user' ? userReferencesDir(home) : projectReferencesDir(resolve(root))
 	return { scope: scope === 'user' ? 'user' : 'project', dir, path: join(dir, `${name.name}.md`) }
@@ -157,11 +145,11 @@ export function describeAnswer(
 function interfaceFor(id: string, name: string, layers: ReferenceLayers, options: ResolveOptions): ReferenceInterface {
 	const parsed = parseReferenceName(id)
 	if (parsed.invalid || parsed.plugin !== undefined)
-		throw new ReferenceWriteError('interface-invalid', `"${id}" is not an interface id.`)
+		throw new ReferenceFailure('interface-invalid', `"${id}" is not an interface id.`)
 	const iface = interfaceLookup(layers, options)(id)
-	if (!iface.value) throw new ReferenceWriteError('interface-invalid', iface.failure?.message ?? `no interface ${id}`)
+	if (!iface.value) throw new ReferenceFailure('interface-invalid', iface.failure?.message ?? `no interface ${id}`)
 	if (!fitsName(iface.value, name)) {
-		throw new ReferenceWriteError(
+		throw new ReferenceFailure(
 			'interface-invalid',
 			`an implementation of ${id} is named ${iface.value.cardinality === 'one' ? id : `${id}.<key>`}, not "${name}".`,
 		)
@@ -242,25 +230,21 @@ export function createContribution(
 	const name = bareName(args.name)
 	const target = writeTarget(name, args)
 	if (args.merge !== undefined && !isMergeOperation(args.merge)) {
-		throw new ReferenceWriteError(
-			'options-invalid',
-			`--merge is replace, patch, combine, or remove; got "${args.merge}".`,
-			true,
-		)
+		throw new ReferenceFailure('option-invalid', `--merge is replace, patch, combine, or remove; got "${args.merge}".`)
 	}
 	const merge = args.merge as MergeOperation | undefined
 	if (args.template !== undefined && args.implements !== undefined) {
-		throw new ReferenceWriteError('options-conflict', 'pass --template or --implements, not both.')
+		throw new ReferenceFailure('template-with-implements', 'pass --template or --implements, not both.')
 	}
 	if (merge === 'remove' && args.template !== undefined) {
-		throw new ReferenceWriteError('options-conflict', '--merge remove writes no body, so it takes no --template.')
+		throw new ReferenceFailure('remove-with-template', '--merge remove writes no body, so it takes no --template.')
 	}
 	if (merge !== undefined && target.scope === 'default') {
-		throw new ReferenceWriteError('options-conflict', 'a default is written with no merge; drop --merge.')
+		throw new ReferenceFailure('options-conflict', 'a default is written with no merge; drop --merge.')
 	}
 	const existing = tryRead(target.path)
 	if (existing !== undefined && hasBody(parseDocument(existing, () => {}).body)) {
-		throw new ReferenceWriteError(
+		throw new ReferenceFailure(
 			'file-exists',
 			`${(options.display ?? ((path: string) => path))(target.path)} already holds "${name.name}"; change it with the reference skill's Update mode.`,
 		)
@@ -273,7 +257,7 @@ export function createContribution(
 				: readTemplate(args.template === undefined ? undefined : resolve(args.template))
 	const title = titleOf(template)
 	if (title) {
-		throw new ReferenceWriteError(
+		throw new ReferenceFailure(
 			'template-title',
 			`the template's top level is the single heading "${title}" holding the others; patch matches by heading path, so make its sections top-level.`,
 		)
@@ -281,8 +265,8 @@ export function createContribution(
 	const before = resolveReference(name, layers, options)
 	const hider = hiddenBy(before, target.dir, target.path)
 	if (hider) {
-		throw new ReferenceWriteError(
-			'hidden',
+		throw new ReferenceFailure(
+			'reference-hidden',
 			`${hider} applies above it, so nothing would read the new file; change that contribution instead.`,
 		)
 	}
@@ -335,6 +319,10 @@ export type SelectResult = {
 	extends: string[]
 	/** `--clear` left the file with nothing in it, so it was deleted. */
 	deleted: boolean
+	/** Set on a no-op: `--clear` with no selection there. */
+	code?: 'no-selection'
+	/** What the notice says, for a person. */
+	message?: string
 	after: ResolvedReference
 }
 
@@ -348,14 +336,21 @@ export function selectContribution(
 	const scope = target.scope as 'project' | 'user'
 	const existing = tryRead(target.path)
 	if (args.clear) {
-		if (args.options.length) throw new ReferenceWriteError('options-conflict', '--clear takes no option.', true)
+		if (args.options.length) throw new ReferenceFailure('options-conflict', '--clear takes no option.')
 		const steps =
 			existing === undefined ? undefined : readExtends(parseDocument(existing, () => {}).metadata['extends'], () => {})
 		if (!steps) {
-			throw new ReferenceWriteError(
-				'no-selection',
-				`the ${scope} tier holds no selection of "${name.name}". ${describeAnswer(resolveReference(name, layers, options), options.display)}`,
-			)
+			const after = resolveReference(name, layers, options)
+			return {
+				name: name.name,
+				scope,
+				path: target.path,
+				extends: [],
+				deleted: false,
+				code: 'no-selection',
+				message: `the ${scope} tier holds no selection of "${name.name}", so nothing was cleared. ${describeAnswer(after, options.display)}`,
+				after,
+			}
 		}
 		const content = editFrontmatter(existing as string, { extends: undefined })
 		const deleted = !content.trim()
@@ -371,7 +366,7 @@ export function selectContribution(
 		}
 	}
 	if (!args.options.length)
-		throw new ReferenceWriteError('options-missing', 'name at least one option: a plugin or default.', true)
+		throw new ReferenceFailure('options-missing', 'name at least one option: a plugin or default.')
 	const before = resolveReference(name, layers, options)
 	const holders = new Set(
 		before.trace.layers.flatMap(({ plugin, file }) => (plugin !== undefined && file ? [plugin] : [])),
@@ -381,8 +376,8 @@ export function selectContribution(
 	)
 	const wrong = picked.filter((option) => option !== 'default' && !holders.has(option))
 	if (wrong.length) {
-		throw new ReferenceWriteError(
-			'option-invalid',
+		throw new ReferenceFailure(
+			'step-invalid',
 			`${wrong.join(', ')} ${wrong.length === 1 ? 'is' : 'are'} neither default nor a plugin holding "${name.name}"${holders.size ? `; the plugins holding it are ${[...holders].join(', ')}` : ''}.`,
 		)
 	}
@@ -413,6 +408,10 @@ export type DeleteResult = {
 	dryRun: boolean
 	/** The file held a selection (`extends`), which went with it. */
 	selection?: string[]
+	/** Set on a no-op: no file there to delete. */
+	code?: 'no-file'
+	/** What the notice says, for a person. */
+	message?: string
 	/** What answers the name once the file is gone. */
 	after: ResolvedReference
 }
@@ -432,10 +431,15 @@ export function deleteContribution(
 			: [target.path]
 	const path = candidates.find((candidate) => candidate !== options.without && existsSync(candidate))
 	if (!path) {
-		throw new ReferenceWriteError(
-			'no-file',
-			`${shown(target.path)} does not exist, so there is no ${target.scope} contribution of "${name.name}" to delete. ${describeAnswer(before, options.display)} An installed plugin's, a managed, or an installed skill's contribution is never deleted.`,
-		)
+		return {
+			name: name.name,
+			scope: target.scope,
+			path: target.path,
+			dryRun: Boolean(args.dryRun),
+			code: 'no-file',
+			message: `${shown(target.path)} does not exist, so there is no ${target.scope} contribution of "${name.name}" to delete; nothing was deleted. ${describeAnswer(before, options.display)} An installed plugin's, a managed, or an installed skill's contribution is never deleted.`,
+			after: before,
+		}
 	}
 	const steps = readExtends(parseDocument(tryRead(path) ?? '', () => {}).metadata['extends'], () => {})
 	const dryRun = Boolean(args.dryRun)

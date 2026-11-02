@@ -23,8 +23,8 @@ Decide who starts the read:
 - Use lowercase words joined by `-`. A name is a file name, never a path, and never ends `.default`.
 - **A plugin prefixes every name it ships** with its own name and a dot: `cyber-asana.work-hierarchy`, not `work-hierarchy`. Without the prefix, every plugin that ships `work-hierarchy` contributes to one name, and the name is ambiguous until someone selects one.
 - A repository's or user's own reference needs no prefix. A skill's default takes the name its skill loads.
-- **An implementation of an interface takes the interface's id as its namespace**, not the plugin's: `<id>` when the interface's cardinality is `one`, `<id>.<key>` when it is `many`, such as `scaffold.recipe.typescript-lib`. Read the interface with `show <id>.interface`.
-- Run `show <name>`. If the name already resolves and the user wants a new document, pick another name; to change the existing one, switch to Update.
+- **An implementation of an interface takes the interface's id as its namespace**, not the plugin's: `<id>` when the interface's cardinality is `one`, `<id>.<key>` when it is `many`, such as `scaffold.recipe.typescript-lib`. Read the interface with `load <id>.interface`.
+- Run `load <name>`. If the name already resolves and the user wants a new document, pick another name; to change the existing one, switch to Update.
 - Do not rename a reference that a plugin has already shipped. Its callers load it by the old name. Rename one only in a release that also updates every caller.
 
 ## 4. Write it
@@ -43,7 +43,7 @@ Instructions only.
 ```
 
 - `description` and `tags` are what `search` matches. Always write a `description`.
-- Other frontmatter keys are allowed. `show --metadata` returns them under `metadata`, composed key by key across the contributions used.
+- Other frontmatter keys are allowed. `load --metadata` returns them under `metadata`, composed key by key across the contributions used.
 - If the user's text starts with a `#` title, drop the title and make the sections under it top-level `##` sections. `create` refuses a template whose top level is one heading holding the others.
 - Write instructions an agent follows. Leave the rationale out.
 
@@ -51,7 +51,7 @@ Run `create`; never write the file by hand:
 
 1. Run `create <name> --dry-run`, with the flag from step 2. Add `--template <path>` when a calling skill or the user supplies the text; without it, the command writes its own template. Add `--merge <operation>` when it should not patch: `combine` to add after what is below, `replace` to stand alone, `remove` to turn the name off.
 2. Show the user the path and the content it printed, and any `hint:` line.
-3. On approval, run the same command without `--dry-run`. Then run `show <name>`; add `--trace` to see the new file `used`.
+3. On approval, run the same command without `--dry-run`. Then run `load <name>`; add `--trace` to see the new file `used`.
 
 If `create` refuses, report its reason and write nothing. An existing file with a body means Update. A file holding only a selection gets the body added, and keeps its `extends`.
 
@@ -68,4 +68,4 @@ Nothing loads a reference by itself. Tell the user where to name it:
 
 ## 6. Verify
 
-Run `show <name> --trace`. The new file must be `used`. For a skill's default, add `--default <skill folder>`. For an implementation, `check <name>` must also pass. For a plugin reference, run the command where the plugin is installed; otherwise, report that the plugin tier was not checked.
+Run `load <name> --trace`. The new file must be `used`. For a skill's default, add `--default <skill folder>`. For an implementation, `check <name>` must also pass. For a plugin reference, run the command where the plugin is installed; otherwise, report that the plugin tier was not checked.

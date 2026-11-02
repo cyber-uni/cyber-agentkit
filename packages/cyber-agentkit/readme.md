@@ -323,15 +323,15 @@ that is not a YAML mapping is ignored with a warning.
 | `declaredDependencies()`, `packageDir()`, `pluginManifestName()` | A manifest's declared packages, where each is installed, and a plugin's manifest name |
 | `harnessSkillFolders()`, `pluginSkillFolders()`, `skillsIn()` | The skill folders a harness reads, and the skills in them, known by their `SKILL.md` name |
 | `referenceImplementations(id, layers)` | The implementations of an interface a consumer can load, and those left out with why |
-| `checkReferences(layers, options)` | Checks interface documents and their implementations, each as `show` composes it |
+| `checkReferences(layers, options)` | Checks interface documents and their implementations, each as `load` composes it |
 
 ### The reference command
 
-The package ships a `reference` command with `show`, `list`, `search`, `where`, `implementations`,
+The package ships a `reference` command with `load`, `list`, `search`, `where`, `implementations`,
 `check`, `create`, `select`, and `delete` subcommands:
 
 ```sh
-npx -y cyber-agentkit reference show <name>... --root <repository root> --default <skill folder>
+npx -y cyber-agentkit reference load <name>... --root <repository root> --default <skill folder>
 npx -y cyber-agentkit reference list
 npx -y cyber-agentkit reference list 'project-tracker.capabilities.*'
 npx -y cyber-agentkit reference implementations <interface id> --accept 1,2
@@ -343,7 +343,7 @@ npx -y cyber-agentkit reference delete <name> --scope project --dry-run
 
 `implementations` lists what a consumer can load for an interface (a `<id>.interface` document) with
 each one's pin, description, and unsupported sections. `check` verifies interface documents and
-their implementations, and exits 1 on any failure.
+their implementations, and exits 0; failures are entries in the result's `failed` list.
 
 `create`, `select`, and `delete` act on `.agents/references/` (the project, the default) or
 `~/.agents/references/` (`--scope user`). `create` and `delete` also take `--plugin <plugin folder>`
@@ -352,15 +352,20 @@ what answers the name afterwards, and never deletes a managed contribution or an
 `select` writes the `extends` that picks what a name builds on, and `--clear` removes it.
 
 Output is [TOON](https://github.com/toon-format/toon) by default, for an agent to parse; pass
-`--format json` or `--format text` (`show`, `create`, `select`, and `delete` default to `text`).
-Each command prints only the fields that answer it; on `show`, `--metadata` adds the status and the
+`--format json` or `--format text` (`load`, `create`, `select`, and `delete` default to `text`).
+Each command prints only the fields that answer it; on `load`, `--metadata` adds the status and the
 composed frontmatter, and `--trace` adds how the document was built. Every warning carries a stable
-`code`. The formats
+`code`. A command that answered exits 0, including `load` for a name not found and `list`,
+`search`, or `implementations` with nothing to show (an `empty:` message with `help` lines). A
+command that could not complete exits 1, and a usage error exits 2; both print exactly one error
+value on stdout, with `error`, `code`, any detail fields, and `help`, and write nothing to stderr.
+In `text` a warning prints on stderr as `warning: <code>: <message>`; in `json` and `toon` it is in
+the record's `warnings` list. A warning never changes the exit code. The formats
 follow [`clibuilder`](https://www.npmjs.com/package/clibuilder) 12, and any other value is a
 usage error (exit code 2). A CLI built on clibuilder 12
 can host the same command under its own plugin name, imported from the `./commands` subpath. `--format`
 is the host's global option, so the host's `cli({ format })` sets the default for every subcommand;
-the `text` default of `show`, `create`, `select`, and `delete` belongs to the `cyber-agentkit` CLI:
+the `text` default of `load`, `create`, `select`, and `delete` belongs to the `cyber-agentkit` CLI:
 
 ```ts
 import { createReferenceCommand } from 'cyber-agentkit/commands'

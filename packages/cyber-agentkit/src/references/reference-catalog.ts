@@ -1,5 +1,6 @@
+import type { ReferenceStatusCode, ReferenceWarning } from './reference-codes.js'
+import { ReferenceFailure } from './reference-error.js'
 import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
-import type { ReferenceWarning } from './reference-warning.js'
 import {
 	type ReferenceStatus,
 	type ResolvedReference,
@@ -15,6 +16,8 @@ export type ReferenceListRow = {
 	name: string
 	description: string
 	status: ReferenceStatus
+	/** Set when not `found`. */
+	code?: ReferenceStatusCode
 	/** When `ambiguous`: each `<plugin>/<name>`, and each skill's default as `default of <skill>`. */
 	options?: string[]
 }
@@ -109,6 +112,7 @@ export function listReferences(source: Source, options: ListOptions = {}): Refer
 			description: resolved.status === 'found' ? firstLine(resolved.metadata?.['description']) : '',
 			status: resolved.status,
 		}
+		if (resolved.code) row.code = resolved.code
 		if (resolved.format && resolved.format !== 'markdown') row.format = resolved.format
 		if (resolved.options) {
 			const skills = held.map(({ skill }) => `default of ${skill.name}`)
@@ -212,12 +216,17 @@ function matchKind(name: string, reference: ResolvedReference, query: string): M
 }
 
 /**
- * Every name resolves the way `show` would, and each skill's default as its skill loads it; a name
- * no extends orders is searched once per plugin, as the qualified name `show` would need, and a name
+ * Every name resolves the way `load` would, and each skill's default as its skill loads it; a name
+ * no extends orders is searched once per plugin, as the qualified name `load` would need, and a name
  * a `remove` turned off is left out.
  */
 export function searchReferences(query: string, source: Source, options: ResolveOptions = {}): ReferenceSearch {
 	const normalized = query.trim().toLowerCase()
+	if (!normalized) {
+		throw new ReferenceFailure('query-missing', 'search needs a query: what the reference is about.', {
+			help: 'Run `reference list` for every name.',
+		})
+	}
 	const matches: SearchMatch[] = []
 	const consider = (reference: ResolvedReference, loadedBy?: string) => {
 		if (reference.status !== 'found') return

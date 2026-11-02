@@ -7,9 +7,9 @@ export type {
 	ReferenceDeleteReport,
 	ReferenceImplementationsReport,
 	ReferenceListReport,
+	ReferenceLoadEntry,
 	ReferenceSearchReport,
 	ReferenceSelectReport,
-	ReferenceShowEntry,
 	ReferenceWhereOutput,
 } from './references/reference.command.js'
 export { createReferenceCommand, createReferenceCommands } from './references/reference.command.js'
