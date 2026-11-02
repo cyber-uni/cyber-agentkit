@@ -99,9 +99,9 @@ Edge IDs are in [graph.md](./graph.md).
   other candidate is left out, with each reason available. A candidate is a plugin's implementation, listed by
   its qualified name, or a `repo` or `user` implementation of a `many` interface's `<id>.<key>`, written by
   `customize` (R111), listed by its bare name with its tier; the consuming skill loads it by that name (UC12.2). When a
-  plugin also holds that `<id>.<key>`, both are listed: the plugin's by its qualified name, the `repo` or `user` one by
-  the bare name, which is what loading the bare name returns. A skill's default is never listed. `implementations` of
-  an unknown interface is an error; with nothing listed it is an empty answer, not an error.
+  plugin also holds that `<id>.<key>`, only the bare name is listed, since loading it returns the `repo` or `user` one;
+  the plugin's is left out, with that reason. A skill's default is never listed. `implementations` of an unknown
+  interface is an error; with nothing listed it is an empty answer, not an error.
 - R36 (UC6, E38): `check` with no names covers every interface document and implementation found. A name several
   plugins hold is also checked as each `<plugin>/<name>`, and each skill's default as its skill loads it.
 - R37 (UC1, UC15, E39): `load` prints a document that fails its interface check, with a warning naming the failed
