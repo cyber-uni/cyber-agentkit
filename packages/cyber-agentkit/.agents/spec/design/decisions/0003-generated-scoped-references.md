@@ -30,6 +30,12 @@ keeps the reasons. It supersedes the pin file, default marker, and ambiguity hin
 - **Exit values follow clibuilder's `axi` contract (R43, R45).** A command that answered exits 0, even when a name is
   not `found` or a check fails: those are statuses in the result. Exit 1 means it could not complete, exit 2 that it
   was called wrongly, each with one error value on stdout.
+- **The plugin tier reads only the root's `package.json` (R13).** The nearest one to the working folder would change
+  the main document with the folder a session starts in. A per-package difference goes in a project section:
+  `customize --in <folder> --implements <id>` lets one monorepo package implement an interface its own way. Scoping a
+  workspace package's plugins to its folder is a follow-up.
+- **A `user` document uses only the harness's enabled plugins (R84).** It applies in every repository, so it must not
+  depend on one repository's `package.json`.
 - Rejected:
   - A pin file and a default marker (#110): a written `extends` selection does the same job and records the order.
   - Briefs (`.brief.md`): a brief does nothing until someone generates, and its author cannot test it.
