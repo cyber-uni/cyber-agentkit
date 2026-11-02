@@ -4,7 +4,7 @@ import { collapseHome } from '../command-output/collapse-home.js'
 import type { ReferenceWarning } from './reference-codes.js'
 import { ReferenceFailure } from './reference-error.js'
 import { type ReferenceLayers, type ReferencePlugin, referenceLayers } from './reference-layers.js'
-import type { ReferenceTrace, ResolvedReference } from './resolve-reference.js'
+import type { ReferenceTrace, ReferenceTraceSource, ResolvedReference } from './resolve-reference.js'
 
 type StringOption = { description: string; type: ReturnType<ReturnType<typeof t.string>['optional']> }
 type BooleanOption = { description: string; type: ReturnType<ReturnType<typeof t.boolean>['optional']> }
@@ -82,6 +82,29 @@ export function displayTrace(trace: ReferenceTrace, home: string): ReferenceTrac
 	}
 }
 
+/** A generated document's record in the text trace: each source, recorded and installed, then the request (R46). */
+function recordLines(row: { sources?: ReferenceTraceSource[]; request?: string }, indent: string): string[] {
+	const lines = (row.sources ?? []).map((source) => {
+		const who =
+			source.default !== undefined
+				? `default ${source.default}${source.plugin ? ` (plugin ${source.plugin})` : ''}`
+				: `plugin ${source.plugin}`
+		const recorded = source.recorded ?? 'no version'
+		const installed = source.status === 'missing' ? 'not installed' : (source.installed ?? 'no version')
+		return `${indent}source ${who}: recorded ${recorded}, installed ${installed} (${source.status})`
+	})
+	if (row.request !== undefined) {
+		lines.push(
+			`${indent}request:`,
+			...row.request
+				.replace(/\n$/, '')
+				.split('\n')
+				.map((line) => `${indent}  ${line}`),
+		)
+	}
+	return lines
+}
+
 /** The text trace: a summary line, then each section with its contributions, then each layer. */
 export function traceText(resolved: ResolvedReference, home: string): string {
 	const trace = displayTrace(resolved.trace, home)
@@ -108,6 +131,7 @@ export function traceText(resolved: ResolvedReference, home: string): string {
 		const frontmatter =
 			layer.frontmatter && Object.keys(layer.frontmatter).length ? ` ${JSON.stringify(layer.frontmatter)}` : ''
 		lines.push(`  ${layer.tier}${who} ${layer.path}: ${layer.outcome}${how}${extendsNote}${selection}${frontmatter}`)
+		lines.push(...recordLines(layer, '    '))
 	}
 	if (trace.projectSections.length) {
 		lines.push('project sections:')
@@ -115,6 +139,7 @@ export function traceText(resolved: ResolvedReference, home: string): string {
 			const frontmatter =
 				row.frontmatter && Object.keys(row.frontmatter).length ? ` ${JSON.stringify(row.frontmatter)}` : ''
 			lines.push(`  ${row.folder} ${row.path}: ${row.outcome}${frontmatter}`)
+			lines.push(...recordLines(row, '    '))
 			for (const section of row.sections ?? []) {
 				const how = section.contributions
 					.map(({ contribution, operation }) => `${contribution} (${operation})`)

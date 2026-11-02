@@ -8,7 +8,8 @@ function isTiered(tier: ReferenceTier): boolean {
 
 /** A contribution that drops everything below it: a `replace` with a body, or a `remove`. */
 function hides(layer: ReferenceTraceLayer): boolean {
-	if (!layer.file || layer.outcome !== 'used') return false
+	// A stale document is still used, so it still hides (R101).
+	if (!layer.file || (layer.outcome !== 'used' && layer.outcome !== 'stale')) return false
 	return layer.operation === 'remove' || (layer.operation === 'replace' && !layer.empty)
 }
 

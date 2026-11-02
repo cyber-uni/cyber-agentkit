@@ -14,6 +14,7 @@ import {
 } from './reference-document.js'
 import { dataExtensions, type ReferenceFormat } from './reference-format.js'
 import { comparePaths, type ProjectFolder, type ProjectFolderCache, projectFolders } from './reference-projects.js'
+import { checkGenerated, type ReferenceTraceSource, type SourceCatalog, staleMessage } from './reference-sources.js'
 import type { ReferenceTraceSection } from './resolve-reference.js'
 
 /** A project section as load delivers it: what one folder below the root adds after the main document. */
@@ -37,8 +38,12 @@ export type ReferenceTraceProjectSection = {
 	file?: string
 	/** Its frontmatter as written. */
 	frontmatter?: Record<string, unknown>
-	/** `used`; `shadowed by <managed> (replace|remove)`; `not used (...)`; or `not read (ignored)`. */
+	/** `used`; `stale`; `shadowed by <managed> (replace|remove)`; `not used (...)`; or `not read (ignored)`. */
 	outcome: string
+	/** A generated section: each source of the main document it was written against, recorded and installed (R9). */
+	sources?: ReferenceTraceSource[]
+	/** A generated section: the request it records. */
+	request?: string
 	/** When the managed contribution changed it: each section by heading path, with what supplied its text. */
 	sections?: ReferenceTraceSection[]
 }
@@ -47,6 +52,9 @@ export type ProjectSections = { sections: ResolvedProjectSection[]; trace: Refer
 
 /** Keys only a main-document contribution carries (K24): a project section states only what differs in its folder. */
 const ignoredKeys = ['merge', 'extends', 'implements', 'aliases'] as const
+
+/** A generated section's record, which the trace carries and its `metadata` leaves out (UC8). */
+const recordKeys = ['sources', 'request'] as const
 
 export type ProjectSectionOptions = {
 	root: string
@@ -59,6 +67,8 @@ export type ProjectSectionOptions = {
 	/** A file read as absent. */
 	without?: string | undefined
 	warnAt: (where: string) => WarnFn
+	/** What a generated section's recorded sources are compared to; without it, none is checked. */
+	catalog?: SourceCatalog | undefined
 }
 
 type Found = { folder: ProjectFolder; file: string; path: string; relative: string }
@@ -100,7 +110,7 @@ function filesFor(folder: ProjectFolder, name: string, without: string | undefin
  * none, and a non-Markdown file in a project folder never answers; each warns.
  */
 export function readProjectSections(name: string, options: ProjectSectionOptions): ProjectSections {
-	const { root, cache, managed, format, display, without, warnAt } = options
+	const { root, cache, managed, format, display, without, warnAt, catalog } = options
 	const found = projectFolders(root, cache)
 	const trace: ReferenceTraceProjectSection[] = []
 	const sections: ResolvedProjectSection[] = []
@@ -158,8 +168,18 @@ export function readProjectSections(name: string, options: ProjectSectionOptions
 			row.outcome = 'not used (no body)'
 			continue
 		}
+		for (const key of recordKeys) delete kept[key]
 		const applied = applyManaged(body, label, managed, warnAt)
 		if (applied.sections) row.sections = applied.sections
+		const check = catalog && checkGenerated(metadata, catalog, warnAt(label))
+		if (check) {
+			if (check.sources.length) row.sources = check.sources
+			if (check.request !== undefined) row.request = check.request
+			if (check.stale) {
+				row.outcome = 'stale'
+				warnAt(label)('reference-stale', staleMessage(name, check.sources))
+			}
+		}
 		sections.push({ folder: folder.folder, path: hit.path, content: applied.content, metadata: kept })
 	}
 	return { sections, trace }

@@ -10,6 +10,7 @@ import { detectedHarnesses, enabledPluginLayers, harnessManagedLayers } from './
 import type { ReferenceWarning } from './reference-codes.js'
 import { ReferenceFailure } from './reference-error.js'
 import type { ProjectFolderCache } from './reference-projects.js'
+import type { ReferenceSourcePlugin } from './reference-sources.js'
 
 /**
  * Where a contribution lives. Listed highest first; the stack (plugins and `default`) is ordered by
@@ -79,6 +80,11 @@ export type ReferenceLayers = {
 	harnesses: readonly HarnessId[]
 	/** The installed skills that hold a default, which `list`, `search`, and `check` reach. */
 	skills?: SkillDefaults | undefined
+	/**
+	 * Every plugin read, with its installed version and origin, whether or not it ships `references/`:
+	 * a generated document's recorded sources are compared to these (R101).
+	 */
+	plugins?: ReferenceSourcePlugin[] | undefined
 }
 
 /** The installed skills holding a default contribution, found in the skill folders the detected harnesses read. */
@@ -311,5 +317,13 @@ export async function referenceLayers({
 	// A repository checked out at the home directory would read the same folder as repo and user.
 	const seen = new Set<string>()
 	const placed = layers.filter(({ dir }) => !seen.has(dir) && seen.add(dir))
-	return { layers: placed, root, projects: new Map(), harnesses, skills }
+	const plugins: ReferenceSourcePlugin[] = [
+		...host,
+		...enabled.filter(({ skipped }) => !skipped),
+		...packages.flatMap((dir): ReferenceLayer[] => {
+			const name = pluginManifestName(dir)
+			return name ? [{ tier: 'plugin', dir, plugin: name, origin: 'dependency', version: pluginVersion(dir) }] : []
+		}),
+	].flatMap(({ plugin: name, version, origin }) => (name === undefined ? [] : [{ plugin: name, version, origin }]))
+	return { layers: placed, root, projects: new Map(), harnesses, skills, plugins }
 }

@@ -29,6 +29,15 @@ function hider(layers: ReferenceLayer[], target: ReferenceLayer): string | undef
 }
 
 describe('hiddenBy (J6)', () => {
+	it('names a stale generated replace above, which is still used (R101)', () => {
+		const repo = layer('repo', {
+			'name.md': '---\nmerge: replace\nsources:\n  - plugin: gone-kit\n    version: 1.0.0\n---\n\n## A\n\nmine\n',
+		})
+		const user = layer('user')
+
+		expect(hider([repo, user], user)).toBe(`repo ${join(repo.dir, 'name.md')} (replace)`)
+	})
+
 	it('names the nearest replace or remove above a tier file, not the highest', () => {
 		const managed = layer('managed', { 'name.md': replace })
 		const repo = layer('repo', { 'name.md': remove })

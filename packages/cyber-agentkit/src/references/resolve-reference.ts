@@ -24,12 +24,14 @@ import {
 	type ResolvedProjectSection,
 	readProjectSections,
 } from './reference-project-sections.js'
+import { checkGenerated, type ReferenceTraceSource, sourceCatalog, staleMessage } from './reference-sources.js'
 import { type Lookup, namesDefault, plan } from './reference-stack.js'
 
 export { candidateFiles, contributionLabel, layerNames } from './reference-contribution.js'
 export type { ReferenceName } from './reference-name.js'
 export { parseReferenceName } from './reference-name.js'
 export type { ReferenceTraceProjectSection, ResolvedProjectSection } from './reference-project-sections.js'
+export type { ReferenceSource, ReferenceTraceSource } from './reference-sources.js'
 export type { ExtendsStep } from './reference-stack.js'
 export { readExtends } from './reference-stack.js'
 
@@ -54,8 +56,12 @@ export type ReferenceTraceLayer = {
 	frontmatter?: Record<string, unknown>
 	operation?: MergeOperation
 	operationFrom?: OperationSource
-	/** `used`; `shadowed by ...`; `not used (...)`; `not read (...)`; `ambiguous`; or `missing`. */
+	/** `used`; `stale`; `shadowed by ...`; `not used (...)`; `not read (...)`; `ambiguous`; or `missing`. */
 	outcome: string
+	/** A generated `repo` or `user` document: each recorded source with its recorded and installed versions (R9). */
+	sources?: ReferenceTraceSource[]
+	/** A generated `repo` or `user` document: the request it records. */
+	request?: string
 	/** Set when its `extends` was written but did not build the stack, and why. */
 	extendsOutcome?: string
 	description?: string
@@ -111,7 +117,7 @@ export type ResolvedReference = {
 	content?: string
 	/** Set when `found`: `markdown`, or the format of the data file that answered whole. */
 	format?: ReferenceFormat
-	/** The composed frontmatter, key by key with the higher contribution winning, without `merge` and `extends`. */
+	/** The composed frontmatter, key by key with the higher contribution winning, without `merge`, `extends`, `sources`, and `request`. */
 	metadata?: Record<string, unknown>
 	/** When `found`: what each folder below the root adds after the main document, in path order (R99). */
 	projectSections: ResolvedProjectSection[]
@@ -238,7 +244,17 @@ export function resolveReference(
 	const sectionsOver = (format: ReferenceFormat | undefined): ProjectSections => {
 		if (root === undefined || below !== undefined) return { sections: [], trace: [] }
 		const managed = tiered.find(({ layer }) => layer.tier === 'managed')
-		const found = readProjectSections(ref.name, { root, cache: projects, managed, format, display, without, warnAt })
+		const catalog = sourceCatalog(source, { tier: 'project' })
+		const found = readProjectSections(ref.name, {
+			root,
+			cache: projects,
+			managed,
+			format,
+			display,
+			without,
+			warnAt,
+			catalog,
+		})
 		trace.projectSections = found.trace
 		return found
 	}
@@ -290,6 +306,7 @@ export function resolveReference(
 		})),
 	]
 	const { composed, applied, removedBy, used, whole } = composeOrder(order, warnAt)
+	markStale(ref.name, used, source, warnAt)
 	trace.sections = composed.removed.map(({ path, by }) => ({ path, contributions: [], removedBy: by }))
 	if (!applied.length) {
 		const only = sectionsOver(undefined).sections
@@ -313,7 +330,8 @@ export function resolveReference(
 		return { ...result, status: 'missing', code: 'reference-missing', message }
 	}
 
-	const shown = used.filter(({ entry }) => entry.outcome === 'used')
+	// A stale document is still used (R101).
+	const shown = used.filter(({ entry }) => entry.outcome === 'used' || entry.outcome === 'stale')
 	trace.contributions = applied.map(({ layer, entry }) => {
 		const row: ReferenceTraceContribution = {
 			tier: layer.tier,
@@ -351,6 +369,32 @@ export function resolveReference(
 		format: 'markdown',
 		metadata: composedMetadata(shown),
 		projectSections: sectionsOver('markdown').sections,
+	}
+}
+
+/**
+ * A generated `repo` or `user` document load uses is `stale` when a recorded source's plugin version
+ * differs from the installed one, or a recorded source is gone (R101): still used, with a
+ * `reference-stale` warning naming each one. A plugin's or a default's own file is compared only by
+ * `check`, and a contribution recording no sources is never stale.
+ */
+function markStale(
+	name: string,
+	used: readonly Contribution[],
+	source: Source,
+	warnAt: (where: string) => WarnFn,
+): void {
+	for (const contribution of used) {
+		const { layer, entry } = contribution
+		if (entry.outcome !== 'used' || (layer.tier !== 'repo' && layer.tier !== 'user')) continue
+		const warn = warnAt(contribution.label)
+		const check = checkGenerated(contribution.metadata, sourceCatalog(source, { tier: layer.tier }), warn)
+		if (!check) continue
+		if (check.sources.length) entry.sources = check.sources
+		if (check.request !== undefined) entry.request = check.request
+		if (!check.stale) continue
+		entry.outcome = 'stale'
+		warn('reference-stale', staleMessage(name, check.sources))
 	}
 }
 

@@ -80,11 +80,13 @@ export function composeOrder(order: readonly OrderedContribution[], warnAt: (whe
 	return { composed, applied, removedBy, used, whole }
 }
 
-/** Lower first, so a higher contribution wins a key both set; `merge` and `extends` say how one applies, so they stay out. */
+/** Keys that say how a contribution applies or how it was generated, not what it holds: `metadata` leaves them out (UC8). */
+export const recordKeys = ['merge', 'extends', 'sources', 'request'] as const
+
+/** Lower first, so a higher contribution wins a key both set; the keys `recordKeys` names stay out, and the trace carries each as written. */
 export function composedMetadata(contributions: readonly Contribution[]): Record<string, unknown> {
 	const metadata: Record<string, unknown> = Object.assign({}, ...contributions.map(({ metadata }) => metadata))
-	delete metadata['merge']
-	delete metadata['extends']
+	for (const key of recordKeys) delete metadata[key]
 	return metadata
 }
 

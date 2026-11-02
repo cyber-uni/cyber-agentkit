@@ -138,6 +138,12 @@ export {
 } from './references/reference-layers.js'
 export type { ReferenceName } from './references/reference-name.js'
 export type { ProjectFolder, ProjectFolderCache, ProjectFolders } from './references/reference-projects.js'
+export type {
+	GeneratedRecord,
+	ReferenceSource,
+	ReferenceSourcePlugin,
+	ReferenceTraceSource,
+} from './references/reference-sources.js'
 export type { ReferenceWherePlace, ReferenceWhereReport, WhereOptions } from './references/reference-where.js'
 export { whereReference } from './references/reference-where.js'
 export type {

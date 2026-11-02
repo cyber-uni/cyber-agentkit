@@ -4,6 +4,7 @@ import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference
 import { parseReferenceName } from './reference-name.js'
 import { projectSectionNames } from './reference-project-sections.js'
 import { comparePaths } from './reference-projects.js'
+import { isGenerated } from './reference-sources.js'
 import {
 	type ReferenceStatus,
 	type ReferenceTraceProjectSection,
@@ -89,6 +90,7 @@ function layerRow(name: string, entry: ResolvedReference['trace']['layers'][numb
 	if (entry.plugin !== undefined) row.plugin = entry.plugin
 	if (entry.skill !== undefined) row.skill = entry.skill
 	if (entry.selection) row.kind = 'selection'
+	else if (isGenerated(entry.frontmatter)) row.kind = 'generated'
 	return row
 }
 
