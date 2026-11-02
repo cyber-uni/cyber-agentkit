@@ -200,12 +200,18 @@ Edge IDs are in [graph.md](./graph.md).
 - R43 (UC1, UC6, UC8, E12): The command exits 0 when it did what was asked: every name `found`, or `where` on an
   ambiguous name. It exits 1 when a name is not `found`, a check fails, or a write is refused, and 2 on a usage error
   (no name, an unknown flag).
-- R44 (UC1): In text, one name prints its document; several print each as `<reference name="...">...</reference>` in
-  the order asked; a name not `found` prints `<reference name="..." status="..." />` in its place.
+- R44 (UC1): In text, one name prints its resolved reference; several print each as
+  `<reference name="...">...</reference>` in the order asked; a name not `found` prints
+  `<reference name="..." status="..." />` in its place. Each project section follows the main document as
+  `<project folder="...">...</project>`, in path order; with the routing option, as
+  `<project folder="..." route="..." />`. The wrapper, not a heading, marks where a section starts and ends, so its own
+  headings keep their levels.
 - R45 (UC1, UC8, E13): In text, a failure is an `error: <code>: <message>` line and a warning a
   `warning: <code>: <message>` line, both on stderr. Neither changes stdout, and a warning never changes the exit code.
 - R46 (UC2): `--trace` in text writes to stderr a summary line (status, stack, what built it), then each section's
-  heading path with its contributions and operations, then each layer; stdout stays the plain document.
+  heading path with its contributions and operations, then each layer, then each project section with its folder and
+  path; for a generated document, each source with its recorded and installed plugin versions, and the request. Stdout
+  stays the plain resolved reference.
 - R47 (UC8): `--format json` or `toon` writes one document to stdout, with the fields R38 gives; a warning goes only in
   the entry's `warnings`, not on stderr.
 - R48 (UC1, UC8): Each library function returns full records: every field R38 lists, including those `--metadata` and
@@ -214,47 +220,52 @@ Edge IDs are in [graph.md](./graph.md).
 
 **Names**
 
-- R1 (UC1, E1): A name is `invalid` when it ends `.md`, or `.default` (that suffix names a default's file, K13), has a
-  path separator other than one `<plugin>/` prefix, or a character other than letters, digits, `-` and `.`. Nothing is
-  read for it, and the other names still resolve.
+- R1 (UC1, E1): A name is `invalid` when it ends `.md`, `.default` (that suffix names a default's file, K13), or `.meta`
+  (that suffix names a metadata file, K31), has a path separator other than one `<plugin>/` prefix, or a character
+  other than letters, digits, `-` and `.`. Nothing is read for it, and the other names still resolve.
 - R51 (UC1, E1): A `<name>.default.md` in a tier folder is ignored, with a warning that a default goes in a skill's
   `references/` folder.
 - R2 (UC1, UC7, E2): `<plugin>/<name>` builds the stack from that plugin's contribution and what its own `extends`
-  brings in; managed, project, and user contributions still apply over it. A written `extends` is not used, and a
-  plugin extending the named one is left out.
+  brings in; the nearer `repo` or `user` contribution and each managed contribution still apply over it, and its project
+  sections still follow it. A written `extends` is not used, and a plugin extending the named one is left out.
 
 **Consumers (UC8)**
 
-- R38 (UC8, E40): A command prints only the fields that answer it; `--metadata` (on `show`) and `--trace` add more, and
+- R38 (UC8, E40): A command prints only the fields that answer it; `--metadata` (on `load`) and `--trace` add more, and
   a field with nothing to say is left out. In `--format json` and `toon`:
-  - `show`: one entry per name asked, in order. A `found` name with no warnings is its content as a string; otherwise a
-    record of `name`, `status`, `content`, and `warnings`. A name not `found` is a record of `name`, `status`, `code`,
-    and `options` when `ambiguous`. `--metadata` makes every entry a record and adds `status` and `metadata`. `--trace`
-    adds `trace`: the stack, the contributions used (tier, plugin or skill, path, operation), the sections, and the
-    layers.
+  - `load`: one entry per name asked, in order. A `found` name with no warnings and no project sections is its content
+    as a string; otherwise a record of `name`, `status`, `content`, `projectSections` (each `folder`, and `content`, or
+    `route` with the routing option), and `warnings`. A name not `found` is a record of `name`, `status`, `code`, and
+    `options` when `ambiguous`. `--metadata` makes every entry a record and adds `status` and `metadata`. `--trace` adds
+    `trace`: the stack, the contributions used (tier, plugin or skill, path, operation), the sections, the layers, each
+    project section's `folder` and `path`, and for a generated document its `sources` (each plugin, recorded version,
+    and installed version) and `request`.
   - `list`: rows of `name` and `description`, with `status` and `options` when not `found`; `--trace` adds the rows per
-    layer (R16) with `tier`, `plugin` or `skill`, `path`, and outcome.
+    layer (R16) with `tier`, `plugin` or `skill`, `path`, outcome, and `kind` (`selection`, `generated`, or
+    `project-section` with its `folder`) when the row is one.
   - `search`: matches of `name`, `description`, and `match`; `--trace` adds `tier` and `plugin` or `skill`.
-  - `check`: the entries that fail, each `name` and `failures` (each `check` and `message`), and the count that pass;
-    `--trace` adds every entry with `kind` and `unsupported`.
+  - `check`: the entries that fail, each `name` and `failures` (each `check` and `message`), the entries that pass with
+    a warning, each `name` and `warnings`, and the count that pass; `--trace` adds every entry with `kind` and
+    `unsupported`.
   - `implementations`: each `pin`, `description`, and `unsupported`; `--trace` adds `name`, `tier`, `version`, the
     interface's `cardinality` and `accept`, and `excluded` with `name` and `reasons`.
-  Removing or renaming one of these fields is a breaking change. The fields of `where`, `create`, `select`, and `delete`
-  follow R57, R31, R61, R62, and R30, and are not a contract yet (Q4).
+  Removing or renaming one of these fields is a breaking change. The fields of `where`, `create`, `customize`, and
+  `delete` follow R57 and the Writing criteria, and are not a contract yet (Q4).
 - R39 (UC8, E41): Every failure and warning carries a stable `code`; a warning in `warnings` is `{code, message}`. A
-  name not `found` has `reference-missing`, `reference-ambiguous`, or `reference-invalid`; a check failure's code is its
-  check's name (R33). The other codes are Q4. The human wording is not a contract.
+  name not `found` has `reference-missing`, `reference-ambiguous`, or `reference-invalid`; a stale generated document's
+  warning has `reference-stale` (UC4.6 acts on it); a check failure's code is its check's name (R33). The other codes
+  are Q4. The human wording is not a contract.
 
 **Read-only reads**
 
-- R19 (UC1–UC3, UC6, E21): `show`, `where`, `list`, `search`, `check`, and `implementations` create, change, or delete
-  no file. Only `create`, `select`, and `delete` write, each only where R24 allows; none writes in the managed tier or
-  an installed copy of a plugin or skill.
+- R19 (UC1–UC3, UC6, E21): `load`, `where`, `list`, `search`, `check`, and `implementations` create, change, or delete
+  no file. Only `create`, `customize`, and `delete` write, each only where R24 allows; none writes in the managed tier
+  or an installed copy of a plugin or skill.
 
 ## Open questions
 
-- **Q4.** The codes for warnings and refused writes, and the fields of `where`, `create`, `select`, and `delete` (R38,
-  R39). Needs the owner and a check with repobuddy, which parses the output today.
+- **Q4.** The codes for warnings and refused writes, and the fields of `where`, `create`, `customize`, and `delete`
+  (R38, R39). Needs the owner and a check with repobuddy, which parses the output today.
 - **Q12.** (#114) Narrowed by `.research/skill-resolution`, which answers it for Claude Code, Cursor, Codex, Copilot
   CLI, OpenCode, and Gemini CLI: where a plugin's skills sit, how an installed plugin maps to its folder, which copy of
   a skill runs, and that every one tells a loaded skill its folder (R41). A plugin-root `references/` folder is a

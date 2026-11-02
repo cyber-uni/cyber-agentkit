@@ -9,4 +9,4 @@ reused.
 | E13 | a warning | never changes stdout or the exit code |
 | E40 | the output format | only the fields that answer; `--metadata` and `--trace` add the rest (R38) |
 | E41 | a failure or warning | a stable `code`; the wording is not a contract |
-| E21 | `show`, `where`, `list`, `search`, `check`, `implementations` | write no file |
+| E21 | `load`, `where`, `list`, `search`, `check`, `implementations` | write no file |
