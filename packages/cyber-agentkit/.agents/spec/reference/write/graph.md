@@ -16,16 +16,27 @@ flowchart TD
   where -->|ok| exists{"E26 the file there already?"}
   exists -->|"with a body, or a file answering the name in another form: file-exists"| e1
   exists -->|"only a selection"| keep[add the body and merge, keep extends]
-  exists -->|no| conflict{"E30 --template with --implements or with --merge remove, --merge with --in, --in for a name that is not Markdown, or an unknown interface?"}
+  exists -->|no| conflict{"E30 --template with --implements or with --merge remove, --merge with --in, or an unknown interface?"}
   keep --> conflict
   conflict -->|"yes: a flag combination"| e2
   conflict -->|"yes: an unknown interface"| e1
-  conflict -->|no| title{"E34 a title template?"}
-  title -->|yes| e1
-  title -->|no| hidden{"E28 a replace or remove above hides it?"}
+  conflict -->|no| optv{"E29 an unknown --merge operation?"}
+  optv -->|"yes: option-invalid"| e2
+  optv -->|no| inmd{"E29 --in for a name whose main document is not Markdown?"}
+  inmd -->|"yes: in-not-markdown"| e1
+  inmd -->|no| tinv{"E34 an unreadable template, or one whose frontmatter is not a mapping?"}
+  tinv -->|"yes: template-invalid"| e1
+  tinv -->|no| title{"E34 a title template?"}
+  title -->|"yes: template-title"| e1
+  title -->|no| extr{"E29 a --plugin or --default file extending a plugin, with merge: replace?"}
+  extr -->|"yes: extends-replace"| e1
+  extr -->|no| hidden{"E28 a replace or remove above hides it?"}
   hidden -->|yes| hwarn["warning reference-hidden or repo-hides-user, naming the hiding contribution; written all the same"]
-  hidden -->|"no, or the folder is not a layer"| mode
-  hwarn --> mode["E29 merge: --merge, else the template's, else patch (--plugin or --default: --merge only; --in: none, and a template's merge, extends, implements, and aliases dropped with a project-section-key-ignored warning); --implements writes replace and every section stubbed Unsupported"]
+  hidden -->|"no, or the folder is not a layer"| implin
+  hwarn --> implin{"E29 --implements with --in?"}
+  implin -->|yes| pin["a project section from the interface's stub, every section of it; no implements or merge (R27, R111, UC18.14)"]
+  pin --> dry
+  implin -->|no| mode["E29 merge: --merge, else the template's, else patch (--plugin or --default: --merge only; --in: none, and a template's merge, extends, implements, and aliases dropped with a project-section-key-ignored warning); --implements writes replace and every section stubbed Unsupported"]
   mode --> dry{"E31 --dry-run?"}
   dry -->|yes| print([path and content, nothing written])
   dry -->|no| wrote(["E33 written: path and a hint to load; --trace gives the trace"])
@@ -45,8 +56,10 @@ flowchart TD
   has -->|no| e3(["no-op, exit 0: nothing was there, and what answers the name now"])
   has -->|yes| unsel["extends removed; a file left empty is deleted"]
   unsel --> cw
-  what -->|"--extends steps"| opt{"E50 each step default or a plugin holding the name?"}
-  opt -->|no| e1
+  what -->|"--extends steps, or --extends-file"| efile{"E50 an --extends-file that is unreadable or not a YAML extends list?"}
+  efile -->|"yes: extends-file-invalid"| e1
+  efile -->|no| opt{"E50 each step default or a plugin holding the name?"}
+  opt -->|"no: step-invalid"| e1
   opt -->|yes| sel["extends written bottom first; a body is kept, and one recording a request gets a hint to customize again; under a managed extends that builds the stack, extends-not-used names it"]
   sel --> selreq{"E58 --request and --body too?"}
   selreq -->|"no: picks alone"| cw
@@ -60,7 +73,10 @@ flowchart TD
   known -->|"no: interface-invalid"| e1
   known -->|yes| ns{"E67 the name under the interface's namespace?"}
   ns -->|"no: name-outside-interface"| e1
-  ns -->|"yes, the name missing or already found"| gimp["body written from the interface's stub (on a found name, followed by its current resolved reference) and the request: implements id@version, merge replace, no sources; on a found name the whole implementation replaces the stack"]
+  ns -->|"yes, the name missing or already found"| gin{"E67 --in?"}
+  gin -->|"yes: a project section"| gproj["a project section from the interface's stub, followed on a found name by the main document and the outer sections (R84); no implements, merge, or sources; the nearer-folder rule makes it win there (R90, UC18.14)"]
+  gproj --> cw
+  gin -->|no| gimp["body written from the interface's stub (on a found name, followed by its current resolved reference) and the request: implements id@version, merge replace, no sources; on a found name the whole implementation replaces the stack"]
   impl -->|no| miss{"E67 the name missing under a found interface's namespace?"}
   miss -->|"yes: implements-required"| e1
   miss -->|no| gen["body written with extends, sources and installed versions, request, and merge"]

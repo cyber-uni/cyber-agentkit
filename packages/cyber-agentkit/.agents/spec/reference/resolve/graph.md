@@ -22,7 +22,9 @@ flowchart TD
   projs -->|"yes: only project sections"| sections
   held -->|yes| written{"E8 a written extends in managed, repo, or user?"}
   written -->|yes| steps["the highest builds the stack: steps bottom first, each with its own merge and extends"]
-  steps --> step{"E47 every step installed and holding the name?"}
+  steps --> twice{"E10 a plugin listed at two separate places?"}
+  twice -->|yes| ambiguous
+  twice -->|no| step{"E47 every step installed and holding the name?"}
   step -->|"some missing"| skip["skipped, with what only it brings in; warning"]
   step -->|"all missing"| fall["the extends counts as not written; warning"]
   fall --> written
@@ -75,8 +77,8 @@ flowchart TD
 | Edge | Decision | Outcome |
 | --- | --- | --- |
 | E14 | the root and the `repo`, `project`, `user`, and managed tiers | the root: `--root` (refused, `root-missing`, when it does not exist), else the nearest folder up that holds `.git` (a folder, or a file in a git worktree), else the working folder; `repo`: the root's `.agents/references/`; `project`: each `.agents/references/` strictly below it that git does not ignore (by any ignore file git reads); `~/.agents/references/`; `references/` in the current harness's managed folder only, and none when detection names no harness or more than one |
-| E15 | the plugin tier | enabled plugins of the detected harness, plus declared (not transitive) package dependencies that ship `references/` |
-| E43 | `--default <skill folder>` | `<skill folder>/references/<name>.default.md` read as the `default` tier; an old `references/<name>.md` copy is not |
+| E15 | the plugin tier | enabled plugins of the detected harness, plus the declared (not transitive) dependencies and devDependencies of the root's `package.json` that are plugins and ship `references/` (R13) |
+| E43 | `--default <skill folder>` | `<skill folder>/references/<name>.default.md`, or `<name>.default.<ext>` for a K29 extension in K30 order, read as the `default` tier; an old `references/<name>.md` copy is not; a folder that does not exist warns `default-folder-missing`, and the name resolves without the `default` tier |
 | E22 | a `governances/` folder | never read |
 | E17 | a layer skipped for a reason | in the trace with its reason; adds no contribution |
 | E11 | `--trace`, or `where` | every layer with its outcome, project sections, and a generated document's sources; `where` gives the places to write, with `--in` a folder's, and the heading paths |

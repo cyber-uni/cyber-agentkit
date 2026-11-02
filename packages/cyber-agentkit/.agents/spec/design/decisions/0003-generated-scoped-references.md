@@ -34,6 +34,14 @@ keeps the reasons. It supersedes the pin file, default marker, and ambiguity hin
   the main document with the folder a session starts in. A per-package difference goes in a project section:
   `customize --in <folder> --implements <id>` lets one monorepo package implement an interface its own way. Scoping a
   workspace package's plugins to its folder is a follow-up.
+- **A plugin-root `references/` is this library's convention (R13).** It is not part of the Agent Plugins spec, and no
+  harness reads it (`.research/skill-resolution`), so the plugin tier is this library's to define.
+- **The skill passes `--default` (R41).** Every detected harness tells a loaded skill its folder, but none hands it to a
+  script (`.research/skill-resolution`, D).
+- **A plugin or default file that extends a plugin may not `replace` it (R103).** A copy would freeze every user on the
+  base its author saw; the file states only the sections it changes, or is a snapshot with no `extends`.
+- **A default's `merge` matters (R27).** A default can extend a plugin through its own `extends`, and R8 brings each
+  step's `extends` beneath it, so the default can sit above that plugin.
 - **A `user` document uses only the harness's enabled plugins (R84).** It applies in every repository, so it must not
   depend on one repository's `package.json`.
 - Rejected:

@@ -22,8 +22,9 @@ IDs are shared across the parent and its children.
     `reference-missing`), nothing is said; the trace explains it.
   - UC4.2 `ambiguous`: with a user present, the options are listed (each `<plugin>/<name>`, and the skill's default
     if it has one), the user picks one even when only one is left, and says whether the pick is for the repository
-    (the default) or only for themselves. The pick is written with `reference customize <name> --extends <pick>`
-    (UC9), and the name loads from it. With no user, the consumer carries on without it, and the user is told to
+    (the default) or only for themselves. The pick is written with `reference customize <name> --extends <step>`
+    (UC9), where the step is the option's plugin part, or `default` for the skill's default, and the name loads from
+    it. With no user, the consumer carries on without it, and the user is told to
     settle it.
   - UC4.3 `invalid`: the consumer carries on without it, and the user is told the skill's load line names something
     that is not a reference name, a fault to report to the skill's author.
@@ -94,10 +95,10 @@ instruction, not by what an agent does.
 - R21 (UC4, E23): The skill reads its own default of a name, `references/<name>.default.md` or `<name>.default.<ext>`
   for a K29 extension in K30 order (R41), only when the command did not run, never for a name the command reported,
   whatever its status.
-- R59 (UC4, E49): With a user present, an `ambiguous` name lists every option, the skill's default included, even
-  when one is left; the pick is written with `reference customize <name> --extends <pick>` at the scope the user
-  chose, `repo` unless they say otherwise, and the name loads from it. With no user, it is not loaded, and the user is
-  told to settle it.
+- R59 (UC4, E49): With a user present, an `ambiguous` name lists every option, the skill's default included, even when
+  one is left; the pick is written with `reference customize <name> --extends <step>`, the step being the option's
+  plugin part or `default` for the skill's default, at the scope the user chose, `repo` unless they say otherwise, and
+  the name loads from it. With no user, it is not loaded, and the user is told to settle it.
 - R22 (UC4, E24): Every name read from a fallback, and every name not loaded, is reported to the user with the reason,
   except a name whose code is `reference-removed` (a `remove` turned it off); nothing is reported when every name came
   from the command.

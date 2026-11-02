@@ -31,8 +31,8 @@ IDs are shared across the parent and its children.
   implementation fails when a required section is left out or marked unsupported; an optional one left out is listed
   unsupported. The line saying what a section holds guides implementers (UC5.5 stubs each section with it) and is never
   checked. `implementations` lists the ones that pass, with its `pin` (a plugin's qualified name, or a `repo` or `user`
-  implementation's bare name), tier, version, description, and unsupported sections, and the ones left out, each with
-  its reason.
+  implementation's bare name), tier, description, and unsupported sections; with `--trace`, also the version, and the
+  ones left out, each with its reasons (R38).
 - **Extensions:**
   - UC6.1 A named reference is `missing`, `ambiguous`, or `invalid`: it fails with its status code as the check name
     (`reference-missing`, `reference-removed`, `reference-ambiguous`, or `reference-invalid`), an entry in the result.
@@ -80,9 +80,9 @@ IDs are shared across the parent and its children.
   - UC15.2 Cardinality `one`, and another plugin implements it too: the name is `ambiguous` (UC1.2) until the
     customizer picks (UC4.2, UC9).
   - UC15.3 Cardinality `many`, and another plugin ships the same key: the name is `ambiguous` (UC1.2), and both are
-    listed under `excluded` by `implementations`.
-  - UC15.4 It fails its interface check: `check` fails, `implementations` leaves it out with the reason, and load
-    still answers it with a warning (UC1.8).
+    listed under `excluded` by `implementations --trace`.
+  - UC15.4 It fails its interface check: `check` fails, `implementations` leaves it out (its reason is under `excluded`
+    with `--trace`), and load still answers it with a warning (UC1.8).
   - UC15.5 The interface moves to a version its consumers accept and the implementation does not declare: `check`
     fails `version`, and `implementations` leaves it out.
   - UC15.6 The plugin that publishes the interface is not installed: `check` fails `interface-found` (UC6.3); the
@@ -100,12 +100,14 @@ Edge IDs are in [graph.md](./graph.md).
   `<id>.<key>`), `version` (a positive integer), `versions` (the versions its consumers accept, positive integers,
   default `[version]`), and `sections` (the implementation's top-level sections in order, each listed once, each a
   `heading` with an optional `required`, default `false`, and an optional one-line `holds`; a plain string is short for
-  `{heading: <string>}`). A missing or malformed key fails the `interface` check, naming each problem; any other key
-  is ignored.
+  `{heading: <string>}`). `cardinality`, `version`, and `sections` are required; `versions` and, per section,
+  `required` and `holds` have the defaults given. A missing required key, or a malformed key, optional ones included,
+  fails the `interface` check, naming each problem; any other key is ignored.
 - R64 (UC6, E36): A `required` section that an implementation leaves out, or whose first line is `**Unsupported.**`,
   fails the `required` check, naming each such section. Every other section is optional. An implementation may hold
-  sections the interface does not list, anywhere; `order` compares only the listed ones, each at most once. `holds` is
-  never checked.
+  sections the interface does not list, anywhere; `order` passes when the listed headings that are present appear in the
+  listed order; a listed heading that appears twice fails `order` (the repeat also raises `heading-repeated`, R7).
+  `holds` is never checked.
 - R33 (UC6, E35): A checked name that is `missing`, `ambiguous`, or `invalid` fails with its status code as the check
   name (`reference-missing`, `reference-removed`, `reference-ambiguous`, or `reference-invalid`). A document checked
   that neither declares `implements` nor is an interface document fails the check `kind`. `check` runs these checks on
@@ -127,12 +129,12 @@ Edge IDs are in [graph.md](./graph.md).
 - R34 (UC6, E36): An optional listed section left out, or whose first line is `**Unsupported.**`, is listed
   `unsupported`.
 - R35 (UC6, E37): `implementations <id>` lists an implementation only when it passes `check` for that interface; every
-  other candidate is under `excluded` with each reason. A candidate is a plugin's implementation, listed by its
-  qualified name as its `pin`, or a `repo` or `user` implementation of a `many` interface's `<id>.<key>`, written by
-  `customize --implements` (R111), listed by its bare name as its `pin` with its `tier`; the consuming skill loads it by
-  that name (UC12.2). When a plugin also holds that `<id>.<key>`, both are listed: the plugin's by its qualified name,
-  the `repo` or `user` one by the bare name, which is what loading the bare name returns. A skill's default is never
-  listed. `--accept` replaces the interface's accepted versions.
+  other candidate is left out, and `--trace` shows it under `excluded` with each reason (R38). A candidate is a plugin's
+  implementation, listed by its qualified name as its `pin`, or a `repo` or `user` implementation of a `many`
+  interface's `<id>.<key>`, written by `customize --implements` (R111), listed by its bare name as its `pin` with its
+  `tier`; the consuming skill loads it by that name (UC12.2). When a plugin also holds that `<id>.<key>`, both are
+  listed: the plugin's by its qualified name, the `repo` or `user` one by the bare name, which is what loading the bare
+  name returns. A skill's default is never listed. `--accept` replaces the interface's accepted versions.
   `implementations` of an unknown interface is refused (`interface-unknown`, exit 1); with nothing listed it gives axi's
   empty answer (exit 0).
 - R36 (UC6, E38): `check` with no names covers every interface document and implementation found. A name several
@@ -143,8 +145,8 @@ Edge IDs are in [graph.md](./graph.md).
   recorded in `sources` with that plugin's installed version; when they differ, it warns, naming both, and the check
   still passes. `load` gives no such warning.
 - R87 (UC15, E37): Two plugins holding the same `<id>.<key>` of a `many` interface make that name `ambiguous`:
-  `implementations` lists both under `excluded` until a customizer picks one (UC9), and then lists only the pick. A
-  plugin's `merge: replace` implementation of a `one` interface answers over the owner's default as R56 says.
+  `implementations --trace` lists both under `excluded` until a customizer picks one (UC9), and then lists only the
+  pick. A plugin's `merge: replace` implementation of a `one` interface answers over the owner's default as R56 says.
 - R112 (UC6, E68): `check` warns `reference-hidden` for a `repo`, `user`, or project-section file that a higher
   `replace` or `remove` hides (a managed one over a `repo` file or a project section; this repository's `repo` one over
   a `user` file, which keeps its code `repo-hides-user`), naming the hiding contribution. The warning is passed on and

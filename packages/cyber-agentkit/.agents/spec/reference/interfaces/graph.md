@@ -35,11 +35,11 @@ flowchart TD
   known -->|no| iu(["refused interface-unknown, exit 1"])
   known -->|yes| pass{"E37 each candidate: passes check for that interface?"}
   pass -->|"yes, and no other plugin holds that name, or the customizer picked it (R87)"| listed["listed: pin (a plugin's qualified name, or a repo or user implementation's bare name), tier, description, unsupported"]
-  pass -->|no| excl[excluded, each with its reasons]
+  pass -->|no| excl["left out; with --trace, under excluded with each reason"]
   listed --> any
   excl --> any{"E37 after every candidate is judged, is anything listed?"}
   any -->|no| none(["axi's empty answer, exit 0"])
-  any -->|yes| shown(["the listed implementations, and those excluded with their reasons"])
+  any -->|yes| shown(["the listed implementations; with --trace, also their version and those excluded with their reasons"])
 ```
 
 | Edge | Decision | Outcome |

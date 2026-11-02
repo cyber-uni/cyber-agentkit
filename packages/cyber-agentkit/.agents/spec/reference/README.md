@@ -127,17 +127,17 @@ what can be found, and every fault is reported as a warning.
 - K23 **main document**: what the tiers compose for a name: the stack; over it, the `user` contribution; over that, the
   `repo` one; each with its merge operation. The managed contribution is not part of it: it applies over the main
   document and over each project section (K27). A selection changes the stack and adds nothing.
-- K24 **project section**: a `.agents/references/<name>.md` below the root, which states only what differs in its
-  folder. It follows the main document in the resolved reference, wrapped with that folder (R44). It carries no
-  `merge`, `extends`, `implements`, or `aliases`: no command writes them on one (R27, R81), and load ignores them with
-  a `project-section-key-ignored` warning (R110).
+- K24 **project section**: a `.agents/references/<name>.md` or `<name>/README.md` below the root, which states only what
+  differs in its folder. It follows the main document in the resolved reference, wrapped with that folder (R44). It
+  carries no `merge`, `extends`, `implements`, or `aliases`: no command writes them on one (R27, R81), and load ignores
+  them with a `project-section-key-ignored` warning (R110).
 - K26 **stale**: said of a generated `repo` or `user` document, or a project section, when a source's recorded plugin
   version differs from the installed one, or a recorded source is gone. Load still uses it, and suggests revising it. A
   plugin's or a default's own file is compared only by `check` (R86, R101).
-- K27 **managed contribution**: `<name>.md` in `references/` of the current harness's managed folder, placed there by an
-  admin. It applies at load over the main document and each project section, with its merge operation (K5), so it ranks
-  above every other tier. Its text reaches the agent only through load: no written contribution holds it, generated or
-  not.
+- K27 **managed contribution**: the file answering the name (K30) in `references/` of the current harness's managed
+  folder, placed there by an admin. It applies at load over the main document and each project section, with its merge
+  operation (K5), so it ranks above every other tier. Its text reaches the agent only through load: no written
+  contribution holds it, generated or not.
 - K28 **resolved reference**: what load returns for a name: the main document, followed by its project sections, with
   the managed contribution applied over the main document and over each project section (K27).
 - K32 **alias**: an older name a plugin's or a default's contribution of a name lists in `aliases`, so load lines and
@@ -351,8 +351,8 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
   | `reference-hidden` | warning | none | a file hidden by a `replace` or `remove` above it: one `create` or `customize` wrote (R26), or one `check` finds (R112) |
   | `repo-hides-user` | warning | none | a `user` file this repository's `repo` contribution hides (R26, R112) |
   | `root-missing` | refused | 1 | a `--root` that does not exist (R12) |
-| `file-unreadable` | refused | 1 | a `--request` or `--body` file that cannot be read (R81, R82) |
-| `folder-invalid` | refused | 1 | a `--plugin` or `--default` folder that does not qualify (R24) |
+  | `file-unreadable` | refused | 1 | a `--request` or `--body` file that cannot be read (R81, R82) |
+  | `folder-invalid` | refused | 1 | a `--plugin` or `--default` folder that does not qualify (R24) |
   | `file-exists` | refused | 1 | `create` on a file with a body, or where the target folder holds a file answering the name in another form (R60) |
   | `extends-replace` | refused | 1 | a `--plugin` or `--default` file extending a plugin with `replace` (R103) |
   | `interface-invalid` | refused | 1 | `--implements` with an unknown interface (R28, R111) |

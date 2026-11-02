@@ -49,7 +49,7 @@ IDs are shared across the parent and its children.
   - UC5.10 `--plugin <plugin folder>`: writes `<plugin folder>/references/<name>.md`, with `merge` only when `--merge`
     is given, or `merge: replace` when `--implements` is. `--default <skill folder>`: writes
     `<skill folder>/references/<name>.default.md`, with `merge` only when `--merge` is given, or `merge: replace` when
-    `--implements` is, since a default can extend a plugin through its own `extends` and so sit above it (R27). The hide
+    `--implements` is (R27). The hide
     check (UC5.4) and the trace apply only when the folder is a layer the stack reads.
   - UC5.11 The folder holds no plugin manifest (`--plugin`) or no `SKILL.md` (`--default`), or lies outside the
     repository, such as an installed copy: refused, `folder-invalid`, and nothing is written. More than one of
@@ -57,9 +57,8 @@ IDs are shared across the parent and its children.
     `options-conflict`, since a project section carries no `merge` (K24). `--in` naming the root or a folder outside it:
     usage error `in-not-below-root`.
   - UC5.12 A `--plugin` file that extends another plugin, or a `--default` file that extends a plugin, with
-    `merge: replace`: refused, `extends-replace` (R103), and nothing is written. A copy would freeze every user
-    on the base its author saw. The file states only the sections it changes, or, to replace the base entirely, is a
-    snapshot of its own with no `extends` on that plugin.
+    `merge: replace`: refused, `extends-replace` (R103), and nothing is written. The file states only the sections it
+    changes, or, to replace the base entirely, is a snapshot of its own with no `extends` on that plugin.
   - UC5.13 `--in` with a `--template` whose frontmatter holds `merge`, `extends`, `implements`, or `aliases`: the
     section is written without those keys, with a `project-section-key-ignored` warning naming each (R27).
 
@@ -81,21 +80,21 @@ IDs are shared across the parent and its children.
   `--merge replace`; a project section takes neither, K24); for a name only an interface defines, the interface; the
   root; the calling skill's folder, for the `default` tier.
 - **Outcome:** what is written depends on what the customizer ended up changing. Picks alone write a selection (UC9). A
-  request also writes a body: the generator reads the resolved reference from `load` with the picks applied, never the
-  contribution files, and leaves the `user` tier out when the target is `repo` or a folder, so nothing personal reaches
-  a shared file, and the `repo` tier out when the target is `user`, since it applies above. For a `user` target the
-  plugins in the stack are only the harness's enabled ones, never plugins found through a repository's `package.json`
-  (R13), so a `user` document means the same in every repository (R84). It never reads the target file itself, so a
-  request is never applied over its own earlier result when revising (UC20): for a `repo` or `user` target, its input is
-  the main document built without that file; for a folder, the main document plus the project sections of the folders
-  above the target (the outer ones), not the target's own section nor any deeper one. It leaves managed text out too,
-  whatever the target, and writes none of it, even when the harness shows an admin's instructions to the agent: it
-  reaches the agent only at load (K27). A managed contribution's `extends` is structure, not text, so it still builds
-  the stack the generator reads (R84). It writes one concise document that applies the request and keeps the stack's
-  heading paths: by default a delta holding only the sections it changes, with `patch` or `combine`; with
-  `--merge replace`, a whole document. For a folder, it is that folder's project section, stating only what differs
-  there. The command records in the frontmatter the picks (`extends`), each source with its plugin's version (K34), and
-  the request. A body goes stale as K26 says. A later `load` uses it as K23 says.
+  request also writes a body: the generator reads the resolved reference from `customize --base` (R84) with the picks
+  applied, never the contribution files, and leaves the `user` tier out when the target is `repo` or a folder, so
+  nothing personal reaches a shared file, and the `repo` tier out when the target is `user`, since it applies above. For
+  a `user` target the plugins in the stack are only the harness's enabled ones, never plugins found through a
+  repository's `package.json` (R13), so a `user` document means the same in every repository (R84). It never reads the
+  target file itself, so a request is never applied over its own earlier result when revising (UC20): for a `repo` or
+  `user` target, its input is the main document built without that file; for a folder, the main document plus the
+  project sections of the folders above the target (the outer ones), not the target's own section nor any deeper one. It
+  leaves managed text out too, whatever the target, and writes none of it, even when the harness shows an admin's
+  instructions to the agent: it reaches the agent only at load (K27). A managed contribution's `extends` is structure,
+  not text, so it still builds the stack the generator reads (R84). It writes one concise document that applies the
+  request and keeps the stack's heading paths: by default a delta holding only the sections it changes, with `patch` or
+  `combine`; with `--merge replace`, a whole document. For a folder, it is that folder's project section, stating only
+  what differs there. The command records in the frontmatter the picks (`extends`), each source with its plugin's
+  version (K34), and the request. A body goes stale as K26 says. A later `load` uses it as K23 says.
 - **Extensions:**
   - UC18.1 The customizer declines the draft: nothing is written.
   - UC18.2 A request, and the target holds a body that records no request (written with `create` or by hand): refused,
@@ -246,19 +245,18 @@ Edge IDs are in [graph.md](./graph.md).
   contribution; for a `user` file under this repository's `repo` contribution, `repo-hides-user`. The trace reports the
   file `shadowed by <contribution>` (R9), and `where` marks it hidden (R57).
 - R27 (UC5, E29): In the `repo` and `user` tiers, `create` writes `merge` from `--merge`, else the template's `merge`,
-  else `patch`; with `--plugin` or `--default`, only from `--merge`. A default can extend a plugin through its own
-  `extends` (R8 brings each step's `extends` beneath it), so it can sit above that plugin, and its `merge` matters:
-  `merge: replace` makes it a whole-document snapshot. In a project section (`--in`) it writes no `merge`: `--merge`
-  with `--in` is a usage error (`options-conflict`, exit 2), and `--implements` with `--in` writes the interface's
-  sections stubbed as R28 says, with no `implements` or `merge`, since a project section carries neither (K24). `--in`
-  for a name whose main document is not Markdown is refused (`in-not-markdown`, exit 1), as for `customize`. A
-  `--template` that holds `merge`, `extends`, `implements`, or `aliases` has those keys dropped from the section written
-  with `--in`, with a `project-section-key-ignored` warning naming each. Otherwise `--implements` writes
+  else `patch`; with `--plugin` or `--default`, only from `--merge`. In a project section (`--in`) it writes no `merge`:
+  `--merge` with `--in` is a usage error (`options-conflict`, exit 2), and `--implements` with `--in` writes the
+  interface's sections stubbed as R28 says, with no `implements` or `merge`, since a project section carries neither
+  (K24). `--in` for a name whose main document is not Markdown is refused (`in-not-markdown`, exit 1), as for
+  `customize`. A `--template` that holds `merge`, `extends`, `implements`, or `aliases` has those keys dropped from the
+  section written with `--in`, with a `project-section-key-ignored` warning naming each. Otherwise `--implements` writes
   `merge: replace` whatever the other options. `--merge remove` writes no body, and with `--template` is a usage error
   (`remove-with-template`, exit 2). An unknown `--merge` operation is a usage error (`option-invalid`, exit 2).
 - R103 (UC5, E29): A `--plugin` or `--default` file gets an `extends` naming a plugin only from a `--template`, since
   `create` has no `--extends`. Such a file is refused with `merge: replace` (`extends-replace`, exit 1), since a whole
-  document makes the `extends` pointless: a snapshot is written with no `extends`. A `--plugin` or `--default` file that
+  document makes the `extends` pointless; an author who wants a whole document writes a snapshot with no `extends`
+  (UC5.12). A `--plugin` or `--default` file that
   extends a plugin is written with that plugin's installed version recorded in `sources`, which `check` compares (R86,
   UC6.9).
 - R28 (UC5, E30): `create --implements <id>` writes the interface's sections as `##` headings in order and
