@@ -81,21 +81,33 @@ Edge IDs are in [graph.md](./graph.md).
 - R63 (UC6, E52): An interface document is the reference `<id>.interface`; its body is prose for implementers. Its
   frontmatter `interface` block holds `cardinality` (`one`: the implementation is named `<id>`; `many`: each is named
   `<id>.<key>`), `version` (a positive integer), `versions` (the versions its consumers accept, positive integers,
-  default `[version]`), and `sections` (the implementation's top-level sections in order, each listed once). A missing
-  or malformed key fails the `interface` check, naming each problem; any other key is ignored.
-- R64 (UC6, E36): Every section is optional; a `required` mark on a listed section is ignored. An implementation may
-  hold sections the interface does not list, anywhere; `order` compares only the listed ones, each at most once.
+  default `[version]`), and `sections` (the implementation's top-level sections in order, each listed once, each a
+  `heading` with an optional `required`, default `false`, and an optional one-line `holds`; a plain string is short for
+  `{heading: <string>}`). A missing or malformed key fails the `interface` check, naming each problem; any other key
+  is ignored.
+- R64 (UC6, E36): A `required` section that an implementation leaves out, or whose first line is `**Unsupported.**`,
+  fails the `required` check, naming each such section. Every other section is optional. An implementation may hold
+  sections the interface does not list, anywhere; `order` compares only the listed ones, each at most once. `holds` is
+  never checked.
 - R33 (UC6, E35): `check` runs these checks on an implementation's composed document, each named in the output:
-  `interface found` (`implements` is one `<id>@<version>` naming a found, valid interface), `version`, `name`, and
-  `order`; an interface document gets the `interface` check (R63). Every document checked also gets `compose`, which
-  fails when composing it raised any warning. Any failure fails the result.
-- R34 (UC6, E36): A listed section left out, or whose first line is `**Unsupported.**`, is listed `unsupported`.
+  `interface found` (`implements` is one `<id>@<version>` naming a found, valid interface), `version`, `name`, `order`,
+  and `required`; an interface document gets the `interface` check (R63). Every document checked also gets `compose`,
+  which fails when composing it raised any warning. Any failure fails the result.
+- R34 (UC6, E36): An optional listed section left out, or whose first line is `**Unsupported.**`, is listed
+  `unsupported`.
 - R35 (UC6, E37): `implementations <id>` lists an implementation only when it passes `check` for that interface; every
   other candidate is under `excluded` with each reason. A skill's default is never listed. `--accept` replaces the
   interface's accepted versions.
 - R36 (UC6, E38): `check` with no names covers every interface document and implementation found. A name several
   plugins hold is also checked as each `<plugin>/<name>`, and each skill's default as its skill loads it.
-- R37 (UC1, E39): `show` prints a document that fails its interface check, with a warning naming the failed check.
+- R37 (UC1, UC15, E39): `load` prints a document that fails its interface check, with a warning naming the failed
+  check.
+- R86 (UC6, E60): `check` on a plugin file whose `extends` names another plugin compares the version it recorded with
+  that plugin's installed version; when they differ, it warns, naming both, and the check still passes. `load` gives no
+  such warning.
+- R87 (UC15, E37): Two plugins holding the same `<id>.<key>` of a `many` interface make that name `ambiguous`:
+  `implementations` lists both under `excluded` until a customizer picks one (UC9), and then lists only the pick. A
+  plugin's `merge: replace` implementation of a `one` interface answers over the owner's default as R56 says.
 
 ## Open questions
 
