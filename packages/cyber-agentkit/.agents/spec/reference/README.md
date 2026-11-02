@@ -2,7 +2,7 @@
 spec-type: behavioral
 ---
 
-# reference — an agent reads only the instructions that apply where it works, however many places customize them
+# reference — an agent gets the instructions that apply wherever it works, however many places customize them
 
 The work to make the code meet this spec and its child specs is tracked in #113.
 
@@ -66,12 +66,12 @@ what can be found, and every fault is reported as a warning.
   which reaches only you, in every repository.
 - K2 **layer**: one folder read for a name: one per plugin for `plugin`, the calling skill's folder for `default`,
   `~/.agents/references/` for `user`, `.agents/references/` at the root for `repo`, each `.agents/references/` below the
-  root for `project`, and, for `managed`, the one beside the current harness's own managed settings: the harness
+  root for `project`, and, for `managed`, the one beside the managed settings of the harness that
   detection names as running. Other harnesses' managed folders are never read.
 - K4 **qualified name**: `<plugin>/<name>`: that plugin's implementation of a name, with the stack it builds on.
   `implementations` gives each as its `pin`.
-- K5 **merge operation**: how a contribution applies over what is below it: a plugin's over the stack below it, a `user`
-  one over the stack, a `repo` one over that, and a managed one over the main document and each project section (K27).
+- K5 **merge operation**: how a contribution applies over what is below it, in the order K23 gives; a managed one also
+  applies over each project section (K27).
   `replace` puts mine in place of everything below. `patch` (the default) keeps what is below and puts my text in place
   of the text it matches by heading path. `combine` keeps what is below and adds my text after the text it matches.
   `remove` drops what is below. The same four apply to a whole contribution (frontmatter `merge`), to a step, and to one
@@ -229,9 +229,10 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
 
 **Names**
 
-- R1 (UC1, E1): A name is `invalid` when it ends `.md`, a K29 extension, `.default` (that suffix names a default's file,
-  K13), or `.meta` (that suffix names a metadata file, K31), has a path separator other than one `<plugin>/` prefix, or
-  a character other than letters, digits, `-` and `.`. Nothing is read for it, and the other names still resolve.
+- R1 (UC1, E1): A name is `invalid` when it ends `.md`, a [K29](./formats/README.md) extension, `.default` (that suffix
+  names a default's file, K13), or `.meta` (that suffix names a metadata file, [K31](./formats/README.md)), has a path
+  separator other than one `<plugin>/` prefix, or a character other than letters, digits, `-` and `.`. Nothing is read
+  for it, and the other names still resolve.
 - R51 (UC1, E1): A `<name>.default.md` in a tier folder is ignored, with a warning that a default goes in a skill's
   `references/` folder.
 - R2 (UC1, UC7, E2): `<plugin>/<name>` builds the stack from that plugin's contribution and what its own `extends`
@@ -245,13 +246,16 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
   - `load`: one entry per name asked, in order. A `found` name with no warnings and no project sections is its content
     as a string; otherwise a record of `name`, `status`, `content`, `projectSections` (each `folder` and `content`), and
     `warnings`. A name not `found` is a record of `name`, `status`, `code`, and `options` when `ambiguous`. `--metadata`
-    makes every entry a record and adds `status` and `metadata`. `--trace` adds `trace`: the stack, the contributions
-    used (tier, plugin or skill, path, operation), the sections, the layers, each project section's `folder` and `path`,
-    and for a generated document its `sources` (each plugin, recorded version, and installed version) and `request`.
-  - `list`: rows of `name` and `description`, with `status` and `options` when not `found`; `--trace` adds the rows per
+    makes every entry a record and adds `status`, `metadata`, and `format` (R66). `--trace` adds `trace`: the stack, the
+    contributions used (tier, plugin or skill, path, operation), the sections, the layers (each with its `file`, whose
+    extension shows the format), each project section's `folder` and `path`, and for a generated document its `sources`
+    (each plugin, recorded version, and installed version) and `request`.
+  - `list`: rows of `name` and `description`, with `status` and `options` when not `found`, and `format` for a
+    non-Markdown name (R66); `--trace` adds the rows per
     layer (R16) with `tier`, `plugin` or `skill`, `path`, outcome, and `kind` (`selection`, `generated`, or
     `project-section` with its `folder`) when the row is one.
-  - `search`: matches of `name`, `description`, and `match`; `--trace` adds `tier` and `plugin` or `skill`.
+  - `search`: matches of `name`, `description`, and `match`, and `format` for a non-Markdown name (R66); `--trace` adds
+    `tier` and `plugin` or `skill`.
   - `check`: the entries that fail, each `name` and `failures` (each `check` and `message`), the entries that pass with
     a warning, each `name` and `warnings`, and the count that pass; `--trace` adds every entry with `kind` and
     `unsupported`.
@@ -273,12 +277,12 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
   | Code | Kind | When |
   | --- | --- | --- |
   | `reference-missing`, `reference-ambiguous`, `reference-invalid` | name status | UC1.1, UC1.2, R1 |
-  | `frontmatter-invalid` | warning | malformed frontmatter (UC1.5) |
+  | `frontmatter-invalid` | warning | malformed frontmatter (R105) |
   | `merge-unknown`, `marker-unknown` | warning | an unknown `merge` value or marker (R7) |
   | `marker-unmatched` | warning | an explicit marker that matches nothing below (R7) |
   | `heading-repeated` | warning | a document repeating a heading (R7) |
   | `remove-body-ignored` | warning | a `remove` with a body (R49) |
-  | `extends-invalid` | warning | a malformed `extends` (UC7.3) |
+  | `extends-invalid` | warning | a malformed `extends` (R106) |
   | `extends-self` | warning | a plugin listing itself (R54) |
   | `extends-step-missing`, `extends-all-missing` | warning | a step, or every step, that cannot be used (R55) |
   | `extends-not-used` | warning | a lower `extends` that builds a different stack (R53) |
@@ -319,7 +323,7 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
 
 ## Open questions
 
-None in the parent; each child lists its own.
+None.
 
 ## References
 

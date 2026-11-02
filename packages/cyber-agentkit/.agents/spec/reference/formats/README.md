@@ -63,8 +63,9 @@ the `references/` folder and the tiers. It never reads `assets/`; [asset](../../
 
 ## Criteria
 
-- R65 (UC13): `<name>.<ext>` for each K29 extension answers a name in every tier, in K30 order within a folder; the
-  content is the file's text unchanged. A metadata file (K31) never answers a name.
+- R65 (UC13): `<name>.<ext>` for each K29 extension answers a name in every tier but `project`, whose sections are
+  Markdown only (R99), in K30 order within a folder; the content is the file's text unchanged. A metadata file (K31)
+  never answers a name.
 - R66 (UC13): A result reports its `format` (K29); `load --metadata` and `--trace` carry it, and each trace layer's
   `file` shows the extension. `list` and `search` rows carry it for a non-Markdown name.
 - R67 (UC1.6, UC13.1): Two files for a name in one folder, `<name>.md` and `<name>/README.md` included: K30 first

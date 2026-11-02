@@ -8,8 +8,8 @@ Decisions a consumer can observe. Criteria in [README.md](./README.md) cite the 
 ```mermaid
 flowchart TD
   c([create name]) --> q{"E27 qualified name?"}
-  q -->|yes| e1(["error: the bare name to use"])
-  q -->|no| where{"E26 where: --scope, --plugin, or --default?"}
+  q -->|yes| e1(["refused: nothing written, the cause named (a qualified name gets the bare name to use)"])
+  q -->|no| where{"E26 where: --scope, --in, --plugin, or --default?"}
   where -->|"more than one"| e2([usage error, exit 2])
   where -->|"a folder with no manifest or SKILL.md, or outside the repository"| e1
   where -->|ok| exists{"E26 the file there already?"}
@@ -30,7 +30,9 @@ flowchart TD
   cq -->|yes| e1
   cq -->|no| base{"E59 --base?"}
   base -->|yes| pbase(["the generator's input: picks applied; managed, and the tier above or personal to the target, left out; nothing written"])
-  base -->|no| what{"E58 --extends, --request, or both?"}
+  base -->|no| inx{"E58 --in with --extends, --in for a name that is not Markdown, or only one of --request and --body?"}
+  inx -->|yes| e1
+  inx -->|no| what{"E58 --extends, --request, or both?"}
   what -->|neither| e1
   what -->|"--extends none"| has{"E51 extends in that tier?"}
   has -->|no| e3(["error: what answers the name now"])
@@ -40,7 +42,9 @@ flowchart TD
   opt -->|yes| sel["extends written bottom first; a body is kept, and one recording a request gets a hint to customize again"]
   what -->|"--request and --body"| body{"E58 the target holds a body recording no request?"}
   body -->|yes| e1
-  body -->|no| gen["body written with extends, sources and installed versions, request, and merge"]
+  body -->|no| amb{"E58 the name ambiguous, and no --extends?"}
+  amb -->|"yes: pick-required"| e1
+  amb -->|no| gen["body written with extends, sources and installed versions, request, and merge"]
   d([delete name]) --> dq{"E27 qualified name?"}
   dq -->|yes| e1
   dq -->|no| there{"E32 a file at the place chosen?"}

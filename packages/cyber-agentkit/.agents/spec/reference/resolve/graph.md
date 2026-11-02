@@ -72,7 +72,7 @@ flowchart TD
 
 | Edge | Decision | Outcome |
 | --- | --- | --- |
-| E14 | the root and the `repo`, `project`, `user`, and managed tiers | the root: the nearest `.git` folder up, else `--root`, else the working folder; `repo`: the root's `.agents/references/`; `project`: each `.agents/references/` strictly below it that `.gitignore` does not exclude; `~/.agents/references/`; `references/` in the current harness's managed folder only |
+| E14 | the root and the `repo`, `project`, `user`, and managed tiers | the root: the nearest `.git` folder up, else `--root`, else the working folder; `repo`: the root's `.agents/references/`; `project`: each `.agents/references/` strictly below it that git does not ignore (by any ignore file git reads); `~/.agents/references/`; `references/` in the current harness's managed folder only |
 | E15 | the plugin tier | enabled plugins of the detected harness, plus declared (not transitive) package dependencies that ship `references/` |
 | E43 | `--default <skill folder>` | `<skill folder>/references/<name>.default.md` read as the `default` tier; an old `references/<name>.md` copy is not |
 | E22 | a `governances/` folder | never read |

@@ -32,8 +32,8 @@ IDs are shared across the parent and its children.
   - UC1.3 It is not a name (R1): status `invalid`, and
     nothing is read for it.
   - UC1.5 A contribution has malformed frontmatter, an unknown `merge`, or a bad `extends`: it still answers, with a
-    warning and the documented default. A `merge: remove` contribution with a body: the body is ignored, with a warning,
-    and the remove still applies.
+    warning and the documented default (R105, R7, R106). A `merge: remove` contribution with a body: the body is
+    ignored, with a warning, and the remove still applies.
   - UC1.6 Only `<name>.md` and `<name>/README.md` answer a name; no other file does. Both in one folder: the first
     answers, and the other is ignored with a warning.
   - UC1.7 No name given: error.
@@ -42,11 +42,8 @@ IDs are shared across the parent and its children.
   - UC1.10 A plugin's contribution answers over the default contribution, and no selection names it: still answered,
     with a warning naming the plugin and `reference customize <name> --extends` (UC9). The warning stops once a written
     `extends`, whether a selection (UC9) or a customization, names the plugin or the default.
-  - UC1.12 A step in `extends` cannot be used. A step not installed, or not holding the name, is skipped with whatever
-    only it brings in, with a warning. When every step is missing, the `extends` counts as not written, with a warning,
-    and the stack falls to the next written `extends`. A plugin listing itself has that entry ignored, with a warning. A
-    lower contribution's `extends` that builds a different stack is not used, with a warning. A `default` step with
-    nothing there is skipped with no warning; the trace shows it.
+  - UC1.12 A step in `extends` cannot be used (not installed, not holding the name, a plugin listing itself, or a
+    lower contribution's `extends` that builds a different stack): as R53 to R55 say.
   - UC1.13 A section matches no section below: with an explicit `<!-- merge: ... -->` marker, a warning, and its text
     goes at the end (nothing, for `remove`); unmarked, it goes at the end with no warning. A document repeating a
     heading: the first is matched, with a warning.
@@ -87,10 +84,10 @@ IDs are shared across the parent and its children.
     `user` files a selection goes to. It is not an error.
   - UC2.6 `where` on a plugin's contribution or a default contribution: reported read-only, never offered as a place to
     write.
-  - UC2.7 Both `repo` and `user` hold a contribution: both apply, the `repo` one over the `user` one; a `repo` `replace`
-    or `remove` shadows the `user` one.
+  - UC2.7 Both `repo` and `user` hold a contribution: how they apply, and what is `shadowed`, is as R100 says.
   - UC2.8 A generated document is stale: each changed or missing source is marked, and the layer's outcome is `stale`.
-  - UC2.9 A folder below the root that `.gitignore` excludes: its project section is `not read (ignored)`.
+  - UC2.9 A folder below the root that git ignores (by any ignore file git reads): its project section is
+    `not read (ignored)`.
 
 ### UC3 — List and search (A3.1)
 
@@ -114,7 +111,7 @@ IDs are shared across the parent and its children.
   - UC3.4 A name a `remove` turned off, with no project section left (R49): `list` shows it `missing`, and with
     `--trace` the `remove` row and each row below it as `shadowed by <contribution> (remove)`; `search` leaves the name
     out.
-  - UC3.5 The detected harness's skill folders are not verified (`.research/skill-resolution` covers six harnesses; Q12
+  - UC3.5 The detected harness's skill folders are not verified (`.research/skill-resolution` covers six harnesses; #114
     holds what stays open): `list` and `search` show no defaults, and the answer says so and why. It is a limit of the
     harness, not a warning.
 
@@ -131,18 +128,17 @@ IDs are shared across the parent and its children.
   once, at its listed place. Each step applies with its own operation: the step's key, else the plugin's own `merge`,
   else `patch`. The contribution's body applies on top with its own `merge`. The highest written `extends` among the
   contributions used builds the stack: a managed contribution's, else the `repo` one's, else the `user` one's, else the
-  plugins' own. The `user` contribution applies over the stack, the `repo` one over that, and the managed contribution
-  over both (K23). Anything left out of that `extends`, a plugin or `default`, is `not used`. So a house-style plugin
-  changes what a generic skill reads without forking it.
+  plugins' own. The `user`, `repo`, and managed contributions apply over the stack in the order K23 gives. Anything left
+  out of that `extends`, a plugin or `default`, is `not used`. So a house-style plugin changes what a generic skill
+  reads without forking it.
 - **Extensions:**
   - UC7.1 A step cannot be used, a lower `extends` differs, or a plugin lists itself: as UC1.12 says.
-  - UC7.2 The steps cannot be put in one order: as UC1.2 says. Under a written list, bringing in stops at a plugin
-    already in the stack, silently; an adjacent repeat collapses (`[a, a, b]` is `[a, b]`); two steps bringing one
-    plugin put it once, beneath the first.
-  - UC7.3 A malformed `extends`: as UC1.5 says; it counts as not written.
+  - UC7.2 The steps cannot be put in one order: as UC1.2 says. How bringing in, repeats, and a plugin brought in twice
+    are handled under a written list: as R54 says.
+  - UC7.3 A malformed `extends`: as UC1.5 says; it counts as not written (R106).
   - UC7.4 A qualified name builds that plugin's own stack; a written `extends` is not used (UC2.4).
   - UC7.5 `extends` or `merge` on an interface document: ignored with a warning. An interface is never composed.
-  - UC7.6 Both `repo` and `user` write `extends`: the `user` one is not used (UC2.7), so the user's own pick never
+  - UC7.6 Both `repo` and `user` write `extends`: the `user` one is not used (R8, R100), so the user's own pick never
     reaches the repository's stack.
 
 ### UC10 — Confirm a managed contribution is in effect (A4.1)
@@ -194,14 +190,14 @@ Edge IDs are in [graph.md](./graph.md).
 **Composition**
 
 - R3 (UC1, E3): The stack applies bottom first in K17 order, each contribution over the result of everything below it
-  with its own operation; then the `user` contribution, then the `repo` one, then the managed contribution, each over
-  the result below it with its own (K23). With no `merge` written anywhere, every contribution patches. Within the
-  project tier, the nearer folder is higher: an inner folder's section follows an outer one's and wins where they
-  conflict (UC17.3).
+  with its own operation; the `user`, `repo`, and managed contributions then apply over it in the order K23 gives, each
+  with its own operation. With no `merge` written anywhere, every contribution patches. Load delivers the project
+  sections in path order, so an inner folder's section follows an outer one's; which wins where they conflict is the
+  agent's ordering rule (R90).
 - R100 (UC1, UC2, E57): When both `repo` and `user` hold a contribution, both apply, the `repo` one over the `user` one;
   a `repo` `replace` or `remove` makes the `user` one `shadowed`. The `user` one's `extends` is not used (R8).
 - R99 (UC1, UC10, E54): Project sections follow the main document in path order, never composed into it: paths compared
-  segment by segment by character code, so a folder comes before the folders inside it. Each managed contribution
+  segment by segment by character code, so a folder comes before the folders inside it. The managed contribution
   applies over each project section by heading path: a managed section that matches none of the project section's is not
   added to it, and a managed `replace` or `remove` drops every project section. With no main document but a project
   section, the name is `found` with only its project sections. A project section that is not Markdown is not read, with
@@ -219,6 +215,8 @@ Edge IDs are in [graph.md](./graph.md).
 - R42 (UC1, E44): A `<!-- merge: <operation> -->` marker under a heading applies that operation to that section alone;
   a section with no marker takes its document's operation.
 - R50 (UC1, E46): A contribution with no body changes nothing, except with `remove`.
+- R105 (UC1): A contribution with malformed frontmatter still answers, with a `frontmatter-invalid` warning and the
+  documented default.
 - R7 (UC1, E7): An unknown `merge` value or marker is read as `patch`, with a warning. An explicit marker that matches
   nothing below warns, and its text goes at the end (nothing, for `remove`); an unmarked section that matches nothing
   does not warn. A document repeating a heading warns, and the first is matched.
@@ -244,6 +242,7 @@ Edge IDs are in [graph.md](./graph.md).
 - R55 (UC1, UC9, E47): A step not installed, or not holding the name, is skipped with what only it brings in, with a
   warning. When every step is missing, the `extends` counts as not written, with a warning, and the stack falls
   through. A `default` step with nothing there is skipped with no warning; the trace shows `not read (no default)`.
+- R106 (UC7): A malformed `extends` counts as not written, with an `extends-invalid` warning.
 - R56 (UC1, UC4, E42): A plugin's contribution answering over the loading skill's default, when no written `extends`
   names the plugin or the default, still answers, with a warning naming the plugin and
   `reference customize <name> --extends`.
@@ -254,10 +253,10 @@ Edge IDs are in [graph.md](./graph.md).
   frontmatter as written, the operation applied and where it came from, and the outcome: `used`;
   `shadowed by <contribution> (replace|remove)`; `not used (not in extends)`,
   `not used (<step>'s extends replaced by <contribution>)`, `not used (<contribution>'s extends builds the stack)`, or
-  `not used (qualified name)`; `stale`; `not read (<reason>)`, `not read (ignored)` for a
-  project section in a folder `.gitignore` excludes; `ambiguous`; `missing`. It names the detected harnesses. It gives
-  each project section with its folder and path, and for a generated document each recorded source with its recorded
-  and installed plugin versions, and the request.
+  `not used (qualified name)`; `stale`; `not read (<reason>)`, `not read (ignored)` for a project section in a folder
+  git ignores (by any ignore file git reads); `ambiguous`; `missing`. It names the detected harnesses. It gives each
+  project section with its folder and path, and for a generated document each recorded source with its recorded and
+  installed plugin versions, and the request.
 - R57 (UC2, E11): `where` gives the `repo` and `user` `<name>.md` with who each reaches, and the heading paths of the
   main document; with `--in <folder>`, also that folder's project section file; on an ambiguous name, the options and
   the files a selection goes to. With `--trace`, it also gives the layers with their outcomes.

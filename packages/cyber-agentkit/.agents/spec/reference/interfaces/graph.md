@@ -20,13 +20,13 @@ flowchart TD
   base -->|yes| bw["warning naming both versions; the check still passes"]
   base -->|no| comp
   bw --> comp
-  sections --> comp{"compose: did composing raise a warning?"}
+  comp{"compose: did composing raise a warning?"}
   comp -->|yes| kf
   comp -->|no| ok{any other check failed?}
   ok -->|yes| kf
   ok -->|no| kp([pass, exit 0])
   i([implementations id]) --> pass{"E37 passes check for that interface?"}
-  pass -->|"yes, and no other plugin holds that name"| listed["listed: pin, description, unsupported"]
+  pass -->|"yes, and no other plugin holds that name, or the customizer picked it (R87)"| listed["listed: pin, description, unsupported"]
   pass -->|no| excl[excluded, each with its reasons]
 ```
 

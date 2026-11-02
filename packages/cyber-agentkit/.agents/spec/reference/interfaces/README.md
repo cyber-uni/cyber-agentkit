@@ -56,7 +56,7 @@ IDs are shared across the parent and its children.
   of its own, not by building on the owner's default: for example, `cyber-asana` shipping
   `project-tracker.capabilities.asana`.
 - **Entry points:** Skill: the `reference` skill's Create mode, then Inspect mode. Code:
-  `reference create <name> --implements <id> --plugin <plugin>` (UC5.5), then `reference check <name>` (UC6).
+  `reference create <name> --implements <id> --plugin <plugin folder>` (UC5.5), then `reference check <name>` (UC6).
 - **Inputs:** the interface id and version; the name: `<id>` when the interface's cardinality is `one`, or
   `<id>.<key>`, with a key the plugin chooses, when it is `many`; the plugin's folder.
 - **Outcome:** the plugin ships `references/<name>.md` declaring `implements: <id>@<version>`, with `merge: replace`,

@@ -26,7 +26,7 @@ IDs are shared across the parent and its children.
     settle it.
   - UC4.3 `invalid`: the consumer carries on without it, and the user is told the skill's load line names something
     that is not a reference name, a fault to report to the skill's author.
-  - UC4.4 The command does not run: each name is read from the skill's own `references/<name>.default.md`, and the
+  - UC4.4 The command does not run: each name is read from the skill's own default, as R21 says, and the
     user is told that no customization applied, managed contributions and project sections included, and why the
     command did not run. A name with no default contribution is not loaded.
   - UC4.5 Every name is `found` with no warning: nothing is said.
@@ -83,14 +83,15 @@ IDs are shared across the parent and its children.
 
 Edge IDs are in [graph.md](./graph.md).
 
-Every criterion here, and R85 in [write](../write/README.md), is behavior of the skill's text, which no deterministic
-unit test reaches (C5). For now each is checked by a fixture run confirming the skill's text holds the instruction, not
-by what an agent does.
+Every criterion here, like R85 and R107 in [write](../write/README.md), is behavior of the skill's text, which no
+deterministic unit test reaches (C5). For now each is checked by a fixture run confirming the skill's text holds the
+instruction, not by what an agent does.
 
 **Fallback (UC4)**
 
-- R21 (UC4, E23): The skill reads its own `references/<name>.default.md` only when the command did not run, never for
-  a name the command reported, whatever its status.
+- R21 (UC4, E23): The skill reads its own default of a name, `references/<name>.default.md` or `<name>.default.<ext>`
+  for a K29 extension in K30 order (R41), only when the command did not run, never for a name the command reported,
+  whatever its status.
 - R59 (UC4, E49): With a user present, an `ambiguous` name lists every option, the skill's default included, even
   when one is left; the pick is written with `reference customize <name> --extends <pick>` at the scope the user
   chose, `repo` unless they say otherwise, and the name loads from it. With no user, it is not loaded, and the user is

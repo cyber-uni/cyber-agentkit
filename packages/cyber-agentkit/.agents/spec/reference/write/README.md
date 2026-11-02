@@ -57,8 +57,8 @@ IDs are shared across the parent and its children.
 - **Trigger:** a customizer wants to change what a skill reads for a name, for the repository, for themselves, or for
   one project folder: by picking which plugins and sections it builds on, by saying in their own words what to change
   in the prose, or both.
-- **Entry points:** Skill: the `reference` skill's Customize mode. It helps the customizer pick, runs the generator (a
-  subagent on a low-cost model) when the prose must change, shows the draft, and writes it once they approve. Code:
+- **Entry points:** Skill: the `reference` skill's Customize mode. It helps the customizer pick, runs a
+  generator subagent when the prose must change, shows the draft, and writes it once they approve. Code:
   `reference customize <name> [--extends <step>...] [--request <file> --body <file>] [--scope repo|user | --in
   <folder>] [--merge <operation>] [--dry-run]`, which writes the file and its frontmatter; it runs no model.
   `reference customize <name> --base [--extends <step>...] [--scope repo|user | --in <folder>]` prints the document the
@@ -133,8 +133,8 @@ IDs are shared across the parent and its children.
   - UC9.1 A picked plugin is no longer installed: it is skipped with a warning (UC1.12). When every step is gone, the
     selection counts as not written and the stack falls through; a name left ambiguous is asked again (UC4.2).
   - UC9.2 A step that is neither `default` nor a plugin holding the name: error, and nothing is written.
-  - UC9.3 The `repo` and `user` tiers pick differently: the `repo` one builds the stack; the `user` one's `extends` is
-    `not used` (UC7.6).
+  - UC9.3 The `repo` and `user` tiers pick differently: the `repo` one builds the stack and the `user` one's `extends`
+    is `not used` (R8, UC7.6).
   - UC9.4 A qualified name: error naming the bare name to use.
   - UC9.5 `--extends none`: `extends` is removed from the file, and a file left with nothing in it is deleted. With no
     `extends` in that tier: error stating what answers the name now. Removing the whole file is UC11.
@@ -185,7 +185,7 @@ Edge IDs are in [graph.md](./graph.md).
   `repo` contribution is written, with a warning.
 - R27 (UC5, E29): In the `repo`, `user`, and `project` tiers, `create` writes `merge` from `--merge`, else the
   template's `merge`, else `patch`; with `--plugin`, only from `--merge`; with `--default`, never. `--implements` writes
-  `merge: replace`. `--merge remove` writes no body, and fails with `--template`.
+  `merge: replace` whatever the other options. `--merge remove` writes no body, and fails with `--template`.
 - R103 (UC5, E29): A `--plugin` file whose `extends` names another plugin is refused with `merge: replace`, and is
   written with that plugin's installed version recorded, which `check` compares (UC6.9).
 - R28 (UC5, E30): `create --implements <id>` writes the interface's sections as `##` headings in order and
@@ -214,6 +214,7 @@ Edge IDs are in [graph.md](./graph.md).
 - R85 (UC20, UC18): Customize mode shows the draft and writes only once the customizer approves; with no user present,
   it writes nothing. The written body holds no managed contribution's text. Revising (UC20), it tells the customizer of
   a recorded source that is gone before generating, and revises the main document before its project sections.
+- R107 (UC5): Create mode shows the user where each section came from and offers the full document.
 - R30 (UC11, E32): `delete` removes only the file at the place chosen (R24), with its metadata file for a non-Markdown
   name (R95), never a managed contribution or an installed copy, and reports the status and stack afterwards; when the
   file held a selection, the report says so and names `reference customize --extends`. With no file there, it fails

@@ -7,7 +7,7 @@ Decisions a consumer can observe. Criteria in [README.md](./README.md) cite the 
 
 | Edge | Decision | Outcome |
 | --- | --- | --- |
-| E23 | the command did not run | the skill reads its own `references/<name>.default.md`; never for a name the command reported |
+| E23 | the command did not run | the skill reads its own default (`references/<name>.default.md`, or `<name>.default.<ext>` in K30 order); never for a name the command reported |
 | E49 | `ambiguous`, with a user present | every option listed, the pick written with `reference customize --extends` at the chosen scope; with no user, not loaded |
 | E24 | a fallback used, or a name not loaded | reported to the user with the reason, except a name a `remove` turned off |
 | E25 | an `invalid` name | its path is never read |
