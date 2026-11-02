@@ -2,7 +2,12 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { createReference as exportedCreate, deleteReference as exportedDelete } from '../index.js'
+import {
+	createReference as exportedCreate,
+	customizeReference as exportedCustomize,
+	deleteReference as exportedDelete,
+} from '../index.js'
+import { customizeReference } from './reference-customize.js'
 import { createReference, deleteReference } from './write-reference.js'
 
 function tempDir(): string {
@@ -65,5 +70,38 @@ describe('createReference and deleteReference (C9)', () => {
 			code: 'in-not-below-root',
 			usage: true,
 		})
+	})
+})
+
+describe('customizeReference (C9)', () => {
+	it('is exported from the root', () => {
+		expect(exportedCustomize).toBe(customizeReference)
+	})
+
+	it('writes a generated body from files relative to cwd, and returns the base without writing', async () => {
+		const root = repo()
+		write(root, 'request.md', 'shorter\n')
+		write(root, 'body.md', '## A\n\nshort\n')
+		const options = { cwd: root, home: tempDir(), env: {} }
+
+		const customized = await customizeReference('name', { ...options, request: 'request.md', body: 'body.md' })
+		expect(customized).toMatchObject({ action: 'generated', scope: 'repo', warnings: [], dryRun: false })
+		expect(customized.after).toMatchObject({ status: 'found', content: '## A\n\nshort\n' })
+
+		const base = await customizeReference('name', { ...options, base: true })
+		expect(base).toMatchObject({ action: 'base', base: { content: '' } })
+		expect(base.base?.resolved.status).toBe('missing')
+		expect(readFileSync(join(root, '.agents/references/name.md'), 'utf8')).toContain('request: |\n  shorter\n')
+	})
+
+	it('throws a refusal with its code, marked usage for a wrong call', async () => {
+		const root = repo()
+		const options = { root, home: tempDir(), env: {} }
+		await expect(customizeReference('name', options)).rejects.toMatchObject({ code: 'change-missing', usage: true })
+		await expect(customizeReference('name', { ...options, extends: ['nope'] })).rejects.toMatchObject({
+			code: 'step-invalid',
+			usage: false,
+		})
+		expect(existsSync(join(root, '.agents/references/name.md'))).toBe(false)
 	})
 })

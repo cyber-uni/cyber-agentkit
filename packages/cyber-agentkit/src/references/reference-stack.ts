@@ -265,7 +265,7 @@ function planFromPlugins(
 		const plugins = names.join(', ')
 		warn(
 			'default-not-selected',
-			`${names.length > 1 ? 'the plugins' : 'the plugin'} ${plugins} ${names.length > 1 ? 'answer' : 'answers'} over the default of ${defaultContribution.layer.skill}, and no extends names either; run "reference select ${name} <option>..." to choose (options: ${[...names, 'default'].join(', ')})`,
+			`${names.length > 1 ? 'the plugins' : 'the plugin'} ${plugins} ${names.length > 1 ? 'answer' : 'answers'} over the default of ${defaultContribution.layer.skill}, and no extends names either; run "reference customize ${name} --extends <option>..." to choose (options: ${[...names, 'default'].join(', ')})`,
 		)
 	}
 	const builtBy = top && (holders.get(top)?.steps?.length ?? 0) > 0 ? `plugin ${top}'s extends` : 'none'

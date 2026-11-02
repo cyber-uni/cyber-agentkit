@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { parseDocument as parseYaml } from 'yaml'
+import { isMap, parseDocument as parseYaml } from 'yaml'
 import { frontmatterPattern, parseDocument, parseSections } from './reference-document.js'
 import { ReferenceFailure } from './reference-error.js'
 import type { ReferenceInterface } from './reference-interface.js'
@@ -78,8 +78,10 @@ export function editFrontmatter(raw: string, keys: Record<string, unknown>): str
 	const body = match ? raw.slice(match[0].length) : raw
 	const doc = parseYaml(match ? (match[1] as string) : '')
 	for (const [key, value] of Object.entries(keys)) {
-		if (value === undefined) doc.delete(key)
-		else {
+		if (value === undefined) {
+			// Nothing to remove from frontmatter that holds no mapping.
+			if (isMap(doc.contents)) doc.delete(key)
+		} else {
 			// A list of scalars, such as `extends: [a, b]`, reads best on one line; a list of records, such as `sources`, does not.
 			const flow = Array.isArray(value) && value.every((item) => typeof item !== 'object' || item === null)
 			const node = doc.createNode(value, { flow })

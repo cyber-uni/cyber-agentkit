@@ -181,14 +181,14 @@ describe('load: the default tier', () => {
 		expect(errors()).toMatch(/^warning: default-folder-missing: /m)
 	})
 
-	it('warns, naming reference select, when a plugin answers over the default with no extends naming either', async () => {
+	it('warns, naming reference customize --extends, when a plugin answers over the default with no extends naming either', async () => {
 		const root = repo()
 		plugins(root, { a: { name: '## Create\n\nplugin\n' } })
 		const folder = skill(root, 'skills/tracker', { name: base })
 
 		expect(await load(['name'], { root, default: folder })).toBe(0)
 		expect(written()).toBe('## Create\n\nplugin\n\n## Close\n\nbase close\n')
-		expect(errors()).toMatch(/warning: default-not-selected: .*reference select name/)
+		expect(errors()).toMatch(/warning: default-not-selected: .*reference customize name --extends/)
 	})
 })
 

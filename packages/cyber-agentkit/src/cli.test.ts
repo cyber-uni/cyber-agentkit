@@ -104,7 +104,7 @@ describe('run', () => {
 		['search', 'anything'],
 		['where', 'name'],
 		['create', 'name'],
-		['select', 'name', 'a'],
+		['customize', 'name', '--extends', 'a'],
 		['delete', 'name'],
 	])('rejects an unsupported --format on %s as a usage error, before the command runs', async (...subcommand) => {
 		const argv = ['node', 'cyber-agentkit', 'reference', ...subcommand, '--format', 'yaml', '--root', tempRoot()]

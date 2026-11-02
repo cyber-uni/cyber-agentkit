@@ -12,7 +12,7 @@ import {
 import { validateWrite, type WriteCommand } from './reference-write-checks.js'
 
 /** Where a write goes; a folder is relative to `cwd`. Pass at most one of `scope`, `in`, `plugin`, and `default`. */
-type PlaceOptions = {
+export type PlaceOptions = {
 	/** `repo` (default) or `user`. */
 	scope?: string | undefined
 	/** A folder strictly below the root, which must exist and not be git-ignored: its project section. */
@@ -37,26 +37,48 @@ export type CreateReferenceOptions = LoadReferenceOptions &
 
 export type DeleteReferenceOptions = LoadReferenceOptions & PlaceOptions
 
-async function prepare(
+/** Every option a write takes, `customize`'s included; a path is relative to `cwd`. */
+type WriteOptions = LoadReferenceOptions &
+	Omit<CreateReferenceOptions, 'plugin'> & {
+		extends?: readonly string[] | undefined
+		extendsFile?: string | undefined
+		request?: string | undefined
+		body?: string | undefined
+		base?: boolean | undefined
+	}
+
+type WriteArgs = CreateArgs & Omit<WriteOptions, keyof CreateReferenceOptions>
+
+/**
+ * A write's arguments with each path resolved against `cwd`, checked for usage errors before any
+ * layer is read (so a usage error comes before `root-missing`, C3), and the layers it reads.
+ */
+export async function prepareWrite(
 	command: WriteCommand,
 	name: string,
-	options: CreateReferenceOptions,
-): Promise<{ layers: ReferenceLayers; args: CreateArgs }> {
+	options: WriteOptions,
+): Promise<{ layers: ReferenceLayers; args: WriteArgs }> {
 	const cwd = options.cwd ?? process.cwd()
 	const home = options.home ?? homedir()
 	const at = (folder: string | undefined) => (folder === undefined ? undefined : resolve(cwd, folder))
-	const args: CreateArgs = {
+	const args: WriteArgs = {
 		root: options.root === undefined ? findRoot(cwd) : resolve(cwd, options.root),
 		home,
 		name,
 		scope: options.scope,
 		in: at(options.in),
-		plugin: at(options.plugin),
+		// `customize` has no `--plugin`: its `plugin` is only the host plugin the layers read.
+		plugin: command === 'customize' ? undefined : at(options.plugin as unknown as string | undefined),
 		default: at(options.default),
 		merge: options.merge,
 		template: at(options.template),
 		implements: options.implements,
 		dryRun: options.dryRun,
+		extends: options.extends,
+		extendsFile: at(options.extendsFile),
+		request: at(options.request),
+		body: at(options.body),
+		base: options.base,
 	}
 	// A usage error comes before anything is read, `root-missing` included (C3).
 	validateWrite({ command, ...args })
@@ -77,7 +99,7 @@ async function prepare(
  * `ReferenceError` with its code, marked `usage` for a wrong call.
  */
 export async function createReference(name: string, options: CreateReferenceOptions): Promise<CreateResult> {
-	const { layers, args } = await prepare('create', name, options)
+	const { layers, args } = await prepareWrite('create', name, options)
 	return createContribution(layers, args)
 }
 
@@ -87,6 +109,6 @@ export async function createReference(name: string, options: CreateReferenceOpti
  * no-op whose record carries the `no-file` code. A refused delete throws `ReferenceError`.
  */
 export async function deleteReference(name: string, options: DeleteReferenceOptions): Promise<DeleteResult> {
-	const { layers, args } = await prepare('delete', name, options)
+	const { layers, args } = await prepareWrite('delete', name, options)
 	return deleteContribution(layers, args)
 }

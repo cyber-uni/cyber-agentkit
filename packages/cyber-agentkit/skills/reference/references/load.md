@@ -31,11 +31,11 @@ Per name:
 - **found**: use the document.
 - **missing** (`reference-missing`, or `reference-removed` when a `remove` turned the name off): carry on without it, and tell the user it was not loaded, except for `reference-removed`, about which you say nothing. Do not read the caller's default or search for a substitute: the command already included the default.
 - **ambiguous** (`reference-ambiguous`): more than one plugin holds the name and nothing says which to build on. The tag lists the options: each `<plugin>/<name>`, and `default` when the caller has one.
-  - With a user present, list every option, even when only one is left, and ask which the name should build on. Write the pick with `reference select <name> <option>` (add `--scope user` when the user wants it for themselves only), then run step 1 again for that name alone and use what it prints.
-  - With no user present, carry on without it, and tell the user to settle it with `reference select <name> <option>`.
+  - With a user present, list every option, even when only one is left, and ask which the name should build on. Write the pick with `reference customize <name> --extends <option>` (add `--scope user` when the user wants it for themselves only), then run step 1 again for that name alone and use what it prints.
+  - With no user present, carry on without it, and tell the user to settle it with `reference customize <name> --extends <option>`.
 - **invalid** (`reference-invalid`): the caller's load line names something that is not a reference name. Never read the path or file it names. Carry on without it, and tell the user it is a fault in the caller's instructions, to report to the caller's author.
 
-A `warning:` line does not change the answer. Pass one on only when it names `reference select`; it means a plugin answers over the caller's default, and the user can choose.
+A `warning:` line does not change the answer. Pass one on only when it names `reference customize`; it means a plugin answers over the caller's default, and the user can choose.
 
 ## 3. When the command did not run
 
@@ -73,7 +73,7 @@ Before returning to the caller:
 
 - Every name the caller listed is either loaded from the command, read from the caller's default because the command did not run, or named in the report as not loaded.
 - The caller's default was read only when the command did not run, never for a name the command reported.
-- An ambiguous name was settled with `reference select` only after the user picked an option.
+- An ambiguous name was settled with `reference customize --extends` only after the user picked an option.
 - Every interface the caller named is either listed with `implementations`, or named in the report as not loaded.
 - No `npx`, `pnpm dlx`, `upx`, or download was run.
 - No file under a tier folder, and no path an invalid name gives, was read by you.

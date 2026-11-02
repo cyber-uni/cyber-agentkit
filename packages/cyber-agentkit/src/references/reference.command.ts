@@ -3,24 +3,24 @@ import { command } from 'clibuilder'
 import { checkCommand } from './reference-check.command.js'
 import { layerSource } from './reference-command-support.js'
 import { createCommand } from './reference-create.command.js'
+import { customizeCommand } from './reference-customize.command.js'
 import { deleteCommand } from './reference-delete.command.js'
 import { implementationsCommand } from './reference-implementations.command.js'
 import type { ReferencePlugin } from './reference-layers.js'
 import { listCommand } from './reference-list.command.js'
 import { loadCommand } from './reference-load.command.js'
 import { searchCommand } from './reference-search.command.js'
-import { selectCommand } from './reference-select.command.js'
 import { whereCommand } from './reference-where.command.js'
 
 export type { ReferenceCheckReport } from './reference-check.command.js'
 export { traceText } from './reference-command-support.js'
 export type { ReferenceCreateReport } from './reference-create.command.js'
+export type { ReferenceCustomizeBase, ReferenceCustomizeReport } from './reference-customize.command.js'
 export type { ReferenceDeleteReport } from './reference-delete.command.js'
 export type { ReferenceImplementationsReport } from './reference-implementations.command.js'
 export type { ReferenceListReport } from './reference-list.command.js'
 export type { ReferenceLoadEntry } from './reference-load.command.js'
 export type { ReferenceSearchReport } from './reference-search.command.js'
-export type { ReferenceSelectReport } from './reference-select.command.js'
 export type { ReferenceWhereOutput } from './reference-where.command.js'
 
 export type ReferenceCommandOptions = {
@@ -34,7 +34,7 @@ export type ReferenceCommands = {
 	search: cli.Command
 	where: cli.Command
 	create: cli.Command
-	select: cli.Command
+	customize: cli.Command
 	delete: cli.Command
 	check: cli.Command
 	implementations: cli.Command
@@ -49,7 +49,7 @@ export function createReferenceCommands({ plugin }: ReferenceCommandOptions = {}
 		search: searchCommand(layersFor),
 		where: whereCommand(layersFor),
 		create: createCommand(layersFor),
-		select: selectCommand(layersFor),
+		customize: customizeCommand(layersFor),
 		delete: deleteCommand(layersFor),
 		check: checkCommand(layersFor),
 		implementations: implementationsCommand(layersFor),
@@ -63,7 +63,7 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 		search,
 		where,
 		create,
-		select,
+		customize,
 		delete: remove,
 		check,
 		implementations,
@@ -71,7 +71,7 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 	return command({
 		name: 'reference',
 		description:
-			'Read reference documents by name, composed from the managed, repo, user, plugin, and default tiers, and write, select, or delete a contribution.',
-		commands: [load, list, search, where, create, select, remove, implementations, check],
+			'Read reference documents by name, composed from the managed, repo, user, plugin, and default tiers, and create, customize, or delete a contribution.',
+		commands: [load, list, search, where, create, customize, remove, implementations, check],
 	})
 }

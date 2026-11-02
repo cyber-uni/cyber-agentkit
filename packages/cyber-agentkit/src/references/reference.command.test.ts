@@ -12,7 +12,7 @@ describe('reference command', () => {
 			'search',
 			'where',
 			'create',
-			'select',
+			'customize',
 			'delete',
 			'implementations',
 			'check',

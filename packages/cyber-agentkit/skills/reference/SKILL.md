@@ -58,8 +58,8 @@ Load `references/create.md` from this skill's folder and follow it.
 
 1. Run `where <name>`. Its `options` are the plugins holding the name, each as `<plugin>/<name>`, and `default` when a skill's default holds it.
 2. Ask the user which to build on, bottom first, even when one option is left. Ask whether it is for the project or the user alone.
-3. Run `select <name> <option>...`, adding `--scope user` for the user alone. It writes `extends` into `<name>.md` and keeps any body the file has.
-4. Run `load <name> --trace`. The stack must be what the user picked. To undo a selection, run `select <name> --clear`.
+3. Run `customize <name> --extends <option>...`, adding `--scope user` for the user alone. It writes `extends` into `<name>.md` and keeps any body the file has.
+4. Run `load <name> --trace`. The stack must be what the user picked. To undo a selection, run `customize <name> --extends none`.
 
 ## Delete
 

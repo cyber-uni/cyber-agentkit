@@ -104,6 +104,13 @@ export type {
 	ReferenceWarningCode,
 } from './references/reference-codes.js'
 export { referenceCodeExit, referenceCodes } from './references/reference-codes.js'
+export type {
+	CustomizeAction,
+	CustomizeReferenceOptions,
+	CustomizeResult,
+	GeneratorBase,
+} from './references/reference-customize.js'
+export { customizeReference } from './references/reference-customize.js'
 export type { MergeOperation, SectionSource } from './references/reference-document.js'
 export type { ReferenceErrorOptions } from './references/reference-error.js'
 export { ReferenceFailure as ReferenceError } from './references/reference-error.js'

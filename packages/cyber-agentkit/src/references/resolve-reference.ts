@@ -174,13 +174,33 @@ function stackOrder(layers: readonly ReferenceTraceLayer[], stack: readonly stri
 }
 
 /**
+ * Changes what one layer contributes before the stack is built, for the generator's input (R84):
+ * the returned contribution takes the read one's place, and `undefined` leaves the layer out.
+ */
+export type ContributionAdjust = (
+	layer: ReferenceLayer,
+	read: Contribution | undefined,
+	entry: ReferenceTraceLayer,
+) => Contribution | undefined
+
+/**
  * Resolves one name: reads each layer, puts the contributions in one order (the stack under the
  * user, repo, and managed tiers), and composes them bottom first, each with its operation.
  */
 export function resolveReference(
 	input: string | ReferenceName,
 	source: Source,
-	{ display = (path) => path, without, below }: ResolveOptions = {},
+	options: ResolveOptions = {},
+): ResolvedReference {
+	return resolveAdjusted(input, source, options, undefined)
+}
+
+/** `resolveReference`, with each layer's contribution passed through `adjust` first (`customize --base`). */
+export function resolveAdjusted(
+	input: string | ReferenceName,
+	source: Source,
+	{ display = (path) => path, without, below }: ResolveOptions,
+	adjust: ContributionAdjust | undefined,
 ): ResolvedReference {
 	const ref = typeof input === 'string' ? parseReferenceName(input) : input
 	const { layers: all, harnesses, root, projects } = layersOf(source)
@@ -212,7 +232,8 @@ export function resolveReference(
 			entry.outcome = `not read (${layer.skipped})`
 			continue
 		}
-		const contribution = readContribution(layer, ref.name, entry, { display, without, warnAt })
+		const read = readContribution(layer, ref.name, entry, { display, without, warnAt })
+		const contribution = adjust ? adjust(layer, read, entry) : read
 		if (contribution) contributions.push(contribution)
 		else if (layer.tier === 'default') entry.outcome = 'not read (no default)'
 	}

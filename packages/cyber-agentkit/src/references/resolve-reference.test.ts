@@ -414,7 +414,7 @@ describe('the stack (R8, R52 to R56)', () => {
 		expect(resolved.trace.stack).toEqual(['default', 'a'])
 		expect(resolved.content).toBe('## Create\n\nplugin\n\n## Close\n\nbase close\n')
 		expect(codes(resolved)).toEqual(['default-not-selected'])
-		expect(resolved.warnings[0]?.message).toContain(`reference select ${name}`)
+		expect(resolved.warnings[0]?.message).toContain(`reference customize ${name}`)
 	})
 
 	it('stops warning once an extends names the default', () => {

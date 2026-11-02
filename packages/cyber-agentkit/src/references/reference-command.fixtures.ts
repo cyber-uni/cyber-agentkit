@@ -106,8 +106,7 @@ export const check = (names: string[] | undefined, args: Args = {}) =>
 export const implementations = (id: string, args: Args = {}) =>
 	exec(commands.implementations, { format: 'json', id, ...args })
 export const create = (name: string, args: Args = {}) => exec(commands.create, { format: 'text', name, ...args })
-export const select = (name: string, options: string[], args: Args = {}) =>
-	exec(commands.select, { format: 'text', name, options, ...args })
+export const customize = (name: string, args: Args = {}) => exec(commands.customize, { format: 'text', name, ...args })
 export const remove = (name: string, args: Args = {}) => exec(commands.delete, { format: 'text', name, ...args })
 
 /** Everything the last run put on stdout, concatenated. */
