@@ -18,10 +18,10 @@ IDs are shared across the parent and its children.
   harness.
 - **Outcome:** for each name, in the order asked, with status `found`, its resolved reference (K28): the main document
   (K23), composed as each contribution's `extends` and `merge` declare, followed by each project section below the root,
-  in path order, each wrapped with the folder it applies to (R44). The managed contribution applies over each project
-  section as it does over the main document (K27). Project sections are read from every folder below the root that git
-  does not ignore, tracked or not, and every one is inlined (N17). No contribution's frontmatter or merge marker is part
-  of it.
+  in path order, each wrapped with the folder it applies to (R44). The managed contribution applies over the main
+  document and over each project section (K27). Project sections are read from every folder below the root that git does
+  not ignore, tracked or not, and every one is inlined (N17). No contribution's frontmatter or merge marker is part of
+  it.
 - **Extensions:** each name resolves on its own; a fault in one never stops the others.
   - UC1.1 No contribution answers: status `missing`, with the reason: no tier holds the name (`default` included); the
     plugin a qualified name asks for is not installed (`reference-missing`); or a `merge: remove` contribution leaves
@@ -64,16 +64,16 @@ IDs are shared across the parent and its children.
 - **Inputs:** a name; the root (K18); the calling skill's folder, for the `default` tier; the detected harness;
   optionally a folder below the root.
 - **Outcome:** the trace gives the name's status; the stack and what built it (the contribution whose `extends` was
-  used, the plugins' own `extends`, or none); for each section of the main document, by heading path, the contributions
-  that supplied its text and the operation each applied; every layer checked, highest first (`managed`, then `repo`,
-  then `user`, then the stack from its top), with its path, the file that matched, its frontmatter as written, the
-  operation it applied and whether that came from the contribution or from a step, and its outcome (K7); and each
-  project section with its folder and path. For a generated document, it also gives each recorded source with its
-  recorded and installed plugin versions, and the request. The resolved reference itself is unchanged. `where` gives the
-  `repo` and `user` `<name>.md` files a customization or a selection is written to, each with who it reaches and, when a
-  `replace` or `remove` above hides it, that it is hidden and by what, and the
-  heading paths of the main document, which a section operation can target; with `--in <folder>`, also the project
-  section file for that folder; with `--trace`, also the layers with their outcomes.
+  used, the plugins' own `extends`, or none); for each section of the main document with managed applied over it, by
+  heading path, the contributions that supplied its text and the operation each applied; every layer checked, highest
+  first (`managed`, then `repo`, then `user`, then the stack from its top), with its path, the file that matched, its
+  frontmatter as written, the operation it applied and whether that came from the contribution or from a step, and its
+  outcome (K7); and each project section with its folder and path. For a generated document, it also gives each recorded
+  source with its recorded and installed plugin versions, and the request. The resolved reference itself is unchanged.
+  `where` gives the `repo` and `user` `<name>.md` files a customization or a selection is written to, each with who it
+  reaches and, when a `replace` or `remove` above hides it, that it is hidden and by what, and the heading paths of the
+  main document, which a section operation can target; with `--in <folder>`, also the project section file for that
+  folder; with `--trace`, also the layers with their outcomes.
 - **Extensions:**
   - UC2.1 A layer or step cannot be read (policy held in MDM, a plugin with no install folder, a step not installed, a
     `default` step with nothing there): it appears with the reason, such as `not read (not installed)` or
@@ -99,8 +99,8 @@ IDs are shared across the parent and its children.
 ### UC3 — List and search (A3.1)
 
 - **Trigger:** someone wants the names that exist, to load one or customize one.
-- **Entry points:** Skill: the `reference` skill's Find mode. Code: `reference list [pattern]`;
-  `reference search <query>`; `listReferences`, `searchReferences`.
+- **Entry points:** Skill: the `reference` skill's Find mode. Code: `reference list [pattern] [--trace]`;
+  `reference search <query> [--trace]`; `listReferences`, `searchReferences`.
 - **Inputs:** a pattern or a query; the root (K18); the detected harness.
 - **Outcome:** `list` gives one row per name with its description, and its status when not `found`; a pattern keeps
   exactly the names it matches. With `--trace`, it gives one row per name per layer holding it, and one per installed
@@ -136,9 +136,9 @@ IDs are shared across the parent and its children.
   once, at its listed place. Each step applies with its own operation: the step's key, else the plugin's own `merge`,
   else `patch`. The contribution's body applies on top with its own `merge`. The highest written `extends` among the
   contributions used builds the stack: a managed contribution's, else the `repo` one's, else the `user` one's, else the
-  plugins' own. The `user`, `repo`, and managed contributions apply over the stack in the order K23 gives. Anything left
-  out of that `extends`, a plugin or `default`, is `not used`. So a house-style plugin changes what a generic skill
-  reads without forking it.
+  plugins' own. The `user` and `repo` contributions apply over the stack in the order K23 gives, and the managed one
+  over the result (K27). Anything left out of that `extends`, a plugin or `default`, is `not used`. So a house-style
+  plugin changes what a generic skill reads without forking it.
 - **Extensions:**
   - UC7.1 A step cannot be used, a lower `extends` differs, or a plugin lists itself: as UC1.12 says.
   - UC7.2 The steps cannot be put in one order: as UC1.2 says. How bringing in, repeats, and a plugin brought in twice
@@ -199,10 +199,10 @@ Edge IDs are in [graph.md](./graph.md).
 **Composition**
 
 - R3 (UC1, E3): The stack applies bottom first in K17 order, each contribution over the result of everything below it
-  with its own operation; the `user`, `repo`, and managed contributions then apply over it in the order K23 gives, each
-  with its own operation. With no `merge` written anywhere, every contribution patches. Load delivers the project
-  sections in path order, so an inner folder's section follows an outer one's; which wins where they conflict is the
-  agent's ordering rule (R90).
+  with its own operation; the `user` and `repo` contributions then apply over it in the order K23 gives, and the managed
+  one over the result (K27), each with its own operation. With no `merge` written anywhere, every contribution patches.
+  Load delivers the project sections in path order, so an inner folder's section follows an outer one's; which wins
+  where they conflict is the agent's ordering rule (R90).
 - R100 (UC1, UC2, E57): When both `repo` and `user` hold a contribution, both apply, the `repo` one over the `user` one;
   a `repo` `replace` or `remove` makes the `user` one `shadowed`. The `user` one's `extends` is not used (R8).
 - R99 (UC1, UC10, E54): Project sections follow the main document in path order, never composed into it: paths compared
@@ -222,9 +222,9 @@ Edge IDs are in [graph.md](./graph.md).
   later text wins.
 - R4 (UC1, E4): `replace` drops everything below; each contribution below is `shadowed by <contribution> (replace)`.
 - R49 (UC1, E45): `remove` drops everything below, and its body is ignored with a warning. When no contribution above it
-  has a body, there is no main document: the name is `missing` with the code `reference-removed`, naming that
-  contribution, unless a project section answers (R99). A managed `remove` drops the project sections too, so the name
-  is `missing` with that code.
+  (a managed one included) has a body, there is no main document: the name is `missing` with the code
+  `reference-removed`, naming that contribution, unless a project section answers (R99). A managed `remove` drops the
+  project sections too, so the name is `missing` with that code.
 - R42 (UC1, E44): A `<!-- merge: <operation> -->` marker under a heading applies that operation to that section alone;
   a section with no marker takes its document's operation.
 - R50 (UC1, E46): A contribution with no body changes nothing, except with `remove`.
@@ -266,32 +266,30 @@ Edge IDs are in [graph.md](./graph.md).
   frontmatter as written, the operation applied and where it came from, and the outcome: `used`;
   `shadowed by <contribution> (replace|remove)`; `not used (not in extends)`,
   `not used (<step>'s extends replaced by <contribution>)`, `not used (<contribution>'s extends builds the stack)`, or
-  `not used (qualified name)`; `stale`; `not read (<reason>)`, `not read (ignored)` for a project section in a folder
-  git ignores (by any ignore file git reads); `ambiguous`; `missing`. It names the detected harnesses. It gives each
-  project section with its folder and path, and for a generated document each recorded source with its recorded and
-  installed plugin versions, and the request.
+  `not used (qualified name)`, `not used (format differs from <format>)` (R68); `stale`; `not read (<reason>)`,
+  `not read (ignored)` for a project section in a folder git ignores (by any ignore file git reads); `ambiguous`;
+  `missing`. It names the detected harnesses. It gives each project section with its folder and path, and for a
+  generated document each recorded source with its recorded and installed plugin versions, and the request.
 - R57 (UC2, E11): `where` gives the `repo` and `user` `<name>.md` with who each reaches, and the heading paths of the
   main document; with `--in <folder>`, also that folder's project section file; on an ambiguous name, the options and
   the files a selection goes to (exit 0). A place a `replace` or `remove` above hides is marked hidden, with
   `hiddenBy` naming that contribution, whether a file is there or not. With `--trace`, it also gives the layers with
   their outcomes.
-- R101 (UC1, UC2, E56): At load, a generated `repo` or `user` document, or a project section, is `stale` when a
-  recorded source's plugin version differs from the installed one, or a recorded source is gone. It is still used, with
-  a `reference-stale` warning naming each changed or missing source and how to revise it (UC20). A plugin's own file
-  that records `sources` (R103) is never stale at load: only `check` compares it (R86, `base-moved`). A `default`
-  source records its skill's plugin and version when the skill ships in a plugin; a standalone skill's default records
-  no version and is never stale. Only plugin versions are compared (N8). A contribution that records no sources is
-  never stale.
+- R101 (UC1, UC2, E56): At load, a generated `repo` or `user` document, or a project section, is `stale` when a recorded
+  source's plugin version differs from the installed one, or a recorded source is gone. It is still used, with a
+  `reference-stale` warning naming each changed or missing source and how to revise it (UC20). A plugin's own file that
+  records `sources` (R103) is never stale at load: only `check` compares it (R86, `base-moved`). A `default` source's
+  version is as K34 says. Only plugin versions are compared (N8). A contribution that records no sources is never stale.
 
 **Layers**
 
-- R12 (UC1, E14): The root is the nearest folder at or above the working folder that holds `.git`; `--root` names it
-  instead, and with neither, the working folder is the root. The `repo` tier reads the root's `.agents/references/`. The
-  `project` tier reads every `.agents/references/` strictly below the root, in folders git does not ignore (by any
-  ignore file git reads), tracked or not; outside a git repository, none is ignored. The `user` tier reads
-  `~/.agents/references/`. The managed tier reads `references/` in the current harness's managed folder only; when
-  detection names no harness, or more than one (nested harnesses, for which harness detection reports `unknown`), none
-  is read, and the trace says so; the library keeps no managed folder of its own.
+- R12 (UC1, E14): The root is the folder `--root` names; without it, the nearest folder at or above the working folder
+  that holds `.git`, a folder or a file (a git worktree); with neither, the working folder. The `repo` tier reads the
+  root's `.agents/references/`. The `project` tier reads every `.agents/references/` strictly below the root, in folders
+  git does not ignore (by any ignore file git reads), tracked or not; outside a git repository, none is ignored. The
+  `user` tier reads `~/.agents/references/`. The managed tier reads `references/` in the current harness's managed
+  folder only; when detection names no harness, or more than one (nested harnesses, for which harness detection reports
+  `unknown`), none is read, and the trace says so; the library keeps no managed folder of its own.
 - R13 (UC1, E15): The plugin tier holds, for the detected harness, each enabled plugin's `references/`, and the declared
   `dependencies` and `devDependencies` of the nearest `package.json` that are plugins and ship one, each named by its
   plugin manifest's `name`, never by its package name; never a transitive package. Any other dependency adds no plugin

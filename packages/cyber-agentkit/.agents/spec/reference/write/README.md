@@ -16,21 +16,20 @@ IDs are shared across the parent and its children.
   source, or into the `repo` or `user` tier for a name the repository or the user owns; there `--merge remove` turns a
   name off. `create` can do anything `customize` (UC18) does, by hand.
 - **Entry points:** Skill: the `reference` skill's Create and Update modes; Update edits the file, then checks the
-  trace. Code: `reference create <name> [--scope repo|user | --in <folder> | --plugin <plugin folder> | --default <skill
-  folder>]
-  [--merge <operation>] [--template <file> | --implements <id>] [--dry-run]`.
+  trace. Code: `reference create <name> [--scope repo|user | --in <folder> | --plugin <plugin folder>`
+  `| --default <skill folder>] [--merge <operation>] [--template <file> | --implements <id>] [--dry-run] [--trace]`.
 - **Inputs:** a bare name; where it is written (the `repo` tier by default, the `user` tier, a folder's project section,
   or a plugin's or skill's source folder); the operation (default `patch`); a template or an interface; the root.
 - **Outcome:** `create` writes `<name>.md` in that tier's folder with `merge: <operation>` (none in a project section,
   which carries no `merge`, K24), and reports the path with a hint that `load <name>` gives the resolved reference; with
-  `--trace`, also the resulting trace, in which a `repo` or `user` file applies over the stack (K23). The skill shows
-  the user where each section came from and offers the full document. A plugin file whose `extends` names another plugin
-  (it gets `extends` only from a `--template`, since `create` has no `--extends`) records, in `sources`, the version of
-  that plugin it was written against, so `check` can warn its author when the base moves on (UC6).
+  `--trace`, also the resulting trace, which shows the new file's outcome (R31). The skill shows the user where each
+  section came from and offers the full document. A plugin file whose `extends` names another plugin (it gets `extends`
+  only from a `--template`, since `create` has no `--extends`) records, in `sources`, the version of that plugin it was
+  written against, so `check` can warn its author when the base moves on (UC6).
 - **Extensions:**
   - UC5.1 The file exists with a body: error, and nothing is written. `create` never overwrites; Update edits it.
   - UC5.2 The file holds only a selection: `create` adds the body and `merge`, and keeps its `extends`.
-  - UC5.3 A qualified name: error naming the bare name to use.
+  - UC5.3 A qualified name: usage error `reference-qualified` (exit 2), naming the bare name to use.
   - UC5.4 A contribution that would hide the new file (a managed `replace` or `remove` over a `repo` file or a project
     section; this repository's `repo` one over a `user` file; for a plugin file, one above it in the stack): written all
     the same, since the hiding contribution may change later, with a warning naming it: `reference-hidden`, or
@@ -46,9 +45,10 @@ IDs are shared across the parent and its children.
     written, with a hint that `list` and `search` will show it blank.
   - UC5.9 `--dry-run`: the path and the content are printed, and nothing is written.
   - UC5.10 `--plugin <plugin folder>`: writes `<plugin folder>/references/<name>.md`, with `merge` only when `--merge`
-    is given. `--default <skill folder>`: writes `<skill folder>/references/<name>.default.md`, with `merge` only when
-    `--merge` is given, since a default can extend a plugin through its own `extends` and so sit above it (R27). The
-    hide check (UC5.4) and the trace apply only when the folder is a layer the stack reads.
+    is given, or `merge: replace` when `--implements` is. `--default <skill folder>`: writes
+    `<skill folder>/references/<name>.default.md`, with `merge` only when `--merge` is given, or `merge: replace` when
+    `--implements` is, since a default can extend a plugin through its own `extends` and so sit above it (R27). The hide
+    check (UC5.4) and the trace apply only when the folder is a layer the stack reads.
   - UC5.11 The folder holds no plugin manifest (`--plugin`) or no `SKILL.md` (`--default`), or lies outside the
     repository, such as an installed copy: refused, `folder-invalid`, and nothing is written. More than one of
     `--scope`, `--in`, `--plugin`, and `--default`: usage error `options-conflict`. `--merge` with `--in`: usage error
@@ -64,14 +64,14 @@ IDs are shared across the parent and its children.
 - **Trigger:** a customizer wants to change what a skill reads for a name, for the repository, for themselves, or for
   one project folder: by picking which plugins and sections it builds on, by saying in their own words what to change
   in the prose, or both.
-- **Entry points:** Skill: the `reference` skill's Customize mode. It helps the customizer pick, runs a
-  generator subagent when the prose must change, shows the draft, and writes it once they approve. Code:
-  `reference customize <name> [--extends <step>...] [--request <file> --body <file>] [--scope repo|user | --in
-  <folder>] [--default <skill folder>] [--merge <operation>] [--implements <id>] [--dry-run]`, which writes the file
-  and its frontmatter; it runs no model. `--default` is read-only here: the folder to read the skill's default from
-  (R41), so the stack includes it. `reference customize <name> --base [--extends <step>...] [--scope repo|user | --in
-  <folder>] [--default <skill folder>] [--implements <id>]` prints the document the generator reads for that target
-  (R84).
+- **Entry points:** Skill: the `reference` skill's Customize mode. It helps the customizer pick, runs a generator
+  subagent when the prose must change, shows the draft, and writes it once they approve. Code:
+  `reference customize <name> [--extends <step>...] [--request <file> --body <file>]`
+  `[--scope repo|user | --in <folder>] [--default <skill folder>] [--merge <operation>] [--implements <id>]`
+  `[--dry-run] [--trace]`, which writes the file and its frontmatter; it runs no model. `--default` is read-only here:
+  the folder to read the skill's default from (R41), so the stack includes it.
+  `reference customize <name> --base [--extends <step>...] [--scope repo|user | --in <folder>]`
+  `[--default <skill folder>] [--implements <id>]` prints the document the generator reads for that target (R84).
 - **Inputs:** a name; the target (the `repo` tier by default, the `user` tier, or a folder below the root); the picks,
   as UC9 gives them; the request (K22); the shape of a changed body (a delta by default, or a whole document with
   `--merge replace`; a project section takes neither, K24); for a name only an interface defines, the interface; the
@@ -117,9 +117,9 @@ IDs are shared across the parent and its children.
   - UC18.17 `--implements` on a name that is already found: allowed; the whole implementation replaces the stack
     (R111). On a name outside the interface's namespace: refused, `name-outside-interface` (exit 1), and nothing is
     written.
-  - UC18.13 A `missing` name that falls under a found interface's namespace (cardinality `one`: `<id>`; `many`:
-    `<id>.<key>`), customized with `--request` and no `--implements`: refused, `implements-required` (exit 1), and
-    nothing is written. Its `help` gives the `--implements` command.
+  - UC18.13 A `missing` name that falls under a found interface's namespace (R111), customized with `--request` and no
+    `--implements`: refused, `implements-required` (exit 1), and nothing is written. Its `help` gives the `--implements`
+    command.
   - UC18.14 `--implements` with `--in`: usage error `options-conflict` (exit 2), since a project section carries no
     `implements` (K24). `--implements` with an unknown interface: refused as `create --implements` is,
     `interface-invalid`.
@@ -174,7 +174,7 @@ IDs are shared across the parent and its children.
     written. An `--extends-file` that is unreadable or not a YAML `extends` list: refused, `extends-file-invalid`.
   - UC9.3 The `repo` and `user` tiers pick differently: the `repo` one builds the stack and the `user` one's `extends`
     is `not used` (R8, UC7.6).
-  - UC9.4 A qualified name: error naming the bare name to use.
+  - UC9.4 A qualified name: usage error `reference-qualified` (exit 2), naming the bare name to use.
   - UC9.5 `--extends none`: `extends` is removed from the file, and a file left with nothing in it is deleted. With no
     `extends` in that tier: refused, `no-selection`, stating what answers the name now. Removing the whole file is
     UC11.
@@ -194,7 +194,7 @@ IDs are shared across the parent and its children.
 - **Extensions:**
   - UC11.1 No contribution there: refused, `no-file` (exit 1), stating what answers the name now. An installed plugin's,
     a managed, or an installed skill's contribution is never deleted.
-  - UC11.2 A qualified name: error naming the bare name to use.
+  - UC11.2 A qualified name: usage error `reference-qualified` (exit 2), naming the bare name to use.
   - UC11.3 `--dry-run`: the path and the answer afterwards are printed, and nothing is deleted.
   - UC11.4 The file also holds a selection (`extends`): both go, and the report says the selection went too, naming
     `reference customize --extends` to restore it.
@@ -218,8 +218,8 @@ Edge IDs are in [graph.md](./graph.md).
   `--default` exclude each other (`options-conflict`, exit 2) for `create` and `delete`. `--in` names a folder strictly
   below the root, else `in-not-below-root` (exit 2). On `customize`, `--default` is no place to write: it names the
   skill folder to read the default from (R41), and combines with `--scope` or `--in`.
-- R25 (UC5, UC9, UC11, UC18, E27): `create`, `customize`, and `delete` reject a qualified name and say which bare name
-  to use.
+- R25 (UC5, UC9, UC11, UC18, E27): `create`, `customize`, and `delete` reject a qualified name as a usage error
+  (`reference-qualified`, exit 2) and say which bare name to use.
 - R60 (UC5, E26): `create` never overwrites a file with a body. On a file holding only a selection, it adds the body
   and `merge` and keeps the `extends`.
 - R26 (UC5, UC18, E28): `create` and `customize` write the file even when a `replace` or `remove` above would hide it
@@ -252,11 +252,10 @@ Edge IDs are in [graph.md](./graph.md).
 - R80 (UC9, E51): `customize --extends none` removes `extends` and deletes a file left with nothing in it; with no
   `extends` in that tier, it is refused (`no-selection`), stating what answers the name now.
 - R81 (UC20, UC18, E58): `customize --request <file> --body <file>` writes the body with frontmatter `extends` (the
-  picks given, else the target's existing `extends`, kept), `sources` (each source's plugin and installed version; a
-  `default` source records its skill's plugin and version when the skill ships in a plugin, and no version for a
-  standalone skill; for a project section, those of the main document), `request` (the file's text), and `merge`
-  (`--merge`, else `patch`; none for a project section, K24); with `--implements`, see R111. The command runs no
-  model.
+  picks given, else the target's existing `extends`, kept; none for a project section, K24), `sources` (each source's
+  plugin and installed version, a `default` source's as K34 says; for a project section, those of the main document),
+  `request` (the file's text), and `merge` (`--merge`, else `patch`; none for a project section, K24); with
+  `--implements`, see R111. The command runs no model.
 - R82 (UC18, E58): `customize` refuses, writing nothing, each with its code (R104): with neither `--extends` nor
   `--request` (`change-missing`, exit 2); with `--in` and `--extends`, since a project section has no stack, with
   `--plugin`, or with `--in` and `--merge` or `--implements` (`options-conflict`, exit 2); with only one of `--request`
@@ -289,8 +288,9 @@ Edge IDs are in [graph.md](./graph.md).
   name now.
 - R29 (UC5, UC11, UC18, E31): `--dry-run` prints the path and the exact content (`create`, `customize`) or the path and
   the answer afterwards (`delete`), and changes no file.
-- R31 (UC5, UC18, E33): After a write, the report gives the path and points to `load <name>` for the resolved
-  reference; with `--trace`, the trace shows the new file `used`.
+- R31 (UC5, UC18, E33): After a write, the report gives the path and points to `load <name>` for the resolved reference;
+  with `--trace`, the trace shows the new file's outcome (R9): `shadowed by <contribution>` when a contribution hides it
+  (R26), or no row when the folder is not a layer the stack reads.
 - R32 (UC5, E34): `create` refuses a template whose top level is a single heading holding the others (a title,
   `template-title`), and writes nothing, and so does an unreadable template or one whose frontmatter is not a mapping
   (`template-invalid`); for a missing
@@ -301,8 +301,7 @@ Edge IDs are in [graph.md](./graph.md).
   `<id>`; `many`: `<id>.<key>`), else it is refused with `name-outside-interface` (exit 1), writing nothing. The
   generator's base (`--base`, R84) is the interface's stub: each section a `##` heading in order, with its "what it
   holds" line. The written document is whole and records `implements: <id>@<version>`, `merge: replace`, and the
-  request, with no `sources`. A `missing` name that falls under a found interface's namespace (cardinality `one`:
-  `<id>`; `many`: `<id>.<key>`), customized with `--request` and no `--implements`, is refused with
-  `implements-required` (exit 1), writing nothing, and its `help` gives the `--implements` command. `--implements` with
-  `--in` is a usage error (`options-conflict`, exit 2), since a project section carries no `implements` (K24); an
-  unknown interface is refused as R28 says (`interface-invalid`).
+  request, with no `sources`. A `missing` name that falls under a found interface's namespace, customized with
+  `--request` and no `--implements`, is refused with `implements-required` (exit 1), writing nothing, and its `help`
+  gives the `--implements` command. `--implements` with `--in` is a usage error (`options-conflict`, exit 2), since a
+  project section carries no `implements` (K24); an unknown interface is refused as R28 says (`interface-invalid`).

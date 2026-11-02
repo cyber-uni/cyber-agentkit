@@ -20,8 +20,8 @@ IDs are shared across the parent and its children.
 - **Trigger:** a plugin author publishes an interface, or wants to know a contribution meets the interface it
   declares; or a consumer wants the implementations it can load.
 - **Entry points:** Skill: the `reference` skill's Create mode (an interface document), Inspect mode (check), and Find
-  mode (implementations). Code: `reference check [name...]`; `reference implementations <id> [--accept <versions>]`;
-  `checkReferences`, `referenceImplementations`.
+  mode (implementations). Code: `reference check [name...] [--trace]`;
+  `reference implementations <id> [--accept <versions>] [--trace]`; `checkReferences`, `referenceImplementations`.
 - **Inputs:** an interface document, `<id>.interface.md` in the plugin's `references/`, listing the implementation's
   sections in order, each marked required or not, with a line saying what it holds; names, or none; an interface id
   and the versions it accepts; the root; the detected harness.

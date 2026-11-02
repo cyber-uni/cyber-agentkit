@@ -8,7 +8,7 @@ Decisions a consumer can observe. Criteria in [README.md](./README.md) cite the 
 ```mermaid
 flowchart TD
   start([load name]) --> valid{"E1 a valid name?"}
-  valid -->|"no: .md, .default, .meta, a path, a bad character"| invalid(["invalid: nothing read, other names go on"])
+  valid -->|"no: .md, a K29 extension, .default, .meta, a path, a bad character"| invalid(["invalid: nothing read, other names go on"])
   valid -->|yes| qual{"E2 qualified plugin/name?"}
   qual -->|yes| pinned["stack: that plugin and what its own extends brings in; a written extends is not used"]
   qual -->|no| iface{"E16 an interface document?"}
@@ -16,8 +16,10 @@ flowchart TD
   lowest --> twoi{two plugins hold it?}
   twoi -->|yes| ambiguous
   twoi -->|no| found
-  iface -->|no| held{any layer holds it?}
-  held -->|no| missing(["missing"])
+  iface -->|no| held{any tier but project holds it?}
+  held -->|"no"| projs{"E54 a project section holds it?"}
+  projs -->|no| missing(["missing"])
+  projs -->|"yes: only project sections"| sections
   held -->|yes| written{"E8 a written extends in managed, repo, or user?"}
   written -->|yes| steps["the highest builds the stack: steps bottom first, each with its own merge and extends"]
   steps --> step{"E47 every step installed and holding the name?"}
@@ -38,7 +40,7 @@ flowchart TD
   nearer -->|no| compose
   both --> compose["E3 the stack bottom first in K17 order, then user, then repo, then managed, each with its own operation"]
   compose --> op{"the contribution's operation?"}
-  op -->|"E46 no body"| nochange[changes nothing]
+  op -->|"E46 no body, and not a remove"| nochange[changes nothing]
   op -->|"E6 patch, the default"| patch[each section's text in place of the text it matches by heading path]
   op -->|"E5 combine"| comb[each section's text after the text it matches]
   op -->|"E4 replace"| repl["everything below dropped: shadowed"]
@@ -59,7 +61,7 @@ flowchart TD
   body -->|"no: another remove is on top"| projonly{"E54 any project section?"}
   projonly -->|no| missing
   projonly -->|yes| sections
-  body -->|yes| sections["E54 project sections after the main document, in path order; managed applied over each; merge, extends, implements, aliases in one ignored with a warning"]
+  body -->|yes| sections["E54 project sections after the main document, in path order; managed applied over each, and a managed replace or remove drops every project section; merge, extends, implements, aliases in one ignored with a warning"]
   sections --> found(["found: the resolved reference, every project section inlined"])
   found --> stale{"E56 a repo, user, or project-section document's recorded source version changed, or the source gone?"}
   stale -->|yes| stalew["stale: still used; reference-stale warning"]
@@ -72,7 +74,7 @@ flowchart TD
 
 | Edge | Decision | Outcome |
 | --- | --- | --- |
-| E14 | the root and the `repo`, `project`, `user`, and managed tiers | the root: the nearest `.git` folder up, else `--root`, else the working folder; `repo`: the root's `.agents/references/`; `project`: each `.agents/references/` strictly below it that git does not ignore (by any ignore file git reads); `~/.agents/references/`; `references/` in the current harness's managed folder only, and none when detection names no harness or more than one |
+| E14 | the root and the `repo`, `project`, `user`, and managed tiers | the root: `--root`, else the nearest folder up that holds `.git` (a folder, or a file in a git worktree), else the working folder; `repo`: the root's `.agents/references/`; `project`: each `.agents/references/` strictly below it that git does not ignore (by any ignore file git reads); `~/.agents/references/`; `references/` in the current harness's managed folder only, and none when detection names no harness or more than one |
 | E15 | the plugin tier | enabled plugins of the detected harness, plus declared (not transitive) package dependencies that ship `references/` |
 | E43 | `--default <skill folder>` | `<skill folder>/references/<name>.default.md` read as the `default` tier; an old `references/<name>.md` copy is not |
 | E22 | a `governances/` folder | never read |

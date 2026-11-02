@@ -71,14 +71,13 @@ what can be found, and every fault is reported as a warning.
   more than one harness (nested harnesses; detection reports `unknown`, R12).
 - K4 **qualified name**: `<plugin>/<name>`: that plugin's implementation of a name, with the stack it builds on.
   `implementations` gives each as its `pin`.
-- K5 **merge operation**: how a contribution applies over what is below it, in the order K23 gives; a managed one also
-  applies over each project section (K27).
-  `replace` puts mine in place of everything below. `patch` (the default) keeps what is below and puts my text in place
-  of the text it matches by heading path. `combine` keeps what is below and adds my text after the text it matches.
-  `remove` drops what is below. The same four apply to a whole contribution (frontmatter `merge`), to a step, and to one
-  section (a `<!-- merge: ... -->` marker). A heading path is read from each document's own top heading level, so
-  `# Review` and `## Review` match. A `remove` in `repo` or `user` turns the main document off; project sections still
-  answer (R49).
+- K5 **merge operation**: how a contribution applies over what is below it, in the order K23 gives; a managed one
+  applies over the main document and over each project section (K27). `replace` puts mine in place of everything below.
+  `patch` (the default) keeps what is below and puts my text in place of the text it matches by heading path. `combine`
+  keeps what is below and adds my text after the text it matches. `remove` drops what is below. The same four apply to a
+  whole contribution (frontmatter `merge`), to a step, and to one section (a `<!-- merge: ... -->` marker). A heading
+  path is read from each document's own top heading level, so `# Review` and `## Review` match. A `remove` in `repo` or
+  `user` turns the main document off when no contribution above it has a body (R49); project sections still answer.
 - K6 **status of a name**: `found`, `missing`, `ambiguous`, or `invalid`. A name is `ambiguous` when its plugins cannot
   be put in one order and no selection settles it, when two plugins hold an interface document of it (R14) or the same
   key of a `many` interface (R87), or when two names list it as an alias (R98).
@@ -103,23 +102,26 @@ what can be found, and every fault is reported as a warning.
   everything below it, so a higher one wins where they conflict. Lower and higher mean below and above. The `managed`
   and `project` tiers are not in the stack: `managed` applies over the main document and each project section (K27), and
   project sections are delivered after it (K24).
-- K18 **root**: the repository root, found from the working folder. Its `.agents/references/` holds the `repo` tier, and
-  every `.agents/references/` below it holds a project section. `--root <folder>` names the root when it cannot be found
-  that way: when the command runs from outside the repository, as a globally installed skill may, or when the work is in
-  a folder that is not a git repository.
+- K18 **root**: the repository root, found from the working folder as the nearest folder at or above it that holds
+  `.git`, which may be a folder or a file (a git worktree). Its `.agents/references/` holds the `repo` tier, and every
+  `.agents/references/` below it holds a project section. `--root <folder>` names the root when it cannot be found that
+  way: when the command runs from outside the repository, as a globally installed skill may, or when the work is in a
+  folder that is not a git repository.
 - K33 **generated document**: a contribution a generator writes from the customizer's request, never from its own
   earlier text: a `repo` or `user` contribution written from the stack, as a delta by default or a whole document with
-  `merge: replace` (for a name only an interface defines, from the interface's stub, R111), or a project section,
-  written from the main document and the project sections of the folders above its own. Its frontmatter keeps the
-  selection it was built on (`extends`), each source with its plugin's version, and the request.
+  `merge: replace` (from the interface's stub with `--implements`, for a name only an interface defines or one already
+  found, R111), or a project section, written from the main document and the project sections of the folders above its
+  own. Its frontmatter keeps the selection it was built on (`extends`), each source with its plugin's version, and the
+  request. A project section records `sources` and `request` only, with no `extends` (K24). A whole document from the
+  interface's stub records `implements` and the request, and no `sources` (R111).
 - K34 **source**: a contribution a generated document is built from: each step of its stack. A project section records
   the sources of the main document it was written against. A `default` source records its skill's plugin and version
   when the skill ships in a plugin; a standalone skill's default records no version and is never stale (R101).
 - K22 **request**: what the customizer asked to change in the prose, in their own words. Choices of plugins, their
   order, and their sections are metadata (`extends`), not part of the request.
 - K23 **main document**: what the tiers compose for a name: the stack; over it, the `user` contribution; over that, the
-  `repo` one; then the managed contribution over that; each with its merge operation. A selection changes the stack
-  and adds nothing.
+  `repo` one; each with its merge operation. The managed contribution is not part of it: it applies over the main
+  document and over each project section (K27). A selection changes the stack and adds nothing.
 - K24 **project section**: a `.agents/references/<name>.md` below the root, which states only what differs in its
   folder. It follows the main document in the resolved reference, wrapped with that folder (R44). It carries no
   `merge`, `extends`, `implements`, or `aliases`: no command writes them on one (R27, R81), and load ignores them with
@@ -131,7 +133,8 @@ what can be found, and every fault is reported as a warning.
   admin. It applies at load over the main document and each project section, with its merge operation (K5), so it ranks
   above every other tier. Its text reaches the agent only through load: no written contribution holds it, generated or
   not.
-- K28 **resolved reference**: what load returns for a name: the main document, followed by its project sections.
+- K28 **resolved reference**: what load returns for a name: the main document, followed by its project sections, with
+  the managed contribution applied over the main document and over each project section (K27).
 - K32 **alias**: an older name a plugin's or a default's contribution of a name lists in `aliases`, so load lines and
   customizations written for the older name still reach it after a rename.
 
@@ -194,16 +197,16 @@ what can be found, and every fault is reported as a warning.
     inlines them as UC1 says.
 
 **Surface trace.** `load`, `--trace`, `--default` (UC1, UC2, UC10, UC12); `--root` (all); `where`, `--default`, `--in`
-(UC2); `list`, pattern (UC3); `search` (UC3); `create` with `--merge`, `--template`, `--implements`, `--scope`, `--in`,
-`--plugin`, `--default`, `--dry-run`, `--trace` (UC5, UC15); `customize` with `--extends`, `--extends-file`,
-`--request`, `--body`, `--base`, `--scope`, `--in`, `--default`, `--merge`, `--implements`, `--dry-run`, `--trace`
-(UC9, UC20, UC18);
-`delete` with `--scope`, `--in`, `--plugin`, `--default`, `--dry-run` (UC11); `check` (UC6); `implementations`,
-`--accept` (UC6); `--format`, `--metadata` (UC8). Frontmatter keys `merge`, `extends` (with the step keys `merge`,
-`extends`, `sections`), `implements`, `interface`, `description`, `tags`, `aliases`, and a generated document's record
-of sources and request serve UC1, UC5, UC6, UC7, UC9, UC20, UC18, UC19; the section marker `<!-- merge: ... -->` serves
-UC1 and UC7. File names `<name>.md` and `<name>.default.md` serve UC5, UC9, UC11, UC18 and UC3, UC12. Informational, no
-contract: the trace's keys beyond those the Adapters group names.
+(UC2); `list`, pattern, `--trace` (UC3); `search`, `--trace` (UC3); `create` with `--merge`, `--template`,
+`--implements`, `--scope`, `--in`, `--plugin`, `--default`, `--dry-run`, `--trace` (UC5, UC15); `customize` with
+`--extends`, `--extends-file`, `--request`, `--body`, `--base`, `--scope`, `--in`, `--default`, `--merge`,
+`--implements`, `--dry-run`, `--trace` (UC9, UC20, UC18); `delete` with `--scope`, `--in`, `--plugin`, `--default`,
+`--dry-run` (UC11); `check`, `--trace` (UC6); `implementations`, `--accept`, `--trace` (UC6); `--format`, `--metadata`
+(UC8). Frontmatter keys `merge`, `extends` (with the step keys `merge`, `extends`, `sections`), `implements`,
+`interface`, `description`, `tags`, `aliases`, and a generated document's record of sources and request serve UC1, UC5,
+UC6, UC7, UC9, UC20, UC18, UC19; the section marker `<!-- merge: ... -->` serves UC1 and UC7. File names `<name>.md` and
+`<name>.default.md` serve UC5, UC9, UC11, UC18 and UC3, UC12. Informational, no contract: the trace's keys beyond those
+the Adapters group names.
 
 ## Criteria
 
@@ -226,9 +229,10 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
   Each project section follows the main document as `<project folder="...">...</project>`, in path order. The wrapper,
   not a heading, marks where a section starts and ends, so its own headings keep their levels.
 - R45 (UC1, UC8, E13): A command that exits 1 or 2 (a refused write, a usage error) prints exactly one error value on
-  stdout, as clibuilder's `axi` error value: `error` (the message), `code` (stable, kebab-case), flat `details`
-  (scalars or lists of scalars), and `help`; in text, its text form. Nothing else goes on stdout. A warning is a
-  diagnostic on stderr, `warning: <code>: <message>`; it never changes stdout or the exit code.
+  stdout, as clibuilder's `axi` error value: `error` (the message), `code` (stable, kebab-case), flat `details` (scalars
+  or lists of scalars), and `help`; in text, its text form. Nothing else goes on stdout. In text, a warning is a
+  diagnostic on stderr, `warning: <code>: <message>`, and never changes stdout; under `--format json` or `toon` it is in
+  the record's `warnings` (R47). A warning never changes the exit code.
 - R46 (UC2): `--trace` in text writes to stderr a summary line (status, stack, what built it), then each section's
   heading path with its contributions and operations, then each layer, then each project section with its folder and
   path; for a generated document, each source with its recorded and installed plugin versions, and the request. Stdout
@@ -249,8 +253,9 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
 - R51 (UC1, E1): A `<name>.default.md` in a tier folder is ignored, with a warning that a default goes in a skill's
   `references/` folder.
 - R2 (UC1, UC7, E2): `<plugin>/<name>` builds the stack from that plugin's contribution and what its own `extends`
-  brings in; the `user`, `repo`, and managed contributions still apply over it, as K23 orders them, and its project
-  sections still follow it. A written `extends` is not used, and a plugin extending the named one is left out.
+  brings in; the `user` and `repo` contributions still apply over it, as K23 orders them, and the managed one over the
+  result (K27); its project sections still follow it. A written `extends` is not used, and a plugin extending the named
+  one is left out.
 
 **Consumers (UC8)**
 
@@ -259,10 +264,10 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
   - `load`: one entry per name asked, in order. A `found` name with no warnings and no project sections is its content
     as a string; otherwise a record of `name`, `status`, `content`, `projectSections` (each `folder` and `content`), and
     `warnings`. A name not `found` is a record of `name`, `status`, `code`, and `options` when `ambiguous`. `--metadata`
-    makes every entry a record and adds `status`, `metadata`, and `format` (R66). `--trace` adds `trace`: the stack, the
-    contributions used (tier, plugin or skill, path, operation), the sections, the layers (each with its `file`, whose
-    extension shows the format), each project section's `folder` and `path`, and for a generated document its `sources`
-    (each plugin, recorded version, and installed version) and `request`.
+    or `--trace` makes every entry a record. `--metadata` adds `status`, `metadata`, and `format` (R66). `--trace` adds
+    `trace`: the stack, the contributions used (tier, plugin or skill, path, operation), the sections, the layers (each
+    with its `file`, whose extension shows the format), each project section's `folder` and `path`, and for a generated
+    document its `sources` (each plugin, recorded version, and installed version) and `request`.
   - `list`: rows of `name` and `description`, with `status` and `options` when not `found`, and `format` for a
     non-Markdown name (R66); `--trace` adds the rows per
     layer (R16) with `tier`, `plugin` or `skill`, `path`, outcome, and `kind` (`selection`, `generated`, or
@@ -327,7 +332,6 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
   | `project-section-not-markdown` | warning | none | a project section that is not Markdown (R99) |
   | `reference-hidden` | warning | none | a file hidden by a `replace` or `remove` above it: one `create` or `customize` wrote (R26), or one `check` finds (R112) |
   | `repo-hides-user` | warning | none | a `user` file this repository's `repo` contribution hides (R26, R112) |
-  | `reference-qualified` | refused | 1 | a qualified name given to a write (R25) |
   | `folder-invalid` | refused | 1 | a `--plugin` or `--default` folder that does not qualify (R24) |
   | `file-exists` | refused | 1 | `create` on a file with a body (R60) |
   | `extends-replace` | refused | 1 | a `--plugin` or `--default` file extending a plugin with `replace` (R103) |
@@ -345,6 +349,7 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
   | `in-not-markdown` | refused | 1 | `customize --in` for a name that is not Markdown (R82) |
   | `no-file` | refused | 1 | `delete` with no file there (R30) |
   | `name-missing` | usage | 2 | a command that needs a name, given none (UC1.7) |
+  | `reference-qualified` | usage | 2 | a qualified name given to a write (R25) |
   | `query-missing` | usage | 2 | `search` with an empty query (UC3.2) |
   | `change-missing` | usage | 2 | `customize` with neither `--extends` nor `--request` (R82) |
   | `options-conflict` | usage | 2 | flags that exclude each other, such as two of `--scope`, `--in`, `--plugin`, `--default` on `create` and `delete`, or `--merge`, `--implements`, or `--extends` with `--in` (R24, R27, R82) |
