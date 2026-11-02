@@ -15,22 +15,22 @@ flowchart TD
   where -->|ok| exists{"E26 the file there already?"}
   exists -->|"with a body"| e1
   exists -->|"only a selection"| keep[add the body and merge, keep extends]
-  exists -->|no| conflict{"E30 --template with --implements, or an unknown interface?"}
+  exists -->|no| conflict{"E30 --template with --implements, --implements or --merge with --in, or an unknown interface?"}
   keep --> conflict
   conflict -->|yes| e1
   conflict -->|no| title{"E34 a title template?"}
   title -->|yes| e1
   title -->|no| hidden{"E28 a replace or remove above hides it?"}
   hidden -->|yes| e1
-  hidden -->|"no, or the folder is not a layer"| mode["E29 merge: --merge, else the template's, else patch; --implements writes replace and every section stubbed Unsupported"]
+  hidden -->|"no, or the folder is not a layer"| mode["E29 merge: --merge, else the template's, else patch (--plugin or --default: --merge only; --in: none); --implements writes replace and every section stubbed Unsupported"]
   mode --> dry{"E31 --dry-run?"}
   dry -->|yes| print([path and content, nothing written])
   dry -->|no| wrote(["E33 written: path and a hint to load; --trace gives the trace"])
-  cu([customize name]) --> cq{"E27 qualified name, --plugin, or --default?"}
+  cu([customize name]) --> cq{"E27 qualified name or --plugin?"}
   cq -->|yes| e1
   cq -->|no| base{"E59 --base?"}
-  base -->|yes| pbase(["the generator's input: picks applied; managed, and the tier above or personal to the target, left out; nothing written"])
-  base -->|no| inx{"E58 --in with --extends, --in for a name that is not Markdown, or only one of --request and --body?"}
+  base -->|yes| pbase(["the generator's input: picks applied, the default in the stack with --default, a managed extends applied; managed text, and the tier above or personal to the target, left out; nothing written"])
+  base -->|no| inx{"E58 --in with --extends or --merge, --in for a name that is not Markdown, or only one of --request and --body?"}
   inx -->|yes| e1
   inx -->|no| what{"E58 --extends, --request, or both?"}
   what -->|neither| e1
@@ -39,7 +39,7 @@ flowchart TD
   has -->|yes| unsel["extends removed; a file left empty is deleted"]
   what -->|"--extends steps"| opt{"E50 each step default or a plugin holding the name?"}
   opt -->|no| e1
-  opt -->|yes| sel["extends written bottom first; a body is kept, and one recording a request gets a hint to customize again"]
+  opt -->|yes| sel["extends written bottom first; a body is kept, and one recording a request gets a hint to customize again; under a managed extends that builds the stack, extends-not-used names it"]
   what -->|"--request and --body"| body{"E58 the target holds a body recording no request?"}
   body -->|yes| e1
   body -->|no| amb{"E58 the name ambiguous, and no --extends?"}

@@ -10,11 +10,12 @@ IDs are shared across the parent and its children.
 Some instructions are data, not prose: a JSON map of checks, a YAML table of labels. A skill that loads one should get
 the file as written, from the same tiers, by the same name.
 
-**Boundary.** A reference is a document fetched by name and layered across tiers. The open Agent Skills
-specification names `scripts/`, `references/`, and `assets/` as skill folders (agentskills.io/specification): it calls
-`references/` additional documentation an agent reads when needed, with no format restriction, and `assets/` static
-resources a skill points to by path, data files such as lookup tables and schemas among them. This capability reads only
-the `references/` folder and the tiers. It never reads `assets/`; [asset](../../asset/README.md) manages those files and resolves them by name.
+**Boundary.** A reference is a document fetched by name and layered across tiers. The open Agent Skills specification
+names `scripts/`, `references/`, and `assets/` as skill folders (agentskills.io/specification): it calls `references/`
+additional documentation an agent reads when needed, with no format restriction, and `assets/` static resources a skill
+points to by path, data files such as lookup tables and schemas among them. This capability reads only the `references/`
+folder and the tiers. It never reads `assets/`; [asset](../../asset/README.md) manages those files and resolves them by
+name.
 
 **Non-goals (this child):**
 
@@ -30,8 +31,10 @@ the `references/` folder and the tiers. It never reads `assets/`; [asset](../../
 - K30 **format order**: when one folder holds several files for a name, the first of `.md`, `<name>/README.md`,
   `.json`, `.yaml`, `.yml`, `.toml`, `.txt` answers.
 - K31 **metadata file**: `<name>.meta.md`, in the folder of a non-Markdown contribution. Its frontmatter holds what a
-  Markdown contribution's would: `description`, `tags`, `extends`, and a generated document's record of its picks,
-  sources, and request. It has no body. It is never a reference itself, so a name ending `.meta` is reserved for it.
+  Markdown contribution's would: `description`, `tags`, `aliases`, `extends`, and a generated document's record of its
+  picks, sources, and request. It has no body; `merge` and `implements` in it are ignored (R94), since a non-Markdown
+  contribution always replaces what is below it (R68) and an interface's sections are Markdown. It is never a reference
+  itself, so a name ending `.meta` is reserved for it.
 
 ## Use Cases
 
@@ -60,6 +63,7 @@ the `references/` folder and the tiers. It never reads `assets/`; [asset](../../
     beside it, the selection for that name. Nothing merges, so the top step's file answers whole.
   - UC13.10 A metadata file beside a Markdown contribution, or with neither a non-Markdown file nor `extends`: ignored,
     with a warning. A metadata file with a body: the body is ignored, with a warning, and the frontmatter still applies.
+    A metadata file holding `merge` or `implements`: the key is ignored, with the `metadata-ignored` warning.
 
 ## Criteria
 
@@ -85,6 +89,7 @@ the `references/` folder and the tiers. It never reads `assets/`; [asset](../../
 - R95 (UC11, UC13): `delete` on a non-Markdown name removes its file and the metadata file beside it; on a selection
   that is a metadata file alone, it removes that file.
 - R94 (UC13.10): A metadata file beside a Markdown contribution, or with neither a non-Markdown file nor `extends`, is
-  ignored with a warning. A body in a metadata file is ignored with a warning, and its frontmatter still applies.
+  ignored with a warning. A body in a metadata file is ignored with a warning, and its frontmatter still applies, except
+  `merge` and `implements`, which are ignored with the same `metadata-ignored` warning (K31).
 - R71 (UC13): Markdown output, trace fields, and codes are unchanged for every name that no non-Markdown file answers.
 - R72 (UC13): No reference command reads an `assets/` folder or accepts a path.

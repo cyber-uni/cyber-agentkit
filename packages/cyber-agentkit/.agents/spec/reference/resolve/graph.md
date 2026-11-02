@@ -59,9 +59,9 @@ flowchart TD
   body -->|"no: another remove is on top"| projonly{"E54 any project section?"}
   projonly -->|no| missing
   projonly -->|yes| sections
-  body -->|yes| sections["E54 project sections after the main document, in path order; managed applied over each"]
+  body -->|yes| sections["E54 project sections after the main document, in path order; managed applied over each; merge, extends, implements, aliases in one ignored with a warning"]
   sections --> found(["found: the resolved reference, every project section inlined"])
-  found --> stale{"E56 a recorded source's version changed, or the source gone?"}
+  found --> stale{"E56 a repo, user, or project-section document's recorded source version changed, or the source gone?"}
   stale -->|yes| stalew["stale: still used; reference-stale warning"]
   stale -->|no| warn
   stalew --> warn{"warnings? (parent E13)"}
@@ -72,7 +72,7 @@ flowchart TD
 
 | Edge | Decision | Outcome |
 | --- | --- | --- |
-| E14 | the root and the `repo`, `project`, `user`, and managed tiers | the root: the nearest `.git` folder up, else `--root`, else the working folder; `repo`: the root's `.agents/references/`; `project`: each `.agents/references/` strictly below it that git does not ignore (by any ignore file git reads); `~/.agents/references/`; `references/` in the current harness's managed folder only |
+| E14 | the root and the `repo`, `project`, `user`, and managed tiers | the root: the nearest `.git` folder up, else `--root`, else the working folder; `repo`: the root's `.agents/references/`; `project`: each `.agents/references/` strictly below it that git does not ignore (by any ignore file git reads); `~/.agents/references/`; `references/` in the current harness's managed folder only, and none when detection names no harness or more than one |
 | E15 | the plugin tier | enabled plugins of the detected harness, plus declared (not transitive) package dependencies that ship `references/` |
 | E43 | `--default <skill folder>` | `<skill folder>/references/<name>.default.md` read as the `default` tier; an old `references/<name>.md` copy is not |
 | E22 | a `governances/` folder | never read |
@@ -84,7 +84,7 @@ flowchart TD
 | Edge | Decision | Outcome |
 | --- | --- | --- |
 | E18 | `list` | one row per name; `--trace` gives one per layer and per skill default; a pattern keeps exact matches |
-| E19 | `search` | each name resolved as `load` would; match kinds ranked `name` to `body`, then by name |
+| E19 | `search` | each name resolved as `load` would, and each project section searched (its match carries its `folder`); match kinds ranked `name` to `body`, then by name |
 | E20 | no match | an explicit zero, exit 0 |
 | E48 | skill defaults | found in the skill folders the detected harness reads; on an unverified harness none, and the answer says so |
 

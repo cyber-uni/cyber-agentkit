@@ -24,8 +24,9 @@ IDs are shared across the parent and its children.
   of it.
 - **Extensions:** each name resolves on its own; a fault in one never stops the others.
   - UC1.1 No contribution answers: status `missing`, with the reason: no tier holds the name (`default` included); the
-    plugin a qualified name asks for is not installed; or a `merge: remove` contribution leaves nothing and no
-    contribution above it has a body, naming that contribution.
+    plugin a qualified name asks for is not installed (`reference-missing`); or a `merge: remove` contribution leaves
+    nothing and no contribution above it has a body, naming that contribution (code `reference-removed`, so a consumer
+    tells a name turned off from one that does not exist).
   - UC1.2 Its contributions cannot be put in one order: status `ambiguous`. The error names the contributions in
     conflict, the cause (no written `extends` orders the plugins, a cycle in the plugins' own `extends`, or an
     `extends` listing one plugin at two separate places), and the options.
@@ -52,6 +53,8 @@ IDs are shared across the parent and its children.
   - UC1.16 No main document, but project sections exist: status `found`, with only the project sections. A generated
     section whose recorded sources are gone is stale (UC1.14).
   - UC1.17 A project section for a name that is not Markdown: not read, with a warning.
+  - UC1.19 A project section holds `merge`, `extends`, `implements`, or `aliases` (K24): the key is ignored, with a
+    `project-section-key-ignored` warning naming it and the folder, and the section is still delivered.
 
 ### UC2 — Explain a resolution (A2.1)
 
@@ -101,8 +104,9 @@ IDs are shared across the parent and its children.
   skill, path, description, and the outcome (K7) that contribution gets; a default's is the one it gets when its skill
   loads the name, and its row notes that the `default` step reaches it then; a default has no qualified name. A
   selection's row is marked as one, a generated document's as generated, and a project section's row names its folder.
-  `search` resolves each name as `load` would, and each default as its skill loads it,
-  then gives matches best first, each with its name, description, and match kind.
+  `search` resolves each name as `load` would, and each default as its skill loads it, and reads each project
+  section, then gives matches best first, each with its name, description, and match kind; a match in a project
+  section also carries its `folder`.
 - **Extensions:**
   - UC3.1 Nothing matches: the output says zero explicitly. It is not an error.
   - UC3.2 `search` with an empty query: error.
@@ -154,8 +158,9 @@ IDs are shared across the parent and its children.
 - **Extensions:**
   - UC10.1 The harness keeps its managed content where it cannot be read locally (an MDM domain, or a server): the
     trace shows that layer not read, with the reason.
-  - UC10.2 The file sits in the managed folder of a harness other than the current one, or detection names no harness:
-    that folder is not read, and the trace names the detected harnesses, so the admin sees why.
+  - UC10.2 The file sits in the managed folder of a harness other than the current one, or detection names no harness,
+    or names more than one (nested harnesses; harness detection then reports `unknown`): that folder is not read, and
+    the trace says so and names the detected harnesses, so the admin sees why.
   - UC10.3 A section of the managed contribution matches no section of the main document: as UC1.13 says. One that
     matches no section of a project section leaves that project section as it is.
   - UC10.4 A managed `replace` or `remove` drops every project section too.
@@ -177,8 +182,8 @@ IDs are shared across the parent and its children.
   - UC19.2 Two names list the same alias: a load of it is `ambiguous`, with both names as options.
   - UC19.3 One tier folder holds files under both the older and the new name: the new one applies, and the older one
     is ignored with a warning.
-  - UC19.4 `aliases` in a `repo`, `user`, `project`, or managed contribution: ignored with a warning. Only an owner
-    renames.
+  - UC19.4 `aliases` in a `repo`, `user`, or managed contribution: ignored with a warning. In a project section:
+    ignored with `project-section-key-ignored` (UC1.19). Only an owner renames.
   - UC19.5 An alias of an alias: not followed. The owner lists every older name.
   - UC19.6 A qualified older name `<plugin>/<older name>`: resolves as `<plugin>/<new name>`.
   - UC19.7 An alias that is not a valid name (R1): ignored with a warning.
@@ -202,6 +207,9 @@ Edge IDs are in [graph.md](./graph.md).
   added to it, and a managed `replace` or `remove` drops every project section. With no main document but a project
   section, the name is `found` with only its project sections. A project section that is not Markdown is not read, with
   a warning.
+- R110 (UC1, E54): A project section carries no `merge`, `extends`, `implements`, or `aliases` (K24). Load ignores each
+  such key on one with a `project-section-key-ignored` warning naming the key and the folder, and still delivers the
+  section.
 - R6 (UC1, E6): `patch` keeps what is below and puts each section's text in place of the text it matches by heading
   path, unless that text is empty. Unmarked subsections replace. A section that matches nothing is added at the end. A
   heading path is read from each document's own top heading level.
@@ -210,8 +218,9 @@ Edge IDs are in [graph.md](./graph.md).
   later text wins.
 - R4 (UC1, E4): `replace` drops everything below; each contribution below is `shadowed by <contribution> (replace)`.
 - R49 (UC1, E45): `remove` drops everything below, and its body is ignored with a warning. When no contribution above it
-  has a body, there is no main document: the name is `missing`, naming that contribution, unless a project section
-  answers (R99). A managed `remove` drops the project sections too, so the name is `missing`.
+  has a body, there is no main document: the name is `missing` with the code `reference-removed`, naming that
+  contribution, unless a project section answers (R99). A managed `remove` drops the project sections too, so the name
+  is `missing` with that code.
 - R42 (UC1, E44): A `<!-- merge: <operation> -->` marker under a heading applies that operation to that section alone;
   a section with no marker takes its document's operation.
 - R50 (UC1, E46): A contribution with no body changes nothing, except with `remove`.
@@ -260,10 +269,13 @@ Edge IDs are in [graph.md](./graph.md).
 - R57 (UC2, E11): `where` gives the `repo` and `user` `<name>.md` with who each reaches, and the heading paths of the
   main document; with `--in <folder>`, also that folder's project section file; on an ambiguous name, the options and
   the files a selection goes to. With `--trace`, it also gives the layers with their outcomes.
-- R101 (UC1, UC2, E56): A generated document, or a project section, is `stale` when a recorded source's plugin version
-  differs from the installed one, or a recorded source is gone. It is still used, with a `reference-stale` warning
-  naming each changed or missing source and how to revise it (UC20). Only plugin versions are compared (N8). A
-  contribution that records no sources is never stale.
+- R101 (UC1, UC2, E56): At load, a generated `repo` or `user` document, or a project section, is `stale` when a
+  recorded source's plugin version differs from the installed one, or a recorded source is gone. It is still used, with
+  a `reference-stale` warning naming each changed or missing source and how to revise it (UC20). A plugin's own file
+  that records `sources` (R103) is never stale at load: only `check` compares it (R86, `base-moved`). A `default`
+  source records its skill's plugin and version when the skill ships in a plugin; a standalone skill's default records
+  no version and is never stale. Only plugin versions are compared (N8). A contribution that records no sources is
+  never stale.
 
 **Layers**
 
@@ -272,7 +284,8 @@ Edge IDs are in [graph.md](./graph.md).
   `project` tier reads every `.agents/references/` strictly below the root, in folders git does not ignore (by any
   ignore file git reads), tracked or not; outside a git repository, none is ignored. The `user` tier reads
   `~/.agents/references/`. The managed tier reads `references/` in the current harness's managed folder only; when
-  detection names no harness, none is read, and the trace says so; the library keeps no managed folder of its own.
+  detection names no harness, or more than one (nested harnesses, for which harness detection reports `unknown`), none
+  is read, and the trace says so; the library keeps no managed folder of its own.
 - R13 (UC1, E15): The plugin tier holds, for the detected harness, each enabled plugin's `references/`, and the declared
   `dependencies` and `devDependencies` of the nearest `package.json` that are plugins and ship one, each named by its
   plugin manifest's `name`, never by its package name; never a transitive package. Any other dependency adds no plugin
@@ -303,7 +316,8 @@ Edge IDs are in [graph.md](./graph.md).
 - R17 (UC3, E19): `search` ranks match kinds in the order `name`, `prefix`, `close name`, `description` (which also
   matches `tags`), `heading`, `body`, then by name. A `close name` contains the query, or is within an edit distance of
   the larger of 1 and a quarter of the query's length. A name resolves as `load` would, and each default as its skill
-  loads it, before it is searched; a name a `remove` turned off is left out.
+  loads it, before it is searched; a name a `remove` turned off is left out. Each project section is searched too, by
+  `description` (which also matches `tags`), `heading`, and `body`, and a match in one carries its `folder`.
 - R18 (UC3, E20): `list` and `search` with no match print an explicit zero; it is not an error.
 - R58 (UC3, E48): Defaults are found in the skill folders the detected harness reads: its project and user skill
   folders, its machine-wide admin skill folders, and each enabled plugin's skills. On a harness whose skill folders are
@@ -316,7 +330,8 @@ Edge IDs are in [graph.md](./graph.md).
 - R96 (UC19, E65): `aliases` on a plugin's or a default's contribution of a name, or on an interface document, lists
   older names. A load of an older name resolves the name listing it, with a `reference-renamed` warning naming it, and
   a qualified older name resolves as the same plugin's new name. Aliases are not followed transitively; an invalid one,
-  or `aliases` in any other tier, is ignored with a warning.
+  or `aliases` in any other tier, is ignored with a warning (in a project section, R110). For a non-Markdown name, the
+  owner lists them in its metadata file (K31).
 - R97 (UC19, E65): A contribution filed under an older name in the managed, `repo`, `user`, or `project` tier applies
   as one of the new name, with a `reference-renamed` warning naming its path and the new name. A file under the new
   name in the same folder wins, and the older one is ignored with a warning.

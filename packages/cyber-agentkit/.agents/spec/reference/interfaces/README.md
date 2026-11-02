@@ -44,8 +44,8 @@ IDs are shared across the parent and its children.
   - UC6.6 A skill's default is never listed by `implementations`: it has no qualified name to load it by.
   - UC6.8 Composing a checked name raises a warning: its `compose` check fails, so `check` is the strict gate while
     `load` still answers.
-  - UC6.9 A plugin's delta records a base version (UC5) that differs from the installed base: `check` warns, naming
-    both versions, and does not fail. Load says nothing: the warning is for the delta's author.
+  - UC6.9 A plugin's delta records a base version (UC5, in `sources`) that differs from the installed base: `check`
+    warns, naming both versions, and does not fail. Load says nothing: the warning is for the delta's author.
   - UC6.10 An interface adds a required section, or marks an existing one required: its author raises the interface's
     `version`, so implementations that declare the old one fail `version` until they are updated (UC15.5). `check`
     does not enforce the raise; it has no previous version to compare with.
@@ -99,7 +99,10 @@ Edge IDs are in [graph.md](./graph.md).
   these checks on an implementation's composed document, each named in the output: `interface found` (`implements` is
   one `<id>@<version>` naming a found, valid interface), `version`, `name`, `order`, and `required`; an interface
   document gets the `interface` check (R63). Every document checked also gets `compose`, which fails when composing it
-  raised any warning. Any failure fails the result.
+  raised any warning. Any failure fails the result. `version` passes when the `<version>` in `implements` is one of the
+  `versions` the interface lists (R63). `name` passes when the document's name, without a `<plugin>/` prefix, is `<id>`
+  for an interface of cardinality `one`, or `<id>.<key>` with a non-empty `<key>` for `many`. `check` does not check
+  project sections, which declare no `implements` (K24).
 - R34 (UC6, E36): An optional listed section left out, or whose first line is `**Unsupported.**`, is listed
   `unsupported`.
 - R35 (UC6, E37): `implementations <id>` lists an implementation only when it passes `check` for that interface; every
@@ -109,9 +112,9 @@ Edge IDs are in [graph.md](./graph.md).
   plugins hold is also checked as each `<plugin>/<name>`, and each skill's default as its skill loads it.
 - R37 (UC1, UC15, E39): `load` prints a document that fails its interface check, with a warning naming the failed
   check.
-- R86 (UC6, E60): `check` on a plugin file whose `extends` names another plugin compares the version it recorded with
-  that plugin's installed version; when they differ, it warns, naming both, and the check still passes. `load` gives no
-  such warning.
+- R86 (UC6, E60): `check` on a plugin file whose `extends` names another plugin compares the version it recorded in
+  `sources` with that plugin's installed version; when they differ, it warns, naming both, and the check still passes.
+  `load` gives no such warning.
 - R87 (UC15, E37): Two plugins holding the same `<id>.<key>` of a `many` interface make that name `ambiguous`:
   `implementations` lists both under `excluded` until a customizer picks one (UC9), and then lists only the pick. A
   plugin's `merge: replace` implementation of a `one` interface answers over the owner's default as R56 says.

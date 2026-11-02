@@ -18,7 +18,8 @@ IDs are shared across the parent and its children.
 - **Extensions:**
   - UC4.1 `missing`: the consumer carries on without it, and the user is told the name was not loaded. No substitute
     is searched for, and the skill does not read its own default instead: the command already included it. When a
-    `remove` turned the name off, nothing is said; the trace explains it.
+    `remove` turned the name off, which the code `reference-removed` tells from a name that does not exist (code
+    `reference-missing`), nothing is said; the trace explains it.
   - UC4.2 `ambiguous`: with a user present, the options are listed (each `<plugin>/<name>`, and the skill's default
     if it has one), the user picks one even when only one is left, and says whether the pick is for the repository
     (the default) or only for themselves. The pick is written with `reference customize <name> --extends <pick>`
@@ -96,8 +97,9 @@ instruction, not by what an agent does.
   when one is left; the pick is written with `reference customize <name> --extends <pick>` at the scope the user
   chose, `repo` unless they say otherwise, and the name loads from it. With no user, it is not loaded, and the user is
   told to settle it.
-- R22 (UC4, E24): Every name read from a fallback, and every name not loaded, is reported to the user with the
-  reason, except a name a `remove` turned off; nothing is reported when every name came from the command.
+- R22 (UC4, E24): Every name read from a fallback, and every name not loaded, is reported to the user with the reason,
+  except a name whose code is `reference-removed` (a `remove` turned it off); nothing is reported when every name came
+  from the command.
 - R23 (UC4, E25): An `invalid` name's path is never read.
 - R88 (UC4, E61): Every warning a load returns is passed on to the user, one line each. A `reference-stale` warning
   also names the plugins that changed and says Customize mode revises the document from its recorded request.

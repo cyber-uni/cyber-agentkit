@@ -9,7 +9,7 @@ Decisions a consumer can observe. Criteria in [README.md](./README.md) cite the 
 | --- | --- | --- |
 | E23 | the command did not run | the skill reads its own default (`references/<name>.default.md`, or `<name>.default.<ext>` in K30 order); never for a name the command reported |
 | E49 | `ambiguous`, with a user present | every option listed, the pick written with `reference customize --extends` at the chosen scope; with no user, not loaded |
-| E24 | a fallback used, or a name not loaded | reported to the user with the reason, except a name a `remove` turned off |
+| E24 | a fallback used, or a name not loaded | reported to the user with the reason, except a name coded `reference-removed` (a `remove` turned it off) |
 | E25 | an `invalid` name | its path is never read |
 | E61 | a warning in the load's result | passed on, one line each; a stale one names the changed plugins and Customize mode |
 
