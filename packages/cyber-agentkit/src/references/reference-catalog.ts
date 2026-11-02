@@ -1,3 +1,4 @@
+import { aliasIndex, shownName } from './reference-aliases.js'
 import type { ReferenceStatusCode, ReferenceWarning } from './reference-codes.js'
 import { ReferenceFailure } from './reference-error.js'
 import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
@@ -106,11 +107,12 @@ function projectRow(name: string, entry: ReferenceTraceProjectSection): Referenc
 	}
 }
 
-/** Every name a tier, a plugin, or a project section below the root holds. */
+/** Every name a tier, a plugin, or a project section below the root holds; a file under an older name counts as the new name's (R98). */
 function catalogNames(source: Source): string[] {
 	const layers = Array.isArray(source) ? undefined : (source as ReferenceLayers)
 	const projects = layers?.root === undefined ? [] : projectSectionNames(layers.root, layers.projects)
-	return [...new Set([...referenceNames(source), ...projects])]
+	const aliases = aliasIndex(source)
+	return [...new Set([...referenceNames(source), ...projects].map((name) => shownName(name, aliases)))]
 }
 
 /**

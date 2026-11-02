@@ -5,11 +5,38 @@ import {
 	type Composed,
 	composedSections,
 	emptyComposed,
+	hasBody,
 	type MergeOperation,
+	type PickedSection,
+	pickSections,
 } from './reference-document.js'
 import type { OperationSource } from './resolve-reference.js'
 
-export type OrderedContribution = { contribution: Contribution; operation: MergeOperation; from: OperationSource }
+export type OrderedContribution = {
+	contribution: Contribution
+	operation: MergeOperation
+	from: OperationSource
+	/** A step's `sections`: only these top-level sections of the contribution apply (R52). */
+	sections?: readonly PickedSection[] | undefined
+}
+
+/**
+ * A contribution cut to the sections its step lists (R52): its other sections are not used, and a
+ * listed one it does not hold is skipped with a `section-not-held` warning. A data file has no
+ * sections, so it is used whole.
+ */
+function picked(item: OrderedContribution, warnAt: (where: string) => WarnFn): Contribution {
+	const { contribution, sections } = item
+	if (!sections || contribution.whole) return contribution
+	const cut = pickSections(contribution.body, sections)
+	for (const heading of cut.missing) {
+		warnAt(contribution.label)(
+			'section-not-held',
+			`the step's sections list "${heading}", which it does not hold; that entry is skipped`,
+		)
+	}
+	return { ...contribution, body: cut.body, hasBody: hasBody(cut.body) }
+}
 
 /** Applies the contributions bottom first, each with its operation, recording what each did to the trace. */
 export function composeOrder(order: readonly OrderedContribution[], warnAt: (where: string) => WarnFn) {
@@ -18,7 +45,9 @@ export function composeOrder(order: readonly OrderedContribution[], warnAt: (whe
 	let removedBy: Contribution | undefined
 	const used: Contribution[] = []
 	let whole: Contribution | undefined
-	for (const { contribution, operation, from } of order) {
+	for (const item of order) {
+		const { operation, from } = item
+		const contribution = picked(item, warnAt)
 		const { entry } = contribution
 		if (contribution.whole && contribution.hasBody) {
 			entry.operation = 'replace'

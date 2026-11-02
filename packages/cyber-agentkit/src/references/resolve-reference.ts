@@ -1,3 +1,4 @@
+import { aliasIndex, olderNames, resolveAlias, warnMisplacedAliases } from './reference-aliases.js'
 import type { ReferenceStatusCode, ReferenceWarning, WarnFn } from './reference-codes.js'
 import {
 	composedMetadata,
@@ -38,7 +39,7 @@ export { readExtends } from './reference-stack.js'
 export type ReferenceStatus = 'found' | 'missing' | 'ambiguous' | 'invalid'
 
 /** Why an ambiguous name's contributions cannot be put in one order. */
-export type AmbiguousCause = 'unordered' | 'cycle' | 'repeat'
+export type AmbiguousCause = 'unordered' | 'cycle' | 'repeat' | 'alias'
 
 /** Where a contribution's operation came from: its own `merge`, a step's key, or the default `patch`. */
 export type OperationSource = 'contribution' | 'step' | 'default'
@@ -69,6 +70,8 @@ export type ReferenceTraceLayer = {
 	selection?: boolean
 	/** A contribution with no body, which changes nothing unless it is a `remove`. */
 	empty?: boolean
+	/** A file filed under an older name of the name (R97): that older name. */
+	alias?: string
 }
 
 export type ReferenceTraceContribution = {
@@ -104,6 +107,8 @@ export type ReferenceTrace = {
 	removedBy?: string
 	/** Each project section found, in path order, delivered or not, and each one in a folder git ignores. */
 	projectSections: ReferenceTraceProjectSection[]
+	/** An older name asked for: the alias followed to the name resolved (R98). */
+	alias?: { name: string; resolvedAs: string }
 }
 
 /** A name resolved, with every field: the command prints a subset. A bad name is a status, never thrown. */
@@ -202,12 +207,12 @@ export function resolveAdjusted(
 	{ display = (path) => path, without, below }: ResolveOptions,
 	adjust: ContributionAdjust | undefined,
 ): ResolvedReference {
-	const ref = typeof input === 'string' ? parseReferenceName(input) : input
+	const asked = typeof input === 'string' ? parseReferenceName(input) : input
 	const { layers: all, harnesses, root, projects } = layersOf(source)
 	const trace = emptyTrace(harnesses)
 	const warnings: ReferenceWarning[] = []
-	const result: ResolvedReference = { name: ref.raw, status: 'missing', projectSections: [], warnings, trace }
-	if (ref.invalid) return { ...result, status: 'invalid', code: 'reference-invalid', message: ref.invalid }
+	const result: ResolvedReference = { name: asked.raw, status: 'missing', projectSections: [], warnings, trace }
+	if (asked.invalid) return { ...result, status: 'invalid', code: 'reference-invalid', message: asked.invalid }
 	const seen = new Set<string>()
 	const warnAt =
 		(where: string): WarnFn =>
@@ -218,6 +223,23 @@ export function resolveAdjusted(
 			warnings.push({ code, message: text })
 		}
 	const warn = warnAt('')
+
+	// Aliases are followed before any layer is read (R96): an older name resolves as the name listing it.
+	const aliases = aliasIndex(source)
+	const followed = resolveAlias(asked, aliases, warn)
+	if (followed.kind === 'ambiguous') {
+		return {
+			...result,
+			status: 'ambiguous',
+			code: 'reference-ambiguous',
+			message: followed.message,
+			cause: 'alias',
+			options: followed.names,
+		}
+	}
+	const ref = followed.kind === 'renamed' ? followed.ref : asked
+	if (followed.kind === 'renamed') trace.alias = { name: followed.alias, resolvedAs: ref.name }
+	const older = olderNames(ref.name, aliases, warn)
 
 	const cut = below === undefined ? -1 : all.findIndex((layer) => layer.dir === below)
 	const layers = cut === -1 ? all : all.slice(cut + 1)
@@ -232,11 +254,13 @@ export function resolveAdjusted(
 			entry.outcome = `not read (${layer.skipped})`
 			continue
 		}
-		const read = readContribution(layer, ref.name, entry, { display, without, warnAt })
+		const read = readContribution(layer, ref.name, entry, { display, without, warnAt, older })
 		const contribution = adjust ? adjust(layer, read, entry) : read
 		if (contribution) contributions.push(contribution)
 		else if (layer.tier === 'default') entry.outcome = 'not read (no default)'
 	}
+
+	warnMisplacedAliases(contributions, warnAt)
 
 	const holders = new Map<string, Contribution>()
 	for (const contribution of contributions.filter(({ layer }) => layer.tier === 'plugin')) {
@@ -275,6 +299,7 @@ export function resolveAdjusted(
 			without,
 			warnAt,
 			catalog,
+			older,
 		})
 		trace.projectSections = found.trace
 		return found
@@ -374,7 +399,8 @@ export function resolveAdjusted(
 			status: 'found',
 			content: whole.body,
 			format: whole.format,
-			metadata: {},
+			// A data file's metadata is its metadata file's (R70), and a selection's above it.
+			metadata: composedMetadata(shown),
 		}
 	}
 	// One contribution with no marker reads as written; anything composed is rendered from its sections.

@@ -16,6 +16,9 @@ export const namePattern: RegExp = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/i
 
 export const defaultSuffix = '.default'
 
+/** The suffix a metadata file's name carries before `.md` (K31); a name ending in it is reserved for that file. */
+export const metadataSuffix = '.meta'
+
 /** No name at all is a usage error (`name-missing`), unlike a string that is not a name, which is `invalid`. */
 export function requireName(value: string): void {
 	if (!value.trim()) {
@@ -51,6 +54,11 @@ export function parseReferenceName(value: string): ReferenceName {
 	if (name.endsWith(defaultSuffix)) {
 		return invalid(
 			`"${value}" names a skill's default file. Ask for "${name.slice(0, -defaultSuffix.length)}"; the default joins when its skill loads it.`,
+		)
+	}
+	if (name.endsWith(metadataSuffix)) {
+		return invalid(
+			`"${value}" names a metadata file, which never answers a name. Ask for "${name.slice(0, -metadataSuffix.length)}".`,
 		)
 	}
 	if (!namePattern.test(name) || (plugin !== undefined && !namePattern.test(plugin))) {

@@ -120,8 +120,24 @@ describe('applyContribution', () => {
 	it('combines subsections recursively, lower text first', () => {
 		const { output, composed } = compose(['## A\n\na\n\n### B\n\nb\n', 'patch'], ['## A\n\n### B\n\nmore\n', 'combine'])
 
-		expect(output).toBe('> Where combined text conflicts, the later text wins.\n\n## A\n\na\n\n### B\n\nb\n\nmore\n')
+		expect(output).toBe('## A\n\na\n\nWhere these sections conflict, the later text wins.\n\n### B\n\nb\n\nmore\n')
 		expect(composed.joined).toBe(true)
+	})
+
+	it('says it once, on its own line before the first joined section’s heading (R5)', () => {
+		const below = '## A\n\na\n\n## B\n\nb\n\n## C\n\nc\n'
+		const { output } = compose([below, 'patch'], ['## A\n\n## B\n\nmore b\n\n## C\n\nmore c\n', 'combine'])
+
+		expect(output).toBe(
+			'## A\n\na\n\nWhere these sections conflict, the later text wins.\n\n## B\n\nb\n\nmore b\n\n## C\n\nc\n\nmore c\n',
+		)
+	})
+
+	it('drops the notice once a later patch replaces the joined text', () => {
+		const below = '## A\n\na\n'
+		const { output } = compose([below, 'patch'], ['## A\n\nmore\n', 'combine'], ['## A\n\nmine\n', 'patch'])
+
+		expect(output).toBe('## A\n\nmine\n')
 	})
 
 	it('does not say text was joined when one side is empty', () => {
@@ -131,7 +147,7 @@ describe('applyContribution', () => {
 	it('replaces the preamble under patch, and joins it under combine', () => {
 		expect(compose(['intro\n\n## A\n', 'patch'], ['mine\n', 'patch']).output).toBe('mine\n\n## A\n')
 		expect(compose(['intro\n', 'patch'], ['mine\n', 'combine']).output).toBe(
-			'> Where combined text conflicts, the later text wins.\n\nintro\n\nmine\n',
+			'Where these sections conflict, the later text wins.\n\nintro\n\nmine\n',
 		)
 	})
 

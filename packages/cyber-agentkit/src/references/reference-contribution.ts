@@ -5,6 +5,7 @@ import { hasBody, type MergeOperation, parseDocument, readMergeOperation } from 
 import { dataExtensions, formatOfFile, type ReferenceFormat } from './reference-format.js'
 import type { ReferenceLayer } from './reference-layers.js'
 import { defaultSuffix, parseReferenceName } from './reference-name.js'
+import { readSidecar, type Sidecar } from './reference-sidecar.js'
 import { type ExtendsStep, readExtends } from './reference-stack.js'
 import type { ReferenceTraceLayer } from './resolve-reference.js'
 
@@ -49,13 +50,15 @@ type ReadContext = {
 	display: (path: string) => string
 	without: string | undefined
 	warnAt: (where: string) => WarnFn
+	/** The older names a file filed under applies as this one in a tier folder (R97); an owner's own folder never reads them. */
+	older?: readonly string[] | undefined
 }
 
 export function readContribution(
 	layer: ReferenceLayer,
 	name: string,
 	entry: ReferenceTraceLayer,
-	{ display, without, warnAt }: ReadContext,
+	{ display, without, warnAt, older = [] }: ReadContext,
 ): Contribution | undefined {
 	if (layer.tier !== 'default') {
 		const stray = join(layer.dir, `${name}${defaultSuffix}.md`)
@@ -63,35 +66,54 @@ export function readContribution(
 			warnAt(display(stray))('default-in-tier', "it is ignored: a default goes in a skill's references/ folder")
 		}
 	}
-	const hits = candidateFiles(layer, name).flatMap((file) => {
-		const path = join(layer.dir, file)
-		const raw = path === without ? undefined : tryRead(path)
-		return raw === undefined ? [] : [{ file, path, raw }]
-	})
+	// The name's own files answer first, then each older name's, in K30 order within each (R67, R97).
+	const owner = layer.tier === 'plugin' || layer.tier === 'default'
+	const filed = [name, ...(owner ? [] : older)]
+	const hits = filed.flatMap((as) =>
+		candidateFiles(layer, as).flatMap((file) => {
+			const path = join(layer.dir, file)
+			const raw = path === without ? undefined : tryRead(path)
+			return raw === undefined ? [] : [{ file, path, raw, as }]
+		}),
+	)
 	const [hit, ...ignored] = hits
-	if (!hit) return undefined
 	for (const other of ignored) {
-		warnAt(display(other.path))('file-ignored', `it is ignored: ${hit.file} answers first in that folder`)
+		warnAt(display(other.path))('file-ignored', `it is ignored: ${hit?.file} answers first in that folder`)
 	}
+	const format = hit ? formatOfFile(hit.file) : undefined
+	const sidecarContext = { without, display, warnAt, read: tryRead }
+	let sidecar = readSidecar(layer, hit?.as ?? name, format, sidecarContext)
+	if (!hit && !sidecar && !owner) {
+		for (const as of older) {
+			sidecar = readSidecar(layer, as, undefined, sidecarContext)
+			if (!sidecar) continue
+			renamed(entry, as, name, sidecar.path, display, warnAt)
+			break
+		}
+	}
+	if (hit && hit.as !== name) renamed(entry, hit.as, name, hit.path, display, warnAt)
+	if (!hit) return sidecar ? sidecarSelection(layer, entry, sidecar, display, warnAt) : undefined
 	const label = contributionLabel(layer, hit.path, display)
 	const warn = warnAt(label)
-	const format = formatOfFile(hit.file)
 	if (format !== 'markdown') {
 		Object.assign(entry, { path: hit.path, file: hit.file, outcome: '' })
 		const held = hit.raw.trim().length > 0
 		if (!held) entry.empty = true
+		const metadata = sidecar?.metadata ?? {}
+		if (sidecar) entry.frontmatter = sidecar.frontmatter
+		if (typeof metadata['description'] === 'string') entry.description = metadata['description']
 		return {
 			layer,
 			entry,
 			label,
 			path: hit.path,
-			metadata: {},
+			metadata,
 			body: hit.raw,
 			hasBody: held,
 			whole: true,
-			format,
+			format: format as ReferenceFormat,
 			merge: 'replace',
-			steps: undefined,
+			steps: sidecar ? readExtends(sidecar.metadata['extends'], warnAt(display(sidecar.path))) : undefined,
 		}
 	}
 	const { metadata, body } = parseDocument(hit.raw, warn)
@@ -103,6 +125,54 @@ export function readContribution(
 	if (!bodyHeld) entry.empty = true
 	if (steps && !bodyHeld && merge !== 'remove') entry.selection = true
 	return { layer, entry, label, path: hit.path, metadata, body, hasBody: bodyHeld, format, whole: false, merge, steps }
+}
+
+/** A file filed under an older name applies as the new one, with a warning naming the file to rename (R97). */
+function renamed(
+	entry: ReferenceTraceLayer,
+	as: string,
+	name: string,
+	path: string,
+	display: (path: string) => string,
+	warnAt: (where: string) => WarnFn,
+): void {
+	entry.alias = as
+	warnAt(display(path))(
+		'reference-renamed',
+		`it is filed under the older name "${as}" and applies as "${name}"; rename it to the new name`,
+	)
+}
+
+/**
+ * A metadata file with `extends` and no data file beside it (R93): that tier's selection for a
+ * non-Markdown name, which picks the stack and adds nothing, so the top step's file answers whole.
+ */
+function sidecarSelection(
+	layer: ReferenceLayer,
+	entry: ReferenceTraceLayer,
+	sidecar: Sidecar,
+	display: (path: string) => string,
+	warnAt: (where: string) => WarnFn,
+): Contribution {
+	const label = contributionLabel(layer, sidecar.path, display)
+	const steps = readExtends(sidecar.metadata['extends'], warnAt(label))
+	Object.assign(entry, { path: sidecar.path, file: sidecar.file, frontmatter: sidecar.frontmatter, outcome: '' })
+	if (typeof sidecar.metadata['description'] === 'string') entry.description = sidecar.metadata['description']
+	entry.empty = true
+	if (steps) entry.selection = true
+	return {
+		layer,
+		entry,
+		label,
+		path: sidecar.path,
+		metadata: sidecar.metadata,
+		body: '',
+		hasBody: false,
+		format: 'markdown',
+		whole: false,
+		merge: undefined,
+		steps,
+	}
 }
 
 /** Every name a layer holds; empty for a layer that is missing, unreadable, or skipped. */

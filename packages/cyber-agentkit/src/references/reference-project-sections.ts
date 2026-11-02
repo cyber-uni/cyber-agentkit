@@ -46,6 +46,8 @@ export type ReferenceTraceProjectSection = {
 	request?: string
 	/** When the managed contribution changed it: each section by heading path, with what supplied its text. */
 	sections?: ReferenceTraceSection[]
+	/** A section filed under an older name of the name (R97): that older name. */
+	alias?: string
 }
 
 export type ProjectSections = { sections: ResolvedProjectSection[]; trace: ReferenceTraceProjectSection[] }
@@ -69,9 +71,11 @@ export type ProjectSectionOptions = {
 	warnAt: (where: string) => WarnFn
 	/** What a generated section's recorded sources are compared to; without it, none is checked. */
 	catalog?: SourceCatalog | undefined
+	/** The older names a section filed under applies as this one (R97). */
+	older?: readonly string[] | undefined
 }
 
-type Found = { folder: ProjectFolder; file: string; path: string; relative: string }
+type Found = { folder: ProjectFolder; file: string; path: string; relative: string; as: string }
 
 function names(dir: string): Set<string> {
 	try {
@@ -87,6 +91,7 @@ function filesFor(folder: ProjectFolder, name: string, without: string | undefin
 	const at = (file: string) => ({
 		folder,
 		file,
+		as: name,
 		path: join(folder.dir, ...file.split('/')),
 		relative: `${folder.folder}/.agents/references/${file}`,
 	})
@@ -110,7 +115,7 @@ function filesFor(folder: ProjectFolder, name: string, without: string | undefin
  * none, and a non-Markdown file in a project folder never answers; each warns.
  */
 export function readProjectSections(name: string, options: ProjectSectionOptions): ProjectSections {
-	const { root, cache, managed, format, display, without, warnAt, catalog } = options
+	const { root, cache, managed, format, display, without, warnAt, catalog, older = [] } = options
 	const found = projectFolders(root, cache)
 	const trace: ReferenceTraceProjectSection[] = []
 	const sections: ResolvedProjectSection[] = []
@@ -121,7 +126,10 @@ export function readProjectSections(name: string, options: ProjectSectionOptions
 	const listed = (hit: Found) => !found.listed || found.listed.has(hit.relative)
 	const dropping = droppingOperation(managed)
 	for (const { folder, ignored } of all) {
-		const { markdown, data } = filesFor(folder, name, without)
+		// The name's own files answer first, then each older name's (R97).
+		const filed = [name, ...older].map((as) => filesFor(folder, as, without))
+		const markdown = filed.flatMap((files) => files.markdown)
+		const data = filed.flatMap((files) => files.data)
 		if (ignored || ![...markdown, ...data].some(listed)) {
 			if (markdown.length || data.length)
 				trace.push({ folder: folder.folder, path: folder.dir, outcome: 'not read (ignored)' })
@@ -141,6 +149,13 @@ export function readProjectSections(name: string, options: ProjectSectionOptions
 		const row: ReferenceTraceProjectSection = { folder: folder.folder, path: hit.path, file: hit.file, outcome: 'used' }
 		trace.push(row)
 		const label = `project ${display(hit.path)}`
+		if (hit.as !== name) {
+			row.alias = hit.as
+			warnAt(display(hit.path))(
+				'reference-renamed',
+				`it is filed under the older name "${hit.as}" and applies as "${name}"; rename it to the new name`,
+			)
+		}
 		if (format !== undefined && format !== 'markdown') {
 			row.outcome = `not used (format differs from ${format})`
 			warnAt(label)(

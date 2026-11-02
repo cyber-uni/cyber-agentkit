@@ -332,6 +332,12 @@ describe('create', () => {
 		const own = write(folder, 'references/conf.default.yaml', 'a: 1\n')
 		expect(await create('conf', { root, default: folder })).toBe(1)
 		expect(lastError()).toMatchObject({ code: 'file-exists', error: expect.stringContaining(own) })
+
+		// A metadata file with extends is a selection for a non-Markdown name (R93), so it answers the name.
+		const pick = write(root, '.agents/references/pick.meta.md', '---\nextends: [a]\n---\n')
+		expect(await create('pick', { root })).toBe(1)
+		expect(lastError()).toMatchObject({ code: 'file-exists', error: expect.stringContaining(pick) })
+		expect(existsSync(join(root, '.agents/references/pick.md'))).toBe(false)
 	})
 
 	describe('--in <folder> (R24, R27, J8)', () => {

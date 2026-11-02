@@ -5,8 +5,14 @@ import { isMergeOperation, type MergeOperation } from './reference-document.js'
 import { namePattern, type ReferenceName } from './reference-name.js'
 import type { AmbiguousCause, OperationSource } from './resolve-reference.js'
 
-/** One `extends` entry: a plugin or `default`, with the keys to use for it in place of its own. */
-export type ExtendsStep = { target: string; merge?: MergeOperation; extends?: ExtendsStep[] }
+/** One `sections` entry of a step: a top-level heading, and the operation it applies with when one is written. */
+export type StepSection = { heading: string; merge?: MergeOperation }
+
+/**
+ * One `extends` entry: a plugin or `default`, with the keys to use for it in place of its own. With
+ * `sections`, it contributes only those top-level sections (R52).
+ */
+export type ExtendsStep = { target: string; merge?: MergeOperation; extends?: ExtendsStep[]; sections?: StepSection[] }
 
 /** Reads `extends`: a plugin or `default` per step, bottom first. `undefined` when it is not written or malformed. */
 export function readExtends(value: unknown, warn: WarnFn): ExtendsStep[] | undefined {
@@ -26,6 +32,8 @@ export function readExtends(value: unknown, warn: WarnFn): ExtendsStep[] | undef
 	return steps
 }
 
+const stepKeys: readonly string[] = ['merge', 'extends', 'sections']
+
 function readStep(item: unknown, warn: WarnFn): ExtendsStep | string {
 	if (typeof item === 'string') {
 		return namePattern.test(item) ? { target: item } : `names "${item}", which is not a plugin name or default`
@@ -39,8 +47,8 @@ function readStep(item: unknown, warn: WarnFn): ExtendsStep | string {
 		step.merge = readStepMerge(keys, target, warn)
 		return step
 	}
-	if (!isRecord(keys) || Object.keys(keys).some((key) => key !== 'merge' && key !== 'extends')) {
-		return `gives "${target}" keys other than merge and extends`
+	if (!isRecord(keys) || Object.keys(keys).some((key) => !stepKeys.includes(key))) {
+		return `gives "${target}" keys other than merge, extends, and sections`
 	}
 	if (keys['merge'] !== undefined) step.merge = readStepMerge(keys['merge'], target, warn)
 	if (keys['extends'] !== undefined) {
@@ -48,7 +56,32 @@ function readStep(item: unknown, warn: WarnFn): ExtendsStep | string {
 		if (!nested) return `gives "${target}" a malformed extends`
 		step.extends = nested
 	}
+	if (keys['sections'] !== undefined) {
+		const sections = readStepSections(keys['sections'], target, warn)
+		if (!sections) return `gives "${target}" sections that are not a list of headings`
+		step.sections = sections
+	}
 	return step
+}
+
+/** A step's `sections`: each a heading, or `{<heading>: <operation>}` for one applying with its own operation. */
+function readStepSections(value: unknown, target: string, warn: WarnFn): StepSection[] | undefined {
+	const list = typeof value === 'string' ? [value] : Array.isArray(value) ? value : undefined
+	if (!list) return undefined
+	const sections: StepSection[] = []
+	for (const item of list) {
+		if (typeof item === 'string' && item.trim()) {
+			sections.push({ heading: item.trim() })
+			continue
+		}
+		if (!isRecord(item) || Object.keys(item).length !== 1) return undefined
+		const [heading, merge] = Object.entries(item)[0] as [string, unknown]
+		if (!heading.trim()) return undefined
+		const section: StepSection = { heading: heading.trim() }
+		if (merge !== null && merge !== undefined) section.merge = readStepMerge(merge, `${target} > ${heading}`, warn)
+		sections.push(section)
+	}
+	return sections
 }
 
 function readStepMerge(value: unknown, target: string, warn: WarnFn): MergeOperation {
@@ -62,6 +95,8 @@ export type StackEntry = {
 	contribution: Contribution
 	operation: MergeOperation
 	from: OperationSource
+	/** The step's `sections`: only these top-level sections are contributed (R52). */
+	sections?: StepSection[]
 }
 
 type Ambiguity = { cause: AmbiguousCause; message: string }
@@ -140,7 +175,9 @@ function expand(top: readonly ExtendsStep[], owner: string, mode: 'written' | 'p
 		inProgress.delete(step.target)
 		const operation = step.merge ?? found.merge ?? 'patch'
 		const from: OperationSource = step.merge ? 'step' : found.merge ? 'contribution' : 'default'
-		result.entries.push({ target: step.target, contribution: found, operation, from })
+		const entry: StackEntry = { target: step.target, contribution: found, operation, from }
+		if (step.sections) entry.sections = step.sections
+		result.entries.push(entry)
 		placed.add(step.target)
 	}
 	for (const step of listed) visit(step, true, [])

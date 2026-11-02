@@ -119,7 +119,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 		])
 
 		expect(resolved.content).toBe(
-			'> Where combined text conflicts, the later text wins.\n\n## Create\n\nbase create\n\nmine\n\n## Close\n\nbase close\n',
+			'Where these sections conflict, the later text wins.\n\n## Create\n\nbase create\n\nmine\n\n## Close\n\nbase close\n',
 		)
 	})
 

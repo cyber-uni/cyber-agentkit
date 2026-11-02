@@ -349,7 +349,7 @@ export function validateWrite(
 			{ details: { path: display(target.path) } },
 		)
 	}
-	const other = answeringFile(target, name.name, target.path)
+	const other = answeringFile(target, name.name, target.path) ?? selectingSidecar(target, name.name)
 	if (other) {
 		throw new ReferenceFailure(
 			'file-exists',
@@ -359,6 +359,17 @@ export function validateWrite(
 	}
 	if (existing !== undefined) plan.existing = existing
 	return plan
+}
+
+/**
+ * A metadata file with `extends` at the target is a selection for a non-Markdown name (R93): it
+ * answers the name in another form, so `create` does not write a Markdown file beside it.
+ */
+function selectingSidecar(target: WriteTarget, name: string): string | undefined {
+	if (target.scope === 'project') return undefined
+	const path = metadataFile(target, name)
+	const held = tryParse(tryRead(path))
+	return held && held.metadata['extends'] !== undefined ? path : undefined
 }
 
 /** `--in`'s folder must exist and be one git does not ignore (J8), since nothing would read the file. */
