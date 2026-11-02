@@ -21,7 +21,6 @@ export type ReferenceWarningCode =
 	| 'default-in-tier'
 	| 'file-ignored'
 	| 'format-mismatch'
-	| 'selection-invalid'
 	| 'interface-not-composed'
 	| 'interface-check'
 

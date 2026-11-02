@@ -7,12 +7,7 @@ import { collapseHome } from '../command-output/collapse-home.js'
 import { listReferences, searchReferences } from './reference-catalog.js'
 import { checkReferences, checkResolved, interfaceLookup } from './reference-check.js'
 import { referenceImplementations } from './reference-implementations.js'
-import {
-	type ReferenceFolder,
-	type ReferenceLayers,
-	type ReferencePlugin,
-	referenceLayers,
-} from './reference-layers.js'
+import { type ReferenceLayers, type ReferencePlugin, referenceLayers } from './reference-layers.js'
 import { parseReferenceName } from './reference-name.js'
 import type { ReferenceWarning } from './reference-warning.js'
 import { whereReference } from './reference-where.js'
@@ -158,7 +153,7 @@ const defaultOption = {
 
 type LayersFor = (args: CommonArgs & { default?: string | undefined }, home: string) => Promise<ReferenceLayers>
 
-function layerSource(plugin: ReferencePlugin | undefined, folder: ReferenceFolder = 'references'): LayersFor {
+function layerSource(plugin: ReferencePlugin | undefined): LayersFor {
 	return (args, home) =>
 		referenceLayers({
 			root: args.root ?? process.cwd(),
@@ -167,7 +162,6 @@ function layerSource(plugin: ReferencePlugin | undefined, folder: ReferenceFolde
 			env: process.env,
 			plugin,
 			defaultSkill: args.default,
-			folder,
 		})
 }
 
@@ -289,9 +283,9 @@ function showText(resolved: readonly ResolvedReference[]): Answer<string> | unde
 	return document(blocks.join('\n\n'))
 }
 
-function showCommand(layersFor: LayersFor, name = 'show'): cli.Command {
+function showCommand(layersFor: LayersFor): cli.Command {
 	return command({
-		name,
+		name: 'show',
 		description:
 			'Print one or more references, each composed from its contributions as their extends and merge declare.',
 		arguments: [
@@ -360,9 +354,9 @@ function showCommand(layersFor: LayersFor, name = 'show'): cli.Command {
 	})
 }
 
-function listCommand(layersFor: LayersFor, name = 'list'): cli.Command {
+function listCommand(layersFor: LayersFor): cli.Command {
 	return command({
-		name,
+		name: 'list',
 		description:
 			'List every reference name, one row each, with its description, and its status when not found. A pattern keeps only the names it matches exactly.',
 		arguments: [
@@ -445,9 +439,9 @@ function searchCommand(layersFor: LayersFor): cli.Command {
 	})
 }
 
-function whereCommand(layersFor: LayersFor, assets = false, name = 'where'): cli.Command {
+function whereCommand(layersFor: LayersFor): cli.Command {
 	return command({
-		name,
+		name: 'where',
 		description:
 			'Give the project and user files a customization or a selection of a reference is written to, who each reaches, and the heading paths of the document below each.',
 		arguments: [
@@ -470,7 +464,6 @@ function whereCommand(layersFor: LayersFor, assets = false, name = 'where'): cli
 				const report = whereReference(args.name, await layersFor(args, home), {
 					root: resolve(args.root ?? process.cwd()),
 					display,
-					assets,
 				})
 				const output: ReferenceWhereOutput = compact({
 					name: report.name,
@@ -905,19 +898,4 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 			'Read reference documents by name, composed from the managed, project, user, plugin, and default tiers, and write, select, or delete a contribution.',
 		commands: [show, list, search, where, create, select, remove, implementations, check],
 	})
-}
-
-export type AssetResolveCommands = { load: cli.Command; names: cli.Command; where: cli.Command }
-
-/**
- * The tiered, by-name commands over `assets/` folders: the reference engine reading `assets/` where it
- * reads `references/`. `load` is `show`, `names` is `list`. `asset`'s own commands act on a path.
- */
-export function createAssetResolveCommands({ plugin }: ReferenceCommandOptions = {}): AssetResolveCommands {
-	const layersFor = layerSource(plugin, 'assets')
-	return {
-		load: showCommand(layersFor, 'load'),
-		names: listCommand(layersFor, 'names'),
-		where: whereCommand(layersFor, true),
-	}
 }

@@ -1,0 +1,138 @@
+import { join, posix, win32 } from 'node:path'
+import { detectHarness } from '../detection/detect-harness.js'
+import type { HarnessEnvironment } from '../harness/harness-environment.js'
+import type { HarnessId } from '../harness/harness-id.js'
+import type { Platform } from '../harness/platform.js'
+import { type ManagedPolicyKind, managedPolicyLocations } from '../managed-policy/managed-policy-locations.js'
+import { enabledPlugins } from '../plugins/enabled-plugins.js'
+import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plugins.js'
+import { pluginManifestName } from '../plugins/plugin-manifest.js'
+import type { AssetLayer } from './asset-layers.js'
+
+type Env = Readonly<Record<string, string | undefined>>
+
+/** Nested harnesses leave `detectHarness` at `unknown`; each candidate is still a harness in play. */
+export function detectedHarnesses(env: Env): readonly HarnessId[] {
+	return detectHarness({ env }).candidates
+}
+
+const unreadableKind: Partial<Record<ManagedPolicyKind, string>> = {
+	'macos-managed-preferences': 'a macOS managed-preferences domain delivered by MDM',
+	'windows-registry': 'a Windows registry key delivered by MDM or Group Policy',
+	server: 'server-side settings',
+}
+
+function skippedLayer(tier: AssetLayer['tier'], dir: string, skipped: string, plugin?: string): AssetLayer {
+	return plugin === undefined ? { tier, dir, skipped } : { tier, dir, plugin, skipped }
+}
+
+/**
+ * The folder holding a harness's managed files gets an `assets/` beside them. A `directory`
+ * location inside that folder, such as a drop-in `managed-settings.d`, is part of it, not a folder
+ * of its own.
+ */
+function managedFolders(harness: HarnessId, platform: Platform, env: Env) {
+	const path = platform === 'win32' ? win32 : posix
+	const locations = managedPolicyLocations(harness, { platform, env })
+	const folders = [
+		...new Set(
+			locations.flatMap(({ kind, location }) =>
+				kind === 'file' ? [path.dirname(location)] : kind === 'directory' ? [location] : [],
+			),
+		),
+	]
+	const outermost = folders.filter((folder) => !folders.some((other) => folder.startsWith(other + path.sep)))
+	return {
+		read: outermost.map((folder) => path.join(folder, 'assets')),
+		unread: locations.flatMap(({ kind, location }) => {
+			const where = unreadableKind[kind]
+			return where
+				? [{ location, reason: `${harness} keeps this policy in ${where}, which cannot be read locally` }]
+				: []
+		}),
+	}
+}
+
+export function harnessManagedLayers(harnesses: readonly HarnessId[], platform: Platform, env: Env): AssetLayer[] {
+	if (!harnesses.length) {
+		return [skippedLayer('managed', '(no harness detected)', 'no harness detected, so no managed folder')]
+	}
+	return harnesses.flatMap((harness) => {
+		const { read, unread } = managedFolders(harness, platform, env)
+		return [
+			...read.map((dir): AssetLayer => ({ tier: 'managed', dir })),
+			...unread.map(({ location, reason }) => skippedLayer('managed', location, reason)),
+		]
+	})
+}
+
+/**
+ * Claude Code installs one plugin at several scopes; a project- or local-scoped install loads only in
+ * its own project, so the nearest folder of the walk picks it, and a user install answers elsewhere.
+ */
+function activeInstall(installs: readonly InstalledPlugin[], chain: readonly string[]): InstalledPlugin | undefined {
+	for (const dir of chain) {
+		const install = installs.find(({ projectPath }) => projectPath === dir)
+		if (install) return install
+	}
+	return installs.find(({ projectPath }) => projectPath === undefined)
+}
+
+/**
+ * Only plugins the harness has enabled: installing a plugin never activates it, and an asset is
+ * instruction text an agent follows.
+ */
+export async function enabledPluginLayers(
+	harnesses: readonly HarnessId[],
+	chain: readonly string[],
+	environment: HarnessEnvironment,
+): Promise<AssetLayer[]> {
+	const layers: AssetLayer[] = []
+	for (const harness of harnesses) {
+		const [enabled, installed] = await Promise.all([
+			enabledPlugins(harness, environment),
+			installedPlugins(harness, environment),
+		])
+		if (!enabled.supported) {
+			layers.push(
+				skippedLayer(
+					'plugin',
+					`(${harness} enabled plugins)`,
+					`${harness} keeps no readable record of enabled plugins`,
+				),
+			)
+			continue
+		}
+		if (enabled.unread.length) {
+			layers.push(
+				skippedLayer(
+					'plugin',
+					`(${harness} plugin policy)`,
+					`${enabled.unread.join('; ')} may also enable or disable ${harness} plugins`,
+				),
+			)
+		}
+		for (const { id, enabled: on } of enabled.plugins) {
+			if (!on) continue
+			const recorded = id.split('@')[0] as string
+			const install = activeInstall(
+				installed.plugins.filter((candidate) => candidate.id === id),
+				chain,
+			)
+			if (install) {
+				const plugin = pluginManifestName(install.path) ?? recorded
+				layers.push({ tier: 'plugin', dir: join(install.path, 'assets'), plugin })
+				continue
+			}
+			layers.push(
+				skippedLayer(
+					'plugin',
+					`(${id})`,
+					`enabled in ${harness}, but no install folder for this project is recorded`,
+					recorded,
+				),
+			)
+		}
+	}
+	return layers
+}

@@ -4,8 +4,8 @@ import { resolve } from 'node:path'
 import type { cli } from 'clibuilder'
 import { command, exitCodes, t } from 'clibuilder'
 import { CliError, document, isCliError, result } from 'clibuilder/axi'
-import { createAssetResolveCommands, type ReferenceCommandOptions } from '../references/reference.command.js'
-import { referenceLayers } from '../references/reference-layers.js'
+import { assetLayers } from './asset-layers.js'
+import { type AssetResolveCommandOptions, createAssetResolveCommands } from './asset-resolve.command.js'
 import { copyAsset } from './copy-asset.js'
 import { selectAsset } from './select-asset.js'
 import { AssetError, deleteAsset, listAssets, showAsset, writeAsset } from './skill-assets.js'
@@ -81,7 +81,7 @@ type WriteArgs = Omit<Common, 'skill'> & {
 	from: string | undefined
 }
 
-function writeCommand(mode: 'create' | 'update', host: ReferenceCommandOptions): cli.Command {
+function writeCommand(mode: 'create' | 'update', host: AssetResolveCommandOptions): cli.Command {
 	const create = mode === 'create'
 	return command({
 		name: mode,
@@ -122,14 +122,13 @@ function writeCommand(mode: 'create' | 'update', host: ReferenceCommandOptions):
 					if (args.content !== undefined || args.from !== undefined) usage('--copy takes neither --content nor --from.')
 					const home = homedir()
 					const root = rootOf(args)
-					const layers = await referenceLayers({
+					const layers = await assetLayers({
 						root,
 						home,
 						platform: process.platform,
 						env: process.env,
 						plugin: host.plugin,
 						defaultSkill: args.default ?? args.skill,
-						folder: 'assets',
 					})
 					const done = copyAsset(layers, {
 						root,
@@ -169,7 +168,7 @@ function deleteCommand(): cli.Command {
 	})
 }
 
-function selectCommand(options: ReferenceCommandOptions): cli.Command {
+function selectCommand(options: AssetResolveCommandOptions): cli.Command {
 	return command({
 		name: 'select',
 		description:
@@ -205,14 +204,13 @@ function selectCommand(options: ReferenceCommandOptions): cli.Command {
 			try {
 				const home = homedir()
 				const root = resolve(args.root ?? process.cwd())
-				const layers = await referenceLayers({
+				const layers = await assetLayers({
 					root,
 					home,
 					platform: process.platform,
 					env: process.env,
 					plugin: options.plugin,
 					defaultSkill: args.default,
-					folder: 'assets',
 				})
 				const done = selectAsset(layers, { ...args, root, home })
 				const answer =
@@ -229,7 +227,7 @@ function selectCommand(options: ReferenceCommandOptions): cli.Command {
 	})
 }
 
-export function createAssetCommand(options: ReferenceCommandOptions = {}): cli.Command {
+export function createAssetCommand(options: AssetResolveCommandOptions = {}): cli.Command {
 	const { load, names, where } = createAssetResolveCommands(options)
 	return command({
 		name: 'asset',

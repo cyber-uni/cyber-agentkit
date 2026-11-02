@@ -2,12 +2,11 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { copyAsset } from '../assets/copy-asset.js'
-import { loadAsset } from '../assets/load-asset.js'
-import { selectAsset } from '../assets/select-asset.js'
-import { loadReference } from './load-reference.js'
-import { referenceLayers } from './reference-layers.js'
-import { resolveReference } from './resolve-reference.js'
+import { assetLayers } from './asset-layers.js'
+import { copyAsset } from './copy-asset.js'
+import { loadAsset } from './load-asset.js'
+import { resolveAsset } from './resolve-asset.js'
+import { selectAsset } from './select-asset.js'
 
 function put(root: string, file: string, content: string) {
 	mkdirSync(dirname(join(root, file)), { recursive: true })
@@ -15,7 +14,7 @@ function put(root: string, file: string, content: string) {
 }
 
 function setup() {
-	const root = mkdtempSync(join(tmpdir(), 'reference-assets-'))
+	const root = mkdtempSync(join(tmpdir(), 'asset-by-name-'))
 	mkdirSync(join(root, '.git'))
 	const home = join(root, 'home')
 	mkdirSync(home)
@@ -24,7 +23,7 @@ function setup() {
 	put(skill, 'assets/permissions.json', '{"from":"skill"}\n')
 	const plugin = join(root, 'plugin-a')
 	put(plugin, 'assets/permissions.json', '{"from":"plugin-a"}\n')
-	const base = { root, home, platform: 'linux' as const, env: {}, defaultSkill: skill, folder: 'assets' as const }
+	const base = { root, home, platform: 'linux' as const, env: {}, defaultSkill: skill }
 	return { root, home, skill, plugin, base }
 }
 
@@ -46,12 +45,10 @@ describe('assets by name (R73 to R77)', () => {
 		expect((await loadAsset('permissions', withPlugin)).content).toBe('{"from":"project"}\n')
 	})
 
-	it('reads no references folder in an assets call, and no assets folder otherwise (R73, R72)', async () => {
+	it('reads no references folder (R73, R72)', async () => {
 		const { base, root } = setup()
 		put(root, '.agents/references/permissions.json', '{"from":"references"}\n')
 		expect((await loadAsset('permissions', base)).content).toBe('{"from":"skill"}\n')
-		const { folder: _folder, ...plain } = base
-		expect((await loadReference('permissions', plain)).content).toBe('{"from":"references"}\n')
 	})
 
 	it('never merges: a Markdown asset above another replaces it whole (R74)', async () => {
@@ -76,24 +73,24 @@ describe('assets by name (R73 to R77)', () => {
 		put(a, 'assets/permissions.json', '{"from":"a"}\n')
 		put(b, 'assets/permissions.json', '{"from":"b"}\n')
 		put(a, 'plugin.json', '{"name":"plugin-a"}')
-		const layers = await referenceLayers(base)
+		const layers = await assetLayers(base)
 		const both = [
 			...layers.layers.slice(0, -1),
-			{ tier: 'plugin' as const, dir: join(a, 'assets'), plugin: 'plugin-a', whole: true },
-			{ tier: 'plugin' as const, dir: join(b, 'assets'), plugin: 'plugin-b', whole: true },
+			{ tier: 'plugin' as const, dir: join(a, 'assets'), plugin: 'plugin-a' },
+			{ tier: 'plugin' as const, dir: join(b, 'assets'), plugin: 'plugin-b' },
 			...layers.layers.slice(-1),
 		]
-		expect(resolveReference('permissions', both).status).toBe('ambiguous')
-		expect(resolveReference('plugin-b/permissions', both).content).toBe('{"from":"b"}\n')
+		expect(resolveAsset('permissions', both).status).toBe('ambiguous')
+		expect(resolveAsset('plugin-b/permissions', both).content).toBe('{"from":"b"}\n')
 		put(root, '.agents/assets/permissions.json', '{"from":"project"}\n')
-		const overridden = await referenceLayers(base)
+		const overridden = await assetLayers(base)
 		const again = [
 			...overridden.layers.slice(0, -1),
-			{ tier: 'plugin' as const, dir: join(a, 'assets'), plugin: 'plugin-a', whole: true },
-			{ tier: 'plugin' as const, dir: join(b, 'assets'), plugin: 'plugin-b', whole: true },
+			{ tier: 'plugin' as const, dir: join(a, 'assets'), plugin: 'plugin-a' },
+			{ tier: 'plugin' as const, dir: join(b, 'assets'), plugin: 'plugin-b' },
 			...overridden.layers.slice(-1),
 		]
-		expect(resolveReference('permissions', again).content).toBe('{"from":"project"}\n')
+		expect(resolveAsset('permissions', again).content).toBe('{"from":"project"}\n')
 	})
 
 	it('select chooses among plugins and the skill file, and clear undoes it (R79)', async () => {
@@ -103,19 +100,19 @@ describe('assets by name (R73 to R77)', () => {
 		put(a, 'assets/permissions.json', '{"from":"a"}\n')
 		put(b, 'assets/permissions.json', '{"from":"b"}\n')
 		const build = async () => {
-			const layers = await referenceLayers(base)
+			const layers = await assetLayers(base)
 			return {
 				...layers,
 				layers: [
 					...layers.layers.slice(0, -1),
-					{ tier: 'plugin' as const, dir: join(a, 'assets'), plugin: 'plugin-a', whole: true },
-					{ tier: 'plugin' as const, dir: join(b, 'assets'), plugin: 'plugin-b', whole: true },
+					{ tier: 'plugin' as const, dir: join(a, 'assets'), plugin: 'plugin-a' },
+					{ tier: 'plugin' as const, dir: join(b, 'assets'), plugin: 'plugin-b' },
 					...layers.layers.slice(-1),
 				],
 			}
 		}
 		const layers = await build()
-		expect(resolveReference('permissions', layers).status).toBe('ambiguous')
+		expect(resolveAsset('permissions', layers).status).toBe('ambiguous')
 		const chosen = selectAsset(layers, { root, home, name: 'permissions', option: 'plugin-b' })
 		expect(chosen.path).toBe(join(root, '.agents', 'assets', 'permissions.select'))
 		expect(chosen.after.content).toBe('{"from":"b"}\n')
@@ -130,7 +127,7 @@ describe('assets by name (R73 to R77)', () => {
 describe('asset create --copy (R80)', () => {
 	it('copies a plugin or default file into the project or user folder, never from managed, never over a file', async () => {
 		const { base, root, home, plugin } = setup()
-		const layers = await referenceLayers({ ...base, plugin: { name: 'plugin-a', root: plugin } })
+		const layers = await assetLayers({ ...base, plugin: { name: 'plugin-a', root: plugin } })
 		const fromPlugin = copyAsset(layers, { root, home, name: 'permissions', scope: 'project', copy: 'plugin-a' })
 		expect(fromPlugin.path).toBe(join(root, '.agents', 'assets', 'permissions.json'))
 		expect(readFileSync(fromPlugin.path, 'utf8')).toBe('{"from":"plugin-a"}\n')

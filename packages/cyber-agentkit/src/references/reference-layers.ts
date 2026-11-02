@@ -23,16 +23,9 @@ export type ReferenceLayer = {
 	skill?: string | undefined
 	/** Set when the layer is never read, and why: policy held in MDM, a plugin with no install folder. */
 	skipped?: string | undefined
-	/**
-	 * An `assets/` layer: a file is `<name>.<ext>` with no `.default` marker, read as written. Nothing in it
-	 * merges or extends; the highest layer holding the name answers whole.
-	 */
-	whole?: boolean | undefined
 	/** Raised on every name resolved through this layer, such as a `--default` folder that does not exist. */
 	warning?: ReferenceWarning | undefined
 }
-
-export type ReferenceFolder = 'references' | 'assets'
 
 export type ReferenceLayerOptions = {
 	root: string
@@ -45,8 +38,6 @@ export type ReferenceLayerOptions = {
 	plugin?: ReferencePlugin | undefined
 	/** The calling skill's folder: its `references/<name>.default.md` forms the `default` tier. */
 	defaultSkill?: string | undefined
-	/** The folder every tier reads: `references` (the default), or `assets` for an assets call. */
-	folder?: ReferenceFolder | undefined
 	/** Detects the harness and reads its settings. Defaults to `process.env`. */
 	env?: Readonly<Record<string, string | undefined>>
 }
@@ -152,14 +143,14 @@ export function canonical(path: string): string {
  * instruction text an agent follows. Only a package with a plugin manifest is a plugin, named by
  * that manifest; one that ships `references/` without a manifest is shown, not read.
  */
-function dependencyLayers(root: string, skip: ReadonlySet<string>, folder: ReferenceFolder): ReferenceLayer[] {
+function dependencyLayers(root: string, skip: ReadonlySet<string>): ReferenceLayer[] {
 	const manifestPath = nearestManifest(root)
 	if (!manifestPath) return []
 	const layers: ReferenceLayer[] = []
 	for (const pkg of declaredDependencies(readJson(manifestPath))) {
 		const dir = packageDir(pkg, manifestPath)
 		if (!dir || skip.has(canonical(dir))) continue
-		const references = join(dir, folder)
+		const references = join(dir, 'references')
 		if (!isDirectory(references)) continue
 		const plugin = pluginManifestName(dir)
 		layers.push(
@@ -231,13 +222,6 @@ function skillDefaults(
 		: { skills }
 }
 
-/** The layer with its `references` folder swapped for `folder`; a layer that names no folder is left as it is. */
-function inFolder(layer: ReferenceLayer, folder: ReferenceFolder): ReferenceLayer {
-	if (folder === 'references' || basename(layer.dir) !== 'references') return layer
-	const dir = join(dirname(layer.dir), folder)
-	return { ...layer, dir, whole: true }
-}
-
 /** The `default` tier for the skill at `folder`; a folder that does not exist warns and adds no contribution. */
 export function defaultLayer(folder: string): ReferenceLayer {
 	const dir = join(folder, 'references')
@@ -262,7 +246,6 @@ export async function referenceLayers({
 	platform,
 	plugin,
 	defaultSkill,
-	folder = 'references',
 	env = process.env,
 }: ReferenceLayerOptions): Promise<ReferenceLayers> {
 	const harnesses = detectedHarnesses(env)
@@ -274,21 +257,20 @@ export async function referenceLayers({
 		...enabled.flatMap(({ dir, skipped }) => (skipped ? [] : [dirname(dir)])),
 		...dependencyPluginRoots(root),
 	]
-	const skills = folder === 'assets' ? undefined : skillDefaults(harnesses, { chain, home, platform, env }, pluginRoots)
+	const skills = skillDefaults(harnesses, { chain, home, platform, env }, pluginRoots)
 	const layers: ReferenceLayer[] = [
 		...harnessManagedLayers(harnesses, platform, env),
 		...chain.map((dir): ReferenceLayer => ({ tier: 'project', dir: projectReferencesDir(dir) })),
 		{ tier: 'user', dir: userReferencesDir(home) },
 		...(plugin ? [{ tier: 'plugin' as const, dir: join(plugin.root, 'references'), plugin: plugin.name }] : []),
 		...enabled.filter(
-			(layer) =>
-				layer.skipped || (isDirectory(inFolder(layer, folder).dir) && canonical(dirname(layer.dir)) !== ownRoot),
+			(layer) => layer.skipped || (isDirectory(layer.dir) && canonical(dirname(layer.dir)) !== ownRoot),
 		),
-		...dependencyLayers(root, new Set(ownRoot ? [ownRoot] : []), folder),
+		...dependencyLayers(root, new Set(ownRoot ? [ownRoot] : [])),
 		...(defaultSkill === undefined ? [] : [defaultLayer(resolve(defaultSkill))]),
 	]
 	// A repository checked out at the home directory would read the same folder as project and user.
 	const seen = new Set<string>()
-	const placed = layers.map((layer) => inFolder(layer, folder)).filter(({ dir }) => !seen.has(dir) && seen.add(dir))
+	const placed = layers.filter(({ dir }) => !seen.has(dir) && seen.add(dir))
 	return { layers: placed, harnesses, skills }
 }

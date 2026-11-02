@@ -1,4 +1,6 @@
+export type { LoadAssetOptions } from './assets/load-asset.js'
 export { loadAsset } from './assets/load-asset.js'
+export type { ResolvedAsset } from './assets/resolve-asset.js'
 export type {
 	CheckedDependency,
 	CheckPluginDependenciesOptions,

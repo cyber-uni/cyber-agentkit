@@ -1,4 +1,4 @@
-import { dirname, join, relative } from 'node:path'
+import { join, relative } from 'node:path'
 import { headingPaths } from './reference-document.js'
 import { dataExtensions } from './reference-format.js'
 import { projectReferencesDir, type ReferenceLayer, type ReferenceLayers } from './reference-layers.js'
@@ -39,8 +39,6 @@ export type WhereOptions = {
 	root: string
 	/** How a path outside the project is shown, such as with the home directory collapsed to `~`. */
 	display?: ((path: string) => string) | undefined
-	/** An assets call: the project write goes to `.agents/assets/`. */
-	assets?: boolean | undefined
 }
 
 const reaches = {
@@ -52,7 +50,7 @@ const reaches = {
 export function whereReference(
 	input: string | ReferenceName,
 	source: ReferenceLayers | readonly ReferenceLayer[],
-	{ root, display = (path) => path, assets }: WhereOptions,
+	{ root, display = (path) => path }: WhereOptions,
 ): ReferenceWhereReport {
 	const name = typeof input === 'string' ? parseReferenceName(input) : input
 	const resolved = resolveReference(name, source, { display })
@@ -66,7 +64,7 @@ export function whereReference(
 	if (resolved.options) report.options = resolved.options
 	if (name.invalid) return report
 	const layers = Array.isArray(source) ? (source as readonly ReferenceLayer[]) : (source as ReferenceLayers).layers
-	const projectDir = assets ? join(dirname(projectReferencesDir(root)), 'assets') : projectReferencesDir(root)
+	const projectDir = projectReferencesDir(root)
 	const userDir = layers.find(({ tier }) => tier === 'user')?.dir
 	const targets: { scope: 'project' | 'user'; dir: string }[] = [
 		{ scope: 'project', dir: projectDir },
@@ -79,15 +77,10 @@ export function whereReference(
 		const below = resolveReference(name, source, { display, below: dir })
 		report.places.push({
 			scope,
-			path: assets
-				? `${scope === 'project' ? relative(root, dir) : display(dir)}/${name.name}.<ext>`
-				: scope === 'project'
-					? relative(root, path)
-					: display(path),
+			path: scope === 'project' ? relative(root, path) : display(path),
 			reaches: reaches[scope],
 			status: entry?.file ? entry.outcome : 'empty',
-			sections:
-				!assets && below.status === 'found' && below.format === 'markdown' ? headingPaths(below.content ?? '') : [],
+			sections: below.status === 'found' && below.format === 'markdown' ? headingPaths(below.content ?? '') : [],
 		})
 	}
 	return report
