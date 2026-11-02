@@ -183,8 +183,9 @@ what can be found, and every fault is reported as a warning.
 
 **Surface trace.** `load`, `--trace`, `--default` (UC1, UC2, UC10, UC12); the routing option and `--in` (UC1, UC12,
 UC17); `--root` (all); `where`, `--default`, `--in` (UC2); `list`, pattern (UC3); `search` (UC3); `create` with
-`--merge`, `--template`, `--implements`, `--scope`, `--plugin`, `--default`, `--dry-run` (UC5, UC15); `customize` with
-`--extends`, `--request`, `--body`, `--scope`, `--in`, `--merge`, `--dry-run` (UC9, UC18); `delete` with `--scope`,
+`--merge`, `--template`, `--implements`, `--scope`, `--in`, `--plugin`, `--default`, `--dry-run` (UC5, UC15);
+`customize` with `--extends`, `--request`, `--body`, `--base`, `--scope`, `--in`, `--merge`, `--dry-run` (UC9, UC14,
+UC18); `delete` with `--scope`,
 `--plugin`, `--default`, `--dry-run` (UC11); `check` (UC6); `implementations`, `--accept` (UC6); `--format`,
 `--metadata` (UC8). Frontmatter keys `merge`, `extends` (with the step keys `merge`, `extends`, `sections`),
 `implements`, `interface`, `description`, `tags`, and a generated document's record of sources and request serve UC1,

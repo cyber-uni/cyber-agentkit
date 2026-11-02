@@ -25,25 +25,32 @@ flowchart TD
   hidden -->|"no, or the folder is not a layer"| mode["E29 merge: --merge, else the template's, else patch; --implements writes replace and every section stubbed Unsupported"]
   mode --> dry{"E31 --dry-run?"}
   dry -->|yes| print([path and content, nothing written])
-  dry -->|no| wrote(["E33 written: path and a hint to show; --trace gives the trace"])
-  s([select name option...]) --> sq{"E27 qualified name?"}
-  sq -->|yes| e1
-  sq -->|no| opt{"E50 each option default or a plugin holding the name?"}
-  opt -->|no| e1
-  opt -->|yes| sel["extends written bottom first; body and other keys kept"]
-  clear([select name --clear]) --> has{"E51 a selection in that tier?"}
+  dry -->|no| wrote(["E33 written: path and a hint to load; --trace gives the trace"])
+  cu([customize name]) --> cq{"E27 qualified name, --plugin, or --default?"}
+  cq -->|yes| e1
+  cq -->|no| base{"E59 --base?"}
+  base -->|yes| pbase(["the generator's input: picks applied; managed, and the tier above or personal to the target, left out; nothing written"])
+  base -->|no| what{"E58 --extends, --request, or both?"}
+  what -->|neither| e1
+  what -->|"--extends none"| has{"E51 extends in that tier?"}
   has -->|no| e3(["error: what answers the name now"])
   has -->|yes| unsel["extends removed; a file left empty is deleted"]
+  what -->|"--extends steps"| opt{"E50 each step default or a plugin holding the name?"}
+  opt -->|no| e1
+  opt -->|yes| sel["extends written bottom first; a body is kept, and one recording a request gets a hint to customize again"]
+  what -->|"--request and --body"| body{"E58 the target holds a body recording no request?"}
+  body -->|yes| e1
+  body -->|no| gen["body written with extends, sources and installed versions, request, and merge"]
   d([delete name]) --> dq{"E27 qualified name?"}
   dq -->|yes| e1
   dq -->|no| there{"E32 a file at the place chosen?"}
   there -->|no| e3
   there -->|yes| ddry{"E31 --dry-run?"}
   ddry -->|yes| dprint([path and the answer afterwards, nothing deleted])
-  ddry -->|no| rm["deleted; status and stack afterwards; a selection that went is named"]
+  ddry -->|no| rm["deleted; status and stack afterwards; a selection that went is named, with customize --extends"]
 ```
 
 | Edge | Decision | Outcome |
 | --- | --- | --- |
-| E26 | where `create`, `select`, or `delete` writes | `select`: project or user `<name>.md`; `create` and `delete` also a plugin's or skill's source folder in the repository; never managed or an installed copy |
+| E26 | where `create`, `customize`, or `delete` writes | `customize`: the `repo`, `user`, or a folder's `<name>.md`; `create` and `delete` also a plugin's or skill's source folder in the repository; never managed or an installed copy |
 | E34 | a template with no `description` | written, with a hint |
