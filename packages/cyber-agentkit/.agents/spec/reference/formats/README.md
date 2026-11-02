@@ -77,7 +77,7 @@ the `references/` folder and the tiers. It never reads `assets/`; [asset](../../
   empty description. `where` lists no sections for it.
 - R92 (UC13.7): `customize` with a request for a non-Markdown name writes the body whole, in the format of the
   document it was generated from, never a delta, and writes the picks, sources with installed versions, and request to
-  `<name>.meta.md` beside it. It goes stale as R75 says.
+  `<name>.meta.md` beside it. It goes stale as R101 says.
 - R93 (UC13.9): A metadata file with `extends` and no non-Markdown file beside it is that tier's selection for the
   name: the stack is built from it, and the top step's file answers whole.
 - R95 (UC11, UC13): `delete` on a non-Markdown name removes its file and the metadata file beside it; on a selection

@@ -43,11 +43,11 @@ what can be found, and every fault is reported as a warning.
 - N2 Finding references by meaning. Results are returned in a deterministic order.
 - N3 Reading any path, or a folder other than `references/`. A name is never a path. Non-Markdown references are
   [formats](./formats/README.md); `assets/` belongs to [asset](../asset/README.md).
-- N4 Reading company or team instructions a harness delivers from a server. The agent combines them at run time
+- N13 Reading company or team instructions a harness delivers from a server. The agent combines them at run time
   (`.research/machine-wide-content`).
-- N5 Running a model when a name is loaded, in this version. A model runs only when a customizer generates or revises a
+- N14 Running a model when a name is loaded, in this version. A model runs only when a customizer generates or revises a
   document.
-- N6 Detecting where the agent works, or reloading when its work moves. Every folder's additions are delivered up front.
+- N15 Detecting where the agent works, or reloading when its work moves. Every folder's additions are delivered up front.
 - N7 Finding a document for a single use, such as one feature's spec. The consuming skill points the agent at it.
 - N8 Noticing changes to a source's content. Only a plugin's version is compared; a customizer who changes their
   request generates the document again.
@@ -100,11 +100,11 @@ what can be found, and every fault is reported as a warning.
   every `.agents/references/` below it holds a project section. `--root <folder>` names the root when it cannot be found
   that way: when the command runs from outside the repository, as a globally installed skill may, or when the work is in
   a folder that is not a git repository.
-- K20 **generated document**: a contribution a generator writes from the customizer's request: a `repo` or `user`
+- K33 **generated document**: a contribution a generator writes from the customizer's request: a `repo` or `user`
   contribution written from the stack, as a delta by default or a whole document with `merge: replace`, or a project
   section, written from the main document. Its frontmatter keeps the selection it was built on (`extends`), each source
   with its plugin's version, and the request.
-- K21 **source**: a contribution a generated document is built from: each step of its stack. A project section records
+- K34 **source**: a contribution a generated document is built from: each step of its stack. A project section records
   the sources of the main document it was written against.
 - K22 **request**: what the customizer asked to change in the prose, in their own words. Choices of plugins, their
   order, and their sections are metadata (`extends`), not part of the request.
@@ -155,7 +155,7 @@ what can be found, and every fault is reported as a warning.
 | Child | Use cases | Criteria |
 | --- | --- | --- |
 | [resolve](./resolve/README.md) | UC1, UC2, UC3, UC7, UC10, UC19 | Composition, Stack, Reporting, Layers, Finding, Renames |
-| [write](./write/README.md) | UC5, UC9, UC11, UC14, UC18 | Writing |
+| [write](./write/README.md) | UC5, UC9, UC11, UC20, UC18 | Writing |
 | [interfaces](./interfaces/README.md) | UC6, UC15 | Interfaces |
 | [skill](./skill/README.md) | UC4, UC12, UC17 | Fallback |
 | [formats](./formats/README.md) | UC13 | R65 to R72 |
@@ -187,11 +187,11 @@ what can be found, and every fault is reported as a warning.
 **Surface trace.** `load`, `--trace`, `--default` (UC1, UC2, UC10, UC12); the routing option and `--in` (UC1, UC12,
 UC17); `--root` (all); `where`, `--default`, `--in` (UC2); `list`, pattern (UC3); `search` (UC3); `create` with
 `--merge`, `--template`, `--implements`, `--scope`, `--in`, `--plugin`, `--default`, `--dry-run` (UC5, UC15);
-`customize` with `--extends`, `--request`, `--body`, `--base`, `--scope`, `--in`, `--merge`, `--dry-run` (UC9, UC14,
+`customize` with `--extends`, `--request`, `--body`, `--base`, `--scope`, `--in`, `--merge`, `--dry-run` (UC9, UC20,
 UC18); `delete` with `--scope`, `--plugin`, `--default`, `--dry-run` (UC11); `check` (UC6); `implementations`,
 `--accept` (UC6); `--format`, `--metadata` (UC8). Frontmatter keys `merge`, `extends` (with the step keys `merge`,
 `extends`, `sections`), `implements`, `interface`, `description`, `tags`, `aliases`, and a generated document's record
-of sources and request serve UC1, UC5, UC6, UC7, UC9, UC14, UC18, UC19; the section marker `<!-- merge: ... -->` serves
+of sources and request serve UC1, UC5, UC6, UC7, UC9, UC20, UC18, UC19; the section marker `<!-- merge: ... -->` serves
 UC1 and UC7. File names `<name>.md` and `<name>.default.md` serve UC5, UC9, UC11, UC18 and UC3, UC12. Informational, no
 contract: the trace's keys beyond those the Adapters group names.
 

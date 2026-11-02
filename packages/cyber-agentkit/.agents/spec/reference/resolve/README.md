@@ -52,7 +52,7 @@ IDs are shared across the parent and its children.
     goes at the end (nothing, for `remove`); unmarked, it goes at the end with no warning. A document repeating a
     heading: the first is matched, with a warning.
   - UC1.14 A generated document it uses is stale (K26): still answered, with a warning naming each changed or missing
-    source and how to revise it (UC14).
+    source and how to revise it (UC20).
   - UC1.16 No main document, but project sections exist: status `found`, with only the project sections. A generated
     section whose recorded sources are gone is stale (UC1.14).
   - UC1.17 A project section for a name that is not Markdown: not read, with a warning.
@@ -200,9 +200,9 @@ Edge IDs are in [graph.md](./graph.md).
   the result below it with its own (K23). With no `merge` written anywhere, every contribution patches. Within the
   project tier, the nearer folder is higher: an inner folder's section follows an outer one's and wins where they
   conflict (UC17.3).
-- R74 (UC1, UC2, E57): When both `repo` and `user` hold a contribution, both apply, the `repo` one over the `user` one;
+- R100 (UC1, UC2, E57): When both `repo` and `user` hold a contribution, both apply, the `repo` one over the `user` one;
   a `repo` `replace` or `remove` makes the `user` one `shadowed`. The `user` one's `extends` is not used (R8).
-- R73 (UC1, UC10, E54): Project sections follow the main document in path order, never composed into it. Each managed
+- R99 (UC1, UC10, E54): Project sections follow the main document in path order, never composed into it. Each managed
   contribution applies over each project section by heading path: a managed section that matches none of the project
   section's is not added to it, and a managed `replace` or `remove` drops every project section. With no main document
   but a project section, the name is `found` with only its project sections. A project section that is not Markdown is
@@ -261,9 +261,9 @@ Edge IDs are in [graph.md](./graph.md).
 - R57 (UC2, E11): `where` gives the `repo` and `user` `<name>.md` with who each reaches, and the heading paths of the
   main document; with `--in <folder>`, also that folder's project section file; on an ambiguous name, the options and
   the files a selection goes to. With `--trace`, it also gives the layers with their outcomes.
-- R75 (UC1, UC2, E56): A generated document, or a project section, is `stale` when a recorded source's plugin version
+- R101 (UC1, UC2, E56): A generated document, or a project section, is `stale` when a recorded source's plugin version
   differs from the installed one, or a recorded source is gone. It is still used, with a `reference-stale` warning
-  naming each changed or missing source and how to revise it (UC14). Only plugin versions are compared (N8). A
+  naming each changed or missing source and how to revise it (UC20). Only plugin versions are compared (N8). A
   contribution that records no sources is never stale.
 
 **Layers**
@@ -273,7 +273,7 @@ Edge IDs are in [graph.md](./graph.md).
   The `project` tier reads every `.agents/references/` strictly below the root, in folders `.gitignore` does not
   exclude, tracked or not. The `user` tier reads `~/.agents/references/`. The managed tier reads `references/` in each
   detected harness's managed folder; the library keeps no managed folder of its own.
-- R76 (UC1, E55): With the routing option, each project section is a route naming its folder, in place of its text.
+- R102 (UC1, E55): With the routing option, each project section is a route naming its folder, in place of its text.
   `--in <path>...` expands each route whose folder holds one of the paths, so a path in nested folders expands both. An
   `--in` path outside the root is ignored, with a warning. Without the routing option, `--in` changes nothing.
 - R13 (UC1, E15): The plugin tier holds, for the detected harness, each enabled plugin's `references/`, and the declared

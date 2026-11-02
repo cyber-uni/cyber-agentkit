@@ -31,7 +31,7 @@ IDs are shared across the parent and its children.
     command did not run. A name with no default contribution is not loaded.
   - UC4.5 Every name is `found` with no warning: nothing is said.
   - UC4.6 A generated document is stale (UC1.14): the reference is used as loaded, and the user is told which
-    plugins changed and that Customize mode revises it from its recorded request (UC14).
+    plugins changed and that Customize mode revises it from its recorded request (UC20).
   - UC4.7 Any other warning: the reference is used as loaded, and the user is told the warning, one line each.
 
 ### UC12 — Wire a skill to load references (A6.1)
@@ -65,7 +65,7 @@ IDs are shared across the parent and its children.
 ### UC17 — Follow the reference in order of precedence (A1.3)
 
 - **Trigger:** an agent works from a resolved reference while it also holds instructions the command cannot load:
-  company or team instructions a harness delivers (N4), or a single feature's own document that the consuming skill
+  company or team instructions a harness delivers (N13), or a single feature's own document that the consuming skill
   points it at (N7).
 - **Entry points:** Skill: the `reference` skill's Load mode, which states the order along with the loaded references.
   This use case is behavior of the skill's instructions.

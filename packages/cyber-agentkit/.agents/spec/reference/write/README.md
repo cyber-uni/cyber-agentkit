@@ -75,7 +75,7 @@ IDs are shared across the parent and its children.
   request and keeps the stack's heading paths: by default a delta holding only the sections it changes, with `patch` or
   `combine`; with `--merge replace`, a whole document. For a folder, it is that folder's project section, stating only
   what differs there. The command records in the frontmatter the picks (`extends`), each source with its plugin's
-  version (K21), and the request. A body goes stale as K26 says. A later `load` uses it as K23 says.
+  version (K34), and the request. A body goes stale as K26 says. A later `load` uses it as K23 says.
 - **Extensions:**
   - UC18.1 The customizer declines the draft: nothing is written.
   - UC18.2 A request, and the target holds a body that records no request (written with `create` or by hand): error,
@@ -91,7 +91,7 @@ IDs are shared across the parent and its children.
   - UC18.9 Picks alone, and the target holds a body: the body is kept and only `extends` changes. A body that records a
     request was written against the old stack: the output suggests customizing again with that request.
 
-### UC14 — Revise a stale generated document (A5.4, A7.2)
+### UC20 — Revise a stale generated document (A5.4, A7.2)
 
 - **Trigger:** load reports a generated document stale (UC1.14) and Load passes that on (UC4.6), or a customizer wants
   a generated document brought up to date after updating plugins.
@@ -104,15 +104,15 @@ IDs are shared across the parent and its children.
   UC18 does, with the recorded picks, and applies the recorded request to it. The draft replaces the stale document
   (UC18.2) and records the installed plugin versions, so load stops reporting it stale.
 - **Extensions:**
-  - UC14.1 The customizer declines the draft: nothing is written, and the document stays stale.
-  - UC14.2 A recorded source is gone (its plugin was removed): the customizer is told before generating, and picks
+  - UC20.1 The customizer declines the draft: nothing is written, and the document stays stale.
+  - UC20.2 A recorded source is gone (its plugin was removed): the customizer is told before generating, and picks
     again (UC9) or goes on without it.
-  - UC14.3 The customizer changes the request while revising: that is customizing again (UC18) with the new request.
-  - UC14.4 A stale main document and stale project sections: the main document is revised first, then each project
-    section, since each records the sources of the main document it was written against (K21).
-  - UC14.5 No user is present: nothing is revised, and load keeps reporting it stale.
-  - UC14.6 A non-Markdown document: regenerated whole, and its metadata file updated (UC13.7).
-  - UC14.7 The command cannot run: nothing is written, and the skill says so (UC4.4).
+  - UC20.3 The customizer changes the request while revising: that is customizing again (UC18) with the new request.
+  - UC20.4 A stale main document and stale project sections: the main document is revised first, then each project
+    section, since each records the sources of the main document it was written against (K34).
+  - UC20.5 No user is present: nothing is revised, and load keeps reporting it stale.
+  - UC20.6 A non-Markdown document: regenerated whole, and its metadata file updated (UC13.7).
+  - UC20.7 The command cannot run: nothing is written, and the skill says so (UC4.4).
 
 ### UC9 — Pick what a name builds on (A5.3)
 
@@ -165,7 +165,7 @@ IDs are shared across the parent and its children.
 
 Edge IDs are in [graph.md](./graph.md).
 
-**Writing (UC5, UC9, UC11, UC14, UC18)**
+**Writing (UC5, UC9, UC11, UC20, UC18)**
 
 - R24 (UC5, UC9, UC11, UC18, E26): `customize` writes only `<name>.md` in the root's `.agents/references/` (`repo`,
   the default), in `~/.agents/references/` (`user`, with `--scope user`), or in `<folder>/.agents/references/` (a
@@ -182,7 +182,7 @@ Edge IDs are in [graph.md](./graph.md).
   contribution. A `user` file hidden only by this repository's `repo` contribution is written, with a warning.
 - R27 (UC5, E29): `create` writes `merge` from `--merge`, else the template's `merge`, else `patch`. `--implements`
   writes `merge: replace`. `--merge remove` writes no body, and fails with `--template`.
-- R77 (UC5, E29): A `--plugin` file whose `extends` names another plugin is refused with `merge: replace`, and is
+- R103 (UC5, E29): A `--plugin` file whose `extends` names another plugin is refused with `merge: replace`, and is
   written with that plugin's installed version recorded, which `check` compares (UC6.9).
 - R28 (UC5, E30): `create --implements <id>` writes the interface's sections as `##` headings in order and
   `implements: <id>@<version>`, each section stubbed `**Unsupported.**` followed by the line saying what it holds; it
@@ -192,7 +192,7 @@ Edge IDs are in [graph.md](./graph.md).
   A step that is neither `default` nor a plugin holding the name fails, and nothing is written.
 - R80 (UC9, E51): `customize --extends none` removes `extends` and deletes a file left with nothing in it; with no
   `extends` in that tier, it fails stating what answers the name now.
-- R81 (UC14, UC18, E58): `customize --request <file> --body <file>` writes the body with frontmatter `extends` (the
+- R81 (UC20, UC18, E58): `customize --request <file> --body <file>` writes the body with frontmatter `extends` (the
   picks, if any), `sources` (each source's plugin and installed version; for a project section, those of the main
   document), `request` (the file's text), and `merge` (`--merge`, else `patch`). The command runs no model.
 - R82 (UC18, E58): `customize` refuses, writing nothing: with neither `--extends` nor `--request`; with only one of
@@ -200,10 +200,10 @@ Edge IDs are in [graph.md](./graph.md).
   records no request; and with `--in` for a name that is not Markdown. A body that records a request is replaced.
 - R83 (UC18, E50): `customize --extends` on a target holding a body keeps the body; when that body records a request,
   the output suggests customizing again with it.
-- R84 (UC14, UC18, E59): `customize --base` prints, and writes nothing, the document the generator reads for that
+- R84 (UC20, UC18, E59): `customize --base` prints, and writes nothing, the document the generator reads for that
   target: the resolved reference with the picks applied, leaving out managed contributions always, the `user` tier for
   a `repo` or folder target, and the `repo` tier for a `user` target. `load` offers no way to leave tiers out.
-- R85 (UC14, UC18): Customize mode shows the draft and writes only once the customizer approves; with no user present,
+- R85 (UC20, UC18): Customize mode shows the draft and writes only once the customizer approves; with no user present,
   it writes nothing. The written body holds no managed contribution's text.
 - R30 (UC11, E32): `delete` removes only the file at the place chosen (R24), never a managed contribution or an
   installed copy, and reports the status and stack afterwards; when the file held a selection, the report says so and
