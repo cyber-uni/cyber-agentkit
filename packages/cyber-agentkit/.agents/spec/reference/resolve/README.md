@@ -27,7 +27,7 @@ IDs are shared across the parent and its children.
     plugin a qualified name asks for is not installed (`reference-missing`); or a `merge: remove` contribution leaves
     nothing and no contribution above it has a body, naming that contribution (code `reference-removed`, so a consumer
     tells a name turned off from one that does not exist).
-  - UC1.2 Its contributions cannot be put in one order: status `ambiguous`. The error names the contributions in
+  - UC1.2 Its contributions cannot be put in one order: status `ambiguous`. The record names the contributions in
     conflict, the cause (no written `extends` orders the plugins, a cycle in the plugins' own `extends`, or an
     `extends` listing one plugin at two separate places), and the options.
   - UC1.3 It is not a name (R1): status `invalid`, and
@@ -37,7 +37,7 @@ IDs are shared across the parent and its children.
     ignored, with a warning, and the remove still applies.
   - UC1.6 Only `<name>.md` and `<name>/README.md` answer a name; no other file does. Both in one folder: the first
     answers, and the other is ignored with a warning.
-  - UC1.7 No name given: error.
+  - UC1.7 No name given: usage error `name-missing` (exit 2).
   - UC1.8 The document fails its interface check: still answered, with a warning.
   - UC1.9 The skill folder does not exist: a warning, and the name resolves without the `default` tier.
   - UC1.10 A plugin's contribution answers over the default contribution, and no selection names it: still answered,
@@ -70,7 +70,8 @@ IDs are shared across the parent and its children.
   operation it applied and whether that came from the contribution or from a step, and its outcome (K7); and each
   project section with its folder and path. For a generated document, it also gives each recorded source with its
   recorded and installed plugin versions, and the request. The resolved reference itself is unchanged. `where` gives the
-  `repo` and `user` `<name>.md` files a customization or a selection is written to, each with who it reaches, and the
+  `repo` and `user` `<name>.md` files a customization or a selection is written to, each with who it reaches and, when a
+  `replace` or `remove` above hides it, that it is hidden and by what, and the
   heading paths of the main document, which a section operation can target; with `--in <folder>`, also the project
   section file for that folder; with `--trace`, also the layers with their outcomes.
 - **Extensions:**
@@ -78,19 +79,22 @@ IDs are shared across the parent and its children.
     `default` step with nothing there): it appears with the reason, such as `not read (not installed)` or
     `not read (no default)`.
   - UC2.2 A `replace` or `remove` above drops a contribution: `shadowed by <contribution> (replace|remove)`. A section a
-    `remove` dropped appears with the contribution that dropped it.
+    `remove` dropped appears with the contribution that dropped it. This holds for a `repo`, `user`, or project-section
+    file written despite the hiding (R26): the trace reports it `shadowed by <contribution>`.
   - UC2.3 A plugin left out of the stack: `not used (not in extends)`. A plugin a step's own `extends` left out:
     `not used (<step>'s extends replaced by <contribution>)`.
   - UC2.4 An `extends` that did not build the stack: `not used (<contribution>'s extends builds the stack)`, or
     `not used (qualified name)`. The contribution's body still applies.
   - UC2.5 `where` on an ambiguous name: it lists each `<plugin>/<name>` and the default as options, and the `repo` and
-    `user` files a selection goes to. It is not an error.
+    `user` files a selection goes to. It is not an error: it exits 0 (R43).
   - UC2.6 `where` on a plugin's contribution or a default contribution: reported read-only, never offered as a place to
     write.
   - UC2.7 Both `repo` and `user` hold a contribution: how they apply, and what is `shadowed`, is as R100 says.
   - UC2.8 A generated document is stale: each changed or missing source is marked, and the layer's outcome is `stale`.
   - UC2.9 A folder below the root that git ignores (by any ignore file git reads): its project section is
     `not read (ignored)`.
+  - UC2.10 `where` on a place a `replace` or `remove` above hides, a file there or not: it marks the place hidden and
+    names the hiding contribution (R57), so the customizer learns before writing that the file would not apply.
 
 ### UC3 — List and search (A3.1)
 
@@ -108,8 +112,8 @@ IDs are shared across the parent and its children.
   section, then gives matches best first, each with its name, description, and match kind; a match in a project
   section also carries its `folder`.
 - **Extensions:**
-  - UC3.1 Nothing matches: the output says zero explicitly. It is not an error.
-  - UC3.2 `search` with an empty query: error.
+  - UC3.1 Nothing matches: axi's empty answer, saying zero explicitly, exit 0. It is not an error.
+  - UC3.2 `search` with an empty query: usage error `query-missing` (exit 2).
   - UC3.3 A name whose plugins cannot be put in one order (R8): `list` marks it ambiguous with the options (each
     `<plugin>/<name>`, and each skill's default); `search` returns it once per plugin.
   - UC3.4 A name a `remove` turned off, with no project section left (R49): `list` shows it `missing`, and with
@@ -181,7 +185,7 @@ IDs are shared across the parent and its children.
     itself, and the alias is not used, with a warning.
   - UC19.2 Two names list the same alias: a load of it is `ambiguous`, with both names as options.
   - UC19.3 One tier folder holds files under both the older and the new name: the new one applies, and the older one
-    is ignored with a warning.
+    is ignored with a `file-ignored` warning (R67, R97).
   - UC19.4 `aliases` in a `repo`, `user`, or managed contribution: ignored with a warning. In a project section:
     ignored with `project-section-key-ignored` (UC1.19). Only an owner renames.
   - UC19.5 An alias of an alias: not followed. The owner lists every older name.
@@ -268,7 +272,9 @@ Edge IDs are in [graph.md](./graph.md).
   installed plugin versions, and the request.
 - R57 (UC2, E11): `where` gives the `repo` and `user` `<name>.md` with who each reaches, and the heading paths of the
   main document; with `--in <folder>`, also that folder's project section file; on an ambiguous name, the options and
-  the files a selection goes to. With `--trace`, it also gives the layers with their outcomes.
+  the files a selection goes to (exit 0). A place a `replace` or `remove` above hides is marked hidden, with
+  `hiddenBy` naming that contribution, whether a file is there or not. With `--trace`, it also gives the layers with
+  their outcomes.
 - R101 (UC1, UC2, E56): At load, a generated `repo` or `user` document, or a project section, is `stale` when a
   recorded source's plugin version differs from the installed one, or a recorded source is gone. It is still used, with
   a `reference-stale` warning naming each changed or missing source and how to revise it (UC20). A plugin's own file
@@ -318,7 +324,8 @@ Edge IDs are in [graph.md](./graph.md).
   the larger of 1 and a quarter of the query's length. A name resolves as `load` would, and each default as its skill
   loads it, before it is searched; a name a `remove` turned off is left out. Each project section is searched too, by
   `description` (which also matches `tags`), `heading`, and `body`, and a match in one carries its `folder`.
-- R18 (UC3, E20): `list` and `search` with no match print an explicit zero; it is not an error.
+- R18 (UC3, E20): `list` and `search` with no match give axi's empty answer, an explicit zero, exit 0; it is not an
+  error.
 - R58 (UC3, E48): Defaults are found in the skill folders the detected harness reads: its project and user skill
   folders, its machine-wide admin skill folders, and each enabled plugin's skills. On a harness whose skill folders are
   not verified, no defaults are listed, and the answer says so. A skill is known by the `name` in its `SKILL.md`, not by
@@ -334,7 +341,7 @@ Edge IDs are in [graph.md](./graph.md).
   owner lists them in its metadata file (K31).
 - R97 (UC19, E65): A contribution filed under an older name in the managed, `repo`, `user`, or `project` tier applies
   as one of the new name, with a `reference-renamed` warning naming its path and the new name. A file under the new
-  name in the same folder wins, and the older one is ignored with a warning.
+  name in the same folder wins, and the older one is ignored with a `file-ignored` warning.
 - R98 (UC19, E65): A name a contribution holds as its own is never read as an alias, with a warning that the alias is
   not used. An alias two names list is `ambiguous`, with both as options. `list` and `search` show only the new name,
   and the trace names the alias used.

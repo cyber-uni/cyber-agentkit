@@ -72,8 +72,9 @@ name.
   never answers a name.
 - R66 (UC13): A result reports its `format` (K29); `load --metadata` and `--trace` carry it, and each trace layer's
   `file` shows the extension. `list` and `search` rows carry it for a non-Markdown name.
-- R67 (UC1.6, UC13.1): Two files for a name in one folder, `<name>.md` and `<name>/README.md` included: K30 first
-  answers, each other warns `file-ignored`.
+- R67 (UC1.6, UC13.1): Two files for a name in one folder, `<name>.md` and `<name>/README.md` included, or a file under
+  an older name beside one under the new name (R97): K30 first answers (the new name's first), each other warns
+  `file-ignored`.
 - R68 (UC13.2, UC13.3): The highest non-Markdown contribution replaces all below it, which are
   `shadowed by <contribution> (replace)`. A Markdown contribution above is `not used (format differs from <format>)`,
   with a warning `format-mismatch`, unless it is `merge: remove`.

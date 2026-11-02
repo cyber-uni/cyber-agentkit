@@ -85,7 +85,7 @@ flowchart TD
 | --- | --- | --- |
 | E18 | `list` | one row per name; `--trace` gives one per layer and per skill default; a pattern keeps exact matches |
 | E19 | `search` | each name resolved as `load` would, and each project section searched (its match carries its `folder`); match kinds ranked `name` to `body`, then by name |
-| E20 | no match | an explicit zero, exit 0 |
+| E20 | no match | axi's empty answer, an explicit zero, exit 0 |
 | E48 | skill defaults | found in the skill folders the detected harness reads; on an unverified harness none, and the answer says so |
 
 ## Renames
