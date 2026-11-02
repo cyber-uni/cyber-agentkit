@@ -1,9 +1,10 @@
+import { resolve } from 'node:path'
 import { exitCodes, t } from 'clibuilder'
 import { CliError, isCliError } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
 import type { ReferenceWarning } from './reference-codes.js'
 import { ReferenceFailure } from './reference-error.js'
-import { type ReferenceLayers, type ReferencePlugin, referenceLayers } from './reference-layers.js'
+import { findRoot, type ReferenceLayers, type ReferencePlugin, referenceLayers } from './reference-layers.js'
 import type { ReferenceTrace, ReferenceTraceSource, ResolvedReference } from './resolve-reference.js'
 
 type StringOption = { description: string; type: ReturnType<ReturnType<typeof t.string>['optional']> }
@@ -192,6 +193,17 @@ export const scopeOption: StringOption = {
 	type: t.string().optional(),
 }
 
+export const inOption: StringOption = {
+	description:
+		'A folder strictly below the root, which must exist and not be ignored by git: acts on its project section, `<folder>/.agents/references/<name>.md`.',
+	type: t.string().optional(),
+}
+
+/** The root a write checks its usage against before the layers are read: `--root`, else the one found from the working folder. */
+export function givenRoot(root: string | undefined): string {
+	return root === undefined ? findRoot(process.cwd()) : resolve(root)
+}
+
 export const pluginOption: StringOption = {
 	description: "A plugin's source folder in this repository: acts on its `references/<name>.md`.",
 	type: t.string().optional(),
@@ -205,6 +217,7 @@ export const skillOption: StringOption = {
 export type CreateArgs = CommonArgs & {
 	name: string
 	scope: string | undefined
+	in: string | undefined
 	plugin: string | undefined
 	default: string | undefined
 	merge: string | undefined

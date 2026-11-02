@@ -144,8 +144,10 @@ export type {
 	ReferenceSourcePlugin,
 	ReferenceTraceSource,
 } from './references/reference-sources.js'
-export type { ReferenceWherePlace, ReferenceWhereReport, WhereOptions } from './references/reference-where.js'
+export type { ReferenceWhereFile, ReferenceWhereReport, WhereOptions } from './references/reference-where.js'
 export { whereReference } from './references/reference-where.js'
+export type { CreateResult, DeleteResult } from './references/reference-write.js'
+export type { WriteScope } from './references/reference-write-target.js'
 export type {
 	AmbiguousCause,
 	ExtendsStep,
@@ -161,6 +163,8 @@ export type {
 	ResolveOptions,
 } from './references/resolve-reference.js'
 export { parseReferenceName, referenceNames, resolveReference } from './references/resolve-reference.js'
+export type { CreateReferenceOptions, DeleteReferenceOptions } from './references/write-reference.js'
+export { createReference, deleteReference } from './references/write-reference.js'
 export type { SkillFolderOptions } from './skills/harness-skill-folders.js'
 export {
 	adminSkillFolders,

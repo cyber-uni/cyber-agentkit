@@ -170,3 +170,16 @@ export function projectFolders(root: string, cache: ProjectFolderCache = new Map
 export function projectReferenceFolders(root: string, cache: ProjectFolderCache = new Map()): ProjectFolder[] {
 	return projectFolders(root, cache).folders
 }
+
+/**
+ * Whether git ignores `path` below `root`, by any ignore file git reads: `git check-ignore`. Outside
+ * a git repository, or where git cannot answer, nothing is ignored, as discovery has it.
+ */
+export function gitIgnores(root: string, path: string): boolean {
+	try {
+		execFileSync('git', ['check-ignore', '-q', '--', path], { cwd: root, stdio: 'ignore' })
+		return true
+	} catch {
+		return false
+	}
+}

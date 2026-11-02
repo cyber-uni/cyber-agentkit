@@ -121,9 +121,12 @@ export const referenceCodes = {
 	},
 	'in-folder-missing': {
 		kind: 'refused',
-		when: '`create --in` or `customize --in` naming a folder that does not exist (J8)',
+		when: '`--in` on `create`, `customize`, or `delete` naming a folder that does not exist (J8)',
 	},
-	'in-folder-ignored': { kind: 'refused', when: '`create --in` or `customize --in` naming a folder git ignores (J8)' },
+	'in-folder-ignored': {
+		kind: 'refused',
+		when: '`--in` on `create`, `customize`, or `delete` naming a folder git ignores (J8)',
+	},
 	'no-file': { kind: 'notice', when: '`delete` with no file there: a no-op (R30)' },
 	'name-missing': { kind: 'usage', when: 'a command that needs a name, given none (UC1.7)' },
 	'name-invalid': { kind: 'usage', when: 'a write given a string that is not a name, such as `../x` (J1, R1)' },

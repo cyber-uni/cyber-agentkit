@@ -13,6 +13,8 @@ export type ReferenceInterface = {
 	versions: number[]
 	/** The implementation's top-level sections, in order. Every one is optional. Heading text is API. */
 	sections: string[]
+	/** What each section holds, by heading, when the interface says (C7): an implementation's stub states it (R28). */
+	holds?: Record<string, string>
 }
 
 /** One `implements:` value, `<id>@<version>`. */
@@ -42,9 +44,18 @@ function isVersion(value: unknown): value is number {
 	return typeof value === 'number' && Number.isInteger(value) && value > 0
 }
 
-/** A section is its heading text; a `required` mark on one is read and ignored, since every section is optional. */
-function readSection(value: unknown): string | { problem: string } {
+/**
+ * A section is its heading text; a `required` mark on one is read and ignored, since every section is
+ * optional. The `{heading, required, holds}` form (C7) also gives the line saying what it holds.
+ */
+function readSection(value: unknown): string | { heading: string; holds?: string } | { problem: string } {
 	if (typeof value === 'string' && value.trim()) return value.trim()
+	if (isRecord(value) && typeof value['heading'] === 'string' && value['heading'].trim()) {
+		const holds = value['holds']
+		return typeof holds === 'string' && holds.trim()
+			? { heading: value['heading'].trim(), holds: holds.trim() }
+			: { heading: value['heading'].trim() }
+	}
 	if (isRecord(value)) {
 		const keys = Object.keys(value)
 		const [name] = keys
@@ -88,15 +99,18 @@ export function readInterface(
 	}
 	const sectionsValue = block['sections']
 	const sections: string[] = []
+	const holds: Record<string, string> = {}
 	if (!Array.isArray(sectionsValue) || !sectionsValue.length) problems.push('sections is not a list of headings')
 	else {
 		const seen = new Set<string>()
 		for (const item of sectionsValue) {
-			const section = readSection(item)
-			if (typeof section !== 'string') {
-				problems.push(section.problem)
+			const read = readSection(item)
+			if (typeof read !== 'string' && 'problem' in read) {
+				problems.push(read.problem)
 				continue
 			}
+			const section = typeof read === 'string' ? read : read.heading
+			if (typeof read !== 'string' && read.holds !== undefined) holds[section] = read.holds
 			const key = sectionKey(section)
 			if (seen.has(key)) problems.push(`section "${section}" is listed more than once`)
 			seen.add(key)
@@ -105,7 +119,14 @@ export function readInterface(
 	}
 	if (problems.length) return { problems }
 	return {
-		value: { id, cardinality: cardinality as InterfaceCardinality, version: version as number, versions, sections },
+		value: {
+			id,
+			cardinality: cardinality as InterfaceCardinality,
+			version: version as number,
+			versions,
+			sections,
+			...(Object.keys(holds).length ? { holds } : {}),
+		},
 		problems,
 	}
 }

@@ -33,15 +33,16 @@ describe('delete', () => {
 		})
 	})
 
-	it('says when a selection went with the file, naming reference select, and gives the options it leaves', async () => {
+	it('says when a selection went with the file, naming customize --extends, and gives the options it leaves (UC11.4)', async () => {
 		const root = repo()
 		plugins(root, { a: { name: base }, b: { name: base } })
 		write(root, '.agents/references/name.md', '---\nextends: [a]\n---\n\n## Create\n\nmine\n')
 
 		expect(await remove('name', { root })).toBe(0)
 		expect(written()).toMatch(
-			/deleted\. "name" is ambiguous: .* Also, the selection extends: \[a\] went with it; run `reference select name <option>\.\.\.` to restore it\./,
+			/deleted\. "name" is ambiguous: .* Also, the selection extends: \[a\] went with it; run `reference customize name --extends a` to restore it\./,
 		)
+		expect(written()).not.toMatch(/select /)
 	})
 
 	it('answers with a no-file notice when no file is there, exit 0, saying what answers now (R30)', async () => {
@@ -100,5 +101,74 @@ describe('delete', () => {
 		failure.value = 'nope'
 		expect(await remove('name', { root })).toBe(1)
 		expect(lastError()).toEqual({ error: 'Reference deletion failed.', code: 'error' })
+	})
+
+	it('deletes a non-Markdown file with its metadata file, and a metadata file alone by itself (R95, UC11.6)', async () => {
+		const root = repo()
+		const data = write(root, '.agents/references/conf.json', '{}\n')
+		const meta = write(root, '.agents/references/conf.meta.md', '---\ndescription: d\nextends: [a]\n---\n')
+
+		expect(await remove('conf', { root, format: 'json' })).toBe(0)
+		expect(existsSync(data)).toBe(false)
+		expect(existsSync(meta)).toBe(false)
+		expect(json<ReferenceDeleteReport>()).toMatchObject({
+			path: data,
+			metadataFile: meta,
+			selection: expect.any(String),
+		})
+
+		const alone = write(root, '.agents/references/pick.meta.md', '---\nextends: [a]\n---\n')
+		stdout.mockClear()
+		expect(await remove('pick', { root })).toBe(0)
+		expect(existsSync(alone)).toBe(false)
+		expect(written()).toMatch(/selection extends: \[a\] went with it/)
+	})
+
+	it('deletes the <name>/README.md that answers in a plugin folder (J7)', async () => {
+		const root = repo()
+		const plugin = join(root, 'plugins/house')
+		write(plugin, 'plugin.json', JSON.stringify({ name: 'house' }))
+		const readme = write(plugin, 'references/name/README.md', 'x\n')
+
+		expect(await remove('name', { root, plugin })).toBe(0)
+		expect(existsSync(readme)).toBe(false)
+	})
+
+	it('deletes a folder’s project section with --in, saying what answers now', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		const path = write(root, 'packages/app/.agents/references/name.md', '## Create\n\napp\n')
+
+		expect(await remove('name', { root, in: join(root, 'packages/app'), format: 'json' })).toBe(0)
+		expect(existsSync(path)).toBe(false)
+		expect(json<ReferenceDeleteReport>()).toMatchObject({
+			path,
+			folder: 'packages/app',
+			status: 'found',
+			answer: '"name" is answered by plugin a, on the stack a.',
+		})
+
+		stdout.mockClear()
+		expect(await remove('name', { root, in: join(root, 'packages/app') })).toBe(0)
+		expect(written()).toMatch(/no-file: .*there is no project section for packages\/app of "name" to delete/)
+	})
+
+	it('reports the project sections that still answer', async () => {
+		const root = repo()
+		write(root, '.agents/references/name.md', 'main\n')
+		write(root, 'app/.agents/references/name.md', 'app\n')
+
+		expect(await remove('name', { root })).toBe(0)
+		expect(written()).toMatch(/"name" is answered only by the project sections of app\./)
+	})
+
+	it('refuses --in outside the root or missing, before reading the root', async () => {
+		const root = repo()
+		expect(await remove('name', { root: join(root, 'gone'), in: root })).toBe(2)
+		expect(lastError().code).toBe('in-not-below-root')
+		expect(await remove('name', { root, in: join(root, 'missing') })).toBe(1)
+		expect(lastError().code).toBe('in-folder-missing')
+		expect(await remove('name', { root, in: join(root, 'app'), scope: 'user' })).toBe(2)
+		expect(lastError().code).toBe('options-conflict')
 	})
 })

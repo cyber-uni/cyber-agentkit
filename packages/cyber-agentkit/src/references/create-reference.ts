@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { parseDocument as parseYaml } from 'yaml'
 import { frontmatterPattern, parseDocument, parseSections } from './reference-document.js'
+import { ReferenceFailure } from './reference-error.js'
 import type { ReferenceInterface } from './reference-interface.js'
 
 /** No `#` title: `patch` matches by heading path, so a title would hold every section under it. */
@@ -16,11 +17,14 @@ Write the guidance here. Give each topic its own top-level \`##\` section.
 
 export type Template = { content: string; metadata: Record<string, unknown>; body: string }
 
-/** The interface's sections as `##` headings, in order, each stubbed `**Unsupported.**`. */
+/**
+ * The interface's sections as `##` headings, in order, each stubbed `**Unsupported.**` followed by
+ * the line saying what it holds (R28); a section the interface says nothing of asks for the section.
+ */
 export function implementationTemplate(iface: ReferenceInterface): Template {
 	const sections = iface.sections.map(
 		(name) =>
-			`## ${name}\n\n**Unsupported.** Replace this line with the section, or say in one sentence why it is not supported.\n`,
+			`## ${name}\n\n**Unsupported.** ${iface.holds?.[name] ?? 'Replace this line with the section, or say in one sentence why it is not supported.'}\n`,
 	)
 	return parseTemplate(
 		`---\ndescription: What this ${iface.id} implementation covers, and when an agent should read it.\nimplements: ${iface.id}@${iface.version}\n---\n\n${sections.join('\n')}`,
@@ -34,7 +38,9 @@ export function readTemplate(path: string | undefined): Template {
 	try {
 		content = readFileSync(path, 'utf8')
 	} catch (error) {
-		throw new Error(`cannot read the template ${path}: ${(error as Error).message}`)
+		throw new ReferenceFailure('template-invalid', `cannot read the template ${path}: ${(error as Error).message}`, {
+			details: { path },
+		})
 	}
 	return parseTemplate(content, `the template ${path}`)
 }
@@ -45,7 +51,7 @@ function parseTemplate(content: string, label: string): Template {
 		mapping = false
 	})
 	// `load` would drop such frontmatter, so the reference would lose every key in it.
-	if (!mapping) throw new Error(`${label} has frontmatter that is not a YAML mapping.`)
+	if (!mapping) throw new ReferenceFailure('template-invalid', `${label} has frontmatter that is not a YAML mapping.`)
 	return { content, metadata, body }
 }
 
@@ -74,7 +80,9 @@ export function editFrontmatter(raw: string, keys: Record<string, unknown>): str
 	for (const [key, value] of Object.entries(keys)) {
 		if (value === undefined) doc.delete(key)
 		else {
-			const node = doc.createNode(value, { flow: Array.isArray(value) })
+			// A list of scalars, such as `extends: [a, b]`, reads best on one line; a list of records, such as `sources`, does not.
+			const flow = Array.isArray(value) && value.every((item) => typeof item !== 'object' || item === null)
+			const node = doc.createNode(value, { flow })
 			doc.set(key, node)
 		}
 	}

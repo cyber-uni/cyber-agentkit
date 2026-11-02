@@ -44,11 +44,33 @@ function above(resolved: ResolvedReference, dir: string, path: string): Referenc
 	return [...higher, ...tiersAbove(layers.length)]
 }
 
+/** How a hiding contribution is named: `<tier>[ <plugin>] <path> (<operation>)`. */
+export function hiderLabel(layer: ReferenceTraceLayer, display: (path: string) => string = (path) => path): string {
+	return `${layer.tier}${layer.plugin ? ` ${layer.plugin}` : ''} ${display(layer.path)} (${layer.operation})`
+}
+
+/**
+ * The contribution that hides the file at `dir` or `path`: the nearest `replace` with a body or
+ * `remove` above it (J6); `undefined` when nothing does, or when the folder is not a layer the name
+ * reads.
+ */
+export function hidingLayer(resolved: ResolvedReference, dir: string, path: string): ReferenceTraceLayer | undefined {
+	return above(resolved, dir, path).find(hides)
+}
+
+/**
+ * What hides a project section: only the managed contribution applies over one, so a managed
+ * `replace` with a body or a managed `remove` (UC10.4).
+ */
+export function projectHidingLayer(resolved: ResolvedReference): ReferenceTraceLayer | undefined {
+	return resolved.trace.layers.find((layer) => layer.tier === 'managed' && hides(layer))
+}
+
 /**
  * What hides the file at `dir` or `path`: the nearest `replace` with a body or `remove` above it
  * (J6), labeled `<tier>[ <plugin>] <path> (<operation>)`; `undefined` when nothing does.
  */
 export function hiddenBy(resolved: ResolvedReference, dir: string, path: string): string | undefined {
-	const hider = above(resolved, dir, path).find(hides)
-	return hider ? `${hider.tier}${hider.plugin ? ` ${hider.plugin}` : ''} ${hider.path} (${hider.operation})` : undefined
+	const hider = hidingLayer(resolved, dir, path)
+	return hider ? hiderLabel(hider) : undefined
 }

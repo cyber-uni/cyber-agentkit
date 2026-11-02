@@ -1,5 +1,4 @@
 import { homedir } from 'node:os'
-import { resolve } from 'node:path'
 import type { cli } from 'clibuilder'
 import { command, t } from 'clibuilder'
 import { result } from 'clibuilder/axi'
@@ -10,19 +9,25 @@ import {
 	type CommonArgs,
 	compact,
 	defaultOption,
+	givenRoot,
+	inOption,
 	type LayersFor,
 	rootOption,
 	traceOption,
 	writeWarnings,
 } from './reference-command-support.js'
-import { whereReference } from './reference-where.js'
+import { type ReferenceWhereFile, whereReference } from './reference-where.js'
 import type { ReferenceTrace } from './resolve-reference.js'
 
 export type ReferenceWhereOutput = {
 	name: string
 	status: string
-	places: { scope: string; path: string; reaches: string; status: string; sections?: string[] }[]
+	files: ReferenceWhereFile[]
+	headings?: string[]
+	used?: string[]
 	options?: string[]
+	/** Informational: the plugins and default the stack uses are read-only (UC2.6). */
+	hint?: string
 	layers?: ReferenceTrace['layers']
 	warnings?: ReferenceWarning[]
 }
@@ -31,7 +36,7 @@ export function whereCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'where',
 		description:
-			'Give the repo and user files a customization or a selection of a reference is written to, who each reaches, and the heading paths of the document below each.',
+			"Give the repo and user files, and with --in a folder's project section, a customization or a selection of a reference is written to, who each reaches and what hides it, the main document's heading paths, and the read-only plugins and default the stack uses.",
 		arguments: [
 			{
 				name: 'name',
@@ -42,23 +47,37 @@ export function whereCommand(layersFor: LayersFor): cli.Command {
 		options: {
 			root: rootOption,
 			default: defaultOption,
+			in: { ...inOption, description: "A folder strictly below the root: also give its project section's file." },
 			trace: { ...traceOption, description: 'Add every layer checked, with its outcome.' },
 		},
-		async run(args: CommonArgs & { name: string; default: string | undefined; trace: boolean | undefined }) {
+		async run(
+			args: CommonArgs & {
+				name: string
+				default: string | undefined
+				in: string | undefined
+				trace: boolean | undefined
+			},
+		) {
 			const format = this.format
 			try {
 				const home = homedir()
 				const display = (path: string) => collapseHome(home, path)
 				const layers = await layersFor(args, home)
 				const report = whereReference(args.name, layers, {
-					root: layers.root ?? resolve(args.root ?? process.cwd()),
+					root: layers.root ?? givenRoot(args.root),
 					display,
+					in: args.in,
 				})
 				const output: ReferenceWhereOutput = compact({
 					name: report.name,
 					status: report.status,
-					places: report.places.map((place) => compact(place)),
+					files: report.files,
+					headings: report.headings,
+					used: report.used,
 					options: report.options,
+					hint: report.used.length
+						? `${report.used.join(', ')} ${report.used.length === 1 ? 'is' : 'are'} read-only; a customization goes in one of the files.`
+						: undefined,
 					layers: args.trace ? report.layers.map((layer) => ({ ...layer, path: display(layer.path) })) : undefined,
 					warnings: report.warnings,
 				})
