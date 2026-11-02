@@ -7,8 +7,8 @@ Decisions a consumer can observe. Criteria in [README.md](./README.md) cite the 
 
 ```mermaid
 flowchart TD
-  start([show name]) --> valid{"E1 a valid name?"}
-  valid -->|"no: .md, .default, a path, a bad character"| invalid(["invalid: nothing read, other names go on"])
+  start([load name]) --> valid{"E1 a valid name?"}
+  valid -->|"no: .md, .default, .meta, a path, a bad character"| invalid(["invalid: nothing read, other names go on"])
   valid -->|yes| qual{"E2 qualified plugin/name?"}
   qual -->|yes| pinned["stack: that plugin and what its own extends brings in; a written extends is not used"]
   qual -->|no| iface{"E16 an interface document?"}
@@ -18,7 +18,7 @@ flowchart TD
   twoi -->|no| found
   iface -->|no| held{any layer holds it?}
   held -->|no| missing(["missing"])
-  held -->|yes| written{"E8 a written extends in managed, project, or user?"}
+  held -->|yes| written{"E8 a written extends in managed, repo, or user?"}
   written -->|yes| steps["the highest builds the stack: steps bottom first, each with its own merge and extends"]
   steps --> step{"E47 every step installed and holding the name?"}
   step -->|"some missing"| skip["skipped, with what only it brings in; warning"]
@@ -29,11 +29,14 @@ flowchart TD
   written -->|no| own{"E10 the plugins' own extends order every holder?"}
   own -->|"no, or a cycle, or a plugin at two places"| ambiguous(["ambiguous: each plugin/name and the default as options"])
   own -->|yes| overdef{"E42 a plugin answers over the skill's default with no extends naming either?"}
-  overdef -->|yes| warnsel["answers; warning names the plugin and reference select"]
+  overdef -->|yes| warnsel["answers; warning names the plugin and reference customize --extends"]
   overdef -->|no| leftout
   warnsel --> leftout
-  pinned --> compose
-  leftout --> compose["E3 apply bottom first in K17 order, each with its own operation"]
+  pinned --> nearer
+  leftout --> nearer{"E57 both repo and user hold one?"}
+  nearer -->|yes| both["both apply, repo over user; the user one's extends is not used"]
+  nearer -->|no| compose
+  both --> compose["E3 the stack bottom first in K17 order, then user, then repo, then managed, each with its own operation"]
   compose --> op{"the contribution's operation?"}
   op -->|"E46 no body"| nochange[changes nothing]
   op -->|"E6 patch, the default"| patch[each section's text in place of the text it matches by heading path]
@@ -52,9 +55,19 @@ flowchart TD
   rem --> next
   next -->|yes| op
   next -->|no| body{"something left with a body?"}
-  body -->|"no: a remove is on top"| missing
-  body -->|yes| found(["found: the composed document"])
-  found --> warn{"warnings? (parent E13)"}
+  body -->|"no: a managed remove is on top"| missing
+  body -->|"no: another remove is on top"| projonly{"E54 any project section?"}
+  projonly -->|no| missing
+  projonly -->|yes| sections
+  body -->|yes| sections["E54 project sections after the main document, in path order; managed applied over each"]
+  sections --> routing{"E55 the routing option?"}
+  routing -->|yes| routes["a route per section; --in expands the routes whose folder holds a path"]
+  routing -->|no| found
+  routes --> found(["found: the resolved reference"])
+  found --> stale{"E56 a recorded source's version changed, or the source gone?"}
+  stale -->|yes| stalew["stale: still used; reference-stale warning"]
+  stale -->|no| warn
+  stalew --> warn{"warnings? (parent E13)"}
   warn -->|yes| soft["on stderr, or in warnings; exit unchanged"]
 ```
 
@@ -62,18 +75,18 @@ flowchart TD
 
 | Edge | Decision | Outcome |
 | --- | --- | --- |
-| E14 | the project, user, and managed tiers | `.agents/references/` from the root up to the repository root; `~/.agents/references/`; `references/` in each detected harness's managed folder |
+| E14 | the root and the `repo`, `project`, `user`, and managed tiers | the root: the nearest `.git` folder up, else `--root`, else the working folder; `repo`: the root's `.agents/references/`; `project`: each `.agents/references/` strictly below it that `.gitignore` does not exclude; `~/.agents/references/`; `references/` in each detected harness's managed folder |
 | E15 | the plugin tier | enabled plugins of the detected harness, plus declared (not transitive) package dependencies that ship `references/` |
 | E43 | `--default <skill folder>` | `<skill folder>/references/<name>.default.md` read as the `default` tier; an old `references/<name>.md` copy is not |
 | E22 | a `governances/` folder | never read |
 | E17 | a layer skipped for a reason | in the trace with its reason; adds no contribution |
-| E11 | `--trace`, or `where` | every layer with its outcome; `where` gives the places to write and the heading paths below |
+| E11 | `--trace`, or `where` | every layer with its outcome, project sections, and a generated document's sources; `where` gives the places to write, with `--in` a folder's, and the heading paths |
 
 ## Finding names
 
 | Edge | Decision | Outcome |
 | --- | --- | --- |
 | E18 | `list` | one row per name; `--trace` gives one per layer and per skill default; a pattern keeps exact matches |
-| E19 | `search` | each name resolved as `show` would; match kinds ranked `name` to `body`, then by name |
+| E19 | `search` | each name resolved as `load` would; match kinds ranked `name` to `body`, then by name |
 | E20 | no match | an explicit zero, exit 0 |
 | E48 | skill defaults | found in the skill folders the detected harness reads; on an unverified harness none, and the answer says so |

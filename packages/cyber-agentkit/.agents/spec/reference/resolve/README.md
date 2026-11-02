@@ -90,8 +90,8 @@ IDs are shared across the parent and its children.
     `user` files a selection goes to. It is not an error.
   - UC2.6 `where` on a plugin's contribution or a default contribution: reported read-only, never offered as a place to
     write.
-  - UC2.7 Both `repo` and `user` hold a contribution: the `user` one is `shadowed (repo is nearer)`, whatever its
-    operation.
+  - UC2.7 Both `repo` and `user` hold a contribution: both apply, the `repo` one over the `user` one; a `repo` `replace`
+    or `remove` shadows the `user` one.
   - UC2.8 A generated document is stale: each changed or missing source is marked, and the layer's outcome is `stale`.
   - UC2.9 A folder below the root that `.gitignore` excludes: its project section is `not read (ignored)`.
 
@@ -132,10 +132,10 @@ IDs are shared across the parent and its children.
 - **Outcome:** each step brings its own `extends` beneath it, recursively; a plugin both listed and brought in appears
   once, at its listed place. Each step applies with its own operation: the step's key, else the plugin's own `merge`,
   else `patch`. The contribution's body applies on top with its own `merge`. The highest written `extends` among the
-  contributions used builds the stack: a managed contribution's, else the nearer of the `repo` and `user` ones, else the
-  plugins' own. The nearer `repo` or `user` contribution applies over the stack, and each managed contribution over that
-  (K23). Anything left out of that `extends`, a plugin or `default`, is `not used`. So a house-style plugin changes what
-  a generic skill reads without forking it.
+  contributions used builds the stack: a managed contribution's, else the `repo` one's, else the `user` one's, else the
+  plugins' own. The `user` contribution applies over the stack, the `repo` one over that, and each managed contribution
+  over both (K23). Anything left out of that `extends`, a plugin or `default`, is `not used`. So a house-style plugin
+  changes what a generic skill reads without forking it.
 - **Extensions:**
   - UC7.1 A step cannot be used, a lower `extends` differs, or a plugin lists itself: as UC1.12 says.
   - UC7.2 The steps cannot be put in one order: as UC1.2 says. Under a written list, bringing in stops at a plugin
@@ -172,9 +172,18 @@ Edge IDs are in [graph.md](./graph.md).
 
 **Composition**
 
-- R3 (UC1, E3): Contributions apply bottom first in K17 order, each over the result of everything below it with its
-  own operation. With no `merge` written anywhere, every contribution patches. Within the project tier, the nearer
-  folder is higher.
+- R3 (UC1, E3): The stack applies bottom first in K17 order, each contribution over the result of everything below it
+  with its own operation; then the `user` contribution, then the `repo` one, then each managed contribution, each over
+  the result below it with its own (K23). With no `merge` written anywhere, every contribution patches. Within the
+  project tier, the nearer folder is higher: an inner folder's section follows an outer one's and wins where they
+  conflict (UC17.3).
+- R74 (UC1, UC2, E57): When both `repo` and `user` hold a contribution, both apply, the `repo` one over the `user` one;
+  a `repo` `replace` or `remove` makes the `user` one `shadowed`. The `user` one's `extends` is not used (R8).
+- R73 (UC1, UC10, E54): Project sections follow the main document in path order, never composed into it. Each managed
+  contribution applies over each project section by heading path: a managed section that matches none of the project
+  section's is not added to it, and a managed `replace` or `remove` drops every project section. With no main document
+  but a project section, the name is `found` with only its project sections. A project section that is not Markdown is
+  not read, with a warning.
 - R6 (UC1, E6): `patch` keeps what is below and puts each section's text in place of the text it matches by heading
   path, unless that text is empty. Unmarked subsections replace. A section that matches nothing is added at the end. A
   heading path is read from each document's own top heading level.
@@ -195,10 +204,13 @@ Edge IDs are in [graph.md](./graph.md).
 
 - R8 (UC1, UC7, E8–E10): The highest written `extends` builds the stack: its steps apply bottom first, each bringing
   its own `extends` beneath it, recursively; a plugin both listed and brought in appears once, at its listed place.
-  With no written `extends` in the managed, project, or user tiers, the plugins' own `extends` order them. A plugin
-  left unordered makes the name `ambiguous`, with each `<plugin>/<name>` and the default as options.
+  The highest is a managed contribution's, else the `repo` one's, else the `user` one's. With no written `extends` in
+  the managed, `repo`, or `user` tiers, the plugins' own `extends` order them. A plugin left unordered makes the name
+  `ambiguous`, with each `<plugin>/<name>` and the default as options.
 - R52 (UC7, E8): A step applies with its own `merge` key, else the plugin's own `merge`, else `patch`. A step's own
-  `extends` key replaces the plugin's. `<plugin>: <operation>` is short for `{merge: <operation>}`.
+  `extends` key replaces the plugin's. A step's `sections` key lists the top-level sections, by heading, it contributes;
+  its other sections are not used, and a listed one it does not hold is skipped with a warning. `<plugin>: <operation>`
+  is short for `{merge: <operation>}`.
 - R53 (UC1, UC7, E9): A plugin or `default` left out of the highest written `extends` is `not used (not in extends)`
   and does not make the name `ambiguous`. A lower contribution's `extends` that builds a different stack is
   `not used`, with a warning.
@@ -210,7 +222,8 @@ Edge IDs are in [graph.md](./graph.md).
   warning. When every step is missing, the `extends` counts as not written, with a warning, and the stack falls
   through. A `default` step with nothing there is skipped with no warning; the trace shows `not read (no default)`.
 - R56 (UC1, UC4, E42): A plugin's contribution answering over the loading skill's default, when no written `extends`
-  names the plugin or the default, still answers, with a warning naming the plugin and `reference select <name>`.
+  names the plugin or the default, still answers, with a warning naming the plugin and
+  `reference customize <name> --extends`.
 
 **Reporting**
 
@@ -218,17 +231,28 @@ Edge IDs are in [graph.md](./graph.md).
   frontmatter as written, the operation applied and where it came from, and the outcome: `used`;
   `shadowed by <contribution> (replace|remove)`; `not used (not in extends)`,
   `not used (<step>'s extends replaced by <contribution>)`, `not used (<contribution>'s extends builds the stack)`, or
-  `not used (qualified name)`; `not read (<reason>)`; `ambiguous`; `missing`. It names the detected harnesses.
-- R57 (UC2, E11): `where` gives the project and user `<name>.md` with who each reaches, and the heading paths below
-  each; on an ambiguous name, the options and the files a selection goes to. With `--trace`, it also gives the layers
-  with their outcomes.
+  `not used (qualified name)`; `stale`; `not read (<reason>)`, `not read (ignored)` for a
+  project section in a folder `.gitignore` excludes; `ambiguous`; `missing`. It names the detected harnesses. It gives
+  each project section with its folder and path, and for a generated document each recorded source with its recorded
+  and installed plugin versions, and the request.
+- R57 (UC2, E11): `where` gives the `repo` and `user` `<name>.md` with who each reaches, and the heading paths of the
+  main document; with `--in <folder>`, also that folder's project section file; on an ambiguous name, the options and
+  the files a selection goes to. With `--trace`, it also gives the layers with their outcomes.
+- R75 (UC1, UC2, E56): A generated document, or a project section, is `stale` when a recorded source's plugin version
+  differs from the installed one, or a recorded source is gone. It is still used, with a `reference-stale` warning
+  naming each changed or missing source and how to revise it (UC14). Only plugin versions are compared (N8). A
+  contribution that records no sources is never stale.
 
 **Layers**
 
-- R12 (UC1, E14): The project tier reads `.agents/references/` in the root and each folder above it up to the
-  repository root (a `.git`, `pnpm-workspace.yaml`, or a `package.json` with `workspaces`); with no repository root
-  above, the root alone. The user tier reads `~/.agents/references/`. The managed tier reads `references/` in each
+- R12 (UC1, E14): The root is the nearest folder at or above the working folder that holds `.git`; `--root` names it
+  instead, and with neither, the working folder is the root. The `repo` tier reads the root's `.agents/references/`.
+  The `project` tier reads every `.agents/references/` strictly below the root, in folders `.gitignore` does not
+  exclude, tracked or not. The `user` tier reads `~/.agents/references/`. The managed tier reads `references/` in each
   detected harness's managed folder; the library keeps no managed folder of its own.
+- R76 (UC1, E55): With the routing option, each project section is a route naming its folder, in place of its text.
+  `--in <path>...` expands each route whose folder holds one of the paths, so a path in nested folders expands both. An
+  `--in` path outside the root is ignored, with a warning. Without the routing option, `--in` changes nothing.
 - R13 (UC1, E15): The plugin tier holds, for the detected harness, each enabled plugin's `references/`, and the declared
   `dependencies` and `devDependencies` of the nearest `package.json` that are plugins and ship one, each named by its
   plugin manifest's `name`, never by its package name; never a transitive package. Any other dependency adds no plugin
@@ -249,13 +273,14 @@ Edge IDs are in [graph.md](./graph.md).
 
 - R16 (UC3, E18): `list` has one row per name, with its description and, when not `found`, its status and options. With
   `--trace`, it has one row per name per layer holding it, and one per installed skill holding a default of it, naming
-  the skill and noting that the `default` step reaches it; a selection's row is marked as one. Two installed skills of
-  one name in different folders, each holding a default of the name, get a row each with its path: the harnesses
-  disagree on which copy runs, so neither is chosen. A name only skills' defaults hold resolves as the first such skill,
-  by name, loads it. `list '<pattern>'` keeps exactly the names matching, where `*` is any run of characters and
-  everything else is literal and case-sensitive.
+  the skill and noting that the `default` step reaches it; a selection's row is marked as one, a generated document's as
+  generated, and a project section's row names its folder. Two installed skills of one name in different folders, each
+  holding a default of the name, get a row each with its path: the harnesses disagree on which copy runs, so neither is
+  chosen. A name only skills' defaults hold resolves as the first such skill, by name, loads it. `list '<pattern>'`
+  keeps exactly the names matching, where `*` is any run of characters and everything else is literal and
+  case-sensitive.
 - R17 (UC3, E19): `search` ranks match kinds in the order `name`, `prefix`, `close name`, `description` (which also
-  matches `tags`), `heading`, `body`, then by name. A name resolves as `show` would, and each default as its skill loads
+  matches `tags`), `heading`, `body`, then by name. A name resolves as `load` would, and each default as its skill loads
   it, before it is searched; a name a `remove` turned off is left out.
 - R18 (UC3, E20): `list` and `search` with no match print an explicit zero; it is not an error.
 - R58 (UC3, E48): Defaults are found in the skill folders the detected harness reads: its project and user skill
