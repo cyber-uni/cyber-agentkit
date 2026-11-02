@@ -1,0 +1,38 @@
+# 0003 — References are generated at authoring time and scoped by folder
+
+**Status:** accepted (2026-11-02). The design lives in the [reference spec](../../reference/README.md); this record
+keeps the reasons. It supersedes the pin file, default marker, and ambiguity hint that #110 proposed.
+
+- **A model runs when a customizer writes, never when a name loads (N14).** Layering contributions mechanically
+  produces instructions that work but cannot make them concise. A generator reads the resolved reference and the
+  customizer's request, and writes one document that applies it. Load stays deterministic and needs no model.
+- **Folder-specific instructions are project sections, delivered up front (N15).** A `.agents/references/<name>.md`
+  below the root states only what differs in its folder, and load delivers every one after the main document, wrapped
+  in `<project folder="...">`. Following the agent's working folder would need hooks or a reload, and some
+  organizations turn hooks off.
+- **No routing table; every project section is inlined (N17).** No one can predict which folders the agent touches
+  after it loads a name, nor rely on the agent to open a route when its work moves. Behavior correctness outranks
+  context cost.
+- **Load applies the stack, then `user`, then `repo`, then managed (K23).** The earlier rule, "the nearest full
+  document wins", belonged to the snapshot model and was dropped when merging came back. Keeping documents portable
+  limits only what is written, not the order load applies them in.
+- **Managed text never appears in a written file (R84, R85).** An admin's managed contribution is policy. The generator
+  reads with managed text left out (`customize --base`), and the runtime merge applies it at load. A managed
+  contribution's `extends` is structure, not text, so it still builds the stack the generator reads.
+- **Staleness compares plugin versions only, with no content hash (N8).** A generated document records each source's
+  plugin version; load reports it stale when one changes. A hash and a compiled cache at load were rejected: a changed
+  request is a reason to generate again, not something load should detect.
+- **A generator's input never includes the file it replaces (R84).** Otherwise revising a document applies the request
+  over its own earlier result.
+- **A file a `replace` or `remove` above would hide is written, with a warning.** The hiding contribution, managed
+  ones included, may change later, so the customizer's intent is kept; `where`, `check`, and the trace show it is not
+  applied.
+- **Exit values follow clibuilder's `axi` contract (R43, R45).** A command that answered exits 0, even when a name is
+  not `found` or a check fails: those are statuses in the result. Exit 1 means it could not complete, exit 2 that it
+  was called wrongly, each with one error value on stdout.
+- Rejected:
+  - A pin file and a default marker (#110): a written `extends` selection does the same job and records the order.
+  - Briefs (`.brief.md`): a brief does nothing until someone generates, and its author cannot test it.
+  - A notice for contributions that are not applied: noise.
+- A written `extends` is the whole stack: a plugin installed later waits until a customizer adds it. A notice for that
+  case is a follow-up.
