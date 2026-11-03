@@ -191,6 +191,8 @@ IDs are shared across the parent and its children.
   - UC21.6 A declared package is not a plugin, or ships no contribution of the name: it adds nothing.
   - UC21.7 A generated project section for that folder records the package plugin as a source, and goes stale when it
     changes (R101).
+  - UC21.8 A `repo` or `user` `extends` builds the stack: the package plugin is not one of the plugins it places or
+    declines (K35), so it raises no warning that it is not selected (R113).
 
 ## Criteria
 

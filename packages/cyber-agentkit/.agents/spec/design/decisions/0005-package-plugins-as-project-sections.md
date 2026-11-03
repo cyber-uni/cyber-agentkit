@@ -13,6 +13,8 @@ the rest of 0003 stands. The design lives in the [reference spec](../../referenc
 - **A package plugin's `merge`, `extends`, `implements`, and `aliases` are dropped silently.** They are valid on the
   plugin's own file, which also serves repositories that put it in the stack; a warning would blame the package for
   the plugin's authoring.
+- **A written `extends` neither warns about nor declines a package plugin ([0004](0004-declined-plugins.md)).** It
+  never joins the stack, so a customizer's pick has nothing to decide about it.
 - **Which `package.json` counts follows project folder discovery.** Any one in a folder git does not ignore, so no
   workspace configuration of any package manager is parsed.
 - Rejected:
