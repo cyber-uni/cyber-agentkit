@@ -139,7 +139,8 @@ export function traceText(resolved: ResolvedReference, home: string): string {
 		for (const row of trace.projectSections) {
 			const frontmatter =
 				row.frontmatter && Object.keys(row.frontmatter).length ? ` ${JSON.stringify(row.frontmatter)}` : ''
-			lines.push(`  ${row.folder} ${row.path}: ${row.outcome}${frontmatter}`)
+			const from = row.plugin === undefined ? '' : ` (plugin ${row.plugin}${row.version ? `@${row.version}` : ''})`
+			lines.push(`  ${row.folder}${from} ${row.path}: ${row.outcome}${frontmatter}`)
 			lines.push(...recordLines(row, '    '))
 			for (const section of row.sections ?? []) {
 				const how = section.contributions
@@ -169,7 +170,8 @@ export function notFoundTag(entry: ResolvedReference): string {
 
 /**
  * A found name's text: the main document, then each project section wrapped with its folder, in path
- * order, keeping its own heading levels (R44).
+ * order, keeping its own heading levels (R44). A package plugin's section also names the plugin, so
+ * the agent can put the folder's own section over it (R90).
  */
 export function deliveredText(entry: ResolvedReference): string {
 	const content = entry.content ?? ''
@@ -177,7 +179,8 @@ export function deliveredText(entry: ResolvedReference): string {
 	const blocks = [
 		...(content.trim() ? [content.trimEnd()] : []),
 		...entry.projectSections.map(
-			({ folder, content: text }) => `<project folder="${escapeAttribute(folder)}">\n${text}</project>`,
+			({ folder, plugin, content: text }) =>
+				`<project folder="${escapeAttribute(folder)}"${plugin === undefined ? '' : ` plugin="${escapeAttribute(plugin)}"`}>\n${text}</project>`,
 		),
 	]
 	return `${blocks.join('\n\n')}\n`

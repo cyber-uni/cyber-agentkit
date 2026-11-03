@@ -12,6 +12,7 @@ import {
 	readInterface,
 } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers } from './reference-layers.js'
+import { heldPlugins } from './reference-package-plugins.js'
 import { projectSectionNames } from './reference-project-sections.js'
 import {
 	parseReferenceName,
@@ -266,7 +267,9 @@ export function checkReferences(source: Source, options: CheckOptions = {}): Ref
 	const lookup = interfaceLookup(source, rest)
 	const resolve = (name: string) => resolveReference(parseReferenceName(name), source, resolveOptions)
 	const layers = Array.isArray(source) ? undefined : (source as ReferenceLayers)
-	const sectionNames = new Set(layers?.root === undefined ? [] : projectSectionNames(layers.root, layers.projects))
+	const sectionNames = new Set(
+		layers?.root === undefined ? [] : projectSectionNames(layers.root, layers.projects, heldPlugins(layers)),
+	)
 	/** The warnings a checked name's files raise: each hidden file, and each moved base. */
 	const fileWarnings = (name: string, resolved: ResolvedReference) => {
 		const ref = parseReferenceName(name)

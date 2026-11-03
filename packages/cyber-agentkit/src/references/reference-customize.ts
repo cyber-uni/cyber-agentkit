@@ -6,7 +6,13 @@ import { baseLayers, type GeneratorBase, generatorBase } from './reference-base.
 import type { ReferenceWarning } from './reference-codes.js'
 import { hasBody, parseDocument } from './reference-document.js'
 import type { ReferenceLayers } from './reference-layers.js'
-import { generatedFrontmatter, isGenerated, recordedSources, sourceCatalog } from './reference-sources.js'
+import {
+	generatedFrontmatter,
+	isGenerated,
+	type ReferenceSource,
+	recordedSources,
+	sourceCatalog,
+} from './reference-sources.js'
 import { type ExtendsStep, readExtends } from './reference-stack.js'
 import { describeAnswer, hiddenWarning } from './reference-write.js'
 import { type CustomizePlan, validateWrite } from './reference-write-checks.js'
@@ -149,6 +155,22 @@ function writePicks(
 }
 
 /**
+ * The package plugins (K36) whose sections a folder target's base holds, each with its installed
+ * version, so the section goes stale when one changes (UC21.7). A plugin already in the stack is
+ * recorded once.
+ */
+function packageSources(base: ResolvedReference): ReferenceSource[] {
+	const inStack = new Set(base.trace.stack)
+	const used = new Set(base.projectSections.flatMap(({ plugin }) => (plugin === undefined ? [] : [plugin])))
+	const sources = new Map<string, ReferenceSource>()
+	for (const { plugin, version } of base.trace.projectSections) {
+		if (plugin === undefined || !used.has(plugin) || inStack.has(plugin) || sources.has(plugin)) continue
+		sources.set(plugin, version === undefined ? { plugin } : { plugin, version })
+	}
+	return [...sources.values()]
+}
+
+/**
  * Writes a generated body (R81): the body as given, with frontmatter recording the picks it was
  * built on, each source with its installed version (K34), the request, and `merge`; a whole
  * implementation records `implements` and `merge: replace` and no sources (R111); a project section
@@ -170,11 +192,14 @@ function writeGenerated(
 	const sources =
 		implementing || base.status !== 'found'
 			? []
-			: recordedSources(
-					base.trace.stack,
-					sourceCatalog(baseLayers(layers, target), { tier: target.scope === 'user' ? 'user' : 'repo' }),
-					defaultSkill(layers),
-				)
+			: [
+					...recordedSources(
+						base.trace.stack,
+						sourceCatalog(baseLayers(layers, target), { tier: target.scope === 'user' ? 'user' : 'repo' }),
+						defaultSkill(layers),
+					),
+					...(project ? packageSources(base) : []),
+				]
 	const written = !project && !implementing && picked !== undefined
 	const record = {
 		extends: written ? picked : undefined,

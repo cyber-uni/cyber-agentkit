@@ -24,7 +24,7 @@ Do not read `.agents/references/`, `~/.agents/`, any plugin's `references/`, or 
 
 The result is on stdout. One found name prints its document. Several print each as `<reference name="…">` … `</reference>`, in the order asked. A name that was not found prints `<reference name="…" status="…" code="…">message</reference>` in its place, also when it is the only name. Read the status and the code from that tag. The command exits 0 even when a name was not found.
 
-A found document may end with project sections, each wrapped as `<project folder="…">` … `</project>`. Each one states what differs for work in that folder.
+A found document may end with project sections, each wrapped as `<project folder="…">` … `</project>`. Each one states what differs for work in that folder. A section marked `plugin="…"` comes from a plugin that folder's `package.json` lists.
 
 A warning prints on stderr as `warning: <code>: <message>`. It does not change the answer.
 
@@ -72,7 +72,7 @@ Where instructions conflict, follow them in this order, highest first:
 2. a single feature's own document the caller points you at;
 3. the resolved reference, or the default read when the command did not run.
 
-Within a resolved reference, the project section for the folder the work is in ranks over the main document. When sections of nested folders both apply, follow both, and the inner folder's section wins where they conflict. Managed text needs no ranking: the command already applied it.
+Within a resolved reference, the project section for the folder the work is in ranks over the main document. When sections of nested folders both apply, follow both, and the inner folder's section wins where they conflict. When one folder has a section marked `plugin="…"` and one without, follow both, and the one without wins where they conflict. Managed text needs no ranking: the command already applied it.
 
 Follow a project section whenever your work is in its folder. When the work moves into a folder partway through the task, follow that folder's project section from then on, without loading again. Stop following it when the work leaves the folder.
 

@@ -19,8 +19,12 @@ import type { ReferenceSourcePlugin } from './reference-sources.js'
  */
 export type ReferenceTier = 'managed' | 'repo' | 'project' | 'user' | 'plugin' | 'default'
 
-/** How a plugin layer came to be read: the plugin running the resolver, one a harness enabled, or a dependency of the root's `package.json`. */
-export type PluginOrigin = 'host' | 'enabled' | 'dependency'
+/**
+ * How a plugin came to be read: the plugin running the resolver, one a harness enabled, a dependency
+ * of the root's `package.json`, or one a `package.json` below the root declares, which adds project
+ * sections for its folder and no layer (K36).
+ */
+export type PluginOrigin = 'host' | 'enabled' | 'dependency' | 'package'
 
 export type ReferenceLayer = {
 	tier: ReferenceTier

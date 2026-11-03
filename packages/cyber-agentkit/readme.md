@@ -317,6 +317,11 @@ project section for that folder. It is not a tier. `load` delivers each one afte
 in path order, as `<project folder="...">...</project>` in text and as `projectSections` records in
 structured output. The managed contribution applies over each section.
 
+A plugin listed in the `package.json` of a folder below the root, and not already in the plugin tier,
+adds a project section for that folder instead of a plugin layer: its own document for the name,
+delivered ahead of the folder's own section and marked `plugin="..."` in text. So one package of a
+monorepo can use a different plugin's version of a name, and the rest of the repository is unaffected.
+
 A document written by `customize` from a request records its `sources` and `request`. `load` warns
 `reference-stale` when a source plugin's version has changed since. A plugin or skill default can
 list older names in `aliases`; a load of an older name resolves the new one with a

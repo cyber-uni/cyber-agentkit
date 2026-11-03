@@ -32,7 +32,7 @@ export type ReferenceLoadEntry =
 			status: ResolvedReference['status']
 			content?: string
 			/** What each folder below the root adds after the main document, in path order. */
-			projectSections?: { folder: string; content: string }[]
+			projectSections?: { folder: string; plugin?: string; content: string }[]
 			/** Set when the answer is not Markdown. */
 			format?: string
 			code?: ReferenceStatusCode
@@ -58,7 +58,9 @@ function loadEntry(resolved: ResolvedReference, home: string, { metadata, trace 
 		name: resolved.name,
 		status: resolved.status,
 		content: resolved.content,
-		projectSections: resolved.projectSections.map(({ folder, content }) => ({ folder, content })),
+		projectSections: resolved.projectSections.map(({ folder, plugin, content }) =>
+			plugin === undefined ? { folder, content } : { folder, plugin, content },
+		),
 		format: resolved.format === 'markdown' ? undefined : resolved.format,
 		code: resolved.code,
 		options: resolved.options,

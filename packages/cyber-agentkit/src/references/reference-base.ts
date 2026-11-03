@@ -17,7 +17,7 @@ import {
 export type GeneratorBase = {
 	/** The stub, then the main document built for the target; empty when neither is there. */
 	content: string
-	/** For a folder target: the project sections of the folders above it, in path order. */
+	/** For a folder target: the project sections of the folders above it, then the package plugins' for its own, in path order. */
 	projectSections: ResolvedProjectSection[]
 	/** The interface's stub, when one is named. */
 	stub?: string
@@ -50,8 +50,8 @@ function structureOnly(contribution: Contribution, steps: ExtendsStep[] | undefi
  * The name resolved for the generator (R84, J4): managed text is left out though a managed `extends`
  * still builds the stack, and the target file adds only its `extends`, or `steps` in its place (the
  * picks; `null` for none). For a folder target, the main document is followed by the project sections
- * of the folders above it, never the target's own or a deeper one; a `repo` or `user` target gets
- * the main document alone.
+ * of the folders above it and the package plugins' sections for its own folder (R84), never the
+ * target's own or a deeper one; a `repo` or `user` target gets the main document alone.
  */
 export function resolveBase(
 	name: ReferenceName,
@@ -95,7 +95,12 @@ export function resolveBase(
 	const resolved = resolveAdjusted(name, baseLayers(layers, target), options, adjust)
 	const folder = target.folder
 	const projectSections =
-		folder === undefined ? [] : resolved.projectSections.filter((section) => folder.startsWith(`${section.folder}/`))
+		folder === undefined
+			? []
+			: resolved.projectSections.filter(
+					(section) =>
+						folder.startsWith(`${section.folder}/`) || (section.folder === folder && section.plugin !== undefined),
+				)
 	return { ...resolved, projectSections }
 }
 

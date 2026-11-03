@@ -168,6 +168,32 @@ IDs are shared across the parent and its children.
     in an implementation resolves to the renamed interface, and a load of `<old id>` or `<old id>.<key>` resolves `<id>`
     or `<id>.<key>`, each with a warning.
 
+### UC21 — Scope a package's plugin to its folder (A8.2)
+
+- **Trigger:** one package of a monorepo lists a plugin in its own `package.json` that the rest of the repository does
+  not use, such as a billing package that tracks issues in Jira while the repository uses GitHub.
+- **Entry points:** Skill: the `reference` skill's Load mode, which runs `load`. Code: `loadReference`.
+- **Inputs:** a name; the root (K18); the `package.json` files below it; the detected harness.
+- **Outcome:** the plugin is a package plugin (K36). Load delivers its contribution of the name as a project section for
+  that package's folder (R44), ahead of the folder's own project section, with the managed contribution applied over it
+  as over any project section (K27). The main document is the same from every working folder, so work in the package
+  follows the plugin's version, and work elsewhere does not see it as theirs (R90).
+- **Extensions:**
+  - UC21.1 The plugin tier already holds the plugin (the harness enables it, or the root declares it): it is in the main
+    document, and adds no project section.
+  - UC21.2 A package and a package inside it both declare the plugin: only the outer package's folder gets its section,
+    which already covers the inner one.
+  - UC21.3 The `package.json` sits in a folder git ignores: it is not read.
+  - UC21.4 Several plugins one package declares hold the name: each adds a section for that folder, a plugin after any
+    plugin its own `extends` names.
+  - UC21.5 The plugin's contribution carries `merge`, `extends`, `implements`, or `aliases`: they shape the plugin's own
+    file, so they are left out of the section without a warning (contrast UC1.19).
+  - UC21.6 A declared package is not a plugin, or ships no contribution of the name: it adds nothing.
+  - UC21.7 A generated project section for that folder records the package plugin as a source, and goes stale when it
+    changes (R101).
+  - UC21.8 A `repo` or `user` `extends` builds the stack: the package plugin is not one of the plugins it places or
+    declines (K35), so it raises no warning that it is not selected (R113).
+
 ## Criteria
 
 Edge IDs are in [graph.md](./graph.md).
@@ -238,8 +264,8 @@ Edge IDs are in [graph.md](./graph.md).
 - R9 (UC2): The trace reports every layer checked, highest first, with where it came from, the file matched, the
   operation applied and where that came from, and its outcome: used, shadowed (by which contribution), not used (and
   why), not read (and why, a project section in an ignored folder included), stale, ambiguous, or missing. It names the
-  detected harnesses. It gives each project section with its folder, and for a generated document each recorded source
-  with its recorded and installed plugin versions, and the request.
+  detected harnesses. It gives each project section with its folder, and the package plugin that supplied it, and for a
+  generated document each recorded source with its recorded and installed plugin versions, and the request.
 - R101 (UC1, UC2): At load, a generated `repo` or `user` document, or a project section, is `stale` when a recorded
   source's plugin version differs from the installed one, or a recorded source is gone. It is still used, with a
   warning naming each changed or missing source and how to revise it (UC20). A `user` document records only the
@@ -255,7 +281,11 @@ Edge IDs are in [graph.md](./graph.md).
   than one, none is read, and the trace says so. The library keeps no managed folder of its own.
 - R13 (UC1, E15): The plugin tier holds, for the detected harness, each enabled plugin's references, and the declared
   dependencies of the root's `package.json` that are plugins and ship references. Any other dependency adds no plugin
-  layer.
+  layer, and a `package.json` below the root adds none either: its plugins are package plugins (R115).
+- R115 (UC21, E69): A package plugin (K36) declared by a `package.json` in a folder git does not ignore, and by no
+  package outside that folder, adds its contribution of a name as a project section for that package's folder, ahead
+  of the folder's own section. A plugin the plugin tier holds adds none. Keys the plugin's file carries for the stack
+  are left out without a warning.
 - R14 (UC1): An interface document is never composed: `extends` and `merge` on it are ignored with a warning, a higher
   contribution of it is ignored with a warning, and the lowest answers; two plugins holding it make it `ambiguous`.
 - R15 (UC2, E17): A layer skipped for a reason appears in the trace with that reason and adds no contribution.

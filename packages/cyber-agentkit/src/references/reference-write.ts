@@ -43,7 +43,7 @@ export function describeAnswer(
 					: `the ${top.tier} file ${display(top.path)}`
 			: undefined
 		const stack = resolved.trace.stack.length ? `, on the stack ${resolved.trace.stack.join(' → ')}` : ''
-		const folders = resolved.projectSections.map(({ folder }) => folder)
+		const folders = [...new Set(resolved.projectSections.map(({ folder }) => folder))]
 		if (!by) return `"${resolved.name}" is answered only by the project sections of ${folders.join(', ')}.`
 		const sections = folders.length ? `, with the project sections of ${folders.join(', ')}` : ''
 		return `"${resolved.name}" is answered by ${by}${stack}${sections}.`
