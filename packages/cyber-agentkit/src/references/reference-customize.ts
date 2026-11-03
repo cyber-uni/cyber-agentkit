@@ -7,6 +7,7 @@ import type { ReferenceWarning } from './reference-codes.js'
 import { hasBody, parseDocument } from './reference-document.js'
 import type { ReferenceLayers } from './reference-layers.js'
 import { generatedFrontmatter, isGenerated, recordedSources, sourceCatalog } from './reference-sources.js'
+import { type ExtendsStep, readExtends } from './reference-stack.js'
 import { describeAnswer, hiddenWarning } from './reference-write.js'
 import { type CustomizePlan, validateWrite } from './reference-write-checks.js'
 import type { TargetArgs, WriteScope } from './reference-write-target.js'
@@ -116,7 +117,7 @@ function writePicks(
 				after: before,
 			}
 		}
-		const content = editFrontmatter(plan.held, { extends: undefined })
+		const content = editFrontmatter(plan.held, { extends: undefined, declined: undefined })
 		const deleted = !content.trim()
 		result.action = 'cleared'
 		if (deleted) result.deleted = true
@@ -127,7 +128,7 @@ function writePicks(
 		return after(result, plan, layers, options)
 	}
 	const values = picks ? picks.values : []
-	const content = editFrontmatter(plan.held ?? '', { extends: values })
+	const content = editFrontmatter(plan.held ?? '', { extends: values, declined: declinedBy(plan, values) })
 	Object.assign(result, { action: 'selection', content, extends: values })
 	const hidden = hiddenWarning(before, plan.target, holder, display)
 	if (hidden) result.warnings.push(hidden)
@@ -174,8 +175,10 @@ function writeGenerated(
 					sourceCatalog(baseLayers(layers, target), { tier: target.scope === 'user' ? 'user' : 'repo' }),
 					defaultSkill(layers),
 				)
+	const written = !project && !implementing && picked !== undefined
 	const record = {
-		extends: project || implementing ? undefined : picked,
+		extends: written ? picked : undefined,
+		declined: written ? declinedBy(plan, picked) : undefined,
 		sources: undefined,
 		request: undefined,
 		...generatedFrontmatter({ sources, request: plan.request as string }),
@@ -198,6 +201,34 @@ function writeGenerated(
 	write(plan.file, result.content)
 	if (result.metadataContent !== undefined) write(plan.holder, result.metadataContent)
 	return after(result, plan, layers, options)
+}
+
+/**
+ * The plugins the written picks leave out (R114): each plugin that holds the name now and the stack
+ * those picks build does not place, so load stops asking about them (R113). The picks are expanded
+ * themselves, so a managed `extends` building the stack in their place (R109) changes nothing here.
+ * `undefined` when none.
+ */
+function declinedBy(plan: CustomizePlan, picks: unknown): string[] | undefined {
+	const steps = readExtends(picks, () => {})
+	if (!steps) return undefined
+	const own = new Map<string, unknown>()
+	// The base reads the plugins the target's tier can pick: a `user` one, only the enabled plugins (R84).
+	for (const { tier, plugin, file, outcome, frontmatter } of plan.base.trace.layers) {
+		if (tier !== 'plugin' || plugin === undefined || file === undefined || outcome.startsWith('not read')) continue
+		if (!own.has(plugin)) own.set(plugin, frontmatter?.['extends'])
+	}
+	const placed = new Set<string>()
+	const place = (list: readonly ExtendsStep[]): void => {
+		for (const step of list) {
+			if (placed.has(step.target)) continue
+			placed.add(step.target)
+			place(step.extends ?? readExtends(own.get(step.target), () => {}) ?? [])
+		}
+	}
+	place(steps)
+	const declined = [...own.keys()].filter((plugin) => !placed.has(plugin))
+	return declined.length ? declined : undefined
 }
 
 /** The name resolved again; a new project folder is found only by a fresh discovery. */

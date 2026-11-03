@@ -38,6 +38,10 @@ export const referenceCodes = {
 		kind: 'warning',
 		when: 'a plugin answering over the default with no `extends` naming either, and no own `extends` of the plugin naming `default` (R56)',
 	},
+	'plugin-not-selected': {
+		kind: 'warning',
+		when: 'a plugin holding the name that the `repo` or `user` `extends` building the stack neither places nor declines (R113)',
+	},
 	'default-folder-missing': { kind: 'warning', when: 'a `--default` folder that does not exist (R41)' },
 	'default-in-tier': { kind: 'warning', when: 'a `<name>.default.md` in a tier folder (R51)' },
 	'file-ignored': {

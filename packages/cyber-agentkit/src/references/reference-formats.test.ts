@@ -80,7 +80,7 @@ describe('non-Markdown references (R65 to R71)', () => {
 
 	it('lets a selection choose which plugin supplies a data file (inversion of control)', () => {
 		const layers = [
-			layer('user', { 'permissions.md': '---\nextends: [plugin-b]\n---\n' }),
+			layer('user', { 'permissions.md': '---\nextends: [plugin-b]\ndeclined: [plugin-a]\n---\n' }),
 			{ ...layer('plugin', { 'permissions.json': '{"who":"a"}\n' }), plugin: 'plugin-a' },
 			{ ...layer('plugin', { 'permissions.json': '{"who":"b"}\n' }), plugin: 'plugin-b' },
 		]

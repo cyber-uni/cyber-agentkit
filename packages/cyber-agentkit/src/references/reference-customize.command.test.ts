@@ -15,6 +15,7 @@ import {
 	repo,
 	customize as run,
 	skill,
+	stderr,
 	stdout,
 	write,
 	written,
@@ -53,7 +54,9 @@ describe('customize --extends (UC9, R79, R80)', () => {
 		)
 
 		expect(await customize('name', { root, extends: ['b', 'default'], format: 'json' })).toBe(0)
-		expect(readFileSync(path, 'utf8')).toBe('---\ndescription: mine\nextends: [b, default]\n---\n\n## Create\n\nmine\n')
+		expect(readFileSync(path, 'utf8')).toBe(
+			'---\ndescription: mine\nextends: [b, default]\ndeclined: [a]\n---\n\n## Create\n\nmine\n',
+		)
 		expect(json<ReferenceCustomizeReport>()).toMatchObject({ extends: ['b', 'default'], status: 'found', stack: ['b'] })
 	})
 
@@ -140,7 +143,7 @@ describe('customize --extends (UC9, R79, R80)', () => {
 		managed({ name: '---\nextends: [a]\n---\n' })
 
 		expect(await customize('name', { root, extends: ['b'] })).toBe(0)
-		expect(readFileSync(repoFile(root), 'utf8')).toBe('---\nextends: [b]\n---\n')
+		expect(readFileSync(repoFile(root), 'utf8')).toBe('---\nextends: [b]\ndeclined: [a]\n---\n')
 		expect(errors()).toMatch(
 			/^warning: extends-not-used: the picks are written to .*, but managed .*'s extends builds the stack/m,
 		)
@@ -190,7 +193,7 @@ describe('customize --request --body (UC18, R81, R82)', () => {
 
 		expect(await customize('name', { root, merge: 'replace', request: ask(root), body: draft(root) })).toBe(0)
 		const content = readFileSync(repoFile(root), 'utf8')
-		expect(content).toMatch(/^---\nmerge: replace\nextends: \[b\]\nsources:\n {2}- plugin: b\n/)
+		expect(content).toMatch(/^---\nmerge: replace\nextends: \[b\]\ndeclined: \[a\]\nsources:\n {2}- plugin: b\n/)
 	})
 
 	it('writes a missing name from the request alone, with no sources (UC18.3, J12)', async () => {
@@ -565,5 +568,104 @@ describe('customize: flag values and error order (J10, J11, C3)', () => {
 		expect(lastError().code).toBe('pick-required')
 		expect(await customize('name', { root, extends: ['a'], request: ask(root), body: draft(root) })).toBe(1)
 		expect(lastError().code).toBe('body-not-generated')
+	})
+})
+
+describe('customize records the plugins its picks leave out (R114, R113, UC9.7)', () => {
+	const warned = () => /warning: plugin-not-selected: /.test(errors())
+
+	it('records each plugin holding the name that the picks leave out as declined', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base }, b: { name: base }, c: { name: base } })
+
+		expect(await customize('name', { root, extends: ['a'] })).toBe(0)
+		expect(readFileSync(repoFile(root), 'utf8')).toBe('---\nextends: [a]\ndeclined: [b, c]\n---\n')
+	})
+
+	it('writes no declined when the picks place every plugin holding the name', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base }, b: { name: base } })
+
+		expect(await customize('name', { root, extends: ['a', 'b'] })).toBe(0)
+		expect(readFileSync(repoFile(root), 'utf8')).toBe('---\nextends: [a, b]\n---\n')
+	})
+
+	it("does not decline a plugin a pick's own extends brings in", async () => {
+		const root = repo()
+		plugins(root, { a: { name: base }, b: { name: '---\nextends: [a]\n---\n\n## Create\n\nb\n' } })
+
+		expect(await customize('name', { root, extends: ['b'] })).toBe(0)
+		expect(readFileSync(repoFile(root), 'utf8')).toBe('---\nextends: [b]\n---\n')
+	})
+
+	it('warns about a plugin installed after the pick until the same picks are written again', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		expect(await customize('name', { root, extends: ['a'] })).toBe(0)
+
+		plugins(root, { a: { name: base }, b: { name: base } })
+		expect(await load(['name'], { root })).toBe(0)
+		expect(errors()).toMatch(
+			/warning: plugin-not-selected: .*the plugin b holds "name".*"reference customize name --extends a b" to add it, or "reference customize name --extends a" to leave it out/,
+		)
+
+		expect(await customize('name', { root, extends: ['a'] })).toBe(0)
+		expect(readFileSync(repoFile(root), 'utf8')).toBe('---\nextends: [a]\ndeclined: [b]\n---\n')
+		stderr.mockClear()
+		expect(await load(['name'], { root })).toBe(0)
+		expect(warned()).toBe(false)
+	})
+
+	it('stops warning once the new plugin is added, and drops it from declined', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base }, b: { name: '## Create\n\nb\n' } })
+		write(root, '.agents/references/name.md', '---\nextends: [a]\ndeclined: [b]\n---\n')
+
+		expect(await customize('name', { root, extends: ['a', 'b'] })).toBe(0)
+		expect(readFileSync(repoFile(root), 'utf8')).toBe('---\nextends: [a, b]\n---\n')
+		stderr.mockClear()
+		expect(await load(['name'], { root })).toBe(0)
+		expect(written()).toContain('b\n')
+		expect(warned()).toBe(false)
+	})
+
+	it('removes declined with the picks (--extends none)', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base }, b: { name: base } })
+		write(root, '.agents/references/name.md', '---\nextends: [a]\ndeclined: [b]\n---\n\n## Create\n\nmine\n')
+
+		expect(await customize('name', { root, extends: ['none'] })).toBe(0)
+		expect(readFileSync(repoFile(root), 'utf8')).toBe('## Create\n\nmine\n')
+	})
+
+	it('records declined in a generated document, beside its extends', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base }, b: { name: base } })
+
+		expect(await customize('name', { root, extends: ['a'], request: ask(root), body: draft(root) })).toBe(0)
+		expect(readFileSync(repoFile(root), 'utf8')).toMatch(
+			/^---\nmerge: patch\nextends: \[a\]\ndeclined: \[b\]\nsources:/,
+		)
+	})
+
+	it('writes no declined on a project section, which has no extends', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base }, b: { name: '---\nextends: [a]\n---\n\n## Create\n\nb\n' } })
+		mkdirSync(join(root, 'app'))
+
+		expect(await customize('name', { root, in: join(root, 'app'), request: ask(root), body: draft(root) })).toBe(0)
+		expect(readFileSync(join(root, 'app/.agents/references/name.md'), 'utf8')).not.toContain('declined')
+	})
+
+	it("counts only the enabled plugins for a user pick, and load does not ask about the repository's own (R84)", async () => {
+		const root = repo()
+		plugins(root, { a: { name: base } })
+		write(hostRoot, 'references/name.md', base)
+
+		expect(await customize('name', { root, scope: 'user', extends: ['host'] })).toBe(0)
+		expect(readFileSync(join(fakeHome.value, '.agents/references/name.md'), 'utf8')).toBe('---\nextends: [host]\n---\n')
+		stderr.mockClear()
+		expect(await load(['name'], { root })).toBe(0)
+		expect(warned()).toBe(false)
 	})
 })

@@ -226,8 +226,8 @@ Edge IDs are in [graph.md](./graph.md).
 - R113 (UC1, UC9): When the `repo` or `user` `extends` builds the stack, each plugin holding the name that the stack
   leaves out and that contribution does not decline (K35) is `not used`, with a warning naming the plugin and how to
   add it or leave it out. A declined plugin is `not used` with no warning. A managed `extends` that builds the stack
-  raises no such warning, since a customizer cannot change it (R109). A written `extends` with no `declined` declines
-  nothing.
+  raises no such warning, since a customizer cannot change it (R109). For a `user` `extends`, only the harness's enabled
+  plugins count (R84). A written `extends` with no `declined` declines nothing.
 - R106 (UC7): A malformed `extends` counts as not written, with a warning.
 - R56 (UC1, UC4): A plugin's contribution answering over the loading skill's default, when no written `extends` names
   the plugin or the default, still answers, with a warning naming the plugin and how to pick. A plugin whose own

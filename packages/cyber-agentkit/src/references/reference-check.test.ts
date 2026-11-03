@@ -253,6 +253,7 @@ describe('checkReferences', () => {
 				'section-not-held',
 				'alias-not-used',
 				'default-not-selected',
+				'plugin-not-selected',
 				'default-folder-missing',
 				'reference-stale',
 				'reference-renamed',
