@@ -80,12 +80,42 @@ describe('check', () => {
 		expect(json<ReferenceCheckReport>().failed?.[0]?.failures.map(({ check }) => check)).toEqual(['compose'])
 	})
 
-	it('fails the kind check on a reference that is neither an interface nor an implementation', async () => {
+	it('passes a plain document and fails one whose composing raised a defect (R116)', async () => {
 		const root = repo()
 		write(root, '.agents/references/notes.md', '## Notes\n')
+		write(root, '.agents/references/commit-style.md', '---\nmerge: bogus\n---\n\n## Style\n')
 
 		expect(await check(['notes'], { root })).toBe(0)
-		expect(json<ReferenceCheckReport>().failed?.[0]?.failures.map(({ check }) => check)).toEqual(['kind'])
+		expect(json<ReferenceCheckReport>()).toEqual({ passed: 1 })
+
+		stdout.mockClear()
+		expect(await check(undefined, { root })).toBe(0)
+		expect(json<ReferenceCheckReport>()).toEqual({
+			failed: [
+				{ name: 'commit-style', failures: [{ check: 'compose', message: expect.stringContaining('merge-unknown') }] },
+			],
+			passed: 1,
+		})
+	})
+
+	it('lists a name a remove turned off as passing, with its warnings under warned (R117)', async () => {
+		const root = repo()
+		write(root, '.agents/references/notes.md', '---\nmerge: remove\n---\n')
+		write(fakeHome.value, '.agents/references/notes.md', '## User\n')
+
+		expect(await check(undefined, { root, trace: true })).toBe(0)
+		expect(json<ReferenceCheckReport>()).toEqual({
+			warned: [{ name: 'notes', warnings: [expect.objectContaining({ code: 'repo-hides-user' })] }],
+			passed: 1,
+			references: [
+				{
+					name: 'notes',
+					kind: 'none',
+					status: 'missing',
+					warnings: [expect.objectContaining({ code: 'repo-hides-user' })],
+				},
+			],
+		})
 	})
 
 	it('lists a hidden user file under warned with no names, and still passes (J2, R112)', async () => {

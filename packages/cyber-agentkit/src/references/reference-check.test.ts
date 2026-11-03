@@ -64,13 +64,14 @@ describe('checkReferences', () => {
 		])
 	})
 
-	it('checks every interface document and implementation when no name is given', () => {
+	it('checks every name found when no name is given, plain documents included (R36)', () => {
 		const layers = [
 			layer('repo', { 'scaffold.recipe.typescript-lib': typescriptRecipe, notes: '## Notes\n' }),
 			layer('plugin', { 'scaffold.recipe.interface': recipeInterface }, 'repobuddy'),
 		]
 
 		expect(checkReferences(layers).map(({ name, kind, status }) => `${name} ${kind} ${status}`)).toEqual([
+			'notes none passed',
 			'scaffold.recipe.interface interface passed',
 			'scaffold.recipe.typescript-lib implementation passed',
 		])
@@ -280,7 +281,7 @@ describe('checkReferences', () => {
 		])
 	})
 
-	it('fails a name that is missing, removed, ambiguous, invalid, or neither an interface nor an implementation', () => {
+	it('fails a name that is missing, ambiguous, or invalid; lists a removed one missing and passes a plain one (R117, R116)', () => {
 		const layers = [
 			layer('managed', { off: '---\nmerge: remove\n---\n' }),
 			layer('repo', { notes: '## Notes\n', off: '## Off\n' }),
@@ -294,10 +295,10 @@ describe('checkReferences', () => {
 			),
 		).toEqual([
 			'missing reference-missing',
-			'missing reference-removed',
+			'missing undefined',
 			'ambiguous reference-ambiguous',
 			'invalid reference-invalid',
-			'failed kind',
+			'passed undefined',
 		])
 	})
 
@@ -445,5 +446,98 @@ describe('a moved base (R86, UC6.9)', () => {
 		]
 
 		expect(resolveReference('scaffold.recipe.lib', layers).warnings).toEqual([])
+	})
+})
+
+describe('every warning load raises, for every name (R116, R117, R118)', () => {
+	it('fails a plain document whose composing raised a defect, in a sweep and when named (R116)', () => {
+		const layers = [
+			layer('repo', { 'commit-style': '---\nmerge: bogus\n---\n\n## Style\n', notes: '---\nbad: [\n---\n\n## N\n' }),
+			layer('plugin', { 'commit-style': '## Style\n' }, 'a'),
+		]
+
+		expect(
+			checkReferences(layers).map(({ name, kind, status, failures: failed }) =>
+				[name, kind, status, ...failed.map(({ check, message }) => `${check}: ${message.split(':')[1]}`)].join(' '),
+			),
+		).toEqual(['commit-style none failed compose:  merge-unknown', 'notes none failed compose:  frontmatter-invalid'])
+		expect(failures(layers, 'commit-style')).toEqual([
+			expect.stringMatching(/^compose: composing it raised a warning: merge-unknown: /),
+		])
+	})
+
+	it("passes on a plain document's warnings that depend on what is installed, such as a stale one (R116)", () => {
+		const stale = '---\nextends: [a]\nsources:\n  - plugin: a\n    version: 1.0.0\n---\n\n## More\n'
+		const layers = [
+			layer('repo', { 'commit-style': stale, notes: '---\nextends: [gone]\n---\n' }),
+			layer('plugin', { 'commit-style': '## Style\n', notes: '## N\n' }, 'a', '2.0.0'),
+		]
+
+		const entries = checkReferences(layers)
+
+		expect(entries.map(({ name, status }) => `${name} ${status}`)).toEqual(['commit-style passed', 'notes passed'])
+		expect(entries[0]?.warnings.map(({ code }) => code)).toEqual(['reference-stale'])
+		expect(entries[1]?.warnings.map(({ code }) => code)).toEqual(['extends-step-missing', 'extends-all-missing'])
+	})
+
+	it("fails an ambiguous plain name in a sweep, checks each plugin's copy, and lists a removed one as passing (R117)", () => {
+		const layers = [
+			layer('managed', { off: '---\nmerge: remove\n---\n' }),
+			layer('repo', { off: '## Off\n' }),
+			layer('plugin', { shared: '## A\n' }, 'a'),
+			layer('plugin', { shared: '## B\n' }, 'b'),
+		]
+
+		expect(
+			checkReferences(layers).map(
+				({ name, status, failures: failed }) => `${name} ${status} ${failed.map(({ check }) => check).join(',')}`,
+			),
+		).toEqual(['off missing ', 'shared ambiguous reference-ambiguous', 'a/shared passed ', 'b/shared passed '])
+	})
+
+	it("passes on a project section's warnings, naming its file, and never fails the name for one (R118)", () => {
+		const root = mkdtempSync(join(tmpdir(), 'reference-check-root-'))
+		mkdirSync(join(root, 'app', '.agents', 'references'), { recursive: true })
+		mkdirSync(join(root, 'web', '.agents', 'references'), { recursive: true })
+		writeFileSync(join(root, 'app', '.agents', 'references', 'notes.md'), '---\nmerge: replace\n---\n\n## App\n')
+		writeFileSync(join(root, 'web', '.agents', 'references', 'notes.md'), '---\nbad: [\n---\n\n## Web\n')
+		writeFileSync(join(root, 'app', '.agents', 'references', 'only.md'), '## Only\n')
+		const source: ReferenceLayers = {
+			layers: [layer('repo', { notes: '## Notes\n' })],
+			root,
+			projects: new Map(),
+			harnesses: [],
+		}
+
+		const entries = checkReferences(source)
+
+		expect(
+			entries.map(({ name, kind, status, failures: failed }) => `${name} ${kind} ${status} ${failed.length}`),
+		).toEqual(['notes none passed 0', 'only none passed 0'])
+		expect(entries[0]?.warnings).toEqual([
+			{ code: 'project-section-key-ignored', message: expect.stringContaining('app/.agents/references/notes.md') },
+			{ code: 'frontmatter-invalid', message: expect.stringContaining('web/.agents/references/notes.md') },
+		])
+		expect(checkReferences(source, { names: ['notes'] })[0]?.warnings).toEqual(entries[0]?.warnings)
+	})
+})
+
+describe("checking a plain name's default (R116)", () => {
+	it('fails a default whose composing raised a defect, as its skill loads it', () => {
+		const folder = mkdtempSync(join(tmpdir(), 'reference-check-skill-'))
+		writeFileSync(join(folder, 'SKILL.md'), '---\nname: commit\n---\n')
+		mkdirSync(join(folder, 'references'))
+		writeFileSync(
+			join(folder, 'references', 'commit-style.default.md'),
+			'## Style\n\n## Bogus\n<!-- merge: remove -->\n',
+		)
+		const source = { layers: [], harnesses: [], skills: { skills: [{ name: 'commit', folder }] } }
+
+		expect(
+			checkReferences(source).map(
+				({ name, loadedBy, status, failures: failed }) =>
+					`${name} ${loadedBy} ${status} ${failed.map(({ check }) => check).join(',')}`,
+			),
+		).toEqual(['commit-style commit failed compose'])
 	})
 })

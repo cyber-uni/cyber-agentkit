@@ -8,7 +8,7 @@ import type { ResolvedReference } from './resolve-reference.js'
  * How `check` treats a warning composing a checked document raised (UC6.8). A `defect` is a fault
  * in the document itself, so it fails the `compose` check. An `environment` warning depends on what
  * is installed or chosen: it is passed on and never fails a check. A `project-section` warning is
- * about a project section, which `check` does not check (R33).
+ * about a project section, which `check` passes on and never checks against an interface (R118).
  */
 export type CheckWarningClass = 'defect' | 'environment' | 'project-section'
 

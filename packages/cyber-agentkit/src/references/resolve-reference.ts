@@ -141,7 +141,7 @@ export type ResolveOptions = {
 	without?: string | undefined
 	/** Read only the layers below this folder, so `where` can report the document below a file it would write. */
 	below?: string | undefined
-	/** `false` reads no project section, so `check` checks the main document alone (R33). */
+	/** `false` reads no project section, so `check` checks the main document alone (R118). */
 	projectSections?: boolean | undefined
 }
 

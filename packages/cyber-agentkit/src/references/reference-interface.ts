@@ -27,16 +27,8 @@ export type ReferenceInterface = {
 /** One `implements:` value, `<id>@<version>`. */
 export type ImplementsEntry = { id: string; version: number }
 
-/** The checks `check` runs, each named in kebab-case (R33). */
-export type InterfaceCheck =
-	| 'interface-found'
-	| 'version'
-	| 'name'
-	| 'order'
-	| 'required'
-	| 'kind'
-	| 'interface'
-	| 'compose'
+/** The checks `check` runs, each named in kebab-case (UC6). */
+export type InterfaceCheck = 'interface-found' | 'version' | 'name' | 'order' | 'required' | 'interface' | 'compose'
 
 export type InterfaceCheckFailure = {
 	check: InterfaceCheck

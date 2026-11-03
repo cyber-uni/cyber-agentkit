@@ -27,6 +27,12 @@ keeps the reasons. It supersedes the pin file, default marker, and ambiguity hin
 - **A file a `replace` or `remove` above would hide is written, with a warning.** The hiding contribution, managed
   ones included, may change later, so the customizer's intent is kept; `where`, `check`, and the trace show it is not
   applied.
+- **`check` reports every warning `load` raises, for every name (R116 to R118, #139).** It is the audit CI runs, so a
+  fault turns up there, not only when a skill loads the name. A defect fails a plain document as it fails an
+  implementation, so one rule covers every document; naming a plain document no longer fails for declaring no
+  interface, so a named check and a full run agree. An `ambiguous` name fails, since load gives a skill nothing for it;
+  a name a `remove` turned off passes, since failing it would keep CI red until the customizer undoes a choice made on
+  purpose. Project sections are still not checked against an interface: their warnings are passed on.
 - **Exit values follow clibuilder's `axi` contract (R43).** A command that answered exits 0, even when a name is
   not `found` or a check fails: those are statuses in the result. Exit 1 means it could not complete, exit 2 that it
   was called wrongly, each with one error value on stdout.
