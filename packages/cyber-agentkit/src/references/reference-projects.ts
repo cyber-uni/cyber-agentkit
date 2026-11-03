@@ -23,6 +23,11 @@ export type ProjectFolders = {
 	ignored: ProjectFolder[]
 	/** Each file below the root git lists and does not ignore, relative with `/`; `undefined` outside git, where nothing is ignored. */
 	listed?: ReadonlySet<string> | undefined
+	/**
+	 * The folders strictly below the root holding a `package.json` git does not ignore, in path order,
+	 * relative with `/`. Outside git, every one not inside a `node_modules/` folder.
+	 */
+	packages: string[]
 }
 
 /** One discovery per root, so one run asks git once per root. */
@@ -93,12 +98,18 @@ function entries(dir: string): Dirent[] {
 /**
  * Outside git, nothing is ignored: walk every folder below `root`, never following a symlink, and
  * keep each one whose `.agents/references/` holds something. A `.agents/references/` folder is not
- * walked into, since what it holds are documents.
+ * walked into, since what it holds are documents. A folder holding a `package.json` is kept as a
+ * package unless it sits inside a `node_modules/` folder, which holds installed packages.
  */
-function walk(root: string): string[] {
+function walk(root: string): { folders: string[]; packages: string[] } {
 	const found: string[] = []
+	const packages: string[] = []
 	const visit = (relative: string) => {
-		for (const entry of entries(join(root, relative))) {
+		const listing = entries(join(root, relative))
+		if (relative && !relative.split('/').includes('node_modules')) {
+			if (listing.some((entry) => entry.isFile() && entry.name === 'package.json')) packages.push(relative)
+		}
+		for (const entry of listing) {
 			if (!entry.isDirectory()) continue
 			const child = relative ? `${relative}/${entry.name}` : entry.name
 			if (entry.name !== referencesPath[0]) {
@@ -112,7 +123,7 @@ function walk(root: string): string[] {
 		}
 	}
 	visit('')
-	return found
+	return { folders: found, packages }
 }
 
 /** Segment by segment by character code, so a folder precedes the folders inside it. */
@@ -136,7 +147,10 @@ function located(top: string, folders: Iterable<string>): ProjectFolder[] {
 
 function discover(top: string): ProjectFolders {
 	const listing = gitListing(top)
-	if (listing === undefined) return { folders: located(top, walk(top)), ignored: [] }
+	if (listing === undefined) {
+		const walked = walk(top)
+		return { folders: located(top, walked.folders), ignored: [], packages: walked.packages.sort(comparePaths) }
+	}
 	const read = new Set(listing.files.flatMap((file) => folderOf(file) ?? []))
 	const ignored = new Set(
 		listing.ignored.flatMap((entry) => {
@@ -144,7 +158,15 @@ function discover(top: string): ProjectFolders {
 			return folder === undefined || read.has(folder) ? [] : [folder]
 		}),
 	)
-	return { folders: located(top, read), ignored: located(top, ignored), listed: new Set(listing.files) }
+	const packages = listing.files.flatMap((file) =>
+		file.endsWith('/package.json') ? [file.slice(0, -'/package.json'.length)] : [],
+	)
+	return {
+		folders: located(top, read),
+		ignored: located(top, ignored),
+		listed: new Set(listing.files),
+		packages: packages.sort(comparePaths),
+	}
 }
 
 /**

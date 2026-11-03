@@ -3,6 +3,7 @@ import type { ReferenceStatusCode, ReferenceWarning } from './reference-codes.js
 import { ReferenceFailure } from './reference-error.js'
 import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
 import { parseReferenceName } from './reference-name.js'
+import { heldPlugins } from './reference-package-plugins.js'
 import { projectSectionNames } from './reference-project-sections.js'
 import { comparePaths } from './reference-projects.js'
 import { isGenerated } from './reference-sources.js'
@@ -104,13 +105,15 @@ function projectRow(name: string, entry: ReferenceTraceProjectSection): Referenc
 		outcome: entry.outcome,
 		kind: 'project-section',
 		folder: entry.folder,
+		...(entry.plugin === undefined ? {} : { plugin: entry.plugin }),
 	}
 }
 
 /** Every name a tier, a plugin, or a project section below the root holds; a file under an older name counts as the new name's (R98). */
 export function catalogNames(source: Source): string[] {
 	const layers = Array.isArray(source) ? undefined : (source as ReferenceLayers)
-	const projects = layers?.root === undefined ? [] : projectSectionNames(layers.root, layers.projects)
+	const projects =
+		layers?.root === undefined ? [] : projectSectionNames(layers.root, layers.projects, heldPlugins(layers))
 	const aliases = aliasIndex(source)
 	return [...new Set([...referenceNames(source), ...projects].map((name) => shownName(name, aliases)))]
 }
@@ -290,7 +293,7 @@ export function searchReferences(query: string, source: Source, options: Resolve
 	const considerSections = (reference: ResolvedReference) => {
 		const bare = parseReferenceName(reference.name).name
 		for (const section of reference.projectSections) {
-			const key = `${bare}\0${section.folder}`
+			const key = `${bare}\0${section.folder}\0${section.plugin ?? ''}`
 			if (sectionsSeen.has(key)) continue
 			sectionsSeen.add(key)
 			const match = sectionMatchKind(section, normalized)
@@ -301,6 +304,7 @@ export function searchReferences(query: string, source: Source, options: Resolve
 				match,
 				tier: 'project',
 				folder: section.folder,
+				...(section.plugin === undefined ? {} : { plugin: section.plugin }),
 			})
 		}
 	}

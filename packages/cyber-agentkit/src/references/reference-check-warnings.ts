@@ -83,7 +83,8 @@ export function hiddenWarnings(resolved: ResolvedReference, display: Display): R
 	const managed = projectHidingLayer(resolved)
 	if (managed) {
 		for (const section of resolved.trace.projectSections) {
-			if (!section.file || !section.outcome.startsWith('shadowed by')) continue
+			// A package plugin's file is the plugin's, not a customizer's to move.
+			if (!section.file || section.plugin !== undefined || !section.outcome.startsWith('shadowed by')) continue
 			warnings.push({ code: 'reference-hidden', message: message(section.path, hiderLabel(managed, display)) })
 		}
 	}

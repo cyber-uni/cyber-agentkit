@@ -144,18 +144,31 @@ export function repo(): string {
 	return root
 }
 
-export type PluginSpec = { manifest?: string | undefined; documents?: Record<string, string> }
+export type PluginSpec = {
+	manifest?: string | undefined
+	documents?: Record<string, string>
+	/** The installed version; `1.0.0` when not given. */
+	version?: string | undefined
+}
 
 /**
  * Declares each package as a dependency of `root` and installs it under `node_modules`; a package
  * with a `manifest` name is a plugin, named by it.
  */
 export function dependencies(root: string, packages: Record<string, PluginSpec>): void {
+	packageDependencies(root, '', packages)
+}
+
+/**
+ * Declares each package as a dependency of the package at `folder` below `root` (the root itself
+ * when empty), and installs it under that folder's `node_modules`.
+ */
+export function packageDependencies(root: string, folder: string, packages: Record<string, PluginSpec>): void {
 	const declared = Object.fromEntries(Object.keys(packages).map((pkg) => [pkg, '1.0.0']))
-	write(root, 'package.json', JSON.stringify({ name: 'fixture', dependencies: declared }))
-	for (const [pkg, { manifest, documents = {} }] of Object.entries(packages)) {
-		const dir = join('node_modules', pkg)
-		write(root, join(dir, 'package.json'), JSON.stringify({ name: pkg, version: '1.0.0' }))
+	write(root, join(folder, 'package.json'), JSON.stringify({ name: folder || 'fixture', dependencies: declared }))
+	for (const [pkg, { manifest, documents = {}, version = '1.0.0' }] of Object.entries(packages)) {
+		const dir = join(folder, 'node_modules', pkg)
+		write(root, join(dir, 'package.json'), JSON.stringify({ name: pkg, version }))
 		if (manifest) write(root, join(dir, 'plugin.json'), JSON.stringify({ name: manifest }))
 		mkdirSync(join(root, dir, 'references'), { recursive: true })
 		for (const [name, content] of Object.entries(documents)) write(root, join(dir, 'references', `${name}.md`), content)

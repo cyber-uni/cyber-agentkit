@@ -19,6 +19,7 @@ import type { ReferenceFormat } from './reference-format.js'
 import { interfaceIdOf } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
 import { parseReferenceName, type ReferenceName } from './reference-name.js'
+import { heldPlugins } from './reference-package-plugins.js'
 import {
 	type ProjectSections,
 	type ReferenceTraceProjectSection,
@@ -302,6 +303,7 @@ export function resolveAdjusted(
 			warnAt,
 			catalog,
 			older,
+			held: heldPlugins(layersOf(source)),
 		})
 		trace.projectSections = found.trace
 		return found
