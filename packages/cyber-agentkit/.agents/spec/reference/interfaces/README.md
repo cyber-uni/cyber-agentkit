@@ -18,7 +18,8 @@ IDs are shared across the parent and its children.
 ### UC6 — Publish and check interfaces (A6.3)
 
 - **Trigger:** a plugin author publishes an interface, or wants to know a contribution meets the interface it
-  declares; or a consumer wants the implementations it can load.
+  declares; or a consumer wants the implementations it can load; or CI wants every warning load would raise, for every
+  name, so a fault turns up before a skill happens to load the name.
 - **Entry points:** Skill: the `reference` skill's Create mode (an interface document), Inspect mode (check), and Find
   mode (implementations). Code: `reference check`, `reference implementations`; `checkReferences`,
   `referenceImplementations`.
@@ -27,17 +28,18 @@ IDs are shared across the parent and its children.
   and the versions it accepts; the root; the detected harness.
 - **Outcome:** an interface document is valid when its `interface` block meets the format. `check` validates each
   document, composed as UC1 composes it, against the interface it declares, or an interface document against its own
-  shape; any failure is an entry in the result, which CI reads, not an error (R43). An implementation fails when a
+  shape. A plain document, which is neither, is checked for the defects composing it raises (UC6.8). Any failure is an
+  entry in the result, which CI reads, not an error (R43). An implementation fails when a
   required section is left out or marked unsupported; an optional one left out is listed unsupported. The line saying
   what a section holds guides implementers (a new implementation is stubbed with it, UC5) and is never checked.
   `implementations` lists the ones that pass, with how to pin each, its tier, description, and unsupported sections; the
   ones left out can be shown with their reasons.
 - **Extensions:**
-  - UC6.1 A named reference is `missing`, `ambiguous`, or `invalid`: it fails, an entry in the result.
-  - UC6.2 A reference declares no `implements` and is not an interface: it fails.
+  - UC6.1 A checked name is `missing`, `ambiguous`, or `invalid`: it fails, an entry in the result. A name a `remove`
+    turned off (UC3.4) is listed `missing` and does not fail: it is off on purpose.
   - UC6.3 `implements` is malformed, lists more than one interface, or names an interface that is missing, ambiguous,
     or malformed: failure.
-  - UC6.4 No names: every interface document and every implementation is checked. A name several plugins hold is
+  - UC6.4 No names: every name found is checked, plain documents included. A name several plugins hold is
     also checked as each `<plugin>/<name>`, so each author sees their own result. Each skill's default is checked as
     its skill loads it, subject to UC3.5.
   - UC6.5 `implementations` of an unknown interface: an error.
@@ -56,6 +58,8 @@ IDs are shared across the parent and its children.
   - UC6.13 A `repo` or `user` implementation of a `many` interface's `<id>.<key>`, written by `customize`
     (R111): `implementations` lists it under its bare name, with its tier, and the consuming skill loads it by that
     name (UC12.2). UC6.6 still holds: a skill's default is never listed.
+  - UC6.14 A name has project sections: the warnings load raises for them are passed on, each naming its file, and
+    never fail. A project section declares no `implements` (K24), so it is not checked against an interface.
 
 ### UC15 — Implement another skill's interface (A6.4)
 
@@ -102,8 +106,8 @@ Edge IDs are in [graph.md](./graph.md).
   plugin also holds that `<id>.<key>`, only the bare name is listed, since loading it returns the `repo` or `user` one;
   the plugin's is left out, with that reason. A skill's default is never listed. `implementations` of an unknown
   interface is an error; with nothing listed it is an empty answer, not an error.
-- R36 (UC6, E38): `check` with no names covers every interface document and implementation found. A name several
-  plugins hold is also checked as each `<plugin>/<name>`, and each skill's default as its skill loads it.
+- R36 (UC6, E38): `check` with no names covers every name found. A name several plugins hold is also checked as each
+  `<plugin>/<name>`, and each skill's default as its skill loads it.
 - R37 (UC1, UC15, E39): `load` prints a document that fails its interface check, with a warning naming the failed
   check.
 - R86 (UC6, E60): `check` warns when a plugin or default file extends another plugin and the version it recorded
@@ -113,3 +117,10 @@ Edge IDs are in [graph.md](./graph.md).
   `merge: replace` implementation of a `one` interface answers over the owner's default as R56 says.
 - R112 (UC6, E68): `check` warns for a `repo`, `user`, or project-section file that a higher `replace` or `remove`
   hides, naming the hiding contribution. The warning is passed on and never fails a check.
+- R116 (UC6, E70): `check` reports every warning `load` raises for a checked name. A defect in the document itself fails
+  it, whether it is a plain document, an interface document, or an implementation; any other warning is passed on. A
+  plain document passes when composing it raises no defect.
+- R117 (UC6, E35): A checked name that is `missing`, `ambiguous`, or `invalid` fails, except a name a `remove` turned
+  off, which is listed `missing` and passes.
+- R118 (UC6, E71): `check` passes on every warning `load` raises for a name's project sections, each naming its file,
+  and never fails a name for one.
