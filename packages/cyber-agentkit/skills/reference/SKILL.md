@@ -58,7 +58,7 @@ Load `references/load.md` from this skill's folder and follow it, then return to
 
 - To read a reference, run `load <name>`. Add `--metadata` for its composed frontmatter.
 - To learn why a name composed as it did, run `load <name> --trace`. Report the stack and what built it, the contribution each section came from, each project section, and each layer that was `shadowed`, `stale`, `not used`, or `not read`, with its reason.
-- To check a reference against its interface, run `check <name>...`. With no name, it checks every interface and implementation. It exits 0; report each entry under `failed` with its check.
+- To check a reference, run `check <name>...`: an interface document against its shape, an implementation against its interface, and every document for defects. With no name, it checks every name and reports every warning `load` would raise. It exits 0; report each entry under `failed` with its check, and each under `warned` with its warnings.
 - To learn where a customization goes, run `where <name>`. Add `--default <skill folder>` when a skill loads the name, and `--in <folder>` for a folder's project section. Report each file, who it reaches, and what hides it. A plugin's or a skill's default contribution is read-only; never offer it as a place to write.
 
 ## Create

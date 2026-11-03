@@ -16,6 +16,7 @@ import { heldPlugins } from './reference-package-plugins.js'
 import { projectSectionNames } from './reference-project-sections.js'
 import {
 	parseReferenceName,
+	type ReferenceStatus,
 	type ResolvedReference,
 	type ResolveOptions,
 	resolveReference,
@@ -35,14 +36,19 @@ export type ReferenceCheckFailure = {
 export type ReferenceCheckEntry = {
 	name: string
 	kind: ReferenceCheckKind
-	/** `passed` and `failed` are about the composed document; the others mean none was composed. */
+	/**
+	 * `passed` and `failed` are about the composed document; the others mean none was composed. A name
+	 * a `remove` turned off is `missing` with no failures: it is off on purpose (R117).
+	 */
 	status: 'passed' | 'failed' | 'missing' | 'ambiguous' | 'invalid'
+	/** Empty when the entry passes. */
 	failures: ReferenceCheckFailure[]
 	/** For an implementation: the optional listed sections it marks `**Unsupported.**` or leaves out. */
 	unsupported: string[]
 	/**
 	 * What is passed on and never fails a check: a warning composing raised that depends on what is
-	 * installed or chosen (UC6.8), an interface's older id (R96), a moved base (R86), a hidden file (R112).
+	 * installed or chosen (UC6.8), every warning a project section raised (R118), an interface's older
+	 * id (R96), a moved base (R86), a hidden file (R112).
 	 */
 	warnings: ReferenceWarning[]
 	/** Checked as this skill loads the name, its default joined. */
@@ -50,7 +56,7 @@ export type ReferenceCheckEntry = {
 }
 
 export type CheckOptions = ResolveOptions & {
-	/** The references to check; every interface document and implementation found when omitted. */
+	/** The references to check; every name found when omitted. */
 	names?: readonly string[] | undefined
 }
 
@@ -129,11 +135,21 @@ export type CheckResult = {
 	warnings: ReferenceWarning[]
 }
 
+/** The `compose` failure for the defects composing a document raised (UC6.8), if any. */
+function composeFailure(warnings: readonly ReferenceWarning[]): ReferenceCheckFailure | undefined {
+	const { defects } = splitComposeWarnings(warnings)
+	if (!defects.length) return undefined
+	return {
+		check: 'compose',
+		message: `composing it raised ${defects.length === 1 ? 'a warning' : `${defects.length} warnings`}: ${defects.map(({ code, message }) => `${code}: ${message}`).join('; ')}`,
+	}
+}
+
 /**
  * Checks a composed document against the interface it declares, or an interface document against
- * its own shape. `accept` replaces the versions accepted for one interface id. The `compose` check
- * fails when composing the document raised a warning that is a defect in the document itself
- * (UC6.8); the `kind` check is the caller's, since `load` checks a plain document too.
+ * its own shape; a plain document, which is neither, gets only the `compose` check. `accept`
+ * replaces the versions accepted for one interface id. The `compose` check fails when composing the
+ * document raised a warning that is a defect in the document itself (UC6.8, R116).
  */
 export function checkResolved(
 	resolved: ResolvedReference,
@@ -182,13 +198,8 @@ export function checkResolved(
 			} else failures.push(iface.failure as ReferenceCheckFailure)
 		}
 	}
-	const { defects } = splitComposeWarnings(resolved.warnings)
-	if (defects.length) {
-		failures.push({
-			check: 'compose',
-			message: `composing it raised ${defects.length === 1 ? 'a warning' : `${defects.length} warnings`}: ${defects.map(({ code, message }) => `${code}: ${message}`).join('; ')}`,
-		})
-	}
+	const compose = composeFailure(resolved.warnings)
+	if (compose) failures.push(compose)
 	return result
 }
 
@@ -202,45 +213,57 @@ function dedupe(warnings: readonly ReferenceWarning[]): ReferenceWarning[] {
 	})
 }
 
-/** An entry that is not checked but carries warnings: a hidden file (J2) or a moved base on a plain document. */
-function warningEntry(name: string, warnings: readonly ReferenceWarning[]): ReferenceCheckEntry {
-	return { name, kind: 'none', status: 'passed', failures: [], unsupported: [], warnings: dedupe(warnings) }
+/** A key for a warning, to tell one raised twice. */
+const warningKey = ({ code, message }: ReferenceWarning) => `${code} ${message}`
+
+/**
+ * A name resolved twice: `main` is the main document alone, the one checked; `full` adds its project
+ * sections, whose warnings are passed on and never checked (R118). They are the same object when the
+ * name has no project section.
+ */
+type Answer = { main: ResolvedReference; full: ResolvedReference }
+
+/** The warnings the project sections raised: the ones `full` has and `main` does not. */
+function sectionWarnings({ main, full }: Answer): ReferenceWarning[] {
+	if (full === main) return []
+	const own = new Set(main.warnings.map(warningKey))
+	return full.warnings.filter((warning) => !own.has(warningKey(warning)))
 }
 
+/**
+ * One name's entry: every warning `load` raises for it is reported (R116). A defect in the main
+ * document fails it; everything else is passed on. A name not `found` fails with its status code,
+ * except one a `remove` turned off (R117), and one only project sections answer (UC1.16) is plain.
+ */
 function entryOf(
-	resolved: ResolvedReference,
+	answer: Answer,
 	lookup: InterfaceLookup,
 	extra: readonly ReferenceWarning[] = [],
 ): ReferenceCheckEntry {
-	if (resolved.status !== 'found') {
-		return {
-			name: resolved.name,
-			kind: 'none',
-			status: resolved.status,
-			failures: [{ check: resolved.code as ReferenceStatusCode, message: resolved.message ?? resolved.status }],
-			unsupported: [],
-			warnings: dedupe(extra),
+	const { main, full } = answer
+	const found = main.status === 'found' || full.status === 'found'
+	const checked: CheckResult =
+		main.status === 'found' ? checkResolved(main, lookup) : { failures: [], unsupported: [], warnings: [] }
+	const failures = [...checked.failures]
+	if (main.status !== 'found') {
+		if (!found && main.code !== 'reference-removed') {
+			failures.push({ check: main.code as ReferenceStatusCode, message: main.message ?? main.status })
 		}
+		const compose = composeFailure(main.warnings)
+		if (compose) failures.push(compose)
 	}
-	const kind = kindOf(resolved)
-	const checked = checkResolved(resolved, lookup)
-	const failures: ReferenceCheckFailure[] =
-		kind === 'none'
-			? [
-					{
-						check: 'kind',
-						message: `${resolved.name} declares no \`implements\` and is not an interface document`,
-					},
-					...checked.failures,
-				]
-			: checked.failures
 	return {
-		name: resolved.name,
-		kind,
-		status: failures.length ? 'failed' : 'passed',
+		name: main.name,
+		kind: main.status === 'found' ? kindOf(main) : 'none',
+		status: found ? (failures.length ? 'failed' : 'passed') : (main.status as Exclude<ReferenceStatus, 'found'>),
 		failures,
 		unsupported: checked.unsupported,
-		warnings: dedupe([...checked.warnings, ...splitComposeWarnings(resolved.warnings).passed, ...extra]),
+		warnings: dedupe([
+			...checked.warnings,
+			...splitComposeWarnings(main.warnings).passed,
+			...sectionWarnings(answer),
+			...extra,
+		]),
 	}
 }
 
@@ -253,47 +276,47 @@ function pluginCopies(name: string, resolved: ResolvedReference): string[] {
 }
 
 /**
- * Checks each named reference, or, with no names, every interface document and implementation found.
- * A name several plugins hold is also checked as each `<plugin>/<name>`, so each author sees their own
- * result, and each skill's default as its skill loads it. With no names, a name that is neither is
- * visited too, for the warnings passed on: a hidden `repo`, `user`, or project-section file (J2,
- * R112), and a plugin's or default's file whose base moved (R86). A warning never fails a check.
+ * Checks each named reference, or, with no names, every name found, reporting every warning `load`
+ * raises for each (R116). A name several plugins hold is also checked as each `<plugin>/<name>`, so
+ * each author sees their own result, and each skill's default as its skill loads it. Beside what
+ * `load` raises, a hidden `repo`, `user`, or project-section file (J2, R112) and a plugin's or
+ * default's file whose base moved (R86) are passed on. A warning never fails a check.
  */
 export function checkReferences(source: Source, options: CheckOptions = {}): ReferenceCheckEntry[] {
 	const { names, ...rest } = options
 	const display = rest.display ?? ((path: string) => path)
-	// The main document alone: a project section is not checked (R33).
+	// The main document is checked alone: a project section is not checked against an interface (R118).
 	const resolveOptions: ResolveOptions = { ...rest, projectSections: false }
 	const lookup = interfaceLookup(source, rest)
-	const resolve = (name: string) => resolveReference(parseReferenceName(name), source, resolveOptions)
 	const layers = Array.isArray(source) ? undefined : (source as ReferenceLayers)
 	const sectionNames = new Set(
 		layers?.root === undefined ? [] : projectSectionNames(layers.root, layers.projects, heldPlugins(layers)),
 	)
-	/** The warnings a checked name's files raise: each hidden file, and each moved base. */
-	const fileWarnings = (name: string, resolved: ResolvedReference) => {
+	const resolve = (name: string): Answer => {
 		const ref = parseReferenceName(name)
-		const full = ref.plugin === undefined && sectionNames.has(ref.name) ? resolveReference(ref, source, rest) : resolved
-		return [...hiddenWarnings(full, display), ...baseMovedWarnings(resolved, source)]
+		const main = resolveReference(ref, source, resolveOptions)
+		const full = ref.plugin === undefined && sectionNames.has(ref.name) ? resolveReference(ref, source, rest) : main
+		return { main, full }
 	}
+	/** What a checked name's files raise beside `load`: each hidden file, and each moved base. */
+	const fileWarnings = ({ main, full }: Answer) => [
+		...hiddenWarnings(full, display),
+		...baseMovedWarnings(main, source),
+	]
 	if (names?.length) {
 		return names.map((name) => {
-			const resolved = resolve(name)
-			return entryOf(resolved, lookup, fileWarnings(name, resolved))
+			const answer = resolve(name)
+			return entryOf(answer, lookup, fileWarnings(answer))
 		})
 	}
 	const entries: ReferenceCheckEntry[] = []
 	const plain = new Map<string, string | undefined>()
 	for (const name of catalogNames(source)) {
-		const resolved = resolve(name)
-		plain.set(name, resolved.content)
-		const extra = fileWarnings(name, resolved)
-		if (resolved.status === 'found' && kindOf(resolved) !== 'none') entries.push(entryOf(resolved, lookup, extra))
-		else if (extra.length) entries.push(warningEntry(resolved.name, extra))
-		for (const copy of pluginCopies(name, resolved).map(resolve)) {
-			if (copy.status === 'found' && kindOf(copy) !== 'none') {
-				entries.push(entryOf(copy, lookup, baseMovedWarnings(copy, source)))
-			}
+		const answer = resolve(name)
+		plain.set(name, answer.main.content)
+		entries.push(entryOf(answer, lookup, fileWarnings(answer)))
+		for (const copy of pluginCopies(name, answer.main).map(resolve)) {
+			entries.push(entryOf(copy, lookup, baseMovedWarnings(copy.main, source)))
 		}
 	}
 	// Each skill's default as its skill loads it, where the default changes what the name composes to.
@@ -303,12 +326,8 @@ export function checkReferences(source: Source, options: CheckOptions = {}): Ref
 		const used = loaded.trace.layers.some(({ tier, outcome }) => tier === 'default' && outcome === 'used')
 		if (loaded.status !== 'found' || !used) continue
 		const moved = baseMovedWarnings(loaded, loadedSource)
-		if (kindOf(loaded) === 'none') {
-			if (moved.length) entries.push({ ...warningEntry(name, moved), loadedBy: skill.name })
-			continue
-		}
 		if (loaded.content === plain.get(name) && !moved.length) continue
-		entries.push({ ...entryOf(loaded, lookup, moved), loadedBy: skill.name })
+		entries.push({ ...entryOf({ main: loaded, full: loaded }, lookup, moved), loadedBy: skill.name })
 	}
 	return entries
 }

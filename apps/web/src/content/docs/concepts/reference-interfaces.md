@@ -135,15 +135,20 @@ const { implementations, excluded } = referenceImplementations('scaffold.recipe'
 ## Checking
 
 `reference check [name]...` checks each reference as `load` composes it, since a contribution above
-can drop or change a section. With no names, it checks every interface document and implementation
-found. It also checks a name several plugins hold as each `<plugin>/<name>`, and each skill's
-default as its skill loads it.
+can drop or change a section. It checks an interface document against its own shape, an
+implementation against its interface, and every document, plain ones included, for defects. With no
+names, it checks every name found and reports every warning `load` would raise for it, so CI sees a
+fault before a skill loads the name. It also checks a name several plugins hold as each
+`<plugin>/<name>`, and each skill's default as its skill loads it.
 
 A failure is an entry in the answer, not an error: `check` exits 0 when it answered, so read the
 `failed` list, which gives each reference that fails with its failures, beside the count that pass.
-A plugin's CI reads that list. Environment warnings do not fail a check; they are passed on and listed
-under `warned`. They include a `repo`, `user`, or project-section file that a higher tier hides, and a
-base that moved (`base-moved`).
+A plugin's CI reads that list. A defect in the document itself, such as an unknown `merge` value or
+malformed frontmatter, fails the `compose` check. Environment warnings do not fail a check; they are
+passed on and listed under `warned`. They include a stale generated document, an `extends` step that
+is not installed, a pick that is still needed, a `repo`, `user`, or project-section file that a higher
+tier hides, and a base that moved (`base-moved`). Every warning a project section raises is passed on
+too, naming its file: a project section is never checked against an interface.
 
 | Check | Fails when |
 | --- | --- |
@@ -152,11 +157,11 @@ base that moved (`base-moved`).
 | `name` | the name is not `<id>` or `<id>.<key>` |
 | `order` | the listed sections are out of order, or one appears twice |
 | `required` | a required section is left out or marked `**Unsupported.**` |
-| `kind` | the reference declares no `implements` and is not an interface document |
 | `interface` | an interface document's `interface` block is malformed |
 | `compose` | the document itself has a defect when composed |
 
-A name not found fails with its status code, such as `reference-missing`. `implementations` applies
+A name not found fails with its status code, such as `reference-missing` or `reference-ambiguous`.
+A name a `remove` turned off is listed `missing` and passes: it is off on purpose. `implementations` applies
 the same checks to decide what to leave out. The library exports the check as `checkReferences`.
 
 ## Building on another plugin's implementation

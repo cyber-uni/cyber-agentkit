@@ -134,9 +134,9 @@
 		"reference check": {
 			"examples": [
 				{
-					"title": "Check every interface and implementation.",
+					"title": "Check every reference.",
 					"args": ["check"],
-					"explain": "The answer gives the failures, if any, and the count that pass. The command exits 1 when any check fails."
+					"explain": "The answer gives the failures, if any, the warnings passed on, and the count that pass. The command exits 0 when it answered, even when a check fails."
 				}
 			]
 		},

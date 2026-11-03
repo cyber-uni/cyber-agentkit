@@ -39,7 +39,7 @@ export function checkCommand(layersFor: LayersFor): cli.Command {
 	return command({
 		name: 'check',
 		description:
-			'Check interface documents and their implementations, each composed as `load` composes it. With no names, checks every one found and warns of hidden files. A failure is an entry in `failed`, not an error; a warning never fails a check.',
+			'Check references, each composed as `load` composes it: an interface document against its shape, an implementation against its interface, and every document for the defects composing it raises. With no names, checks every name found. Every warning `load` raises is reported. A failure is an entry in `failed`, not an error; a warning never fails a check.',
 		arguments: [
 			{
 				name: 'names',
@@ -58,7 +58,7 @@ export function checkCommand(layersFor: LayersFor): cli.Command {
 					names: args.names ?? [],
 					display: (path) => collapseHome(home, path),
 				})
-				const failing = entries.filter((entry) => entry.status !== 'passed')
+				const failing = entries.filter((entry) => entry.failures.length)
 				const strip = (failures: { check: string; message: string }[]) =>
 					failures.map(({ check, message }) => ({ check, message }))
 				const report: ReferenceCheckReport = compact({
@@ -66,7 +66,7 @@ export function checkCommand(layersFor: LayersFor): cli.Command {
 						compact({ name, loadedBy, failures: strip(failures), warnings }),
 					),
 					warned: entries
-						.filter((entry) => entry.status === 'passed' && entry.warnings.length)
+						.filter((entry) => !entry.failures.length && entry.warnings.length)
 						.map(({ name, loadedBy, warnings }) => compact({ name, loadedBy, warnings })),
 					passed: entries.length - failing.length,
 					references: args.trace
