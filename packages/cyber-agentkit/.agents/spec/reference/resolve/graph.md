@@ -23,6 +23,7 @@ A name resolves to one of these outcomes, each on its own:
 | Edge | Decision | Outcome |
 | --- | --- | --- |
 | E15 | the plugin tier | enabled plugins of the detected harness, plus the plugin dependencies the root declares |
+| E69 | a plugin a `package.json` below the root declares, outside the plugin tier | a project section for that package's folder, never a plugin layer |
 | E22 | a `governances/` folder | never read |
 | E17 | a layer skipped for a reason | in the trace with its reason; adds no contribution |
 

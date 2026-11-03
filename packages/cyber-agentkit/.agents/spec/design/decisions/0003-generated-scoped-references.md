@@ -32,8 +32,8 @@ keeps the reasons. It supersedes the pin file, default marker, and ambiguity hin
   was called wrongly, each with one error value on stdout.
 - **The plugin tier reads only the root's `package.json` (R13).** The nearest one to the working folder would change
   the main document with the folder a session starts in. A per-package difference goes in a project section:
-  `customize --in <folder> --implements <id>` lets one monorepo package implement an interface its own way. Scoping a
-  workspace package's plugins to its folder is a follow-up.
+  `customize --in <folder> --implements <id>` lets one monorepo package implement an interface its own way. A
+  workspace package's plugins reach its folder as project sections: [0005](0005-package-plugins-as-project-sections.md).
 - **A plugin-root `references/` is this library's convention (R13).** It is not part of the Agent Plugins spec, and no
   harness reads it (`.research/skill-resolution`), so the plugin tier is this library's to define.
 - **The skill passes `--default`.** Every detected harness tells a loaded skill its folder, but none hands it to a

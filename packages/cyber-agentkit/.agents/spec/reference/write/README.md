@@ -165,7 +165,9 @@ Edge IDs are in [graph.md](./graph.md).
 - R83 (UC18): picks on a target holding a body keep the body; when that body records a request, the output suggests
   customizing again with it.
 - R84 (UC20, UC18): the generator's input never includes the target file itself, managed text, the tier above the
-  target, or personal text. A managed contribution's `extends` still builds the stack, being structure. For a `user`
+  target, or personal text. A managed contribution's `extends` still builds the stack, being structure. For a folder
+  target, it holds the main document, the sections of the folders above, and the package plugins' sections for that
+  folder (K36), whose plugins it records as sources. For a `user`
   target the stack holds only the harness's enabled plugins (R13), so a `user` document means the same in every
   repository. `customize` can print this input without writing. With an interface named, the input is the interface's
   stub, followed by the name's current resolved reference when it is found. `load` offers no way to leave tiers out.

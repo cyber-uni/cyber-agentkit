@@ -109,7 +109,7 @@ instruction, not by what an agent does.
   default and tells the user.
 - R90 (UC17, E63): With the loaded references, Load states the order to follow where instructions conflict: company and
   team instructions, then a single feature's own document, then the resolved reference, or the default read by fallback
-  (UC4.4); within it, the project section for the folder the work is in over the main document, and an inner folder's
-  over an outer one's.
+  (UC4.4); within it, the project section for the folder the work is in over the main document, an inner folder's
+  over an outer one's, and in one folder its own section over a package plugin's (K36).
 - R91 (UC17, E64): Load tells the agent to follow a project section whenever its work is in that folder, from the moment
   the work moves there, without loading again.

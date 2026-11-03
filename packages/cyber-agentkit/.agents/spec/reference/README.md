@@ -67,7 +67,7 @@ what can be found, and every fault is reported as a warning.
   you, in every repository.
 - K2 **layer**: one folder read for a name: one per plugin for `plugin`, the calling skill's folder for `default`,
   `~/.agents/references/` for `user`, `.agents/references/` at the root for `repo`, each `.agents/references/` below the
-  root for `project`, and, for `managed`, the one beside the managed settings of the harness that
+  root and each package plugin's (K36) for `project`, and, for `managed`, the one beside the managed settings of the harness that
   detection names as running. Other harnesses' managed folders are never read, and none is read when detection names
   more than one harness.
 - K4 **qualified name**: `<plugin>/<name>`: that plugin's implementation of a name, with the stack it builds on.
@@ -125,8 +125,8 @@ what can be found, and every fault is reported as a warning.
 - K23 **main document**: what the tiers compose for a name: the stack; over it, the `user` contribution; over that, the
   `repo` one; each with its merge operation. The managed contribution is not part of it: it applies over the main
   document and over each project section (K27). A selection changes the stack and adds nothing.
-- K24 **project section**: a `.agents/references/<name>.md` or `<name>/README.md` below the root, which states only what
-  differs in its folder. It follows the main document in the resolved reference, wrapped with that folder (R44). It
+- K24 **project section**: a `.agents/references/<name>.md` or `<name>/README.md` below the root, or a package plugin's
+  contribution of the name for its package's folder (K36), which states only what differs in that folder. It follows the main document in the resolved reference, wrapped with that folder (R44). It
   carries no `merge`, `extends`, `implements`, or `aliases`: no command writes them on one, and load ignores them with
   a warning.
 - K26 **stale**: said of a generated `repo` or `user` document, or a project section, when a source's recorded plugin
@@ -138,6 +138,9 @@ what can be found, and every fault is reported as a warning.
   contribution holds it, generated or not.
 - K28 **resolved reference**: what load returns for a name: the main document, followed by its project sections, with
   the managed contribution applied over the main document and over each project section (K27).
+- K36 **package plugin**: a plugin that a `package.json` below the root declares and the plugin tier does not hold (R13).
+  It never joins the stack: its contribution of a name reaches only that package's folder, as a project section
+  (R115), so the main document is the same from every working folder.
 - K32 **alias**: an older name a plugin's or a default's contribution of a name lists in `aliases`, so load lines and
   customizations written for the older name still reach it after a rename. An interface document lists the older ids of
   its interface.
@@ -166,12 +169,13 @@ what can be found, and every fault is reported as a warning.
 | A7.1 | A7 agent user | Be told when the agent ran without instructions it asked for, or without the customizations placed for it |
 | A7.2 | A7 | Be told when a document was built from plugins that have since changed, and how to revise it |
 | A8.1 | A8 project maintainer (a team owning one folder of a monorepo) | Add only what differs in their folder, and have the agent follow it whenever its work is there |
+| A8.2 | A8 | List a plugin in their package's `package.json` and have its version of a name apply only to work in their folder |
 
 **Child specs.** Each use case lives in the child that owns it; UC8 stays here.
 
 | Child | Use cases | Criteria |
 | --- | --- | --- |
-| [resolve](./resolve/README.md) | UC1, UC2, UC3, UC7, UC10, UC19 | Composition, Stack, Reporting, Layers, Finding, Renames |
+| [resolve](./resolve/README.md) | UC1, UC2, UC3, UC7, UC10, UC19, UC21 | Composition, Stack, Reporting, Layers, Finding, Renames |
 | [write](./write/README.md) | UC5, UC9, UC11, UC18, UC20 | Writing |
 | [interfaces](./interfaces/README.md) | UC6, UC15 | Interfaces |
 | [skill](./skill/README.md) | UC4, UC12, UC17 | Fallback, Load |
