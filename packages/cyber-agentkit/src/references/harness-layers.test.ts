@@ -78,11 +78,14 @@ describe('harnessManagedLayers', () => {
 		expect(layers.filter(({ skipped }) => !skipped).map(({ dir }) => dir)).toEqual([dir])
 	})
 
-	it('reads the managed folder of every nested harness', () => {
+	it('reads no managed folder when detection names several harnesses, naming them and why (UC10.2)', () => {
 		const layers = harnessManagedLayers(['claude-code', 'codex'], 'linux', {})
-		expect(layers.filter(({ skipped }) => !skipped).map(({ dir }) => dir)).toEqual([
-			'/etc/claude-code/references',
-			'/etc/codex/references',
+		expect(layers).toEqual([
+			{
+				tier: 'managed',
+				dir: '(several harnesses detected)',
+				skipped: 'detection names several harnesses (claude-code, codex), so no managed folder is read',
+			},
 		])
 	})
 
@@ -94,7 +97,7 @@ describe('harnessManagedLayers', () => {
 	})
 })
 
-type Install = { scope: string; installPath: string; projectPath?: string }
+type Install = { scope: string; installPath: string; projectPath?: string; version?: string }
 
 /** A Claude Code home with the given plugins enabled in user settings and recorded as installed. */
 function claudeHome(enabled: Record<string, boolean>, installs: Record<string, Install[]>): string {
@@ -120,7 +123,15 @@ describe('enabledPluginLayers', () => {
 			{ 'alpha@market': [{ scope: 'user', installPath: '/plugins/alpha/1.0.0' }] },
 		)
 		const layers = (await claudeLayers(home)).filter(({ skipped }) => !skipped)
-		expect(layers).toEqual([{ tier: 'plugin', dir: '/plugins/alpha/1.0.0/references', plugin: 'alpha' }])
+		expect(layers).toEqual([
+			{
+				tier: 'plugin',
+				dir: '/plugins/alpha/1.0.0/references',
+				plugin: 'alpha',
+				origin: 'enabled',
+				version: undefined,
+			},
+		])
 	})
 
 	it("names an installed plugin by its manifest's name when its folder holds one", async () => {
@@ -130,8 +141,45 @@ describe('enabledPluginLayers', () => {
 
 		const layers = (await claudeLayers(home)).filter(({ skipped }) => !skipped)
 
-		expect(layers).toEqual([{ tier: 'plugin', dir: join(install, 'references'), plugin: 'alpha-plugin' }])
+		expect(layers).toEqual([
+			{
+				tier: 'plugin',
+				dir: join(install, 'references'),
+				plugin: 'alpha-plugin',
+				origin: 'enabled',
+				version: undefined,
+			},
+		])
 	})
+
+	it.each([
+		['the install record', { record: '3.0.0', manifest: '2.0.0', pkg: '1.0.0' }, '3.0.0'],
+		['the plugin manifest', { manifest: '2.0.0', pkg: '1.0.0' }, '2.0.0'],
+		['package.json', { pkg: '1.0.0' }, '1.0.0'],
+	] as const)(
+		'records the version from %s first (C5)',
+		async (_, {
+			record,
+			manifest,
+			pkg,
+		}: {
+			record?: string
+			manifest?: string
+			pkg?: string
+		}, version) => {
+			const install = tempDir('harness-layers-install-')
+			write(install, '.claude-plugin/plugin.json', JSON.stringify({ name: 'alpha', version: manifest }))
+			write(install, 'package.json', JSON.stringify({ name: 'alpha', version: pkg }))
+			const home = claudeHome(
+				{ 'alpha@market': true },
+				{ 'alpha@market': [{ scope: 'user', installPath: install, ...(record ? { version: record } : {}) }] },
+			)
+
+			const [layer] = (await claudeLayers(home)).filter(({ skipped }) => !skipped)
+
+			expect(layer).toMatchObject({ origin: 'enabled', version })
+		},
+	)
 
 	it('never reads a plugin that is installed but not enabled', async () => {
 		const home = claudeHome(
@@ -203,6 +251,7 @@ describe('enabledPluginLayers', () => {
 			{
 				tier: 'plugin',
 				dir: '(cursor enabled plugins)',
+				origin: 'enabled',
 				skipped: 'cursor keeps no readable record of enabled plugins',
 			},
 		])

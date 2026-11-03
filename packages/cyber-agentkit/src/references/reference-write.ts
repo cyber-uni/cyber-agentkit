@@ -1,126 +1,24 @@
 import { existsSync, mkdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve, sep } from 'node:path'
-import { pluginManifestName } from '../plugins/plugin-manifest.js'
-import { skillName } from '../skills/skill-folder.js'
+import { dirname } from 'node:path'
+import { editFrontmatter, hasDescription, type Template } from './create-reference.js'
+import type { ReferenceWarning } from './reference-codes.js'
+import { parseDocument } from './reference-document.js'
+import { formatOfFile } from './reference-format.js'
+import { hiderLabel, hidingLayer, projectHidingLayer } from './reference-hiding.js'
+import type { ReferenceLayers } from './reference-layers.js'
+import { generatedFrontmatter, recordedSources, sourceCatalog } from './reference-sources.js'
+import { validateWrite } from './reference-write-checks.js'
 import {
-	editFrontmatter,
-	hasDescription,
-	implementationTemplate,
-	readTemplate,
-	type Template,
-	titleOf,
-} from './create-reference.js'
-import { interfaceLookup } from './reference-check.js'
-import { hasBody, isMergeOperation, type MergeOperation, parseDocument } from './reference-document.js'
-import { dataExtensions } from './reference-format.js'
-import { fitsName, type ReferenceInterface } from './reference-interface.js'
-import {
-	canonical,
-	projectReferencesDir,
-	type ReferenceLayers,
-	repositoryRoot,
-	userReferencesDir,
-} from './reference-layers.js'
-import { parseReferenceName, type ReferenceName } from './reference-name.js'
+	answeringFile,
+	metadataFile,
+	type TargetArgs,
+	type WriteScope,
+	type WriteTarget,
+} from './reference-write-target.js'
 import { type ResolvedReference, type ResolveOptions, readExtends, resolveReference } from './resolve-reference.js'
 
-/** A write refused. `usage` marks a wrong invocation (exit 2) rather than a refusal (exit 1). */
-export class ReferenceWriteError extends Error {
-	readonly code: string
-	readonly usage: boolean
-	constructor(code: string, message: string, usage = false) {
-		super(message)
-		this.code = code
-		this.usage = usage
-	}
-}
-
-/** Where a write lands: the project or user tier, or a plugin's or a skill's source folder in the repository. */
-export type WriteScope = 'project' | 'user' | 'plugin' | 'default'
-
-export type WriteTarget = {
-	scope: WriteScope
-	/** The `references/` folder written to. */
-	dir: string
-	/** The file written or deleted. */
-	path: string
-}
-
-export type WhereArgs = {
-	root: string
-	home: string
-	scope?: string | undefined
-	plugin?: string | undefined
-	default?: string | undefined
-}
-
-/** A bare, valid name, or a refusal naming the bare name to use. */
-export function bareName(value: string): ReferenceName {
-	const name = parseReferenceName(value)
-	if (name.invalid) throw new ReferenceWriteError('reference-invalid', name.invalid)
-	if (name.plugin !== undefined) {
-		throw new ReferenceWriteError(
-			'reference-qualified',
-			`a contribution is written under the bare name, which every tier resolves; ask for "${name.name}".`,
-		)
-	}
-	return name
-}
-
-/** The repository the root sits in: a write to a source folder must land inside it, and never in an installed copy. */
-export function insideRepository(folder: string, root: string): boolean {
-	const repository = canonical(repositoryRoot(root) ?? resolve(root))
-	const target = canonical(folder)
-	if (target !== repository && !target.startsWith(repository + sep)) return false
-	return !target.slice(repository.length).split(sep).includes('node_modules')
-}
-
-/** Resolves `--scope`, `--plugin`, and `--default` to the file a write acts on; more than one is a usage error. */
-export function writeTarget(
-	name: ReferenceName,
-	{ root, home, scope, plugin, default: skill }: WhereArgs,
-): WriteTarget {
-	const given = [scope, plugin, skill].filter((value) => value !== undefined)
-	if (given.length > 1) {
-		throw new ReferenceWriteError('options-conflict', 'pass one of --scope, --plugin, and --default.', true)
-	}
-	if (plugin !== undefined) {
-		const folder = resolve(plugin)
-		if (!pluginManifestName(folder)) {
-			throw new ReferenceWriteError(
-				'folder-invalid',
-				`${folder} holds no plugin manifest, so it is not a plugin folder.`,
-			)
-		}
-		if (!insideRepository(folder, root)) {
-			throw new ReferenceWriteError(
-				'folder-invalid',
-				`${folder} is outside the repository, such as an installed copy; write to the plugin's source instead.`,
-			)
-		}
-		const dir = join(folder, 'references')
-		return { scope: 'plugin', dir, path: join(dir, `${name.name}.md`) }
-	}
-	if (skill !== undefined) {
-		const folder = resolve(skill)
-		if (skillName(folder) === undefined) {
-			throw new ReferenceWriteError('folder-invalid', `${folder} holds no SKILL.md, so it is not a skill folder.`)
-		}
-		if (!insideRepository(folder, root)) {
-			throw new ReferenceWriteError(
-				'folder-invalid',
-				`${folder} is outside the repository, such as an installed copy; write to the skill's source instead.`,
-			)
-		}
-		const dir = join(folder, 'references')
-		return { scope: 'default', dir, path: join(dir, `${name.name}.default.md`) }
-	}
-	if (scope !== undefined && scope !== 'project' && scope !== 'user') {
-		throw new ReferenceWriteError('options-invalid', '--scope is project or user.', true)
-	}
-	const dir = scope === 'user' ? userReferencesDir(home) : projectReferencesDir(resolve(root))
-	return { scope: scope === 'user' ? 'user' : 'project', dir, path: join(dir, `${name.name}.md`) }
-}
+export type { WriteScope, WriteTarget } from './reference-write-target.js'
+export { insideRepository } from './reference-write-target.js'
 
 function tryRead(path: string): string | undefined {
 	try {
@@ -143,9 +41,12 @@ export function describeAnswer(
 				: top.tier === 'default'
 					? `the default of ${top.skill}`
 					: `the ${top.tier} file ${display(top.path)}`
-			: 'nothing'
+			: undefined
 		const stack = resolved.trace.stack.length ? `, on the stack ${resolved.trace.stack.join(' → ')}` : ''
-		return `"${resolved.name}" is answered by ${by}${stack}.`
+		const folders = resolved.projectSections.map(({ folder }) => folder)
+		if (!by) return `"${resolved.name}" is answered only by the project sections of ${folders.join(', ')}.`
+		const sections = folders.length ? `, with the project sections of ${folders.join(', ')}` : ''
+		return `"${resolved.name}" is answered by ${by}${stack}${sections}.`
 	}
 	if (resolved.status === 'ambiguous') {
 		return `"${resolved.name}" is ambiguous: ${resolved.message}; the options are ${(resolved.options ?? []).join(', ')}.`
@@ -153,23 +54,7 @@ export function describeAnswer(
 	return `"${resolved.name}" is ${resolved.status}: ${resolved.message}.`
 }
 
-/** The interface `create --implements` starts an implementation of, once the new name fits it. */
-function interfaceFor(id: string, name: string, layers: ReferenceLayers, options: ResolveOptions): ReferenceInterface {
-	const parsed = parseReferenceName(id)
-	if (parsed.invalid || parsed.plugin !== undefined)
-		throw new ReferenceWriteError('interface-invalid', `"${id}" is not an interface id.`)
-	const iface = interfaceLookup(layers, options)(id)
-	if (!iface.value) throw new ReferenceWriteError('interface-invalid', iface.failure?.message ?? `no interface ${id}`)
-	if (!fitsName(iface.value, name)) {
-		throw new ReferenceWriteError(
-			'interface-invalid',
-			`an implementation of ${id} is named ${iface.value.cardinality === 'one' ? id : `${id}.<key>`}, not "${name}".`,
-		)
-	}
-	return iface.value
-}
-
-export type CreateArgs = WhereArgs & {
+export type CreateArgs = TargetArgs & {
 	name: string
 	merge?: string | undefined
 	template?: string | undefined
@@ -181,51 +66,28 @@ export type CreateResult = {
 	name: string
 	scope: WriteScope
 	path: string
+	/** A project section's folder, relative to the root. */
+	folder?: string
 	content: string
 	dryRun: boolean
 	/** Things to know that are not faults, such as a missing `description`. */
 	hints: string[]
-	/** The name resolved again after the write, when the file is a layer the stack reads. */
+	/** Faults that did not stop the write, such as a contribution above that hides the file (R26). */
+	warnings: ReferenceWarning[]
+	/** The name resolved again after the write, when the file is a layer the stack reads or a project section. */
 	after?: ResolvedReference
 }
 
-/**
- * Hides the new file: a `replace` with a body, or a `remove`, that applies above it. A folder that
- * is not a layer the stack reads has nothing above it.
- */
-function hiddenBy(resolved: ResolvedReference, dir: string, path: string): string | undefined {
-	const layers = resolved.trace.layers
-	const at = layers.findIndex((layer) => layer.path === dir || layer.path === path)
-	if (at === -1) return undefined
-	const target = layers[at]
-	const tiered = (tier: string) => tier === 'managed' || tier === 'project' || tier === 'user'
-	const stackAt =
-		target && !tiered(target.tier)
-			? resolved.trace.stack.indexOf(target.tier === 'default' ? 'default' : (target.plugin ?? ''))
-			: -1
-	const above = layers.filter((layer, index) => {
-		if (!layer.file || layer.outcome !== 'used') return false
-		if (target && tiered(target.tier)) return index < at && tiered(layer.tier)
-		if (tiered(layer.tier)) return true
-		const position = resolved.trace.stack.indexOf(layer.tier === 'default' ? 'default' : (layer.plugin ?? ''))
-		return stackAt !== -1 && position > stackAt
-	})
-	const hider = above.find((layer) => layer.operation === 'remove' || (layer.operation === 'replace' && !layer.empty))
-	return hider ? `${hider.tier}${hider.plugin ? ` ${hider.plugin}` : ''} ${hider.path} (${hider.operation})` : undefined
-}
+/** Keys only a main-document contribution carries (K24): a project section a `create --in` writes drops them. */
+const mainDocumentKeys = ['merge', 'extends', 'implements', 'aliases'] as const
 
 /** A selection-only file keeps its own keys, `extends` among them; the template adds the keys it lacks. */
-function selectionKeys(
-	existing: string,
-	template: Template,
-	merge: MergeOperation | undefined,
-): Record<string, unknown> {
+function selectionKeys(existing: string, template: Template): Record<string, unknown> {
 	const held = parseDocument(existing, () => {}).metadata
 	const keys: Record<string, unknown> = {}
 	for (const [key, value] of Object.entries(template.metadata)) {
 		if (key !== 'merge' && !(key in held)) keys[key] = value
 	}
-	keys['merge'] = merge
 	return keys
 }
 
@@ -234,70 +96,59 @@ function withBody(head: string, body: string): string {
 	return text ? `${head.replace(/\s*$/, '')}\n\n${text}` : head
 }
 
+/** The warning for the file at `path` written under a contribution that hides it (R26), or none. */
+export function hiddenWarning(
+	before: ResolvedReference,
+	target: WriteTarget,
+	path: string,
+	display: (path: string) => string,
+): ReferenceWarning | undefined {
+	const hider = target.scope === 'project' ? projectHidingLayer(before) : hidingLayer(before, target.dir, target.path)
+	if (!hider) return undefined
+	const code = target.scope === 'user' && hider.tier === 'repo' ? 'repo-hides-user' : 'reference-hidden'
+	return {
+		code,
+		message: `${display(path)} is written, but ${hiderLabel(hider, display)} applies above it, so load does not read it until that contribution changes.`,
+	}
+}
+
+/**
+ * Starts a contribution: in the `repo` or `user` tier, a folder's project section, or a plugin's or
+ * a skill's source folder, from a template or an interface's stub. Every check runs first, in the
+ * order `validateWrite` gives; a file a contribution above hides is written all the same, with a
+ * warning naming it (R26).
+ */
 export function createContribution(
 	layers: ReferenceLayers,
 	args: CreateArgs,
 	options: ResolveOptions = {},
 ): CreateResult {
-	const name = bareName(args.name)
-	const target = writeTarget(name, args)
-	if (args.merge !== undefined && !isMergeOperation(args.merge)) {
-		throw new ReferenceWriteError(
-			'options-invalid',
-			`--merge is replace, patch, combine, or remove; got "${args.merge}".`,
-			true,
-		)
+	const plan = validateWrite({ command: 'create', ...args }, layers, options)
+	const { name, target, existing, operation } = plan
+	const template = plan.template as Template
+	const display = options.display ?? ((path: string) => path)
+	const warnings: ReferenceWarning[] = []
+	const edits: Record<string, unknown> = { merge: operation }
+	if (target.scope === 'project') {
+		for (const key of mainDocumentKeys) {
+			edits[key] = undefined
+			if (plan.iface || !(key in template.metadata)) continue
+			warnings.push({
+				code: 'project-section-key-ignored',
+				message: `\`${key}\` is dropped from the project section for ${target.folder}: a project section states only what differs in its folder.`,
+			})
+		}
 	}
-	const merge = args.merge as MergeOperation | undefined
-	if (args.template !== undefined && args.implements !== undefined) {
-		throw new ReferenceWriteError('options-conflict', 'pass --template or --implements, not both.')
+	if ((target.scope === 'plugin' || target.scope === 'default') && plan.extended.length) {
+		const sources = recordedSources(plan.extended, sourceCatalog(layers, { tier: target.scope }))
+		Object.assign(edits, generatedFrontmatter({ sources }))
 	}
-	if (merge === 'remove' && args.template !== undefined) {
-		throw new ReferenceWriteError('options-conflict', '--merge remove writes no body, so it takes no --template.')
-	}
-	if (merge !== undefined && target.scope === 'default') {
-		throw new ReferenceWriteError('options-conflict', 'a default is written with no merge; drop --merge.')
-	}
-	const existing = tryRead(target.path)
-	if (existing !== undefined && hasBody(parseDocument(existing, () => {}).body)) {
-		throw new ReferenceWriteError(
-			'file-exists',
-			`${(options.display ?? ((path: string) => path))(target.path)} already holds "${name.name}"; change it with the reference skill's Update mode.`,
-		)
-	}
-	const template: Template =
-		args.implements !== undefined
-			? implementationTemplate(interfaceFor(args.implements, name.name, layers, options))
-			: merge === 'remove'
-				? { content: '', metadata: {}, body: '' }
-				: readTemplate(args.template === undefined ? undefined : resolve(args.template))
-	const title = titleOf(template)
-	if (title) {
-		throw new ReferenceWriteError(
-			'template-title',
-			`the template's top level is the single heading "${title}" holding the others; patch matches by heading path, so make its sections top-level.`,
-		)
-	}
-	const before = resolveReference(name, layers, options)
-	const hider = hiddenBy(before, target.dir, target.path)
-	if (hider) {
-		throw new ReferenceWriteError(
-			'hidden',
-			`${hider} applies above it, so nothing would read the new file; change that contribution instead.`,
-		)
-	}
-	const operation: MergeOperation | undefined =
-		target.scope === 'default'
-			? undefined
-			: args.implements !== undefined
-				? 'replace'
-				: (merge ??
-					(isMergeOperation(template.metadata['merge']) ? template.metadata['merge'] : undefined) ??
-					(target.scope === 'plugin' ? undefined : 'patch'))
 	const content =
 		existing === undefined
-			? editFrontmatter(template.content, { merge: operation })
-			: withBody(editFrontmatter(existing, selectionKeys(existing, template, operation)), template.body)
+			? editFrontmatter(template.content, edits)
+			: withBody(editFrontmatter(existing, { ...selectionKeys(existing, template), ...edits }), template.body)
+	const hidden = hiddenWarning(plan.before, target, target.path, display)
+	if (hidden) warnings.push(hidden)
 	const hints = hasDescription(parseDocument(content, () => {}))
 		? []
 		: ['it has no `description` in its frontmatter, so `list` and `search` show it blank']
@@ -308,139 +159,86 @@ export function createContribution(
 		content,
 		dryRun: Boolean(args.dryRun),
 		hints,
+		warnings,
 	}
+	if (target.folder !== undefined) result.folder = target.folder
 	if (result.dryRun) return result
 	mkdirSync(target.dir, { recursive: true })
 	writeFileSync(target.path, content, existing === undefined ? { flag: 'wx' } : {})
-	if (before.trace.layers.some((layer) => layer.path === target.dir || layer.path === target.path)) {
-		result.after = resolveReference(name, layers, options)
-	}
+	const read =
+		target.scope === 'project' ||
+		plan.before.trace.layers.some((layer) => layer.path === target.dir || layer.path === target.path)
+	// A new project folder is found only by a fresh discovery.
+	if (read) result.after = resolveReference(name, { ...layers, projects: new Map() }, options)
 	return result
 }
 
-export type SelectArgs = {
-	root: string
-	home: string
-	name: string
-	options: readonly string[]
-	scope?: string | undefined
-	clear?: boolean | undefined
-}
-
-export type SelectResult = {
-	name: string
-	scope: 'project' | 'user'
-	path: string
-	/** The options written, bottom first; empty after `--clear`. */
-	extends: string[]
-	/** `--clear` left the file with nothing in it, so it was deleted. */
-	deleted: boolean
-	after: ResolvedReference
-}
-
-export function selectContribution(
-	layers: ReferenceLayers,
-	args: SelectArgs,
-	options: ResolveOptions = {},
-): SelectResult {
-	const name = bareName(args.name)
-	const target = writeTarget(name, { root: args.root, home: args.home, scope: args.scope })
-	const scope = target.scope as 'project' | 'user'
-	const existing = tryRead(target.path)
-	if (args.clear) {
-		if (args.options.length) throw new ReferenceWriteError('options-conflict', '--clear takes no option.', true)
-		const steps =
-			existing === undefined ? undefined : readExtends(parseDocument(existing, () => {}).metadata['extends'], () => {})
-		if (!steps) {
-			throw new ReferenceWriteError(
-				'no-selection',
-				`the ${scope} tier holds no selection of "${name.name}". ${describeAnswer(resolveReference(name, layers, options), options.display)}`,
-			)
-		}
-		const content = editFrontmatter(existing as string, { extends: undefined })
-		const deleted = !content.trim()
-		if (deleted) rmSync(target.path)
-		else writeFileSync(target.path, content)
-		return {
-			name: name.name,
-			scope,
-			path: target.path,
-			extends: [],
-			deleted,
-			after: resolveReference(name, layers, options),
-		}
-	}
-	if (!args.options.length)
-		throw new ReferenceWriteError('options-missing', 'name at least one option: a plugin or default.', true)
-	const before = resolveReference(name, layers, options)
-	const holders = new Set(
-		before.trace.layers.flatMap(({ plugin, file }) => (plugin !== undefined && file ? [plugin] : [])),
-	)
-	const picked = args.options.map((option) =>
-		option.endsWith(`/${name.name}`) ? option.slice(0, -name.name.length - 1) : option,
-	)
-	const wrong = picked.filter((option) => option !== 'default' && !holders.has(option))
-	if (wrong.length) {
-		throw new ReferenceWriteError(
-			'option-invalid',
-			`${wrong.join(', ')} ${wrong.length === 1 ? 'is' : 'are'} neither default nor a plugin holding "${name.name}"${holders.size ? `; the plugins holding it are ${[...holders].join(', ')}` : ''}.`,
-		)
-	}
-	const content = editFrontmatter(existing ?? '', { extends: picked })
-	mkdirSync(target.dir, { recursive: true })
-	writeFileSync(target.path, content)
-	return {
-		name: name.name,
-		scope,
-		path: target.path,
-		extends: picked,
-		deleted: false,
-		after: resolveReference(name, layers, options),
-	}
-}
-
-/** The data files that can answer a name in a folder. */
-function dataFiles(dir: string, name: string): string[] {
-	return dataExtensions.map(({ extension }) => join(dir, `${name}${extension}`))
-}
-
-export type DeleteArgs = WhereArgs & { name: string; dryRun?: boolean | undefined }
+export type DeleteArgs = TargetArgs & { name: string; dryRun?: boolean | undefined }
 
 export type DeleteResult = {
 	name: string
 	scope: WriteScope
+	/** The file deleted, or the one looked for when there was none. */
 	path: string
+	/** A project section's folder, relative to the root. */
+	folder?: string
+	/** The metadata file (K31) that went with a non-Markdown file (R95). */
+	metadataFile?: string
 	dryRun: boolean
 	/** The file held a selection (`extends`), which went with it. */
 	selection?: string[]
+	/** Set on a no-op: no file there to delete. */
+	code?: 'no-file'
+	/** What the notice says, for a person. */
+	message?: string
 	/** What answers the name once the file is gone. */
 	after: ResolvedReference
 }
 
+function placeOf(target: WriteTarget): string {
+	if (target.scope === 'project') return `project section for ${target.folder}`
+	if (target.scope === 'default') return 'default'
+	return `${target.scope} contribution`
+}
+
+/**
+ * Deletes the file that answers the name at one place, `<name>/README.md` or a data file included
+ * (J7), with the metadata file beside a non-Markdown one (R95); a metadata file alone, a selection,
+ * goes by itself. A managed contribution or an installed copy is never deleted (R30).
+ */
 export function deleteContribution(
 	layers: ReferenceLayers,
 	args: DeleteArgs,
 	options: ResolveOptions = {},
 ): DeleteResult {
-	const name = bareName(args.name)
-	const target = writeTarget(name, args)
+	const { name, target, before } = validateWrite({ command: 'delete', ...args }, layers, options)
 	const shown = options.display ?? ((path: string) => path)
-	const before = resolveReference(name, layers, options)
-	const candidates =
-		target.scope === 'project' || target.scope === 'user'
-			? [target.path, join(target.dir, name.name, 'README.md'), ...dataFiles(target.dir, name.name)]
-			: [target.path]
-	const path = candidates.find((candidate) => candidate !== options.without && existsSync(candidate))
-	if (!path) {
-		throw new ReferenceWriteError(
-			'no-file',
-			`${shown(target.path)} does not exist, so there is no ${target.scope} contribution of "${name.name}" to delete. ${describeAnswer(before, options.display)} An installed plugin's, a managed, or an installed skill's contribution is never deleted.`,
-		)
-	}
-	const steps = readExtends(parseDocument(tryRead(path) ?? '', () => {}).metadata['extends'], () => {})
 	const dryRun = Boolean(args.dryRun)
+	const file = answeringFile(target, name.name, options.without)
+	const meta = metadataFile(target, name.name)
+	const metaHeld = meta !== options.without && existsSync(meta)
+	const path = file ?? (metaHeld ? meta : undefined)
+	const place: Pick<DeleteResult, 'name' | 'scope' | 'folder'> = { name: name.name, scope: target.scope }
+	if (target.folder !== undefined) place.folder = target.folder
+	if (!path) {
+		return {
+			...place,
+			path: target.path,
+			dryRun,
+			code: 'no-file',
+			message: `${shown(target.path)} does not exist, so there is no ${placeOf(target)} of "${name.name}" to delete; nothing was deleted. ${describeAnswer(before, options.display)} An installed plugin's, a managed, or an installed skill's contribution is never deleted.`,
+			after: before,
+		}
+	}
+	const sidecar = file && formatOfFile(file) !== 'markdown' && metaHeld ? meta : undefined
+	const frontmatter = formatOfFile(path) === 'markdown' ? path : sidecar
+	const steps =
+		frontmatter === undefined
+			? undefined
+			: readExtends(parseDocument(tryRead(frontmatter) ?? '', () => {}).metadata['extends'], () => {})
 	if (!dryRun) {
 		rmSync(path)
+		if (sidecar) rmSync(sidecar)
 		// A folder-form contribution leaves its folder behind; remove it only when nothing else is in it.
 		if (dirname(path) !== target.dir) {
 			try {
@@ -449,12 +247,16 @@ export function deleteContribution(
 		}
 	}
 	const result: DeleteResult = {
-		name: name.name,
-		scope: target.scope,
+		...place,
 		path,
 		dryRun,
-		after: resolveReference(name, layers, { ...options, without: dryRun ? path : undefined }),
+		after: resolveReference(
+			name,
+			{ ...layers, projects: new Map() },
+			{ ...options, without: dryRun ? path : undefined },
+		),
 	}
+	if (sidecar) result.metadataFile = sidecar
 	if (steps) result.selection = steps.map(({ target: step }) => step)
 	return result
 }

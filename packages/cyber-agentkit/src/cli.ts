@@ -40,15 +40,17 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 }
 
 /**
- * `show`, `create`, `select`, and `delete` answer in `text` unless `--format` says otherwise; the other
- * subcommands answer in `toon`. clibuilder 12 has one global `--format` default, so it is chosen
+ * `load`, `create`, `customize`, and `delete`, and `asset show`, `update`, and `select`, answer in `text` unless
+ * `--format` says otherwise; the other subcommands answer in `toon`. clibuilder 12 has one global `--format` default, so it is chosen
  * from the subcommand the argv names.
  */
 function defaultFormat(argv: string[]): 'toon' | 'text' {
 	const args = argv.slice(2)
 	if (args.some((arg) => arg === '--format' || arg.startsWith('--format='))) return 'toon'
 	const subcommand = args[0] === 'reference' || args[0] === 'asset' || args[0] === 'prose-update' ? args[1] : undefined
-	return ['show', 'load', 'create', 'update', 'select', 'delete', 'retire'].includes(subcommand ?? '') ? 'text' : 'toon'
+	return ['show', 'load', 'create', 'customize', 'update', 'select', 'delete', 'retire'].includes(subcommand ?? '')
+		? 'text'
+		: 'toon'
 }
 
 /** argv in, exit code out — returned rather than written, so a caller that is not the process can act on it. */

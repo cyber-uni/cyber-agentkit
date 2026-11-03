@@ -6,7 +6,7 @@ import type { Platform } from '../harness/platform.js'
 import { type ManagedPolicyKind, managedPolicyLocations } from '../managed-policy/managed-policy-locations.js'
 import { enabledPlugins } from '../plugins/enabled-plugins.js'
 import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plugins.js'
-import { pluginManifestName } from '../plugins/plugin-manifest.js'
+import { pluginManifestName, pluginVersion } from '../plugins/plugin-manifest.js'
 import type { ReferenceLayer } from './reference-layers.js'
 
 type Env = Readonly<Record<string, string | undefined>>
@@ -23,7 +23,10 @@ const unreadableKind: Partial<Record<ManagedPolicyKind, string>> = {
 }
 
 function skippedLayer(tier: ReferenceLayer['tier'], dir: string, skipped: string, plugin?: string): ReferenceLayer {
-	return plugin === undefined ? { tier, dir, skipped } : { tier, dir, plugin, skipped }
+	const layer: ReferenceLayer = { tier, dir, skipped }
+	if (tier === 'plugin') layer.origin = 'enabled'
+	if (plugin !== undefined) layer.plugin = plugin
+	return layer
 }
 
 /**
@@ -53,22 +56,38 @@ function managedFolders(harness: HarnessId, platform: Platform, env: Env) {
 	}
 }
 
+/**
+ * Managed is read for the detected harness only (R12): its folder is the one beside the managed
+ * files `managedPolicyLocations` gives, each location citing its research evidence ID. When detection
+ * names no harness, or several (nested harnesses leave detection at `unknown`), no managed folder is
+ * read, and the one layer says which harnesses were detected and why.
+ */
 export function harnessManagedLayers(harnesses: readonly HarnessId[], platform: Platform, env: Env): ReferenceLayer[] {
-	if (!harnesses.length) {
-		return [skippedLayer('managed', '(no harness detected)', 'no harness detected, so no managed folder')]
+	const [harness] = harnesses
+	if (harness === undefined) {
+		return [skippedLayer('managed', '(no harness detected)', 'no harness detected, so no managed folder is read')]
 	}
-	return harnesses.flatMap((harness) => {
-		const { read, unread } = managedFolders(harness, platform, env)
+	if (harnesses.length > 1) {
 		return [
-			...read.map((dir): ReferenceLayer => ({ tier: 'managed', dir })),
-			...unread.map(({ location, reason }) => skippedLayer('managed', location, reason)),
+			skippedLayer(
+				'managed',
+				'(several harnesses detected)',
+				`detection names several harnesses (${harnesses.join(', ')}), so no managed folder is read`,
+			),
 		]
-	})
+	}
+	const { read, unread } = managedFolders(harness, platform, env)
+	return [
+		...read.map((dir): ReferenceLayer => ({ tier: 'managed', dir })),
+		...unread.map(({ location, reason }) => skippedLayer('managed', location, reason)),
+	]
 }
 
 /**
  * Claude Code installs one plugin at several scopes; a project- or local-scoped install loads only in
- * its own project, so the nearest folder of the walk picks it, and a user install answers elsewhere.
+ * its own project, recorded by its project path, so the nearest folder of the walk from the working
+ * folder up to the root picks it, and a user install answers elsewhere. This is the one place the
+ * walk is read.
  */
 function activeInstall(installs: readonly InstalledPlugin[], chain: readonly string[]): InstalledPlugin | undefined {
 	for (const dir of chain) {
@@ -121,7 +140,13 @@ export async function enabledPluginLayers(
 			)
 			if (install) {
 				const plugin = pluginManifestName(install.path) ?? recorded
-				layers.push({ tier: 'plugin', dir: join(install.path, 'references'), plugin })
+				layers.push({
+					tier: 'plugin',
+					dir: join(install.path, 'references'),
+					plugin,
+					origin: 'enabled',
+					version: pluginVersion(install.path, install.version),
+				})
 				continue
 			}
 			layers.push(

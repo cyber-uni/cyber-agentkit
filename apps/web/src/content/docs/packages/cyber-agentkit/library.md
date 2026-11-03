@@ -33,8 +33,11 @@ if (harness !== 'unknown') skillsDirectories(harness)
 
 ## Reference documents
 
-`loadReference()` composes a named document from its contributions in the managed, project, user, plugin, and default tiers.
-`createReferenceCommand()` and `createReferenceCommands()` build the [`reference` command](/cyber-agentkit/packages/cyber-agentkit/cli/)
+`loadReference()` composes a named document from its contributions in the managed, repo, user, plugin, and default tiers.
+`createReference()`, `customizeReference()`, and `deleteReference()` write and delete a contribution, as the
+`create`, `customize`, and `delete` subcommands do; `customizeReference()` runs no model. A function that cannot
+complete throws `ReferenceError`, which carries a stable `code`. `createReferenceCommand()` and
+`createReferenceCommands()` build the [`reference` command](/cyber-agentkit/packages/cyber-agentkit/cli/)
 for a host CLI. The concepts behind them are in [reference documents](/cyber-agentkit/concepts/reference-documents/)
 and [reference interfaces](/cyber-agentkit/concepts/reference-interfaces/).
 

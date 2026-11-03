@@ -36,7 +36,7 @@ describe('loadReference', () => {
 
 		expect(resolved).toMatchObject({ status: 'found', metadata: { description: 'weights' } })
 		expect(resolved.content).toBe('## Testing\n\nweight 3\n\n## Docs\n\nweight 5\n')
-		expect(resolved.trace.contributions.map(({ tier }) => tier)).toEqual(['plugin', 'project'])
+		expect(resolved.trace.contributions.map(({ tier }) => tier)).toEqual(['plugin', 'repo'])
 	})
 
 	it("joins the skill's default when given its folder", async () => {

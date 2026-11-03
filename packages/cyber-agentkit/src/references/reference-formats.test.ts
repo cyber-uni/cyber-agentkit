@@ -18,7 +18,7 @@ const json = '{"a": 1}\n'
 
 describe('non-Markdown references (R65 to R71)', () => {
 	it('answers a name with the file as written and reports its format (R65, R66)', () => {
-		const resolved = resolveReference('checks', [layer('project', { 'checks.json': json })])
+		const resolved = resolveReference('checks', [layer('repo', { 'checks.json': json })])
 		expect(resolved).toMatchObject({ status: 'found', content: json, format: 'json' })
 	})
 
@@ -30,7 +30,7 @@ describe('non-Markdown references (R65 to R71)', () => {
 
 	it('answers first by format order within one folder and warns about the rest (R67)', () => {
 		const resolved = resolveReference('checks', [
-			layer('project', { 'checks.md': '# Checks\n\nbody\n', 'checks.json': json }),
+			layer('repo', { 'checks.md': '# Checks\n\nbody\n', 'checks.json': json }),
 		])
 		expect(resolved.format).toBe('markdown')
 		expect(resolved.warnings.map(({ code }) => code)).toEqual(['file-ignored'])
@@ -38,18 +38,16 @@ describe('non-Markdown references (R65 to R71)', () => {
 
 	it('lets the highest non-Markdown contribution replace everything below (R68)', () => {
 		const resolved = resolveReference('checks', [
-			layer('project', { 'checks.json': json }),
+			layer('repo', { 'checks.json': json }),
 			layer('user', { 'checks.md': '# Checks\n\nlow\n' }),
 		])
 		expect(resolved).toMatchObject({ content: json, format: 'json' })
-		expect(resolved.trace.layers[1]?.outcome).toBe(
-			'shadowed by project ' + resolved.trace.layers[0]?.path + ' (replace)',
-		)
+		expect(resolved.trace.layers[1]?.outcome).toBe('shadowed by repo ' + resolved.trace.layers[0]?.path + ' (replace)')
 	})
 
 	it('ignores a Markdown contribution above a data file, with a warning (R68)', () => {
 		const resolved = resolveReference('checks', [
-			layer('project', { 'checks.md': '# Checks\n\nhigh\n' }),
+			layer('repo', { 'checks.md': '# Checks\n\nhigh\n' }),
 			layer('user', { 'checks.json': json }),
 		])
 		expect(resolved).toMatchObject({ content: json, format: 'json' })
@@ -59,7 +57,7 @@ describe('non-Markdown references (R65 to R71)', () => {
 
 	it('lets a Markdown remove turn a data file off (R68)', () => {
 		const resolved = resolveReference('checks', [
-			layer('project', { 'checks.md': '---\nmerge: remove\n---\n' }),
+			layer('repo', { 'checks.md': '---\nmerge: remove\n---\n' }),
 			layer('user', { 'checks.json': json }),
 		])
 		expect(resolved.status).toBe('missing')
@@ -70,14 +68,14 @@ describe('non-Markdown references (R65 to R71)', () => {
 	})
 
 	it('lists data names and reads a skill default in a data format (UC13.6)', () => {
-		const project = layer('project', { 'checks.json': json })
+		const project = layer('repo', { 'checks.json': json })
 		const fallback = { ...layer('default', { 'other.default.yaml': 'a: 1\n' }), skill: 'tool' }
 		expect(referenceNames([project, fallback])).toEqual(['checks', 'other'])
 		expect(resolveReference('other', [fallback])).toMatchObject({ format: 'yaml' })
 	})
 
 	it('leaves Markdown answers marked markdown (R71)', () => {
-		expect(resolveReference('doc', [layer('project', { 'doc.md': '# Doc\n\nbody\n' })]).format).toBe('markdown')
+		expect(resolveReference('doc', [layer('repo', { 'doc.md': '# Doc\n\nbody\n' })]).format).toBe('markdown')
 	})
 
 	it('lets a selection choose which plugin supplies a data file (inversion of control)', () => {

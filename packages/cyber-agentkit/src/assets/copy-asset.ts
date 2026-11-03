@@ -1,9 +1,8 @@
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
-import { basename, dirname, extname, join, resolve } from 'node:path'
-import { dataExtensions } from '../references/reference-format.js'
-import { projectReferencesDir, type ReferenceLayers, userReferencesDir } from '../references/reference-layers.js'
-import { parseReferenceName } from '../references/reference-name.js'
-import { resolveReference } from '../references/resolve-reference.js'
+import { basename, extname, join, resolve } from 'node:path'
+import { type AssetLayers, projectAssetsDir, userAssetsDir } from './asset-layers.js'
+import { assetDataExtensions, parseAssetName } from './asset-name.js'
+import { resolveAsset } from './resolve-asset.js'
 import { AssetError } from './skill-assets.js'
 
 export type CopyAssetArgs = {
@@ -24,8 +23,8 @@ export type CopyAssetResult = { path: string; source: string; from: string }
  * administrator keeps out of repositories and home folders, and a copy would show stale text as if it
  * were in effect (the managed file would still win).
  */
-export function copyAsset(layers: ReferenceLayers, args: CopyAssetArgs): CopyAssetResult {
-	const name = parseReferenceName(args.name)
+export function copyAsset(layers: AssetLayers, args: CopyAssetArgs): CopyAssetResult {
+	const name = parseAssetName(args.name)
 	if (name.invalid || name.plugin !== undefined) {
 		throw new AssetError('name-invalid', name.invalid ?? 'create takes a bare name.', true)
 	}
@@ -38,7 +37,7 @@ export function copyAsset(layers: ReferenceLayers, args: CopyAssetArgs): CopyAss
 			'the managed tier is policy and is never copied into a project or user folder. Ask the administrator, or read it with "asset load".',
 		)
 	}
-	const found = resolveReference(name.name, layers).trace.layers.filter(({ file }) => file)
+	const found = resolveAsset(name.name, layers).trace.layers.filter(({ file }) => file)
 	const source = found.find((layer) =>
 		args.copy === 'default' || args.copy === 'project' || args.copy === 'user'
 			? layer.tier === args.copy
@@ -52,12 +51,11 @@ export function copyAsset(layers: ReferenceLayers, args: CopyAssetArgs): CopyAss
 		)
 	}
 	const extension = extname(source.path)
-	if (source.file && ![...dataExtensions.map((item) => item.extension), '.md'].includes(extension)) {
+	if (source.file && ![...assetDataExtensions.map((item) => item.extension), '.md'].includes(extension)) {
 		throw new AssetError('no-source', `${basename(source.path)} is not a file an asset name resolves to.`)
 	}
-	const base = args.scope === 'user' ? userReferencesDir(args.home) : projectReferencesDir(resolve(args.root))
-	const dir = join(dirname(base), 'assets')
-	const taken = ['.md', ...dataExtensions.map((item) => item.extension)]
+	const dir = args.scope === 'user' ? userAssetsDir(args.home) : projectAssetsDir(resolve(args.root))
+	const taken = ['.md', ...assetDataExtensions.map((item) => item.extension)]
 		.map((item) => join(dir, `${name.name}${item}`))
 		.find((path) => existsSync(path))
 	if (taken) {

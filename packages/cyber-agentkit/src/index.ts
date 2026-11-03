@@ -1,4 +1,6 @@
+export type { LoadAssetOptions } from './assets/load-asset.js'
 export { loadAsset } from './assets/load-asset.js'
+export type { ResolvedAsset } from './assets/resolve-asset.js'
 export type {
 	CheckedDependency,
 	CheckPluginDependenciesOptions,
@@ -80,6 +82,7 @@ export type {
 	ReferenceListing,
 	ReferenceListLayerRow,
 	ReferenceListRow,
+	ReferenceListRowKind,
 	ReferenceSearch,
 	SearchMatch,
 } from './references/reference-catalog.js'
@@ -91,7 +94,26 @@ export type {
 	ReferenceCheckKind,
 } from './references/reference-check.js'
 export { checkReferences } from './references/reference-check.js'
+export type {
+	ReferenceCode,
+	ReferenceCodeKind,
+	ReferenceErrorCode,
+	ReferenceNoticeCode,
+	ReferenceStatusCode,
+	ReferenceWarning,
+	ReferenceWarningCode,
+} from './references/reference-codes.js'
+export { referenceCodeExit, referenceCodes } from './references/reference-codes.js'
+export type {
+	CustomizeAction,
+	CustomizeReferenceOptions,
+	CustomizeResult,
+	GeneratorBase,
+} from './references/reference-customize.js'
+export { customizeReference } from './references/reference-customize.js'
 export type { MergeOperation, SectionSource } from './references/reference-document.js'
+export type { ReferenceErrorOptions } from './references/reference-error.js'
+export { ReferenceFailure as ReferenceError } from './references/reference-error.js'
 export type {
 	ExcludedImplementation,
 	ImplementationsOptions,
@@ -104,9 +126,11 @@ export type {
 	InterfaceCardinality,
 	InterfaceCheck,
 	InterfaceCheckFailure,
+	InterfaceSection,
 	ReferenceInterface,
 } from './references/reference-interface.js'
 export type {
+	PluginOrigin,
 	ReferenceLayer,
 	ReferenceLayerOptions,
 	ReferenceLayers,
@@ -116,14 +140,22 @@ export type {
 } from './references/reference-layers.js'
 export {
 	defaultLayer,
-	projectReferencesDir,
 	referenceLayers,
+	repoReferencesDir,
 	userReferencesDir,
 } from './references/reference-layers.js'
 export type { ReferenceName } from './references/reference-name.js'
-export type { ReferenceCode, ReferenceWarning, ReferenceWarningCode } from './references/reference-warning.js'
-export type { ReferenceWherePlace, ReferenceWhereReport, WhereOptions } from './references/reference-where.js'
+export type { ProjectFolder, ProjectFolderCache, ProjectFolders } from './references/reference-projects.js'
+export type {
+	GeneratedRecord,
+	ReferenceSource,
+	ReferenceSourcePlugin,
+	ReferenceTraceSource,
+} from './references/reference-sources.js'
+export type { ReferenceWhereFile, ReferenceWhereReport, WhereOptions } from './references/reference-where.js'
 export { whereReference } from './references/reference-where.js'
+export type { CreateResult, DeleteResult } from './references/reference-write.js'
+export type { WriteScope } from './references/reference-write-target.js'
 export type {
 	AmbiguousCause,
 	ExtendsStep,
@@ -132,11 +164,15 @@ export type {
 	ReferenceTrace,
 	ReferenceTraceContribution,
 	ReferenceTraceLayer,
+	ReferenceTraceProjectSection,
 	ReferenceTraceSection,
+	ResolvedProjectSection,
 	ResolvedReference,
 	ResolveOptions,
 } from './references/resolve-reference.js'
 export { parseReferenceName, referenceNames, resolveReference } from './references/resolve-reference.js'
+export type { CreateReferenceOptions, DeleteReferenceOptions } from './references/write-reference.js'
+export { createReference, deleteReference } from './references/write-reference.js'
 export type { SkillFolderOptions } from './skills/harness-skill-folders.js'
 export {
 	adminSkillFolders,

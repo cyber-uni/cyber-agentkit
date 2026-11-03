@@ -260,7 +260,7 @@ a run stopped by a turn or budget cap is told apart by the `result` message's `s
 A reference is a named Markdown document an agent reads on demand, such as a checklist or a set of
 weights a skill applies. A plugin ships a contribution, a skill ships its default at
 `<skill>/references/<name>.default.md`, and anyone can add their own without editing the plugin: a
-project in `.agents/references/<name>.md`, a person in `~/.agents/references/<name>.md`.
+repository in `.agents/references/<name>.md`, a person in `~/.agents/references/<name>.md`.
 
 ```ts
 import { loadReference } from 'cyber-agentkit'
@@ -277,24 +277,26 @@ if (resolved.status === 'found') console.log(resolved.content)
 
 `status` is `found`, `missing`, `ambiguous` (nothing orders the plugins holding the name; pick one
 of `resolved.options`, such as `my-plugin/agent-readiness-weights`, or settle it with
-`reference select`), or `invalid` (not a reference name). A name not found also has a `code`, such
-as `reference-missing`. A library function never throws for a bad name. `warnings` holds each fault
+`reference customize --extends`), or `invalid` (not a reference name). A name not found also has a
+`code`, such as `reference-missing`. `loadReference` never throws for a bad name. `warnings` holds each fault
 as `{ code, message }`, and `trace` says how the document was built.
 
 The tiers, highest first:
 
 | Tier | Folders |
 | --- | --- |
-| managed | a `references/` beside each detected harness's managed-policy files |
-| project | `.agents/references/` in the root and each folder above it, up to the repository root |
+| managed | a `references/` beside the managed-policy files of the harness, read only when detection names exactly one harness |
+| repo | `.agents/references/` at the repository root |
 | user | `~/.agents/references/` |
-| plugin | the calling plugin's `references/`, each plugin the harness has enabled, then each declared dependency that has a plugin manifest, named by that manifest |
+| plugin | the calling plugin's `references/`, each plugin the harness has enabled, then each dependency in the root's `package.json` that has a plugin manifest, named by that manifest |
 | default | `<skill folder>/references/<name>.default.md` of the skill loading the name |
 
-In each folder, only `<name>.md` and `<name>/README.md` answer a name, in that order.
+The repository root is the nearest folder at or above the working folder that holds `.git` (a folder
+or a file, so a git worktree counts), else the working folder. In each folder, only `<name>.md` and
+`<name>/README.md` answer a name, in that order.
 
 Contributions apply bottom first: the plugins and the default, in the order `extends` gives them,
-then user, project, and managed. Each applies over what is below it with its frontmatter `merge`:
+then user, repo, and managed. Each applies over what is below it with its frontmatter `merge`:
 
 - `patch` (the default): its sections replace the text they match by heading path, and the rest is
   kept.
@@ -305,10 +307,22 @@ then user, project, and managed. Each applies over what is below it with its fro
 
 A `<!-- merge: <operation> -->` marker under a heading applies an operation to that section alone.
 Frontmatter `extends` lists what a contribution builds on, bottom first: plugins by their manifest
-name, and `default`. The highest `extends` written in the managed, project, or user tier builds the
+name, and `default`. The highest `extends` written in the managed, repo, or user tier builds the
 stack; without one, the plugins' own `extends` order them. `resolved.metadata` holds the composed
 frontmatter, the higher contribution winning each key, without `merge` and `extends`. Frontmatter
 that is not a YAML mapping is ignored with a warning.
+
+A `.agents/references/<name>.md` in a folder below the root, one that git does not ignore, is a
+project section for that folder. It is not a tier. `load` delivers each one after the main document,
+in path order, as `<project folder="...">...</project>` in text and as `projectSections` records in
+structured output. The managed contribution applies over each section.
+
+A document written by `customize` from a request records its `sources` and `request`. `load` warns
+`reference-stale` when a source plugin's version has changed since. A plugin or skill default can
+list older names in `aliases`; a load of an older name resolves the new one with a
+`reference-renamed` warning. An `extends` step's `sections` limits it to those top-level sections.
+A reference that is not Markdown reads its description, tags, aliases, and picks from
+`<name>.meta.md` beside it.
 
 | Function | Does |
 | --- | --- |
@@ -318,49 +332,63 @@ that is not a YAML mapping is ignored with a warning.
 | `listReferences(layers)`, `referenceNames(layers)` | Every name the layers hold, one row each, and a row per layer holding it |
 | `listReferences(layers, { pattern })` | Every reference by exact name pattern |
 | `searchReferences(query, layers)` | Names matching a query by name, description, heading, or body |
-| `whereReference(name, layers, options)` | The project and user files a customization is written to, and the heading paths below each |
-| `projectReferencesDir()`, `userReferencesDir()`, `defaultLayer()` | Single folders and layers |
+| `whereReference(name, layers, options)` | The files a customization is written to, what hides each, and the heading paths below |
+| `createReference(options)`, `deleteReference(options)` | Start or delete a contribution; a plugin or skill source folder is `pluginFolder` or `default`, and `plugin` stays the host plugin |
+| `customizeReference(options)` | Write the picks or a generated body for a name, as `reference customize` does; runs no model |
+| `ReferenceError`, `referenceCodes` | The error a library function throws when it cannot complete, carrying a stable `code`, and the table of codes |
+| `repoReferencesDir()`, `userReferencesDir()`, `defaultLayer()` | Single folders and layers |
 | `declaredDependencies()`, `packageDir()`, `pluginManifestName()` | A manifest's declared packages, where each is installed, and a plugin's manifest name |
 | `harnessSkillFolders()`, `pluginSkillFolders()`, `skillsIn()` | The skill folders a harness reads, and the skills in them, known by their `SKILL.md` name |
 | `referenceImplementations(id, layers)` | The implementations of an interface a consumer can load, and those left out with why |
-| `checkReferences(layers, options)` | Checks interface documents and their implementations, each as `show` composes it |
+| `checkReferences(layers, options)` | Checks interface documents and their implementations, each as `load` composes it |
 
 ### The reference command
 
-The package ships a `reference` command with `show`, `list`, `search`, `where`, `implementations`,
-`check`, `create`, `select`, and `delete` subcommands:
+The package ships a `reference` command with `load`, `list`, `search`, `where`, `implementations`,
+`check`, `create`, `customize`, and `delete` subcommands:
 
 ```sh
-npx -y cyber-agentkit reference show <name>... --root <repository root> --default <skill folder>
+npx -y cyber-agentkit reference load <name>... --root <repository root> --default <skill folder>
 npx -y cyber-agentkit reference list
 npx -y cyber-agentkit reference list 'project-tracker.capabilities.*'
 npx -y cyber-agentkit reference implementations <interface id> --accept 1,2
 npx -y cyber-agentkit reference check
 npx -y cyber-agentkit reference create <name> --merge combine
-npx -y cyber-agentkit reference select <name> <plugin> --scope user
-npx -y cyber-agentkit reference delete <name> --scope project --dry-run
+npx -y cyber-agentkit reference customize <name> --extends <plugin> --scope user
+npx -y cyber-agentkit reference delete <name> --scope repo --dry-run
 ```
 
 `implementations` lists what a consumer can load for an interface (a `<id>.interface` document) with
 each one's pin, description, and unsupported sections. `check` verifies interface documents and
-their implementations, and exits 1 on any failure.
+their implementations, and exits 0; failures are entries in the result's `failed` list.
 
-`create`, `select`, and `delete` act on `.agents/references/` (the project, the default) or
-`~/.agents/references/` (`--scope user`). `create` and `delete` also take `--plugin <plugin folder>`
-or `--default <skill folder>` for a plugin's or a skill's source in the repository. `delete` reports
+`create`, `customize`, and `delete` act on `.agents/references/` at the root (`--scope repo`, the
+default) or `~/.agents/references/` (`--scope user`), or on a folder's project section with
+`--in <folder>`. `create` and `delete` also take `--plugin <plugin folder>` or
+`--default <skill folder>` for a plugin's or a skill's source in the repository. `delete` reports
 what answers the name afterwards, and never deletes a managed contribution or an installed copy.
-`select` writes the `extends` that picks what a name builds on, and `--clear` removes it.
+
+`customize` runs no model. `--extends <step>...` writes the picks of what a name builds on, a step
+being a plugin, `<plugin>:<merge>`, or `default`, and `--extends none` removes them. `--request <file>
+--body <file>` writes a body a generator wrote, with the picks, sources, and request recorded;
+`--implements <interface>` makes it a whole implementation; `--base` prints the input the generator
+reads and writes nothing.
 
 Output is [TOON](https://github.com/toon-format/toon) by default, for an agent to parse; pass
-`--format json` or `--format text` (`show`, `create`, `select`, and `delete` default to `text`).
-Each command prints only the fields that answer it; on `show`, `--metadata` adds the status and the
+`--format json` or `--format text` (`load`, `create`, `customize`, and `delete` default to `text`).
+Each command prints only the fields that answer it; on `load`, `--metadata` adds the status and the
 composed frontmatter, and `--trace` adds how the document was built. Every warning carries a stable
-`code`. The formats
+`code`. A command that answered exits 0, including `load` for a name not found and `list`,
+`search`, or `implementations` with nothing to show (an `empty:` message with `help` lines). A
+command that could not complete exits 1, and a usage error exits 2; both print exactly one error
+value on stdout, with `error`, `code`, any detail fields, and `help`, and write nothing to stderr.
+In `text` a warning prints on stderr as `warning: <code>: <message>`; in `json` and `toon` it is in
+the record's `warnings` list. A warning never changes the exit code. The formats
 follow [`clibuilder`](https://www.npmjs.com/package/clibuilder) 12, and any other value is a
 usage error (exit code 2). A CLI built on clibuilder 12
 can host the same command under its own plugin name, imported from the `./commands` subpath. `--format`
 is the host's global option, so the host's `cli({ format })` sets the default for every subcommand;
-the `text` default of `show`, `create`, `select`, and `delete` belongs to the `cyber-agentkit` CLI:
+the `text` default of `load`, `create`, `customize`, and `delete` belongs to the `cyber-agentkit` CLI:
 
 ```ts
 import { createReferenceCommand } from 'cyber-agentkit/commands'

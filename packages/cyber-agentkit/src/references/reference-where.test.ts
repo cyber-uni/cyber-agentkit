@@ -19,7 +19,7 @@ function setup() {
 	const home = tempDir()
 	const plugin = tempDir()
 	const layers: ReferenceLayer[] = [
-		{ tier: 'project', dir: join(root, '.agents', 'references') },
+		{ tier: 'repo', dir: join(root, '.agents', 'references') },
 		{ tier: 'user', dir: join(home, '.agents', 'references') },
 		{ tier: 'plugin', dir: plugin, plugin: 'a' },
 	]
@@ -27,7 +27,7 @@ function setup() {
 }
 
 describe('whereReference', () => {
-	it('gives the project and user files, who each reaches, and the heading paths below each', () => {
+	it('gives the repo and user files, who each reaches, the main heading paths, and the stack used (R57)', () => {
 		const { root, home, plugin, layers } = setup()
 		write(plugin, 'guide.md', '## Setup\n\n### Steps\n\n## Usage\n')
 		write(join(home, '.agents', 'references'), 'guide.md', '## Extra\n')
@@ -35,26 +35,24 @@ describe('whereReference', () => {
 		const report = whereReference('guide', layers, { root })
 
 		expect(report.status).toBe('found')
-		expect(report.places).toEqual([
+		expect(report.files).toEqual([
 			{
-				scope: 'project',
+				scope: 'repo',
 				path: join('.agents', 'references', 'guide.md'),
 				reaches: 'everyone working in this repository',
-				status: 'empty',
-				sections: ['Setup', 'Setup > Steps', 'Usage', 'Extra'],
 			},
 			{
 				scope: 'user',
 				path: join(home, '.agents', 'references', 'guide.md'),
 				reaches: 'only you, in every repository',
-				status: 'used',
-				sections: ['Setup', 'Setup > Steps', 'Usage'],
 			},
 		])
-		expect(report.layers.map(({ tier }) => tier)).toEqual(['project', 'user', 'plugin'])
+		expect(report.headings).toEqual(['Setup', 'Setup > Steps', 'Usage', 'Extra'])
+		expect(report.used).toEqual(['a'])
+		expect(report.layers.map(({ tier }) => tier)).toEqual(['repo', 'user', 'plugin'])
 	})
 
-	it('gives the options and the places a selection goes on an ambiguous name', () => {
+	it('gives the options and the files a selection goes to on an ambiguous name, never the plugins (UC2.5, UC2.6)', () => {
 		const { root, layers } = setup()
 		const other = tempDir()
 		write(layers[2]?.dir as string, 'guide.md', '## A\n')
@@ -64,12 +62,49 @@ describe('whereReference', () => {
 
 		expect(report.status).toBe('ambiguous')
 		expect(report.options).toEqual(['a/guide', 'b/guide'])
-		expect(report.places.map(({ scope }) => scope)).toEqual(['project', 'user'])
+		expect(report.files.map(({ scope }) => scope)).toEqual(['repo', 'user'])
+		expect(report.headings).toEqual([])
 	})
 
-	it('gives no places for an invalid name', () => {
+	it('marks a file hidden by a replace above it, file there or not, naming the contribution (UC2.10)', () => {
+		const { root, layers } = setup()
+		write(join(root, '.agents', 'references'), 'guide.md', '---\nmerge: replace\n---\n\n## Repo\n')
+
+		const report = whereReference('guide', layers, { root })
+
+		expect(report.files[0]?.hiddenBy).toBeUndefined()
+		expect(report.files[1]).toMatchObject({
+			scope: 'user',
+			hiddenBy: `repo ${join(root, '.agents', 'references', 'guide.md')} (replace)`,
+		})
+	})
+
+	it('gives the path of the file that answers in another form', () => {
+		const { root, layers } = setup()
+		write(join(root, '.agents', 'references', 'guide'), 'README.md', '## Folder\n')
+
+		expect(whereReference('guide', layers, { root }).files[0]?.path).toBe(
+			join('.agents', 'references', 'guide', 'README.md'),
+		)
+	})
+
+	it('gives the --in folder’s project section file, and refuses a folder not below the root', () => {
 		const { root, layers } = setup()
 
-		expect(whereReference('a/b/c', layers, { root })).toMatchObject({ status: 'invalid', places: [] })
+		const report = whereReference('guide', layers, { root, in: join(root, 'packages', 'app') })
+		expect(report.files[2]).toEqual({
+			scope: 'packages/app',
+			path: join('packages', 'app', '.agents', 'references', 'guide.md'),
+			reaches: 'everyone working in packages/app',
+		})
+		expect(() => whereReference('guide', layers, { root, in: root })).toThrow(
+			expect.objectContaining({ code: 'in-not-below-root' }),
+		)
+	})
+
+	it('gives no files for an invalid name', () => {
+		const { root, layers } = setup()
+
+		expect(whereReference('a/b/c', layers, { root })).toMatchObject({ status: 'invalid', files: [] })
 	})
 })

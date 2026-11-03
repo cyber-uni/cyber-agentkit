@@ -263,7 +263,7 @@ flowchart TD
 ## The shipped how-to reference
 
 The Markdown document `packages/cyber-agentkit/references/plugin-dependencies.md`, shipped in the plugin and loaded by
-name through the `reference` skill (`reference show plugin-dependencies`). A plugin's own README or skill points an
+name through the `reference` skill (`reference load plugin-dependencies`). A plugin's own README or skill points an
 agent at it when a plugin it needs is missing.
 
 It tells an agent what a plugin declares and where, how to run the check, and the steps per harness: Claude Code, which

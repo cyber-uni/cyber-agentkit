@@ -56,9 +56,10 @@ npx -y cyber-agentkit reference list
 
 Describe what you want done with a reference. You do not name the command:
 
-1. Ask the agent to create one: "Create a project reference called release-checklist." It shows you the path and the content, and writes only after you approve.
+1. Ask the agent to create one: "Create a repo reference called release-checklist." It shows you the path and the content, and writes only after you approve.
 2. Ask it to read one: "Show me release-checklist."
 3. Ask why a copy won: "Why does release-checklist resolve to that file?"
+4. Ask it to change one for you: "Make release-checklist ask for a changelog entry." It drafts the change from your request and writes it only after you approve.
 
 [The skill page](/cyber-agentkit/packages/cyber-agentkit/skills/reference/) lists every kind of request
 and what the agent does for each.
@@ -70,8 +71,8 @@ compact for agents; add `--format json` to pipe the answer to another tool.
 
 ```sh
 npx cyber-agentkit reference search release
-npx cyber-agentkit reference show release-checklist
-npx cyber-agentkit reference show release-checklist --trace
+npx cyber-agentkit reference load release-checklist
+npx cyber-agentkit reference load release-checklist --trace
 ```
 
 The [CLI reference](/cyber-agentkit/packages/cyber-agentkit/cli/) documents every command and option.

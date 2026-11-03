@@ -1,16 +1,16 @@
 # Reference
 
-Loads, creates, updates, selects, deletes, and finds [references](https://cyber-uni.github.io/cyber-agentkit/concepts/reference-documents/): Markdown documents (or JSON, YAML, TOML, or text files, which are never merged) an agent reads on demand by name. It routes each request to the `reference` command, run from a launcher bundled in `scripts/`, and writes or deletes a reference only after the user approves it. Type `/reference` to run it yourself. Installed as a Claude Code plugin, it is `/cyber-agentkit:reference` (pnpm install: `pnpm-cyber-agentkit-reference`). Installed with pnpm, it is `pnpm-cyber-agentkit-reference`.
+Loads, finds, inspects, creates, customizes, and deletes [references](https://cyber-uni.github.io/cyber-agentkit/concepts/reference-documents/): Markdown documents (or JSON, YAML, TOML, or text files, which are never merged) an agent reads on demand by name. It routes each request to the `reference` command, run from a launcher bundled in `scripts/`, and writes or deletes a reference only after the user approves it. Type `/reference` to run it yourself. Installed as a Claude Code plugin, it is `/cyber-agentkit:reference` (pnpm install: `pnpm-cyber-agentkit-reference`). Installed with pnpm, it is `pnpm-cyber-agentkit-reference`.
 
 | Mode | When |
 | --- | --- |
-| Load | a skill's instructions name references, or an interface whose implementations, to load with this skill |
-| Create | writing a new reference for a project, a user, a plugin (`<plugin name>.<reference>.md`), or a skill's default (`<name>.default.md`); an implementation of an interface is `<id>.<key>.md` |
-| Update | changing a reference: the user's own in place, a plugin's by a customization that patches it |
-| Select | choosing which plugins, or the skill's default, a name builds on, which settles an ambiguous name |
-| Delete | removing a project or user contribution, saying first what answers the name afterwards |
+| Load | a skill's instructions name references, or an interface whose implementations, to load with this skill; it acts on each status and warning, and follows project sections for the folder the work is in |
 | Find | `search` for a topic, `list` every reference, or `implementations` of an interface |
-| Inspect | `show`; `show --trace` for how a name composed; `where` for the project and user files a customization goes to; `check` against an interface |
+| Inspect | `load`; `load --trace` for how a name composed; `where` for the files a customization goes to; `check` against an interface |
+| Create | writing a new reference from given text, for the repository, a folder, the user, a plugin (`<plugin name>.<reference>.md`), or a skill's default (`<name>.default.md`), or stubbing an interface; it shows where each section came from and offers the full document |
+| Update | editing the user's own hand-written file in place |
+| Customize | picking what a name builds on, changing its prose by request through a generator subagent, implementing an interface by request, or revising a stale generated document |
+| Delete | removing a repo, user, or project-section contribution, saying first what answers the name afterwards |
 | Wire a skill | giving a skill the line below |
 
 It ships in the `cyber-agentkit` plugin:

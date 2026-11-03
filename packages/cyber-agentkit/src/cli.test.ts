@@ -44,7 +44,7 @@ describe('run', () => {
 		mkdirSync(join(root, '.agents', 'references'), { recursive: true })
 		writeFileSync(join(root, '.agents', 'references', 'probe.md'), '# Probe\n')
 
-		expect(await run(['node', 'cyber-agentkit', 'reference', 'show', 'probe', '--root', root])).toBe(0)
+		expect(await run(['node', 'cyber-agentkit', 'reference', 'load', 'probe', '--root', root])).toBe(0)
 		expect(stdout).toHaveBeenCalledWith('# Probe\n')
 	})
 
@@ -53,7 +53,7 @@ describe('run', () => {
 		mkdirSync(join(host, 'references'), { recursive: true })
 		writeFileSync(join(host, 'references', 'host-probe.md'), '## Host\n')
 
-		const args = ['node', 'reference.mjs', 'reference', 'show', 'host-probe', '--root', tempRoot()]
+		const args = ['node', 'reference.mjs', 'reference', 'load', 'host-probe', '--root', tempRoot()]
 		expect(await run(args, { name: 'host-plugin', version: '9.9.9', root: host })).toBe(0)
 		expect(stdout).toHaveBeenCalledWith('## Host\n')
 	})
@@ -66,8 +66,32 @@ describe('run', () => {
 		expect(layers.map(({ plugin }) => plugin)).toContain('cyber-agentkit')
 	})
 
-	it('returns the exit code a failing subcommand gives', async () => {
-		expect(await run(['node', 'cyber-agentkit', 'reference', 'show', 'absent', '--root', tempRoot()])).toBe(1)
+	it('exits 0 when load answers a name not found, holding its status and code', async () => {
+		expect(await run(['node', 'cyber-agentkit', 'reference', 'load', 'absent', '--root', tempRoot()])).toBe(0)
+		expect(String(stdout.mock.calls[0]?.[0])).toMatch(
+			/^<reference name="absent" status="missing" code="reference-missing">.*<\/reference>\n$/,
+		)
+	})
+
+	it('returns the exit code a failing subcommand gives, with its error value on stdout', async () => {
+		const argv = ['node', 'cyber-agentkit', 'reference', 'implementations', 'nope', '--root', tempRoot()]
+		expect(await run(argv)).toBe(1)
+		expect(stdout).toHaveBeenCalledTimes(1)
+		expect(String(stdout.mock.calls[0]?.[0])).toMatch(/^error: .*\ncode: interface-unknown\n/)
+		expect(stderr).not.toHaveBeenCalled()
+	})
+
+	it.each([
+		[['load', '--bogus', 'name'], 'unknown flag'],
+		[['where'], 'no name'],
+	])('exits 2 with one coded error value on %s (%s)', async (subcommand) => {
+		expect(await run(['node', 'cyber-agentkit', 'reference', ...subcommand, '--root', tempRoot()])).toBe(2)
+		expect(stdout).toHaveBeenCalledTimes(1)
+		expect(String(stdout.mock.calls[0]?.[0])).toMatch(/^error: .*\ncode: [a-z-]+\n/)
+	})
+
+	it('has no show subcommand', async () => {
+		expect(await run(['node', 'cyber-agentkit', 'reference', 'show', 'name', '--root', tempRoot()])).toBe(2)
 	})
 
 	it('treats a run that returns no code as a success', async () => {
@@ -75,12 +99,12 @@ describe('run', () => {
 	})
 
 	it.each([
-		['show', 'name'],
+		['load', 'name'],
 		['list'],
 		['search', 'anything'],
 		['where', 'name'],
 		['create', 'name'],
-		['select', 'name', 'a'],
+		['customize', 'name', '--extends', 'a'],
 		['delete', 'name'],
 	])('rejects an unsupported --format on %s as a usage error, before the command runs', async (...subcommand) => {
 		const argv = ['node', 'cyber-agentkit', 'reference', ...subcommand, '--format', 'yaml', '--root', tempRoot()]

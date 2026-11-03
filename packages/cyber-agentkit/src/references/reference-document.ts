@@ -1,6 +1,6 @@
 import { parse } from 'yaml'
 import { isRecord } from '../plugins/json-file.js'
-import type { WarnFn } from './reference-warning.js'
+import type { WarnFn } from './reference-codes.js'
 
 /**
  * How a contribution applies over what is below it. `replace` puts it in place of everything below;
@@ -183,6 +183,8 @@ export type ComposedSection = {
 	text: string[]
 	sources: SectionSource[]
 	children: ComposedSection[]
+	/** Combined text was joined in this section's own text, so the notice goes before it (R5). */
+	joined?: boolean
 }
 
 export type RemovedSection = { path: string; by: string }
@@ -194,15 +196,31 @@ export type Composed = {
 	preambleSources: SectionSource[]
 	children: ComposedSection[]
 	removed: RemovedSection[]
-	/** Combined text was joined, so the output says once that the later text wins. */
+	/** Combined text was joined somewhere, so the output says once that the later text wins. */
 	joined: boolean
+	/** Combined text was joined in the text before the first heading. */
+	preambleJoined: boolean
 }
 
 export function emptyComposed(): Composed {
-	return { top: undefined, preamble: [], preambleSources: [], children: [], removed: [], joined: false }
+	return {
+		top: undefined,
+		preamble: [],
+		preambleSources: [],
+		children: [],
+		removed: [],
+		joined: false,
+		preambleJoined: false,
+	}
 }
 
-type Apply = { label: string; warn: WarnFn; composed: Composed }
+type Apply = {
+	label: string
+	warn: WarnFn
+	composed: Composed
+	/** Apply only over what the contribution matches: a section matching nothing is not added, and not warned about. */
+	matchedOnly: boolean
+}
 
 function pathOf(parent: string, title: string): string {
 	return parent ? `${parent} > ${title}` : title
@@ -270,6 +288,7 @@ function applyChildren(
 		const index = matched.has(key) ? -1 : base.findIndex((candidate) => sectionKey(candidate.title) === key)
 		matched.add(key)
 		if (index === -1) {
+			if (apply.matchedOnly) continue
 			if (section.marker) warnUnmatched(section, parent, apply)
 			if (operation !== 'remove') appended.push(place(section, operation, parent, apply))
 			continue
@@ -288,17 +307,20 @@ function applyChildren(
 		const text = trimBlank(section.text)
 		const source = text.length ? [{ contribution: apply.label, operation }] : []
 		if (operation === 'combine') {
-			if (text.length && target.text.length) apply.composed.joined = true
+			const joined = Boolean(text.length && target.text.length)
+			if (joined) apply.composed.joined = true
 			slots[index] = {
 				...target,
+				...(joined ? { joined: true } : {}),
 				text: join(target.text, text),
 				sources: [...target.sources, ...source],
 				children: applyChildren(target.children, section.children, 'combine', path, apply),
 			}
 			continue
 		}
+		const { joined: _joined, ...kept } = target
 		slots[index] = {
-			...target,
+			...(text.length ? kept : target),
 			text: text.length ? text : target.text,
 			sources: text.length ? source : target.sources,
 			children: applyChildren(target.children, section.children, 'replace', path, apply),
@@ -309,7 +331,9 @@ function applyChildren(
 
 /**
  * Applies one contribution's body over what is below it. `remove` and a body-less contribution are
- * the caller's to handle: this applies text.
+ * the caller's to handle: this applies text. With `matchedOnly`, it changes only what it matches: a
+ * section matching nothing is not added, and the text before the first heading applies only over
+ * text there.
  */
 export function applyContribution(
 	below: Composed,
@@ -317,36 +341,51 @@ export function applyContribution(
 	operation: Exclude<MergeOperation, 'remove'>,
 	label: string,
 	warn: WarnFn,
+	{ matchedOnly = false }: { matchedOnly?: boolean } = {},
 ): Composed {
 	const tree = parseSections(body, warn)
 	const base = operation === 'replace' ? emptyComposed() : below
 	const composed: Composed = { ...base, removed: [...base.removed] }
-	const apply: Apply = { label, warn, composed }
+	const apply: Apply = { label, warn, composed, matchedOnly }
 	warnRepeats(tree.children, '', apply)
-	const preamble = trimBlank(tree.preamble)
+	const preamble = matchedOnly && !base.preamble.length ? [] : trimBlank(tree.preamble)
 	if (operation === 'combine') {
-		if (preamble.length && base.preamble.length) composed.joined = true
+		if (preamble.length && base.preamble.length) {
+			composed.joined = true
+			composed.preambleJoined = true
+		}
 		composed.preamble = join(base.preamble, preamble)
 		if (preamble.length) composed.preambleSources = [...base.preambleSources, { contribution: label, operation }]
 	} else if (preamble.length) {
 		composed.preamble = preamble
 		composed.preambleSources = [{ contribution: label, operation }]
+		composed.preambleJoined = false
 	}
 	composed.top = base.top ?? tree.top
 	composed.children = applyChildren(base.children, tree.children, operation, '', apply)
 	return composed
 }
 
-export const joinedNotice = '> Where combined text conflicts, the later text wins.'
+/** The line said once, before the first section whose text combine joined (R5). */
+export const joinedNotice = 'Where these sections conflict, the later text wins.'
 
 export function renderComposed(composed: Composed): string {
 	const blocks: string[] = []
-	if (composed.joined) blocks.push(joinedNotice)
-	if (composed.preamble.length) blocks.push(composed.preamble.join('\n'))
+	let noticed = false
+	const notice = (joined: boolean | undefined) => {
+		if (!joined || noticed) return
+		blocks.push(joinedNotice)
+		noticed = true
+	}
+	if (composed.preamble.length) {
+		notice(composed.preambleJoined)
+		blocks.push(composed.preamble.join('\n'))
+	}
 	const top = composed.top ?? 1
 	const visit = (section: ComposedSection) => {
 		const level = Math.min(6, top + section.depth)
 		const heading = level === section.level ? section.heading : `${'#'.repeat(level)} ${section.title}`.trimEnd()
+		notice(section.joined)
 		blocks.push(section.text.length ? `${heading}\n\n${section.text.join('\n')}` : heading)
 		for (const child of section.children) visit(child)
 	}
@@ -378,4 +417,46 @@ export function headingPaths(body: string): string[] {
 	}
 	for (const section of parseSections(body, () => {}).children) visit(section, '')
 	return paths
+}
+
+/** One top-level section a step's `sections` lists (R52), with the operation it applies with when one is given. */
+export type PickedSection = { heading: string; merge?: MergeOperation }
+
+/**
+ * A step's `sections` (R52): the body with only the top-level sections it lists, in the order the
+ * document holds them, each under its own operation's marker when one is given. The text before the
+ * first heading is not a section, so it is left out. `missing` names each listed heading the body
+ * does not hold.
+ */
+export function pickSections(body: string, picks: readonly PickedSection[]): { body: string; missing: string[] } {
+	const top = topLevel(body)
+	const inFence = fenceTracker()
+	const blocks: { key: string; lines: string[] }[] = []
+	for (const line of body.split('\n')) {
+		const fenced = inFence(line)
+		const heading = fenced ? null : headingPattern.exec(line)
+		if (heading && (heading[1] as string).length === top) {
+			blocks.push({ key: sectionKey(heading[2] ?? ''), lines: [line] })
+			continue
+		}
+		blocks.at(-1)?.lines.push(line)
+	}
+	const wanted = new Map(picks.map((pick) => [sectionKey(pick.heading), pick]))
+	const taken = new Set<string>()
+	const kept: string[] = []
+	for (const block of blocks) {
+		const pick = wanted.get(block.key)
+		if (!pick || taken.has(block.key)) continue
+		taken.add(block.key)
+		const [heading, ...rest] = block.lines as [string, ...string[]]
+		if (pick.merge === undefined) {
+			kept.push(heading, ...rest)
+			continue
+		}
+		const first = rest.findIndex((line) => line.trim())
+		const own = first !== -1 && markerPattern.test(rest[first] as string) ? rest.filter((_, at) => at !== first) : rest
+		kept.push(heading, `<!-- merge: ${pick.merge} -->`, ...own)
+	}
+	const missing = picks.filter((pick) => !taken.has(sectionKey(pick.heading))).map(({ heading }) => heading)
+	return { body: kept.join('\n'), missing }
 }

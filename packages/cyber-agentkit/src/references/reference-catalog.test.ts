@@ -19,7 +19,7 @@ const doc = (description: string, body = '## A\n\nbody\n') => `---\ndescription:
 describe('listReferences', () => {
 	it('gives one row per name, with its status and options when not found', () => {
 		const layers = [
-			layer('project', { 'testing.md': doc('project testing') }),
+			layer('repo', { 'testing.md': doc('project testing') }),
 			layer('plugin', { 'testing.md': doc('plugin testing'), 'shared.md': doc('a') }, 'a'),
 			layer('plugin', { 'shared.md': doc('b') }, 'b'),
 		]
@@ -27,15 +27,21 @@ describe('listReferences', () => {
 		const listing = listReferences(layers)
 
 		expect(listing.references).toEqual([
-			{ name: 'shared', description: '', status: 'ambiguous', options: ['a/shared', 'b/shared'] },
+			{
+				name: 'shared',
+				description: '',
+				status: 'ambiguous',
+				code: 'reference-ambiguous',
+				options: ['a/shared', 'b/shared'],
+			},
 			{ name: 'testing', description: 'project testing', status: 'found' },
 		])
 		expect(listing.defaults).toBeUndefined()
 	})
 
-	it('gives one layer row per name per layer holding it, with its outcome, marking a selection', () => {
+	it('gives one layer row per name per layer holding it, with its outcome, marking a selection by its kind (R38)', () => {
 		const layers = [
-			layer('project', { 'shared.md': '---\nextends: [b]\n---\n' }),
+			layer('repo', { 'shared.md': '---\nextends: [b]\n---\n' }),
 			layer('plugin', { 'shared.md': doc('a') }, 'a'),
 			layer('plugin', { 'shared.md': doc('b') }, 'b'),
 		]
@@ -43,28 +49,25 @@ describe('listReferences', () => {
 		const { layers: rows, references } = listReferences(layers)
 
 		expect(references).toEqual([{ name: 'shared', description: 'b', status: 'found' }])
-		expect(rows.map(({ tier, plugin, outcome, selection }) => [tier, plugin, outcome, selection])).toEqual([
-			['project', undefined, 'used', true],
-			['plugin', 'a', 'not used (not in extends)', undefined],
+		expect(rows.map(({ tier, plugin, outcome, kind }) => [tier, plugin, outcome, kind])).toEqual([
+			['repo', undefined, 'used', 'selection'],
 			['plugin', 'b', 'used', undefined],
+			['plugin', 'a', 'not used (not in extends)', undefined],
 		])
 	})
 
 	it('shows a name a remove turned off as missing, and the rows below as shadowed', () => {
-		const layers = [
-			layer('project', { 'x.md': '---\nmerge: remove\n---\n' }),
-			layer('plugin', { 'x.md': doc('x') }, 'a'),
-		]
+		const layers = [layer('repo', { 'x.md': '---\nmerge: remove\n---\n' }), layer('plugin', { 'x.md': doc('x') }, 'a')]
 
 		const listing = listReferences(layers)
 
-		expect(listing.references).toEqual([{ name: 'x', description: '', status: 'missing' }])
-		expect(listing.layers[1]?.outcome).toMatch(/^shadowed by project .*\(remove\)$/)
+		expect(listing.references).toEqual([{ name: 'x', description: '', status: 'missing', code: 'reference-removed' }])
+		expect(listing.layers[1]?.outcome).toMatch(/^shadowed by repo .*\(remove\)$/)
 	})
 
 	it('keeps exactly the names a pattern matches, * standing for any run of characters', () => {
 		const layers = [
-			layer('project', { 'tracker.github.md': doc('g'), 'tracker.jira.md': doc('j'), 'trackers.md': doc('t') }),
+			layer('repo', { 'tracker.github.md': doc('g'), 'tracker.jira.md': doc('j'), 'trackers.md': doc('t') }),
 		]
 
 		expect(listReferences(layers, { pattern: 'tracker.*' }).references.map(({ name }) => name)).toEqual([
@@ -74,7 +77,7 @@ describe('listReferences', () => {
 	})
 
 	it('collects each warning once', () => {
-		const layers = [layer('project', { 'x.md': '---\nmerge: bogus\n---\n\n## A\n' })]
+		const layers = [layer('repo', { 'x.md': '---\nmerge: bogus\n---\n\n## A\n' })]
 
 		expect(listReferences(layers).warnings.map(({ code }) => code)).toEqual(['merge-unknown'])
 	})
@@ -82,7 +85,7 @@ describe('listReferences', () => {
 
 describe('searchReferences', () => {
 	const layers = () => [
-		layer('project', {
+		layer('repo', {
 			'testing.md': doc('How to write tests', '## Fixtures\n\nUse a temp folder.\n'),
 			'release.md': doc('Release steps', '## Changelog\n\nWrite a changeset.\n'),
 			'gone.md': '---\nmerge: remove\n---\n',
@@ -117,7 +120,7 @@ describe('searchReferences', () => {
 	})
 
 	it('matches tags as description', () => {
-		const tagged = [layer('project', { 'x.md': '---\ntags: [deploy, ci]\n---\n\n## A\n' })]
+		const tagged = [layer('repo', { 'x.md': '---\ntags: [deploy, ci]\n---\n\n## A\n' })]
 
 		expect(searchReferences('deploy', tagged).matches.map(({ match }) => match)).toEqual(['description'])
 	})
@@ -135,7 +138,7 @@ describe("a skill's default", () => {
 	it('lists a name only defaults hold, with a row per skill noting the default step reaches it', () => {
 		const tracker = skill('tracker', { 'x.default.md': doc('from tracker') })
 		const other = skill('tracker', { 'x.default.md': doc('same name, another folder') })
-		const source = { layers: [layer('project', {})], harnesses: [], skills: { skills: [tracker, other] } }
+		const source = { layers: [layer('repo', {})], harnesses: [], skills: { skills: [tracker, other] } }
 
 		const listing = listReferences(source)
 

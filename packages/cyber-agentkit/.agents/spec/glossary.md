@@ -7,7 +7,8 @@
 - **doctor** — a read-only check that reports what is wrong and what the user can do. It changes nothing.
 - **extension key** — a reverse-domain name under `extensions` in the root `plugin.json` that holds one tool's data
   (Agent Plugins 1.0.0, section 8). For plugin management it is `io.github.cyber-uni.plugin-manager`.
-- **reference** — a Markdown document an agent reads by name, layered across tiers.
+- **reference** — a document an agent reads by name: Markdown, or a JSON, YAML, TOML, or text file. Its tiers are in
+  [reference](reference/README.md).
 - **declaring marketplace** — the marketplace the declaring plugin was installed from. A dependency with no marketplace
   resolves only there, as in Claude Code.
 - **AXI** — Agent Experience Interface, a convention for CLIs that agents call: structured output on stdout, exit 0 for

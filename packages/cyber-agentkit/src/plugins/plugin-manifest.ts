@@ -15,11 +15,8 @@ export const pluginManifestPaths: readonly string[] = [
 	'.github/plugin/plugin.json',
 ]
 
-/**
- * The `name` in the first plugin manifest a folder holds, or `undefined` when it holds none: then
- * the folder is not a plugin, whatever its `package.json` says.
- */
-export function pluginManifestName(root: string): string | undefined {
+/** The first plugin manifest a folder holds that gives a `name`. */
+function firstManifest(root: string): Record<string, unknown> | undefined {
 	for (const path of pluginManifestPaths) {
 		let manifest: unknown
 		try {
@@ -27,7 +24,39 @@ export function pluginManifestName(root: string): string | undefined {
 		} catch {
 			continue
 		}
-		if (isRecord(manifest) && typeof manifest['name'] === 'string' && manifest['name']) return manifest['name']
+		if (isRecord(manifest) && typeof manifest['name'] === 'string' && manifest['name']) return manifest
 	}
 	return undefined
+}
+
+/**
+ * The `name` in the first plugin manifest a folder holds, or `undefined` when it holds none: then
+ * the folder is not a plugin, whatever its `package.json` says.
+ */
+export function pluginManifestName(root: string): string | undefined {
+	return firstManifest(root)?.['name'] as string | undefined
+}
+
+/** The `version` in the plugin manifest `pluginManifestName` reads, when it gives one. */
+export function pluginManifestVersion(root: string): string | undefined {
+	const version = firstManifest(root)?.['version']
+	return typeof version === 'string' && version ? version : undefined
+}
+
+function packageVersion(root: string): string | undefined {
+	try {
+		const manifest: unknown = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+		const version = isRecord(manifest) ? manifest['version'] : undefined
+		return typeof version === 'string' && version ? version : undefined
+	} catch {
+		return undefined
+	}
+}
+
+/**
+ * A plugin's installed version: the one its harness install record gives, else its plugin
+ * manifest's, else its `package.json`'s.
+ */
+export function pluginVersion(root: string, recorded?: string | undefined): string | undefined {
+	return recorded || pluginManifestVersion(root) || packageVersion(root)
 }
