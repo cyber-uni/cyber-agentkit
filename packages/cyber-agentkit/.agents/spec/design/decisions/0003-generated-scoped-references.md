@@ -54,5 +54,5 @@ keeps the reasons. It supersedes the pin file, default marker, and ambiguity hin
   - A pin file and a default marker (#110): a written `extends` selection does the same job and records the order.
   - Briefs (`.brief.md`): a brief does nothing until someone generates, and its author cannot test it.
   - A notice for contributions that are not applied: noise.
-- A written `extends` is the whole stack: a plugin installed later waits until a customizer adds it. A notice for that
-  case is a follow-up.
+- A written `extends` is the whole stack: a plugin installed later waits until a customizer adds it. The notice for
+  that case is [0004](./0004-declined-plugins.md).
