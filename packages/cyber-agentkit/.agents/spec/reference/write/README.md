@@ -115,8 +115,8 @@ IDs are shared across the parent and its children.
 - **Inputs:** a bare name; one or more steps, bottom first, each a `<plugin>` or `default`, optionally with the keys
   `merge`, `extends`, and `sections` (the top-level sections, by heading, that it contributes); the tier written to
   (`repo` by default, or `user`); the root.
-- **Outcome:** `<name>.md` in that tier's folder holds an `extends` listing the steps. With no body, it is a selection
-  (K16). The name then resolves through that stack (K14), as K23 says. A step with `sections` contributes only those
+- **Outcome:** `<name>.md` in that tier's folder holds an `extends` listing the steps, and a `declined` listing each
+  plugin that holds the name and the stack leaves out (K35). With no body, it is a selection (K16). The name then resolves through that stack (K14), as K23 says. A step with `sections` contributes only those
   sections, each with its operation; its other sections are not used. A selection is a contribution, so `list` marks
   it and the trace explains it.
 - **Extensions:**
@@ -124,6 +124,8 @@ IDs are shared across the parent and its children.
     selection counts as not written and the stack falls through; a name left ambiguous is asked again (UC4.2).
   - UC9.3 The `repo` and `user` tiers pick differently: the `repo` one builds the stack and the `user` one's `extends`
     is `not used` (R8, UC7.6).
+  - UC9.7 A plugin installed after the picks holds the name: load warns (UC1.21). The customizer adds it to the
+    picks, or writes the same picks again, which records it as declined; either stops the warning (R114).
 
 ### UC11 — Remove a customization (A5.2)
 
@@ -158,6 +160,8 @@ Edge IDs are in [graph.md](./graph.md).
 - R26 (UC5, UC18, E28): `create` and `customize` write the file even when a `replace` or `remove` above would hide it,
   because the hiding contribution may change later. They warn, naming the hiding contribution. The trace shows the file
   is not applied (R9), and `where` marks it hidden.
+- R114 (UC9, UC18): Writing picks records as `declined` every plugin that holds the name and the stack those picks
+  build leaves out, and replaces any earlier `declined`. Removing the picks removes it too.
 - R83 (UC18): picks on a target holding a body keep the body; when that body records a request, the output suggests
   customizing again with it.
 - R84 (UC20, UC18): the generator's input never includes the target file itself, managed text, the tier above the

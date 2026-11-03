@@ -378,7 +378,7 @@ describe('the stack (R8, R52 to R56)', () => {
 		])
 
 		expect(resolved.trace.stack).toEqual(['b'])
-		expect(codes(resolved)).toEqual(['extends-step-missing', 'extends-all-missing'])
+		expect(codes(resolved)).toEqual(['extends-step-missing', 'extends-all-missing', 'plugin-not-selected'])
 		expect(resolved.trace.layers[0]?.outcome).toBe('not used (every step is missing)')
 	})
 
@@ -391,7 +391,7 @@ describe('the stack (R8, R52 to R56)', () => {
 		])
 
 		expect(resolved.trace.stack).toEqual(['a'])
-		expect(codes(resolved)).toEqual(['extends-not-used'])
+		expect(codes(resolved)).toEqual(['extends-not-used', 'plugin-not-selected'])
 		expect(resolved.trace.layers[1]?.outcome).toMatch(/^not used \(repo .*'s extends builds the stack\)$/)
 	})
 
@@ -535,5 +535,156 @@ describe('layerNames and referenceNames', () => {
 			'a',
 			'b',
 		])
+	})
+})
+
+describe('a plugin the written extends neither places nor declines (R113)', () => {
+	it('warns about a plugin installed after the pick, naming it and how to add it or leave it out', () => {
+		const resolved = resolve([
+			layer('repo', { [`${name}.md`]: doc('extends: [a]', '') }),
+			plugin('a', { [`${name}.md`]: base }),
+			plugin('b', { [`${name}.md`]: base }),
+		])
+
+		expect(resolved.trace.stack).toEqual(['a'])
+		expect(codes(resolved)).toEqual(['plugin-not-selected'])
+		expect(resolved.warnings[0]?.message).toContain('the plugin b holds')
+		expect(resolved.warnings[0]?.message).toContain(`reference customize ${name} --extends a b`)
+		expect(resolved.warnings[0]?.message).toContain(`reference customize ${name} --extends a"`)
+		expect(resolved.trace.layers.find(({ plugin }) => plugin === 'b')?.outcome).toBe('not used (not in extends)')
+	})
+
+	it('names every undecided plugin in one warning', () => {
+		const resolved = resolve([
+			layer('repo', { [`${name}.md`]: doc('extends: [a]', '') }),
+			plugin('a', { [`${name}.md`]: base }),
+			plugin('b', { [`${name}.md`]: base }),
+			plugin('c', { [`${name}.md`]: base }),
+		])
+
+		expect(codes(resolved)).toEqual(['plugin-not-selected'])
+		expect(resolved.warnings[0]?.message).toContain('the plugins b, c hold')
+	})
+
+	it('does not warn about a declined plugin, and the trace says who declined it', () => {
+		const resolved = resolve([
+			layer('repo', { [`${name}.md`]: doc('extends: [a]\ndeclined: [b]', '') }),
+			plugin('a', { [`${name}.md`]: base }),
+			plugin('b', { [`${name}.md`]: base }),
+		])
+
+		expect(resolved.warnings).toEqual([])
+		expect(resolved.trace.layers.find(({ plugin }) => plugin === 'b')?.outcome).toMatch(/^not used \(declined by repo /)
+	})
+
+	it('reads the declined of a generated document beside its extends', () => {
+		const resolved = resolve([
+			layer('repo', { [`${name}.md`]: doc('extends: [a]\ndeclined: [b]\nrequest: shorter', '## Create\n\nmine\n') }),
+			plugin('a', { [`${name}.md`]: base }),
+			plugin('b', { [`${name}.md`]: base }),
+		])
+
+		expect(codes(resolved)).toEqual([])
+	})
+
+	it('does not warn about a plugin brought in by a step', () => {
+		const resolved = resolve([
+			layer('repo', { [`${name}.md`]: doc('extends: [b]', '') }),
+			plugin('a', { [`${name}.md`]: base }),
+			plugin('b', { [`${name}.md`]: doc('extends: [a]', '## Create\n\nb\n') }),
+		])
+
+		expect(resolved.trace.stack).toEqual(['a', 'b'])
+		expect(resolved.warnings).toEqual([])
+	})
+
+	it('warns from a user extends with the user scope in the command', () => {
+		const resolved = resolve([
+			layer('user', { [`${name}.md`]: doc('extends: [a]', '') }),
+			plugin('a', { [`${name}.md`]: base }),
+			plugin('b', { [`${name}.md`]: base }),
+		])
+
+		expect(codes(resolved)).toEqual(['plugin-not-selected'])
+		expect(resolved.warnings[0]?.message).toContain(`reference customize ${name} --scope user --extends a b`)
+	})
+
+	it('writes each step with its merge in the command', () => {
+		const resolved = resolve([
+			layer('repo', { [`${name}.md`]: doc('extends: [{ a: combine }]', '') }),
+			plugin('a', { [`${name}.md`]: base }),
+			plugin('b', { [`${name}.md`]: base }),
+		])
+
+		expect(resolved.warnings[0]?.message).toContain('--extends a:combine b')
+	})
+
+	it('points at --extends-file when a step holds keys --extends cannot write', () => {
+		const resolved = resolve([
+			layer('repo', { [`${name}.md`]: doc('extends: [{ a: { sections: [Create] } }]', '') }),
+			plugin('a', { [`${name}.md`]: base }),
+			plugin('b', { [`${name}.md`]: base }),
+		])
+
+		expect(codes(resolved)).toEqual(['plugin-not-selected'])
+		expect(resolved.warnings[0]?.message).toContain('--extends-file')
+	})
+
+	it('raises no warning when a managed extends builds the stack', () => {
+		const resolved = resolve([
+			layer('managed', { [`${name}.md`]: doc('extends: [a]', '') }),
+			plugin('a', { [`${name}.md`]: base }),
+			plugin('b', { [`${name}.md`]: base }),
+		])
+
+		expect(resolved.trace.stack).toEqual(['a'])
+		expect(resolved.warnings).toEqual([])
+	})
+
+	it('raises no warning with no written extends, where the plugins order themselves', () => {
+		const resolved = resolve([
+			plugin('a', { [`${name}.md`]: base }),
+			plugin('b', { [`${name}.md`]: doc('extends: [a]', '## Create\n\nb\n') }),
+		])
+
+		expect(resolved.warnings).toEqual([])
+	})
+
+	it('raises no warning for a qualified name', () => {
+		const resolved = resolve(
+			[
+				layer('repo', { [`${name}.md`]: doc('extends: [a]', '') }),
+				plugin('a', { [`${name}.md`]: base }),
+				plugin('b', { [`${name}.md`]: base }),
+			],
+			`a/${name}`,
+		)
+
+		expect(codes(resolved)).toEqual([])
+	})
+
+	it('does not ask about the default, only plugins', () => {
+		const resolved = resolve([
+			layer('repo', { [`${name}.md`]: doc('extends: [a]', '') }),
+			plugin('a', { [`${name}.md`]: base }),
+			skillDefault('tracker', { [`${name}.default.md`]: base }),
+		])
+
+		expect(resolved.warnings).toEqual([])
+	})
+
+	it.each([
+		['not a list', 'declined: b'],
+		['an entry that is not a plugin name', 'declined: [b, "a/b"]'],
+	])('reads a malformed declined (%s) with a warning, leaving the bad part out', (_, declined) => {
+		const resolved = resolve([
+			layer('repo', { [`${name}.md`]: doc(`extends: [a]\n${declined}`, '') }),
+			plugin('a', { [`${name}.md`]: base }),
+			plugin('b', { [`${name}.md`]: base }),
+			plugin('c', { [`${name}.md`]: base }),
+		])
+
+		expect(codes(resolved)).toContain('frontmatter-invalid')
+		expect(codes(resolved)).toContain('plugin-not-selected')
 	})
 })

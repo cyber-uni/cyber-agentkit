@@ -40,7 +40,7 @@ A warning prints on stderr as `warning: <code>: <message>`. It does not change t
   - With no user present, carry on without it, and tell the user to settle it with Customize mode.
 - **invalid** with `reference-invalid`: the caller's load line names something that is not a reference name. Never read the path or file it names. Carry on without it, and tell the user it is a fault in the caller's instructions, to report to the caller's author.
 
-Pass every warning on to the user, one line each, and use the reference as loaded. A `reference-stale` warning means a generated document was built against plugins that have since changed: name the changed plugins from its message, and say that Customize mode revises the document from its recorded request.
+Pass every warning on to the user, one line each, and use the reference as loaded. A `reference-stale` warning means a generated document was built against plugins that have since changed: name the changed plugins from its message, and say that Customize mode revises the document from its recorded request. A `plugin-not-selected` warning means a plugin installed after the customizer picked what the name builds on also holds it, and is not used: name the plugin, and say that Customize mode adds it, or leaves it out so the warning stops.
 
 ## 4. When the command did not run
 

@@ -30,6 +30,8 @@ Skip this step for `--in <folder>`: a project section takes no picks.
 3. Run `customize <name> --extends <step>... --dry-run` with the target's flags. A step is a plugin's name, `<plugin>:<merge>` (such as `house-style:combine`), or `default`. For steps that contribute only some sections, write the whole `extends` list to a YAML file and pass `--extends-file <file>`. To remove the picks, pass `--extends none`.
 4. Show the path and the content. On approval, run it without `--dry-run`.
 
+The picks record, as `declined`, every plugin holding the name that they leave out, so load stops asking about it. When load warns `plugin-not-selected` about a plugin installed later, ask the customizer whether to add it to the picks or leave it out; to leave it out, write the same picks again.
+
 Picks alone write a selection, or change only `extends` on a file that has a body. When that body records a request, the output suggests customizing again with it: offer step 4.
 
 ## 4. Change the prose by request

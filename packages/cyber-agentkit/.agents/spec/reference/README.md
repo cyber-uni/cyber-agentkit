@@ -23,7 +23,8 @@ This capability lets a skill ask for instructions by name and get one concise do
 around it. The skill's author ships a version of their own, and can publish what any version must contain. Another
 plugin can ship a version of its own that meets those requirements, or build on an existing version by replacing or
 adding to some of its sections. Either takes effect as soon as the plugin is installed, unless a customizer has already
-chosen what the name builds on; then it waits until they add it. Where several versions could answer, the customizer
+chosen what the name builds on; then it waits until they add it, and each load says so until they add it or leave it
+out. Where several versions could answer, the customizer
 picks one. A customizer then states, in their own words, what to change, either for the repository or for themselves in
 every repository, and an agent writes the finished document from the chosen versions and those changes, recording what
 it was built from. When a skill asks for the name, it gets one main document: what the plugins ship, with the user's own
@@ -96,7 +97,7 @@ what can be found, and every fault is reported as a warning.
 - K15 **step**: one entry of `extends`: a plugin or `default`, optionally with the keys (`merge`, `extends`) to use for
   that contribution in place of its own.
 - K16 **selection**: a `repo` or `user` contribution with `extends` and no body. It records the customizer's pick of the
-  stack and changes nothing else.
+  stack, with the plugins it left out (K35), and changes nothing else.
 - K17 **above and below**: the order the stack applies in, bottom first: its plugins and `default` in `extends` order,
   the first listed lowest; with no written `extends`, `default` lowest unless its own `extends` places it, as a plugin's
   own `extends` places that plugin. Each contribution applies over the result of everything below it, so a higher one
@@ -109,13 +110,16 @@ what can be found, and every fault is reported as a warning.
   earlier text: a `repo` or `user` contribution written from the stack, as a delta by default or a whole document with
   `merge: replace` (from the interface's stub, for a name only an interface defines or one already found), or a
   project section, written from the main document and the project sections of the folders above its own. Its
-  frontmatter keeps the selection it was built on (`extends`), each source with its plugin's version, and the
+  frontmatter keeps the selection it was built on (`extends` and `declined`), each source with its plugin's version, and the
   request. A project section records `sources` and `request` only, with no `extends` (K24). A whole document from the
   interface's stub records `implements` and the request, and no `sources`.
 - K34 **source**: a contribution a generated document is built from: each step of its stack. A project section records
   the sources of the main document it was written against. A `default` source records its skill's plugin and version
   when the skill ships in a plugin; a standalone skill's default records no version and is never stale. A `user`
   document's sources are only the harness's enabled plugins.
+- K35 **declined**: the plugins that held a name when a customizer wrote its `extends` and that the stack it builds
+  leaves out, recorded in frontmatter `declined` beside that `extends`. It records that the customizer decided about
+  each one, so load tells a plugin left out on purpose from one installed after the pick.
 - K22 **request**: what the customizer asked to change in the prose, in their own words. Choices of plugins, their
   order, and their sections are metadata (`extends`), not part of the request.
 - K23 **main document**: what the tiers compose for a name: the stack; over it, the `user` contribution; over that, the

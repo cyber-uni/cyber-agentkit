@@ -26,7 +26,7 @@ import {
 	readProjectSections,
 } from './reference-project-sections.js'
 import { checkGenerated, type ReferenceTraceSource, sourceCatalog, staleMessage } from './reference-sources.js'
-import { type Lookup, namesDefault, plan } from './reference-stack.js'
+import { type Lookup, namesDefault, type Plan, pickValues, plan, readDeclined } from './reference-stack.js'
 
 export { candidateFiles, contributionLabel, layerNames } from './reference-contribution.js'
 export type { ReferenceName } from './reference-name.js'
@@ -344,6 +344,7 @@ export function resolveAdjusted(
 					? `not used (${replaced.step}'s extends replaced by ${decided.replacedBy})`
 					: 'not used (not in extends)'
 	}
+	if (ref.plugin === undefined) warnUndecided(ref.name, decided, holders, inStack, warnAt)
 
 	const order: OrderedContribution[] = [
 		...decided.entries,
@@ -445,6 +446,42 @@ function markStale(
 		entry.outcome = 'stale'
 		warn('reference-stale', staleMessage(name, check.sources))
 	}
+}
+
+/**
+ * A plugin holding the name that a `repo` or `user` `extends` neither places nor declines (R113): a
+ * customizer has not decided about it, so it warns with how to add it or leave it out. A declined
+ * plugin is `not used` silently, and a managed `extends` never warns, since no customizer changes it.
+ */
+function warnUndecided(
+	name: string,
+	decided: Plan,
+	holders: ReadonlyMap<string, Contribution>,
+	inStack: ReadonlySet<string>,
+	warnAt: (where: string) => WarnFn,
+): void {
+	const builder = decided.builder
+	if (!builder || (builder.layer.tier !== 'repo' && builder.layer.tier !== 'user')) return
+	const declined = new Set(readDeclined(builder.metadata['declined'], warnAt(builder.label)))
+	const undecided: string[] = []
+	for (const [plugin, contribution] of holders) {
+		if (inStack.has(plugin)) continue
+		// A `user` document picks only from the enabled plugins (R84), so it cannot decide about the others.
+		if (builder.layer.tier === 'user' && contribution.layer.origin === 'dependency') continue
+		if (declined.has(plugin)) contribution.entry.outcome = `not used (declined by ${builder.label})`
+		else undecided.push(plugin)
+	}
+	if (!undecided.length) return
+	const scope = builder.layer.tier === 'user' ? ' --scope user' : ''
+	const values = pickValues(builder.steps ?? [])
+	const how = values
+		? `run "reference customize ${name}${scope} --extends ${[...values, ...undecided].join(' ')}" to add ${undecided.length > 1 ? 'them' : 'it'}, or "reference customize ${name}${scope} --extends ${values.join(' ')}" to leave ${undecided.length > 1 ? 'them' : 'it'} out`
+		: `add ${undecided.length > 1 ? 'them' : 'it'} to the extends with "reference customize ${name}${scope} --extends-file <file>", or write the same extends again to leave ${undecided.length > 1 ? 'them' : 'it'} out`
+	const plugins = undecided.join(', ')
+	warnAt(builder.label)(
+		'plugin-not-selected',
+		`${undecided.length > 1 ? 'the plugins' : 'the plugin'} ${plugins} ${undecided.length > 1 ? 'hold' : 'holds'} "${name}" but ${undecided.length > 1 ? 'are' : 'is'} neither in its extends nor declined, so ${undecided.length > 1 ? 'they are' : 'it is'} not used; ${how}`,
+	)
 }
 
 /**

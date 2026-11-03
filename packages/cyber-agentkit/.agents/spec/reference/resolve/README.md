@@ -36,6 +36,9 @@ IDs are shared across the parent and its children.
     with a warning naming the plugin and how to pick (UC9). The warning stops once a written `extends`, whether a
     selection (UC9) or a customization, names the plugin or the default. A plugin whose own `extends` names `default`
     has placed the default itself, so it gets no warning (R56).
+  - UC1.21 A plugin holds the name, and the `repo` or `user` `extends` that builds the stack neither places it nor
+    declines it (K35): still answered, with a warning naming the plugin and how to add it, or leave it out, with
+    Customize mode (UC9). The warning stops once a customizer writes picks that place or decline it (R113).
   - UC1.13 A section matches no section below: with an explicit `<!-- merge: ... -->` marker, a warning, and its text
     goes at the end of its parent section (nothing, for `remove`); unmarked, it goes there with no warning (R6). A
     document repeating a heading: the first is matched, with a warning.
@@ -220,6 +223,11 @@ Edge IDs are in [graph.md](./graph.md).
 - R55 (UC1, UC9): A step not installed, or not holding the name, is skipped with what only it brings in, with a
   warning, and the rest of the stack stands. When every step is missing, the `extends` counts as not written, with a
   warning, and the stack falls through. A `default` step with nothing there is skipped without a warning.
+- R113 (UC1, UC9): When the `repo` or `user` `extends` builds the stack, each plugin holding the name that the stack
+  leaves out and that contribution does not decline (K35) is `not used`, with a warning naming the plugin and how to
+  add it or leave it out. A declined plugin is `not used` with no warning. A managed `extends` that builds the stack
+  raises no such warning, since a customizer cannot change it (R109). For a `user` `extends`, only the harness's enabled
+  plugins count (R84). A written `extends` with no `declined` declines nothing.
 - R106 (UC7): A malformed `extends` counts as not written, with a warning.
 - R56 (UC1, UC4): A plugin's contribution answering over the loading skill's default, when no written `extends` names
   the plugin or the default, still answers, with a warning naming the plugin and how to pick. A plugin whose own

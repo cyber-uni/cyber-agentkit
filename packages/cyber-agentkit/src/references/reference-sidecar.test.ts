@@ -99,7 +99,7 @@ describe('metadata files (K31, R65, R70, R93, R94)', () => {
 
 	it('reads a metadata file with extends and no data file as that tier’s selection; the top step answers whole (R93, UC13.9)', () => {
 		const resolved = resolveReference('conf', [
-			layer('repo', { 'conf.meta.md': '---\ndescription: picked\nextends: [b]\n---\n' }),
+			layer('repo', { 'conf.meta.md': '---\ndescription: picked\nextends: [b]\ndeclined: [a]\n---\n' }),
 			plugin('a', { 'conf.json': '{"a": true}\n' }),
 			plugin('b', { 'conf.yaml': 'b: true\n' }),
 		])

@@ -195,6 +195,8 @@ export type Plan = {
 	replaced: { target: string; step: string }[]
 	/** Who replaced a step's own `extends`, for the trace. */
 	replacedBy: string
+	/** The managed, `repo`, or `user` contribution whose written `extends` built the stack. */
+	builder?: Contribution
 }
 
 export type Failure = { status: 'missing' | 'ambiguous'; message: string; cause?: AmbiguousCause }
@@ -307,6 +309,29 @@ function planFromPlugins(
 	}
 	const builtBy = top && (holders.get(top)?.steps?.length ?? 0) > 0 ? `plugin ${top}'s extends` : 'none'
 	return { entries, builtBy, replaced: [], replacedBy: '' }
+}
+
+/**
+ * A written `extends`'s `declined` (K35): the plugins a customizer left out of it on purpose. Absent,
+ * it declines nothing; a malformed one, or an entry that is not a plugin name, is left out with a warning.
+ */
+export function readDeclined(value: unknown, warn: WarnFn): string[] {
+	if (value === undefined || value === null) return []
+	if (!Array.isArray(value)) {
+		warn('frontmatter-invalid', '`declined` is not a list; it is read as declining nothing')
+		return []
+	}
+	const plugins = value.filter((entry): entry is string => typeof entry === 'string' && namePattern.test(entry))
+	if (plugins.length !== value.length) {
+		warn('frontmatter-invalid', 'an entry in `declined` is not a plugin name; it is left out')
+	}
+	return plugins
+}
+
+/** The `--extends` values that write `steps` again, or `undefined` when a step holds keys only `--extends-file` takes. */
+export function pickValues(steps: readonly ExtendsStep[]): string[] | undefined {
+	if (steps.some((step) => step.extends !== undefined || step.sections !== undefined)) return undefined
+	return steps.map(({ target, merge }) => (merge ? `${target}:${merge}` : target))
 }
 
 export function namesDefault(steps: readonly ExtendsStep[] | undefined): boolean {

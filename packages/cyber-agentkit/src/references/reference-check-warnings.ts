@@ -26,6 +26,7 @@ export const checkWarningClass = {
 	'extends-not-used': 'environment',
 	'section-not-held': 'environment',
 	'default-not-selected': 'environment',
+	'plugin-not-selected': 'environment',
 	'default-folder-missing': 'environment',
 	'default-in-tier': 'defect',
 	'file-ignored': 'defect',
