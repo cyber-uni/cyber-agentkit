@@ -188,7 +188,7 @@ describe('qualified-name overrides (K37, R122)', () => {
 				name: 'tracker',
 				form: 'qualified-override',
 				from: 'a/tracker.md',
-				to: 'tracker.md with extends: [a]',
+				to: 'tracker.md with extends: [a]; no released version read it, so the override never applied, and applying the plan turns it on',
 			},
 			{
 				path,
@@ -244,6 +244,9 @@ describe('qualified-name overrides (K37, R122)', () => {
 		expect(rest).toEqual([])
 		expect(row).toMatchObject({ form: 'qualified-override', from: 'gone/tracker.md' })
 		expect(row?.manual).toMatch(/plugin gone is not installed; it would become tracker\.md with extends: \[gone\]/)
+		expect(row?.manual).toMatch(
+			/; no released version read it, so the override never applied, and applying the plan turns it on$/,
+		)
 		expect(read(path)).toBe(override)
 	})
 

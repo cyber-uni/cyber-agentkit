@@ -277,8 +277,10 @@ export function migrateReferences(layers: ReferenceLayers, options: MigrateOptio
 
 function rowOf(base: Omit<MigrationRow, 'form' | 'from'>, finding: LegacyFinding): MigrationRow {
 	const row: MigrationRow = { ...base, form: finding.form, from: finding.from }
-	if (finding.to !== undefined) row.to = finding.to
-	if (finding.manual !== undefined) row.manual = finding.manual
+	// A form version 1 never read says so on its row, and what applying it turns on.
+	const note = finding.note === undefined ? '' : `; ${finding.reads}, and ${finding.note}`
+	if (finding.to !== undefined) row.to = `${finding.to}${note}`
+	if (finding.manual !== undefined) row.manual = `${finding.manual}${note}`
 	return row
 }
 

@@ -30,6 +30,8 @@ export type LegacyFinding = {
 	manual?: string
 	/** How load reads it today. */
 	reads: string
+	/** What applying it does that version 1 never did. */
+	note?: string
 }
 
 /** Where a contribution sits: a project section carries no `merge` or `extends` (K24). */
@@ -160,8 +162,12 @@ export function defaultLayoutFinding(name: string): LegacyFinding {
 
 /** The warning a legacy form raises at load (R119): the form, how it reads, its 2.0 form, and the fix. */
 export function warnLegacy(finding: LegacyFinding, fix: string, warn: WarnFn): void {
-	const into = finding.to === undefined ? '' : `; its 2.0 form is ${finding.to}`
-	const how = finding.manual === undefined ? fix : `To fix it, ${finding.manual}.`
+	const note = finding.note === undefined ? '' : `, and ${finding.note}`
+	const into = finding.to === undefined ? '' : `; its 2.0 form is ${finding.to}${note}`
+	const how =
+		finding.manual === undefined
+			? fix
+			: `To fix it, ${finding.manual}${finding.note === undefined ? '' : `; ${finding.note}`}.`
 	warn('reference-legacy-format', `\`${finding.from}\` is a version 1 form, and ${finding.reads}${into}. ${how}`)
 }
 
@@ -204,20 +210,22 @@ export function qualifiedOverrides(dir: string, name?: string): QualifiedOverrid
 	return found
 }
 
+const neverApplied = 'no released version read it, so the override never applied'
+const turnsOn = 'applying the plan turns it on'
+
 /**
  * The 2.0 form of a qualified-name override (K37): `<name>.md` beside the subfolder, with
  * `extends: [<plugin>]`. A project section carries no `extends` (K24), so there it is manual.
  */
 export function qualifiedOverrideFinding(found: QualifiedOverride, place: LegacyPlace): LegacyFinding {
 	const { plugin, name, file } = found
-	const reads = 'it is not read'
+	// No released version read this file, so moving it turns on an override that never applied.
+	const said = { form: 'qualified-override', from: file, reads: neverApplied, note: turnsOn } as const
 	if (place === 'project') {
 		return {
-			form: 'qualified-override',
-			from: file,
+			...said,
 			manual: `pick plugin ${plugin} for the whole repository with \`reference customize ${name} --extends ${plugin}\` at the root, since a project section carries no extends; then move this file's body into ${name}.md in this folder and delete this file`,
-			reads,
 		}
 	}
-	return { form: 'qualified-override', from: file, to: `${name}.md with extends: [${plugin}]`, reads }
+	return { ...said, to: `${name}.md with extends: [${plugin}]` }
 }

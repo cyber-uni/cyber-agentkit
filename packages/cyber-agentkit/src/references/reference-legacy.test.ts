@@ -184,7 +184,7 @@ describe('legacy forms in a project section (R119)', () => {
 describe('qualified-name overrides at load (R119)', () => {
 	const override = doc('merge: merge-sections', '## Create\n\nmine\n')
 
-	it('does not read a repo <plugin>/<name>.md, warning with its 2.0 form and migrate', () => {
+	it('does not read a repo <plugin>/<name>.md, warning that it never applied, its 2.0 form, and migrate', () => {
 		const resolved = resolveReference(name, [
 			layer('repo', { [`a/${name}.md`]: override }),
 			plugin('a', { [`${name}.md`]: base }),
@@ -192,8 +192,8 @@ describe('qualified-name overrides at load (R119)', () => {
 
 		expect(resolved.content).toBe(base)
 		expect(resolved.warnings.map(({ code }) => code)).toEqual(['reference-legacy-format'])
-		expect(resolved.warnings[0]?.message).toMatch(
-			/`a\/tracker\.md` is a version 1 form, and it is not read; its 2\.0 form is tracker\.md with extends: \[a\]\. Run `reference migrate`/,
+		expect(resolved.warnings[0]?.message).toContain(
+			': `a/tracker.md` is a version 1 form, and no released version read it, so the override never applied; its 2.0 form is tracker.md with extends: [a], and applying the plan turns it on. Run `reference migrate` to rewrite it.',
 		)
 	})
 
@@ -258,7 +258,7 @@ describe('qualified-name overrides in a project folder (R119)', () => {
 		expect(resolved.content).toBe(base)
 		expect(resolved.warnings.map(({ code }) => code)).toEqual(['reference-legacy-format'])
 		expect(resolved.warnings[0]?.message).toMatch(
-			/`a\/tracker\.md` is a version 1 form, and it is not read\. To fix it, pick plugin a .*`reference customize tracker --extends a` at the root/,
+			/`a\/tracker\.md` is a version 1 form, and no released version read it, so the override never applied\. To fix it, pick plugin a .*`reference customize tracker --extends a` at the root.*; applying the plan turns it on\.$/,
 		)
 	})
 
