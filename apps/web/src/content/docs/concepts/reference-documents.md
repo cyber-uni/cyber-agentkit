@@ -310,13 +310,17 @@ Version 2.0 retired some forms version 1 wrote. A file still in one loads as 2.0
 | `overrides: [<plugin>]` | `extends: [<plugin>]` |
 | a skill's default at `references/<name>.md` | `references/<name>.default.md` |
 | a selection `reference select` wrote in a folder below the root | `reference customize <name> --extends <step>...` at the root |
+| a qualified-name override, `<plugin>/<name>.md` in a subfolder of `.agents/references/` | `<name>.md` with `extends: [<plugin>]` |
 
 `reference migrate` finds these files, and the files under a name a plugin renamed, and prints the
 plan: each file, its tier, and the change. It writes nothing until you add `--write`. It reads the repo
 tier, the user tier, and every project section; with `--plugin <folder>` or `--default <folder>`, it
 reads only that source folder in the repository instead. A user-tier file has no git history to
-restore it, so read its rows before you apply them. A change it cannot make safely, such as a selection
-in a project folder, is a `manual` row that says what to do. It never changes a managed file or an
+restore it, so read its rows before you apply them. No version read a qualified-name override, so
+applying one turns on an override that never applied. A change it cannot make safely is a `manual` row
+that says what to do. That covers a selection in a project folder, and a qualified-name override that sits
+in a project folder, names a plugin that is not installed, or sits beside a file that already answers the
+name. It never changes a managed file or an
 installed plugin or skill.
 
 ```sh
