@@ -86,6 +86,12 @@ export function interfaceLookup(source: Source, options: ResolveOptions = {}): I
 function lookUp(id: string, source: Source, options: ResolveOptions): ReturnType<InterfaceLookup> {
 	const name = `${id}${interfaceSuffix}`
 	const resolved = resolveReference(name, source, options)
+	// `<old id>.interface` resolves the renamed interface's document (R128).
+	const owner = interfaceIdOf(resolved.trace.alias?.resolvedAs ?? '')
+	if (owner !== undefined) {
+		const found = readFound(owner, resolved)
+		return found.value ? { ...found, renamed: owner } : found
+	}
 	if (resolved.status === 'missing') {
 		const owners = [...aliasIndex(source).interfaces]
 			.filter(([, aliases]) => aliases.some(({ alias }) => alias === id))
@@ -117,14 +123,16 @@ function readFound(id: string, resolved: ResolvedReference): ReturnType<Interfac
 	return value ? { value } : lookupFailure(id, `${name} is malformed: ${problems.join('; ')}`)
 }
 
-function bareName(name: string): string {
+/** The bare name a document answers as: the name an older one asked for resolves as (R96, R128), or the name itself. */
+function bareName(resolved: ResolvedReference): string {
+	const name = resolved.trace.alias?.resolvedAs ?? resolved.name
 	return name.slice(name.lastIndexOf('/') + 1)
 }
 
 /** What a composed document declares: an interface, an implementation, or neither. */
 export function kindOf(resolved: ResolvedReference): ReferenceCheckKind {
 	const metadata = resolved.metadata ?? {}
-	if (interfaceIdOf(bareName(resolved.name)) !== undefined || metadata['interface'] !== undefined) return 'interface'
+	if (interfaceIdOf(bareName(resolved)) !== undefined || metadata['interface'] !== undefined) return 'interface'
 	return metadata['implements'] === undefined ? 'none' : 'implementation'
 }
 
@@ -159,7 +167,7 @@ export function checkResolved(
 	const result: CheckResult = { failures: [], unsupported: [], warnings: [] }
 	if (resolved.status !== 'found') return result
 	const { failures, warnings } = result
-	const name = bareName(resolved.name)
+	const name = bareName(resolved)
 	const metadata = resolved.metadata ?? {}
 	if (kindOf(resolved) === 'interface') {
 		const id = interfaceIdOf(name)

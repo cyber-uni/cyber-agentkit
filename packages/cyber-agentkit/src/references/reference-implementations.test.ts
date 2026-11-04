@@ -122,6 +122,32 @@ describe('referenceImplementations', () => {
 		expect(report.warnings.map(({ code }) => code)).toEqual(['reference-renamed'])
 	})
 
+	it('lists the implementations of an interface asked for by the plain name it replaces (UC19.10, R128)', () => {
+		const contract = capabilitiesInterface.replace('interface:\n', 'aliases: [project-tracker.contract]\ninterface:\n')
+		const layers = [
+			layer(
+				'plugin',
+				{
+					'project-tracker.capabilities.interface': contract,
+					'project-tracker.capabilities.github': githubCapabilities,
+				},
+				'repobuddy',
+			),
+		]
+
+		const report = referenceImplementations('project-tracker.contract', layers)
+
+		expect(report.interface).toBe('project-tracker.capabilities')
+		expect(report.implementations.map(({ pin }) => pin)).toEqual(['repobuddy/project-tracker.capabilities.github'])
+		expect(report.warnings).toEqual([
+			{
+				code: 'reference-renamed',
+				message:
+					'project-tracker.contract is an older id of project-tracker.capabilities; ask for project-tracker.capabilities instead',
+			},
+		])
+	})
+
 	it('excludes candidates with why: a version not accepted, a name that does not fit, no implements', () => {
 		const layers = [
 			layer('plugin', { 'scaffold.recipe.interface': recipeInterface }, 'repobuddy'),

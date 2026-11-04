@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { aliasIndex } from './reference-aliases.js'
 import { listReferences, searchReferences } from './reference-catalog.js'
+import { capabilitiesInterface, recipeInterface } from './reference-interface.fixtures.js'
 import type { ReferenceLayer, ReferenceLayers } from './reference-layers.js'
 import { resolveReference } from './resolve-reference.js'
 
@@ -148,10 +149,11 @@ describe('renames (UC19, R96 to R98)', () => {
 		expect(resolveReference('old-name', layers).status).toBe('found')
 	})
 
-	it('keeps an interface document’s aliases apart, as its older ids (UC19.8 is resolved later)', () => {
+	it('keeps an interface document’s aliases as its older ids, and as older names of the document (UC19.8, R128)', () => {
 		const index = aliasIndex([plugin('a', { 'recipe.interface.md': '---\naliases: [old.recipe]\n---\n\n## A\n' })])
 
-		expect(index.byAlias.size).toBe(0)
+		expect([...index.byAlias.keys()]).toEqual(['old.recipe.interface'])
+		expect(index.byName.get('recipe.interface')).toEqual(['old.recipe.interface'])
 		expect(index.interfaces.get('recipe')).toEqual([
 			{ alias: 'old.recipe', owner: expect.objectContaining({ name: 'recipe.interface', plugin: 'a' }) },
 		])
@@ -179,5 +181,92 @@ describe('renames (UC19, R96 to R98)', () => {
 		expect(codes(resolved)).toEqual(['reference-renamed'])
 		expect(resolved.trace.projectSections[0]).toMatchObject({ alias: 'old-name', file: 'old-name.md' })
 		expect(listReferences(layers).references.map(({ name }) => name)).toEqual(['new-name'])
+	})
+})
+
+describe('an interface keeping the name of the plain reference it replaces (UC19.10, R128)', () => {
+	const contract = capabilitiesInterface.replace('interface:\n', 'aliases: [project-tracker.contract]\ninterface:\n')
+	const owner = () => plugin('repobuddy', { 'project-tracker.capabilities.interface.md': contract })
+
+	it('resolves the plain name of a many interface as its interface document, with reference-renamed', () => {
+		const resolved = resolveReference('project-tracker.contract', [owner()])
+
+		expect(resolved).toMatchObject({ name: 'project-tracker.contract', status: 'found' })
+		expect(resolved.metadata?.['interface']).toMatchObject({ cardinality: 'many' })
+		expect(resolved.trace.alias).toEqual({
+			name: 'project-tracker.contract',
+			resolvedAs: 'project-tracker.capabilities.interface',
+		})
+		expect(resolved.warnings).toEqual([
+			{
+				code: 'reference-renamed',
+				message:
+					'"project-tracker.contract" is renamed "project-tracker.capabilities.interface"; load "project-tracker.capabilities.interface" instead',
+			},
+		])
+	})
+
+	it('resolves a qualified plain name as the same plugin’s interface document', () => {
+		const resolved = resolveReference('repobuddy/project-tracker.contract', [owner()])
+
+		expect(resolved).toMatchObject({ status: 'found' })
+		expect(resolved.trace.alias?.resolvedAs).toBe('project-tracker.capabilities.interface')
+	})
+
+	it('resolves <old id>.interface as the interface document, for a one interface too', () => {
+		const one = recipeInterface
+			.replace('interface:\n', 'aliases: [scaffold.template]\ninterface:\n')
+			.replace('cardinality: many', 'cardinality: one')
+		const layers = [plugin('repobuddy', { 'scaffold.recipe.interface.md': one })]
+
+		const resolved = resolveReference('scaffold.template.interface', layers)
+
+		expect(resolved).toMatchObject({ status: 'found' })
+		expect(resolved.trace.alias?.resolvedAs).toBe('scaffold.recipe.interface')
+		expect(codes(resolved)).toEqual(['reference-renamed'])
+	})
+
+	it('leaves a one interface’s <old id> to its implementation, not the interface document (R96)', () => {
+		const one = recipeInterface
+			.replace('interface:\n', 'aliases: [scaffold.template]\ninterface:\n')
+			.replace('cardinality: many', 'cardinality: one')
+		const layers = [plugin('repobuddy', { 'scaffold.recipe.interface.md': one })]
+
+		expect(resolveReference('scaffold.template', layers).status).toBe('missing')
+	})
+
+	it('reports a repo or user file under the plain name as the interface document, never composed (R97)', () => {
+		const user = layer('user', { 'project-tracker.contract.md': '## Tracker\n\nmine\n' })
+
+		const resolved = resolveReference('project-tracker.capabilities.interface', [user, owner()])
+
+		expect(resolved.status).toBe('found')
+		expect(resolved.content).not.toContain('mine')
+		expect(codes(resolved)).toEqual(['reference-renamed', 'interface-not-composed'])
+		expect(resolved.warnings[0]?.message).toContain(
+			'it is filed under the older name "project-tracker.contract" and applies as "project-tracker.capabilities.interface"',
+		)
+		expect(resolveReference('project-tracker.contract', [user, owner()]).warnings.map(({ code }) => code)).toEqual([
+			'reference-renamed',
+			'reference-renamed',
+			'interface-not-composed',
+		])
+	})
+
+	it('answers the plain name as itself while a plugin still holds it (R98)', () => {
+		const old = plugin('legacy', { 'project-tracker.contract.md': 'old contract\n' })
+
+		const resolved = resolveReference('project-tracker.contract', [owner(), old])
+
+		expect(resolved).toMatchObject({ status: 'found', content: 'old contract\n' })
+		expect(codes(resolved)).toEqual(['alias-not-used'])
+	})
+
+	it('lists only the interface document', () => {
+		const layers = [layer('repo', { 'project-tracker.contract.md': '## Tracker\n' }), owner()]
+
+		expect(listReferences(layers).references.map(({ name }) => name)).toEqual([
+			'project-tracker.capabilities.interface',
+		])
 	})
 })
