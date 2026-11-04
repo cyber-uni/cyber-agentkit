@@ -1,6 +1,6 @@
 ---
 name: reference
-description: Use this skill when loading, creating, customizing, updating, deleting, finding, or inspecting a reference (a document agents read by name, Markdown or a JSON, YAML, TOML, or text file), or when wiring a skill to load one.
+description: Use this skill when loading, creating, customizing, updating, deleting, migrating, finding, or inspecting a reference (a document agents read by name, Markdown or a JSON, YAML, TOML, or text file), or when wiring a skill to load one. Also use it to migrate reference files left in a version 1 form, or under a name a plugin renamed, as a `reference-legacy-format` or `reference-renamed` warning asks.
 ---
 
 # Reference
@@ -28,6 +28,7 @@ Each contribution applies with its `merge`: `patch` (the default) replaces the t
 | edit the user's own reference file in place | [Update](#update) |
 | choose what a name builds on, settle an ambiguous name, change what a reference says, or revise a stale one | [Customize](#customize) |
 | remove a repo, user, or project-section contribution | [Delete](#delete) |
+| bring reference files written for version 1 to the 2.0 form, or rename them as a plugin renamed their names, as a `reference-legacy-format` or `reference-renamed` warning asks | [Migrate](#migrate) |
 | make a skill load a reference | [Wire a skill](#wire-a-skill) |
 
 Ask only when the request fits two modes. Otherwise pick one; outside Load, say which. Invoked as `/reference` with no request, run `list` from [Find](#find) and ask what to do with one.
@@ -86,6 +87,17 @@ Load `references/customize.md` from this skill's folder and follow it.
 4. On approval, run it without `--dry-run`.
 5. Run `load <name> --trace` again. The deleted file must be gone from the trace.
 
+## Migrate
+
+Use Migrate for files a customizer or an author wrote: under `.agents/references/` at the root or in a folder below it, under `~/.agents/references/`, or in a plugin's or a skill's source folder in this repository. `migrate` rewrites each version 1 form as its 2.0 form (`merge: merge-sections` is removed, `merge: first-wins` becomes `merge: replace`, `overrides` becomes `extends`, a skill's `references/<name>.md` becomes `<name>.default.md`), and renames each file under a name a plugin renamed. It keeps the body and every other key.
+
+1. Run `migrate`, with the names to limit it to, if any. For a plugin's source folder, add `--plugin <folder>`; for a skill's, add `--default <folder>` and the names the skill loads, since its other files may be its own documents. It prints the plan and writes nothing.
+2. If it answers `0 changes`, say so and stop.
+3. Show the user every row: the file, its tier, and the change. Say plainly that each `user` row edits a file in their home folder that no git history restores. For a `manual` row, show why; for a selection in a project folder, offer the `customize` command it gives, through [Customize](#customize).
+4. With no user present, write nothing, and report the plan.
+5. Only after the user approves, run the same command with `--write`.
+6. Run `check` with the changed names. Report any `reference-legacy-format` or `reference-renamed` left, with its file.
+
 ## Wire a skill
 
 A skill never runs the command itself. It carries one load line naming this skill and its package. Copy the line from the `README.md` in this skill's folder and replace the example names:
@@ -99,17 +111,17 @@ A skill written for one harness may add that harness's typed form after the skil
 
 ## Rules
 
-- **Only Create, Update, Customize, and Delete write.** Load writes only a pick the user made for an ambiguous name. Find, Inspect, and Wire a skill change no reference file.
-- **Never edit, move, rename, or delete a reference an installed plugin or skill ships, or a managed one.** Customize it instead. Its callers load it by name.
+- **Only Create, Update, Customize, Delete, and Migrate write.** Load writes only a pick the user made for an ambiguous name. Find, Inspect, and Wire a skill change no reference file.
+- **Never edit, move, rename, or delete a reference an installed plugin or skill ships, or a managed one, not even to migrate it.** Customize it instead. Its callers load it by name.
 - **Never edit a generated document by hand.** Customize it again with its request.
 - **Write only what the user approves.** Show the file and its path before you write or delete it. With no user present, write nothing.
 
 ## Validate
 
-Before reporting a Create, Update, Customize, or Delete done:
+Before reporting a Create, Update, Customize, Delete, or Migrate done:
 
 - The written or deleted file is under `.agents/references/` at the root or in a folder below it, under `~/.agents/references/`, or, for Create and Delete, in a plugin's or a skill's source folder in this repository.
 - No file in an installed plugin or skill, or in a managed folder, changed.
-- The file and its path were shown to the user before the write or the delete, and a delete also said what answers the name afterwards.
+- The file and its path were shown to the user before the write or the delete, and a delete also said what answers the name afterwards. A migrate showed every row of its plan.
 - After a write, `load <name> --trace` reports the written file as `used`, or names what hides it.
 - A written reference that declares `implements` passes `check <name>`.
