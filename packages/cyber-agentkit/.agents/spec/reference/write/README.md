@@ -180,6 +180,9 @@ IDs are shared across the parent and its children.
     other files may be the skill's own documents, not defaults.
   - UC22.8 A plugin's or a skill's source folder that does not qualify, or lies outside the repository (an installed
     copy): refused, and nothing is written (R24).
+  - UC22.9 A qualified-name override for a plugin the plugin tier does not hold, beside a file that already answers
+    the name, or in a project folder (which carries no `extends`, K24): manual. The row says what it would extend, and
+    for a project folder gives the `reference customize <name> --extends <plugin>` that picks it for the repository.
 
 ### UC23 — Migrate from the skill (A5.5)
 
@@ -240,8 +243,9 @@ Edge IDs are in [graph.md](./graph.md).
   it applies every row that is not manual, and returns the same plan.
 - R122 (UC22): Each legacy form becomes its 2.0 form (K37): `merge: merge-sections` is removed, `merge: first-wins`
   becomes `merge: replace`, `overrides` becomes `extends` with each qualified entry reduced to its plugin, and a
-  default's `references/<name>.md` becomes `<name>.default.md`. In a project section, a legacy `merge` and `overrides`
-  are removed. The body and every other key are kept as written.
+  default's `references/<name>.md` becomes `<name>.default.md`, and a qualified-name override moves out of its
+  subfolder to `<name>.md` with `extends: [<plugin>]`. In a project section, a legacy `merge` and `overrides` are
+  removed. The body and every other key are kept as written.
 - R123 (UC22, E75): By default `migrate` reads the `repo` tier, the `user` tier, and every project section below the
   root in a folder git does not ignore. Given a plugin's or a skill's source folder (`--plugin`, `--default`), it reads
   only that folder's `references/`, which must qualify (R24). It never reads to change a managed folder, an installed

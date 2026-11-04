@@ -149,8 +149,10 @@ what can be found, and every fault is reported as a warning.
   `overrides: [<plugin>...]`, the plugins a copy sat above, an entry possibly qualified as `<plugin>/<name>` (now
   `extends`); a skill's default at `references/<name>.md` in its folder (now `<name>.default.md`); and, in a project
   folder, a selection, the `extends` with no body that `reference select` wrote when run below the root (now a pick
-  for the whole repository, written by `reference customize <name> --extends <step>...`). A selection `select` wrote at
-  the root is already a 2.0 selection (K16). Version 1 shipped no pin file, so none is a legacy form.
+  for the whole repository, written by `reference customize <name> --extends <step>...`). A qualified-name override,
+  `<plugin>/<name>.md` in a subfolder of a tier or project folder, is one too: version 1 guidance described it as the
+  override of one plugin's copy, though no version read it (now `<name>.md` with `extends: [<plugin>]`). A selection
+  `select` wrote at the root is already a 2.0 selection (K16). Version 1 shipped no pin file, so none is a legacy form.
 - K38 **rename table**: `references/_renames.yaml` in a plugin, a YAML mapping of each older name to its new name. It
   declares renames that `aliases` cannot (K32), such as a plain document renamed to a `one` interface's document.
   Unlike an alias, it changes nothing at load: `migrate` applies it, and a load of an older name warns.
@@ -252,7 +254,7 @@ None.
 
 ## References
 
-- Legacy forms and `migrate` (K37, K38, UC22): issue #142.
+- Legacy forms and `migrate` (K37, K38, UC22): issue #142; the qualified-name override: issue #147.
 - Interfaces design: issue #97 (closed). Name-pattern listing: #79 (closed). #110 (open): its default marker and pin
   file are replaced by `extends` and selection (UC7, UC9), and its alias by K32 (UC19). #107 (open): overrides and hard
   plugin dependencies.
