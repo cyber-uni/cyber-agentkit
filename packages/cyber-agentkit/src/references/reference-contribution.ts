@@ -1,9 +1,10 @@
 import { type Dirent, readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { WarnFn } from './reference-codes.js'
 import { hasBody, type MergeOperation, parseDocument, readMergeOperation } from './reference-document.js'
 import { dataExtensions, formatOfFile, type ReferenceFormat } from './reference-format.js'
 import type { ReferenceLayer } from './reference-layers.js'
+import { defaultLayoutFinding, legacyRewrite, warnLegacy } from './reference-legacy.js'
 import { defaultSuffix, parseReferenceName } from './reference-name.js'
 import { readSidecar, type Sidecar } from './reference-sidecar.js'
 import { type ExtendsStep, readExtends } from './reference-stack.js'
@@ -92,6 +93,7 @@ export function readContribution(
 		}
 	}
 	if (hit && hit.as !== name) renamed(entry, hit.as, name, hit.path, display, warnAt)
+	if (!hit && !sidecar && layer.tier === 'default') warnDefaultLayout(layer, name, { display, without, warnAt })
 	if (!hit) return sidecar ? sidecarSelection(layer, entry, sidecar, display, warnAt) : undefined
 	const label = contributionLabel(layer, hit.path, display)
 	const warn = warnAt(label)
@@ -117,6 +119,8 @@ export function readContribution(
 		}
 	}
 	const { metadata, body } = parseDocument(hit.raw, warn)
+	const fix = legacyFix(layer, name, display)
+	for (const finding of legacyRewrite(metadata, body, 'contribution', name).findings) warnLegacy(finding, fix, warn)
 	const merge = readMergeOperation(metadata, warn)
 	const steps = readExtends(metadata['extends'], warn)
 	Object.assign(entry, { path: hit.path, file: hit.file, frontmatter: metadata, outcome: '' })
@@ -125,6 +129,25 @@ export function readContribution(
 	if (!bodyHeld) entry.empty = true
 	if (steps && !bodyHeld && merge !== 'remove') entry.selection = true
 	return { layer, entry, label, path: hit.path, metadata, body, hasBody: bodyHeld, format, whole: false, merge, steps }
+}
+
+/** Who rewrites a legacy form, and how (R119): only a file `migrate` may change gets the command itself. */
+function legacyFix(layer: ReferenceLayer, name: string, display: (path: string) => string): string {
+	if (layer.tier === 'plugin') {
+		return `Plugin ${layer.plugin}'s author rewrites it with \`reference migrate --plugin <its source folder>\`; until then, customize the name.`
+	}
+	if (layer.tier === 'default') {
+		return `Its skill's author rewrites it with \`reference migrate ${name} --default ${display(dirname(layer.dir))}\`.`
+	}
+	if (layer.tier === 'managed') return 'An admin rewrites it; `reference migrate` never changes a managed file.'
+	return 'Run `reference migrate` to rewrite it.'
+}
+
+/** A skill's default in the old layout, `references/<name>.md`, is not read; it warns when the skill's folder has no default of the name (R119). */
+function warnDefaultLayout(layer: ReferenceLayer, name: string, { display, without, warnAt }: ReadContext): void {
+	const path = join(layer.dir, `${name}.md`)
+	if (path === without || tryRead(path) === undefined) return
+	warnLegacy(defaultLayoutFinding(name), legacyFix(layer, name, display), warnAt(display(path)))
 }
 
 /** A file filed under an older name applies as the new one, with a warning naming the file to rename (R97). */

@@ -262,6 +262,7 @@ describe('checkReferences', () => {
 				'interface-check',
 				'base-moved',
 				'reference-hidden',
+				'rename-invalid',
 			].sort(),
 		)
 	})

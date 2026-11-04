@@ -51,8 +51,8 @@ describe('readMergeOperation', () => {
 
 		expect(readMergeOperation({}, warn)).toBeUndefined()
 		expect(readMergeOperation({ merge: 'combine' }, warn)).toBe('combine')
-		expect(readMergeOperation({ merge: 'merge-sections' }, warn)).toBe('patch')
-		expect(warn).toHaveBeenCalledWith('merge-unknown', 'unknown merge "merge-sections"; read as patch')
+		expect(readMergeOperation({ merge: 'interleave' }, warn)).toBe('patch')
+		expect(warn).toHaveBeenCalledWith('merge-unknown', 'unknown merge "interleave"; read as patch')
 	})
 })
 

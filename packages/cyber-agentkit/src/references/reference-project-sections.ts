@@ -13,6 +13,7 @@ import {
 	stripMergeMarkers,
 } from './reference-document.js'
 import { dataExtensions, type ReferenceFormat } from './reference-format.js'
+import { legacyRewrite, warnLegacy } from './reference-legacy.js'
 import { type PackagePlugin, packagePluginReferences, packagePlugins } from './reference-package-plugins.js'
 import { comparePaths, type ProjectFolder, type ProjectFolderCache, projectFolders } from './reference-projects.js'
 import { checkGenerated, type ReferenceTraceSource, type SourceCatalog, staleMessage } from './reference-sources.js'
@@ -309,9 +310,19 @@ function readOwnSection(
 	const { metadata, body } = parseDocument(tryRead(hit.path) ?? '', warnAt(label))
 	row.frontmatter = metadata
 	const kept = { ...metadata }
+	// A legacy form warns as one, in place of the key warning it would otherwise raise (R119).
+	const legacy = legacyRewrite(metadata, body, 'project', name).findings
+	for (const finding of legacy) warnLegacy(finding, 'Run `reference migrate` to rewrite it.', warnAt(label))
+	const warnedAsLegacy = new Set(
+		legacy.flatMap(({ form }) =>
+			form === 'project-selection' ? ['extends'] : form === 'overrides' ? ['overrides'] : ['merge'],
+		),
+	)
+	delete kept['overrides']
 	for (const key of ignoredKeys) {
 		if (!(key in kept)) continue
 		delete kept[key]
+		if (warnedAsLegacy.has(key)) continue
 		warnAt(label)(
 			'project-section-key-ignored',
 			`\`${key}\` is ignored in the project section for ${folder.folder}: a project section states only what differs in its folder`,

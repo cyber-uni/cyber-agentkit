@@ -1,4 +1,4 @@
-import { aliasIndex, olderNames, resolveAlias, warnMisplacedAliases } from './reference-aliases.js'
+import { type AliasIndex, aliasIndex, olderNames, resolveAlias, warnMisplacedAliases } from './reference-aliases.js'
 import type { ReferenceStatusCode, ReferenceWarning, WarnFn } from './reference-codes.js'
 import {
 	composedMetadata,
@@ -26,6 +26,7 @@ import {
 	type ResolvedProjectSection,
 	readProjectSections,
 } from './reference-project-sections.js'
+import { renameTable } from './reference-renames.js'
 import { checkGenerated, type ReferenceTraceSource, sourceCatalog, staleMessage } from './reference-sources.js'
 import { type Lookup, namesDefault, type Plan, pickValues, plan, readDeclined } from './reference-stack.js'
 
@@ -243,6 +244,7 @@ export function resolveAdjusted(
 	const ref = followed.kind === 'renamed' ? followed.ref : asked
 	if (followed.kind === 'renamed') trace.alias = { name: followed.alias, resolvedAs: ref.name }
 	const older = olderNames(ref.name, aliases, warn)
+	if (followed.kind === 'own') warnTableRename(ref, source, aliases, warn)
 
 	const cut = below === undefined ? -1 : all.findIndex((layer) => layer.dir === below)
 	const layers = cut === -1 ? all : all.slice(cut + 1)
@@ -586,4 +588,22 @@ function resolveInterface(
 
 export function referenceNames(source: Source): string[] {
 	return [...new Set(layersOf(source).layers.flatMap(layerNames))].sort((a, b) => a.localeCompare(b))
+}
+
+/**
+ * A load of a name a plugin's rename table lists as older (R120) answers as itself, with a warning
+ * naming the new name. A name a plugin or a default still holds as its own is not renamed.
+ */
+function warnTableRename(ref: ReferenceName, source: Source, aliases: AliasIndex, warn: WarnFn): void {
+	if (aliases.owned.has(ref.name)) return
+	const entries = (renameTable(source).byOld.get(ref.name) ?? []).filter(
+		(entry) => ref.plugin === undefined || entry.plugin === ref.plugin,
+	)
+	if (!entries.length) return
+	const by = [...new Set(entries.map(({ plugin }) => `plugin ${plugin}`))].join(' and ')
+	const targets = [...new Set(entries.map(({ to }) => `"${to}"`))].join(' or ')
+	warn(
+		'reference-renamed',
+		`${by} renamed "${ref.name}" to ${targets}: load ${targets} instead, and run \`reference migrate\` to rename the files filed under "${ref.name}"`,
+	)
 }

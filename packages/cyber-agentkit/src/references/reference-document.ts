@@ -34,11 +34,13 @@ export function parseDocument(raw: string, warn: WarnFn): ParsedDocument {
 	return { metadata: {}, body }
 }
 
-/** The contribution's own `merge`; `undefined` when it writes none. An unknown value reads as `patch`. */
+/** The contribution's own `merge`; `undefined` when it writes none. An unknown or version 1 value reads as `patch`. */
 export function readMergeOperation(metadata: Record<string, unknown>, warn: WarnFn): MergeOperation | undefined {
 	const value = metadata['merge']
 	if (value === undefined) return undefined
 	if (isMergeOperation(value)) return value
+	// A version 1 value warns as a legacy form where the file is read (R119).
+	if (value === 'merge-sections' || value === 'first-wins') return 'patch'
 	warn('merge-unknown', `unknown merge "${String(value)}"; read as patch`)
 	return 'patch'
 }

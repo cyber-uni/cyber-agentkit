@@ -72,7 +72,15 @@ export const referenceCodes = {
 	},
 	'reference-renamed': {
 		kind: 'warning',
-		when: "a name or file under an older name, or an interface's older id (R96, R97)",
+		when: "a name or file under an older name, an interface's older id, or a name a plugin's rename table renames (R96, R97, R120)",
+	},
+	'rename-invalid': {
+		kind: 'warning',
+		when: "a plugin's rename table, or an entry of it, that is not a pair of bare reference names (R120)",
+	},
+	'reference-legacy-format': {
+		kind: 'warning',
+		when: 'a contribution in a form version 1 wrote and 2.0 retired, which `reference migrate` rewrites (R119)',
 	},
 	'alias-not-used': { kind: 'warning', when: 'an alias a name holds as its own (R98)' },
 	'alias-invalid': { kind: 'warning', when: 'an invalid or misplaced alias (R96)' },

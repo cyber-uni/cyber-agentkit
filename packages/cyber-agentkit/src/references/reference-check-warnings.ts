@@ -39,6 +39,8 @@ export const checkWarningClass = {
 	'reference-stale': 'environment',
 	'reference-renamed': 'environment',
 	'alias-not-used': 'environment',
+	'rename-invalid': 'environment',
+	'reference-legacy-format': 'defect',
 	'alias-invalid': 'defect',
 	'project-section-not-markdown': 'project-section',
 	'reference-hidden': 'environment',

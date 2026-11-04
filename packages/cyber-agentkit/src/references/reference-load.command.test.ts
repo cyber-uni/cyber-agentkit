@@ -252,7 +252,7 @@ describe('load: text output', () => {
 
 	it('writes a warning to stderr with its code, leaving stdout and the exit code alone', async () => {
 		const root = repo()
-		write(root, '.agents/references/name.md', '---\nmerge: first-wins\n---\n\nbody\n')
+		write(root, '.agents/references/name.md', '---\nmerge: interleave\n---\n\nbody\n')
 
 		expect(await load(['name'], { root })).toBe(0)
 		expect(written()).toBe('body\n')
