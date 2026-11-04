@@ -361,6 +361,19 @@ describe('interface aliases (UC19.8, R96)', () => {
 	})
 })
 
+describe('an interface under the plain name it replaces (UC19.10, R128)', () => {
+	const contract = capabilitiesInterface.replace('interface:\n', 'aliases: [project-tracker.contract]\ninterface:\n')
+
+	it('checks the plain name as the interface document, passing on reference-renamed', () => {
+		const layers = [layer('plugin', { 'project-tracker.capabilities.interface': contract }, 'repobuddy')]
+
+		const [entry] = checkReferences(layers, { names: ['project-tracker.contract'] })
+
+		expect(entry).toMatchObject({ name: 'project-tracker.contract', kind: 'interface', status: 'passed', failures: [] })
+		expect(entry?.warnings.map(({ code }) => code)).toEqual(['reference-renamed'])
+	})
+})
+
 describe('hidden files (J2, R112, UC6.11)', () => {
 	it('warns of a repo file a managed replace hides, and a user file the repo one hides, never failing', () => {
 		const layers = [

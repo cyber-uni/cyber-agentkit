@@ -1,6 +1,7 @@
+import { isRecord } from '../plugins/json-file.js'
 import type { ReferenceWarning, WarnFn } from './reference-codes.js'
 import { type Contribution, layerNames, readContribution } from './reference-contribution.js'
-import { interfaceIdOf } from './reference-interface.js'
+import { interfaceIdOf, interfaceSuffix } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers } from './reference-layers.js'
 import { parseReferenceName, type ReferenceName } from './reference-name.js'
 import type { ReferenceTraceLayer } from './resolve-reference.js'
@@ -18,8 +19,8 @@ export type AliasOwner = {
 
 /**
  * Every `aliases` the owners of names list (R96, R98), read once per set of layers. An interface
- * document's aliases are its older interface ids, which a name follows as U9's interface rules say,
- * so they are kept apart.
+ * document's aliases are its older interface ids, kept apart in `interfaces` for `implements`, and
+ * the older names of the document they give (R128), indexed like any other alias.
  */
 export type AliasIndex = {
 	/** Each older name, with the owners of the new names listing it. */
@@ -92,19 +93,29 @@ export function aliasIndex(source: Source): AliasIndex {
 					})
 					continue
 				}
-				if (id !== undefined) {
-					push(interfaces, id, { alias, owner })
-					continue
+				if (id !== undefined) push(interfaces, id, { alias, owner })
+				for (const older of id === undefined ? [alias] : documentNames(alias, read.metadata)) {
+					push(byAlias, older, owner)
+					const known = byName.get(name) ?? []
+					if (!known.includes(older)) byName.set(name, [...known, older])
 				}
-				push(byAlias, alias, owner)
-				const older = byName.get(name) ?? []
-				if (!older.includes(alias)) byName.set(name, [...older, alias])
 			}
 		}
 	}
 	const index: AliasIndex = { byAlias, byName, owned, warnings, interfaces }
 	if (keyed) cache.set(keyed, index)
 	return index
+}
+
+/**
+ * The older names of an interface document that lists `alias` (R128): `<old id>.interface` always,
+ * and `<old id>` itself when the interface is `many`, as no implementation of one is named `<old id>`.
+ * For a `one` interface, `<old id>` is the implementation's older name (R96).
+ */
+function documentNames(alias: string, metadata: Record<string, unknown>): string[] {
+	const block = metadata['interface']
+	const many = isRecord(block) && block['cardinality'] === 'many'
+	return many ? [alias, `${alias}${interfaceSuffix}`] : [`${alias}${interfaceSuffix}`]
 }
 
 function aliasFile(read: Contribution): string {

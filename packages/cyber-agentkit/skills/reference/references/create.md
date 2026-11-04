@@ -26,6 +26,7 @@ Create writes a new file from text the author gives, or an interface's stub. To 
 - **An implementation of an interface takes the interface's id as its namespace**: `<id>` when the interface's cardinality is `one`, `<id>.<key>` when it is `many`. Read the interface with `load <id>.interface`.
 - Run `load <name>`. If the name already resolves and the author wants a new document, pick another name. To change the existing one, go to Customize mode.
 - When a plugin or a skill renames a name it ships, list the old name in the new file's `aliases` frontmatter, so load lines and customizations written for the old name still reach it.
+- When a plain reference becomes the interface document of a `many` interface, list its old name in the interface document's `aliases` the same way. For a `one` interface, add the rename to the plugin's `references/_renames.yaml` instead.
 
 ## 4. Write it
 
