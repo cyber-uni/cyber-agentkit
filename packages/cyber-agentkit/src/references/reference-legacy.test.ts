@@ -181,6 +181,94 @@ describe('legacy forms in a project section (R119)', () => {
 	})
 })
 
+describe('qualified-name overrides at load (R119)', () => {
+	const override = doc('merge: merge-sections', '## Create\n\nmine\n')
+
+	it('does not read a repo <plugin>/<name>.md, warning that it never applied, its 2.0 form, and migrate', () => {
+		const resolved = resolveReference(name, [
+			layer('repo', { [`a/${name}.md`]: override }),
+			plugin('a', { [`${name}.md`]: base }),
+		])
+
+		expect(resolved.content).toBe(base)
+		expect(resolved.warnings.map(({ code }) => code)).toEqual(['reference-legacy-format'])
+		expect(resolved.warnings[0]?.message).toContain(
+			': `a/tracker.md` is a version 1 form, and no released version read it, so the override never applied; its 2.0 form is tracker.md with extends: [a], and applying the plan turns it on. Run `reference migrate` to rewrite it.',
+		)
+	})
+
+	it('warns on a user <plugin>/<name>.md, even for a plugin that is not installed', () => {
+		const resolved = resolveReference(name, [
+			layer('user', { [`gone/${name}.md`]: override }),
+			plugin('a', { [`${name}.md`]: base }),
+		])
+
+		expect(legacyWarnings(resolved)).toHaveLength(1)
+		expect(legacyWarnings(resolved)[0]?.message).toMatch(/`gone\/tracker\.md`.*extends: \[gone\]/)
+	})
+
+	it('leaves a reference in folder form alone, and an override of another name', () => {
+		const resolved = resolveReference(name, [
+			layer('repo', { 'a/README.md': '# a\n', [`a/${name}.md`]: override, ['b/other.md']: override }),
+			plugin('a', { [`${name}.md`]: base }),
+		])
+
+		expect(legacyWarnings(resolved)).toEqual([])
+	})
+
+	it('fails the compose check on one', () => {
+		const [entry] = checkReferences(
+			[layer('repo', { [`a/${name}.md`]: override }), plugin('a', { [`${name}.md`]: base })],
+			{ names: [name] },
+		)
+
+		expect(entry?.status).toBe('failed')
+		expect(entry?.failures[0]?.message).toMatch(/reference-legacy-format.*a\/tracker\.md/)
+	})
+
+	it('is reported when check runs over every name', () => {
+		const entries = checkReferences([
+			layer('repo', { [`a/${name}.md`]: override }),
+			plugin('a', { [`${name}.md`]: base }),
+		])
+
+		expect(entries.find((entry) => entry.name === name)?.failures[0]?.message).toMatch(/a\/tracker\.md/)
+	})
+})
+
+describe('qualified-name overrides in a project folder (R119)', () => {
+	function layers(files: Record<string, string>): ReferenceLayers {
+		const root = tempDir('reference-legacy-root-')
+		for (const [file, content] of Object.entries(files)) write(root, file, content)
+		return {
+			layers: [{ tier: 'repo', dir: join(root, '.agents', 'references') }],
+			root,
+			projects: new Map(),
+			harnesses: [],
+		}
+	}
+	const files = {
+		[`.agents/references/${name}.md`]: base,
+		[`pkg/.agents/references/a/${name}.md`]: '## Create\n\npkg\n',
+	}
+
+	it('warns at load, giving the customize that picks the plugin for the repository', () => {
+		const resolved = resolveReference(name, layers(files))
+
+		expect(resolved.content).toBe(base)
+		expect(resolved.warnings.map(({ code }) => code)).toEqual(['reference-legacy-format'])
+		expect(resolved.warnings[0]?.message).toMatch(
+			/`a\/tracker\.md` is a version 1 form, and no released version read it, so the override never applied\. To fix it, pick plugin a .*`reference customize tracker --extends a` at the root.*; applying the plan turns it on\.$/,
+		)
+	})
+
+	it('passes the warning on in check', () => {
+		const [entry] = checkReferences(layers(files), { names: [name] })
+
+		expect(entry?.warnings.map(({ code }) => code)).toContain('reference-legacy-format')
+	})
+})
+
 describe('renames a plugin declares at load (R120)', () => {
 	it('answers an older name as itself, warning with the new name and migrate', () => {
 		const resolved = resolveReference('project-tracker.contract', [

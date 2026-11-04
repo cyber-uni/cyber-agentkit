@@ -13,7 +13,7 @@ import {
 } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers } from './reference-layers.js'
 import { heldPlugins } from './reference-package-plugins.js'
-import { projectSectionNames } from './reference-project-sections.js'
+import { projectQualifiedNames, projectSectionNames } from './reference-project-sections.js'
 import {
 	parseReferenceName,
 	type ReferenceStatus,
@@ -297,8 +297,14 @@ export function checkReferences(source: Source, options: CheckOptions = {}): Ref
 	const resolveOptions: ResolveOptions = { ...rest, projectSections: false }
 	const lookup = interfaceLookup(source, rest)
 	const layers = Array.isArray(source) ? undefined : (source as ReferenceLayers)
+	// A name a project folder holds a qualified-name override of is checked with its sections, which warn on it.
 	const sectionNames = new Set(
-		layers?.root === undefined ? [] : projectSectionNames(layers.root, layers.projects, heldPlugins(layers)),
+		layers?.root === undefined
+			? []
+			: [
+					...projectSectionNames(layers.root, layers.projects, heldPlugins(layers)),
+					...projectQualifiedNames(layers.root, layers.projects),
+				],
 	)
 	const resolve = (name: string): Answer => {
 		const ref = parseReferenceName(name)

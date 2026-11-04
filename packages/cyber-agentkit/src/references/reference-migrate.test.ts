@@ -171,6 +171,155 @@ describe('project sections (UC22.3, UC22.4)', () => {
 	})
 })
 
+describe('qualified-name overrides (K37, R122)', () => {
+	const override = '---\ndescription: mine\nmerge: merge-sections\n---\n\n## Create\n\nmine\n'
+	const plugins = { a: { 'tracker.md': base } }
+
+	it('plans the move to <name>.md extending the plugin, and writes nothing without write', () => {
+		const { root, home, layers } = setup({ '.agents/references/a/tracker.md': override }, plugins)
+		const path = join(root, '.agents/references/a/tracker.md')
+
+		const result = migrateReferences(layers, { home })
+
+		expect(result.rows).toEqual([
+			{
+				path,
+				tier: 'repo',
+				name: 'tracker',
+				form: 'qualified-override',
+				from: 'a/tracker.md',
+				to: 'tracker.md with extends: [a]; no released version read it, so the override never applied, and applying the plan turns it on',
+			},
+			{
+				path,
+				tier: 'repo',
+				name: 'tracker',
+				form: 'merge-sections',
+				from: 'merge: merge-sections',
+				to: 'no merge: patch is the default',
+			},
+		])
+		expect(result.written).toBe(false)
+		expect(read(path)).toBe(override)
+		expect(existsSync(join(root, '.agents/references/tracker.md'))).toBe(false)
+	})
+
+	it('moves it out of the subfolder with write and writes the extends, in a scratch user tier too (R126)', () => {
+		const { root, home, layers } = setup(
+			{ '.agents/references/a/tracker.md': override, '~/.agents/references/a/other.md': '## Create\n\nhome\n' },
+			{ a: { 'tracker.md': base, 'other.md': base } },
+		)
+
+		const result = migrateReferences(layers, { home, write: true })
+
+		expect(result.written).toBe(true)
+		expect(read(join(root, '.agents/references/tracker.md'))).toBe(
+			'---\ndescription: mine\nextends: [a]\n---\n\n## Create\n\nmine\n',
+		)
+		expect(read(join(home, '.agents/references/other.md'))).toBe('---\nextends: [a]\n---\n\n## Create\n\nhome\n')
+		expect(existsSync(join(root, '.agents/references/a'))).toBe(false)
+		expect(existsSync(join(home, '.agents/references/a'))).toBe(false)
+		const resolved = resolveReference('tracker', layers)
+		expect(resolved.content).toBe('## Create\n\nmine\n\n## Close\n\nbase close\n')
+		expect(resolved.warnings.filter(({ code }) => code === 'reference-legacy-format')).toEqual([])
+	})
+
+	it('keeps a subfolder that still holds other files', () => {
+		const { root, home, layers } = setup(
+			{ '.agents/references/a/tracker.md': override, '.agents/references/a/notes.txt': 'keep\n' },
+			plugins,
+		)
+
+		migrateReferences(layers, { home, write: true })
+
+		expect(read(join(root, '.agents/references/a/notes.txt'))).toBe('keep\n')
+	})
+
+	it('reports one for a plugin that is not installed, saying what it would extend, and leaves it', () => {
+		const { root, home, layers } = setup({ '.agents/references/gone/tracker.md': override }, plugins)
+		const path = join(root, '.agents/references/gone/tracker.md')
+
+		const [row, ...rest] = migrateReferences(layers, { home, write: true }).rows
+
+		expect(rest).toEqual([])
+		expect(row).toMatchObject({ form: 'qualified-override', from: 'gone/tracker.md' })
+		expect(row?.manual).toMatch(/plugin gone is not installed; it would become tracker\.md with extends: \[gone\]/)
+		expect(row?.manual).toMatch(
+			/; no released version read it, so the override never applied, and applying the plan turns it on$/,
+		)
+		expect(read(path)).toBe(override)
+	})
+
+	it('is manual beside a file that already answers the name', () => {
+		const { root, home, layers } = setup(
+			{ '.agents/references/a/tracker.md': override, '.agents/references/tracker.md': '## Close\n\nmine\n' },
+			plugins,
+		)
+
+		const rows = migrateReferences(layers, { home, write: true }).rows.filter(
+			({ form }) => form === 'qualified-override',
+		)
+
+		expect(rows).toHaveLength(1)
+		expect(rows[0]?.manual).toMatch(/"tracker" already has a file in that folder/)
+		expect(read(join(root, '.agents/references/a/tracker.md'))).toBe(override)
+	})
+
+	it('moves only the first of two plugins overriding one name', () => {
+		const { root, home, layers } = setup(
+			{ '.agents/references/a/tracker.md': override, '.agents/references/b/tracker.md': override },
+			{ ...plugins, b: { 'tracker.md': base } },
+		)
+
+		const rows = migrateReferences(layers, { home, write: true }).rows.filter(
+			({ form }) => form === 'qualified-override',
+		)
+
+		expect(rows.map(({ from, manual }) => [from, manual === undefined])).toEqual([
+			['a/tracker.md', true],
+			['b/tracker.md', false],
+		])
+		expect(read(join(root, '.agents/references/tracker.md'))).toMatch(/extends: \[a\]/)
+		expect(read(join(root, '.agents/references/b/tracker.md'))).toBe(override)
+	})
+
+	it('is manual when the file writes its own extends', () => {
+		const content = '---\nextends: [b]\n---\n\n## Create\n\nmine\n'
+		const { root, home, layers } = setup({ '.agents/references/a/tracker.md': content }, plugins)
+
+		const [row] = migrateReferences(layers, { home, write: true }).rows
+
+		expect(row?.manual).toMatch(/it also writes `extends`/)
+		expect(read(join(root, '.agents/references/a/tracker.md'))).toBe(content)
+	})
+
+	it('is manual in a project folder, giving the customize that picks the plugin', () => {
+		const { root, home, layers } = setup({ 'pkg/.agents/references/a/tracker.md': override }, plugins)
+
+		const [row] = migrateReferences(layers, { home, write: true }).rows
+
+		expect(row).toMatchObject({ tier: 'project', folder: 'pkg', form: 'qualified-override' })
+		expect(row?.manual).toMatch(/`reference customize tracker --extends a` at the root/)
+		expect(read(join(root, 'pkg/.agents/references/a/tracker.md'))).toBe(override)
+	})
+
+	it('leaves a reference in folder form alone, and honors the names given', () => {
+		const { home, layers } = setup(
+			{
+				'.agents/references/a/README.md': '# a\n',
+				'.agents/references/a/tracker.md': override,
+				'.agents/references/b/other.md': override,
+				'.agents/references/b/tracker.md': override,
+			},
+			{ ...plugins, b: { 'tracker.md': base, 'other.md': base } },
+		)
+
+		const rows = migrateReferences(layers, { home, names: ['tracker'] }).rows
+
+		expect(rows.map(({ from }) => from)).toEqual(['b/tracker.md', 'merge: merge-sections'])
+	})
+})
+
 describe('renames (R124)', () => {
 	const table = { '_renames.yaml': 'project-tracker.contract: project-tracker.capabilities.interface\n' }
 

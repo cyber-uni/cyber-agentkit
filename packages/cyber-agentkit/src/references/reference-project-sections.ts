@@ -13,7 +13,7 @@ import {
 	stripMergeMarkers,
 } from './reference-document.js'
 import { dataExtensions, type ReferenceFormat } from './reference-format.js'
-import { legacyRewrite, warnLegacy } from './reference-legacy.js'
+import { legacyRewrite, qualifiedOverrideFinding, qualifiedOverrides, warnLegacy } from './reference-legacy.js'
 import { type PackagePlugin, packagePluginReferences, packagePlugins } from './reference-package-plugins.js'
 import { comparePaths, type ProjectFolder, type ProjectFolderCache, projectFolders } from './reference-projects.js'
 import { checkGenerated, type ReferenceTraceSource, type SourceCatalog, staleMessage } from './reference-sources.js'
@@ -259,6 +259,22 @@ function readPluginSection(name: string, found: PluginHit, read: ReadContext, re
 	})
 }
 
+/** A qualified-name override of the name in a project folder is not read; each warns (R119). */
+function warnQualifiedOverrides(name: string, folder: ProjectFolder, read: ReadContext): void {
+	const { display, without, warnAt, listed } = read
+	for (const found of qualifiedOverrides(folder.dir, name)) {
+		const hit = {
+			folder,
+			file: found.file,
+			as: name,
+			path: found.path,
+			relative: `${folder.folder}/.agents/references/${found.file}`,
+		}
+		if (found.path === without || !listed(hit)) continue
+		warnLegacy(qualifiedOverrideFinding(found, 'project'), '', warnAt(`project ${display(found.path)}`))
+	}
+}
+
 /** The folder's own `.agents/references/<name>.md` or `<name>/README.md`, when git does not ignore it. */
 function readOwnSection(
 	name: string,
@@ -270,6 +286,7 @@ function readOwnSection(
 	const { trace, sections } = result
 	const { format, display, without, warnAt, catalog, older, listed, dropping, managed } = read
 	// The name's own files answer first, then each older name's (R97).
+	if (!ignored) warnQualifiedOverrides(name, folder, read)
 	const filed = [name, ...older].map((as) => filesFor(folder, as, without))
 	const markdown = filed.flatMap((files) => files.markdown)
 	const data = filed.flatMap((files) => files.data)
@@ -406,4 +423,14 @@ export function projectSectionNames(
 		}
 	}
 	return [...held]
+}
+
+/** Every name a qualified-name override (K37) in a project folder below the root names, in a file git does not ignore. */
+export function projectQualifiedNames(root: string, cache?: ProjectFolderCache): string[] {
+	const found = projectFolders(root, cache)
+	return found.folders.flatMap((folder) =>
+		qualifiedOverrides(folder.dir)
+			.filter(({ file }) => !found.listed || found.listed.has(`${folder.folder}/.agents/references/${file}`))
+			.map(({ name }) => name),
+	)
 }

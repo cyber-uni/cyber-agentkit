@@ -4,7 +4,13 @@ import type { WarnFn } from './reference-codes.js'
 import { hasBody, type MergeOperation, parseDocument, readMergeOperation } from './reference-document.js'
 import { dataExtensions, formatOfFile, type ReferenceFormat } from './reference-format.js'
 import type { ReferenceLayer } from './reference-layers.js'
-import { defaultLayoutFinding, legacyRewrite, warnLegacy } from './reference-legacy.js'
+import {
+	defaultLayoutFinding,
+	legacyRewrite,
+	qualifiedOverrideFinding,
+	qualifiedOverrides,
+	warnLegacy,
+} from './reference-legacy.js'
 import { defaultSuffix, parseReferenceName } from './reference-name.js'
 import { readSidecar, type Sidecar } from './reference-sidecar.js'
 import { type ExtendsStep, readExtends } from './reference-stack.js'
@@ -67,6 +73,7 @@ export function readContribution(
 			warnAt(display(stray))('default-in-tier', "it is ignored: a default goes in a skill's references/ folder")
 		}
 	}
+	if (layer.tier === 'repo' || layer.tier === 'user') warnQualifiedOverrides(layer, name, { display, without, warnAt })
 	// The name's own files answer first, then each older name's, in K30 order within each (R67, R97).
 	const owner = layer.tier === 'plugin' || layer.tier === 'default'
 	const filed = [name, ...(owner ? [] : older)]
@@ -141,6 +148,15 @@ function legacyFix(layer: ReferenceLayer, name: string, display: (path: string) 
 	}
 	if (layer.tier === 'managed') return 'An admin rewrites it; `reference migrate` never changes a managed file.'
 	return 'Run `reference migrate` to rewrite it.'
+}
+
+/** A qualified-name override of the name in a tier folder is not read; each warns (R119). */
+function warnQualifiedOverrides(layer: ReferenceLayer, name: string, { display, without, warnAt }: ReadContext): void {
+	for (const found of qualifiedOverrides(layer.dir, name)) {
+		if (found.path === without) continue
+		const finding = qualifiedOverrideFinding(found, 'contribution')
+		warnLegacy(finding, legacyFix(layer, name, display), warnAt(contributionLabel(layer, found.path, display)))
+	}
 }
 
 /** A skill's default in the old layout, `references/<name>.md`, is not read; it warns when the skill's folder has no default of the name (R119). */

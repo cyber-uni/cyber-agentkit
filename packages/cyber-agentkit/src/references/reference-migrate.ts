@@ -1,4 +1,4 @@
-import { type Dirent, existsSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
+import { type Dirent, existsSync, readdirSync, renameSync, rmdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { editFrontmatter } from './create-reference.js'
 import { aliasIndex } from './reference-aliases.js'
@@ -8,7 +8,15 @@ import { parseDocument } from './reference-document.js'
 import { ReferenceFailure } from './reference-error.js'
 import { dataExtensions } from './reference-format.js'
 import { type ReferenceLayers, repoReferencesDir, userReferencesDir } from './reference-layers.js'
-import { defaultLayoutFinding, type LegacyFinding, type LegacyForm, legacyRewrite } from './reference-legacy.js'
+import {
+	defaultLayoutFinding,
+	type LegacyFinding,
+	type LegacyForm,
+	legacyRewrite,
+	type QualifiedOverride,
+	qualifiedOverrideFinding,
+	qualifiedOverrides,
+} from './reference-legacy.js'
 import { defaultSuffix, metadataSuffix, parseReferenceName } from './reference-name.js'
 import { projectFolders } from './reference-projects.js'
 import { renameTable, renameTableFile } from './reference-renames.js'
@@ -64,8 +72,8 @@ type Place = { tier: MigrationTier; dir: string; folder?: string | undefined }
 /** One file a place holds, by the name it answers. `suffix` follows the name in the file's path. */
 type Held = { name: string; path: string; suffix: string; kind: 'markdown' | 'data' | 'metadata'; folderForm: boolean }
 
-/** What applying the plan does to one file. */
-type Operation = { path: string; content?: string; moveFrom?: string; moveTo?: string }
+/** What applying the plan does to one file. `prune` is a folder removed once the move leaves it empty. */
+type Operation = { path: string; content?: string; moveFrom?: string; moveTo?: string; prune?: string }
 
 const dataSuffixes = dataExtensions.map(({ extension }) => extension)
 
@@ -195,6 +203,9 @@ export function migrateReferences(layers: ReferenceLayers, options: MigrateOptio
 	const names = options.names?.length ? new Set(options.names.map((name) => bareName(name).name)) : undefined
 	const places = placesOf(layers, root, options)
 	const targetsOf = renameSources(layers)
+	const installed = new Set(
+		layers.layers.flatMap(({ tier, plugin, skipped }) => (tier === 'plugin' && plugin && !skipped ? [plugin] : [])),
+	)
 	const rows: MigrationRow[] = []
 	const operations: Operation[] = []
 	for (const place of places) {
@@ -241,6 +252,14 @@ export function migrateReferences(layers: ReferenceLayers, options: MigrateOptio
 			if (targets.length) renameRow(place, file, targets, claimed, base, rows, operation)
 			if (operation.content !== undefined || operation.moveTo !== undefined) operations.push(operation)
 		}
+		if (renames) {
+			for (const found of qualifiedOverrides(place.dir)) {
+				if (names && !names.has(found.name)) continue
+				const base = { path: found.path, tier: place.tier, ...where, name: found.name }
+				const operation = qualifiedRow(place, found, installed, claimed, base, rows)
+				if (operation) operations.push(operation)
+			}
+		}
 	}
 	let written = false
 	if (options.write) {
@@ -249,6 +268,7 @@ export function migrateReferences(layers: ReferenceLayers, options: MigrateOptio
 			if (operation.moveFrom !== undefined && operation.moveTo !== undefined) {
 				renameSync(operation.moveFrom, operation.moveTo)
 			}
+			if (operation.prune !== undefined) pruneEmpty(operation.prune)
 			written = true
 		}
 	}
@@ -257,8 +277,10 @@ export function migrateReferences(layers: ReferenceLayers, options: MigrateOptio
 
 function rowOf(base: Omit<MigrationRow, 'form' | 'from'>, finding: LegacyFinding): MigrationRow {
 	const row: MigrationRow = { ...base, form: finding.form, from: finding.from }
-	if (finding.to !== undefined) row.to = finding.to
-	if (finding.manual !== undefined) row.manual = finding.manual
+	// A form version 1 never read says so on its row, and what applying it turns on.
+	const note = finding.note === undefined ? '' : `; ${finding.reads}, and ${finding.note}`
+	if (finding.to !== undefined) row.to = `${finding.to}${note}`
+	if (finding.manual !== undefined) row.manual = `${finding.manual}${note}`
 	return row
 }
 
@@ -309,4 +331,63 @@ function renameRow(
 	rows.push({ ...row, to: into })
 	const moveFrom = file.folderForm ? dirname(file.path) : file.path
 	Object.assign(operation, { moveFrom, moveTo: join(place.dir, file.folderForm ? to : `${to}${file.suffix}`) })
+}
+
+function pruneEmpty(dir: string): void {
+	try {
+		if (!readdirSync(dir).length) rmdirSync(dir)
+	} catch {
+		// A folder that cannot be read or removed is left as it is.
+	}
+}
+
+/**
+ * The row of a qualified-name override (K37), and the move that applies it: `<plugin>/<name>.md`
+ * becomes `<name>.md` beside the subfolder, extending the plugin. It is manual in a project folder,
+ * for a plugin the plugin tier does not hold, beside a file that already answers the name, and for a
+ * file that writes its own `extends` or `overrides`.
+ */
+function qualifiedRow(
+	place: Place,
+	found: QualifiedOverride,
+	installed: ReadonlySet<string>,
+	claimed: Set<string>,
+	base: Omit<MigrationRow, 'form' | 'from'>,
+	rows: MigrationRow[],
+): Operation | undefined {
+	const { plugin, name } = found
+	const finding = qualifiedOverrideFinding(found, place.tier === 'project' ? 'project' : 'contribution')
+	const { to, ...kept } = finding
+	const manual = (why: string) => {
+		rows.push(rowOf(base, { ...kept, manual: why }))
+		return undefined
+	}
+	if (to === undefined) return manual(finding.manual as string)
+	if (!installed.has(plugin)) {
+		return manual(
+			`plugin ${plugin} is not installed; it would become ${to}, extending a plugin that is not there: install ${plugin} and run migrate again, or delete this file`,
+		)
+	}
+	if (holdsName(place, name) || claimed.has(name)) {
+		return manual(
+			`"${name}" already has a file in that folder; move this file's sections into it and add ${plugin} to its extends, then delete this one`,
+		)
+	}
+	const raw = tryRead(found.path) ?? ''
+	const { metadata, body } = parseDocument(raw, () => {})
+	const own = ['extends', 'overrides'].find((key) => key in metadata)
+	if (own !== undefined) {
+		return manual(`it also writes \`${own}\`; move it to ${name}.md by hand, with an extends that names ${plugin}`)
+	}
+	claimed.add(name)
+	rows.push(rowOf(base, finding))
+	const { findings, keys } = legacyRewrite(metadata, body, 'contribution', name)
+	for (const other of findings) rows.push(rowOf(base, other))
+	return {
+		path: found.path,
+		content: editFrontmatter(raw, { ...keys, extends: [plugin] }),
+		moveFrom: found.path,
+		moveTo: join(place.dir, `${name}.md`),
+		prune: dirname(found.path),
+	}
 }

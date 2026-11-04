@@ -286,8 +286,11 @@ Edge IDs are in [graph.md](./graph.md).
 **Legacy forms (UC1.22)**
 
 - R119 (UC1, E72): A contribution in a legacy form (K37) answers as 2.0 reads it: `merge-sections` and `first-wins`
-  read as `patch`, `overrides` changes nothing, a project-folder selection's `extends` is ignored, and a skill's
-  `references/<name>.md` is not read as its default (UC12.5). Each raises `reference-legacy-format` in place of the
+  read as `patch`, `overrides` changes nothing, a project-folder selection's `extends` is ignored, a skill's
+  `references/<name>.md` is not read as its default (UC12.5), and a qualified-name override in the `repo` or `user`
+  tier or a project folder is not read; a subfolder holding `README.md` is a reference in folder form, not one. Its
+  warning, and its `migrate` row, say that no released version read it, so the override never applied, and that
+  applying the plan turns it on. Each raises `reference-legacy-format` in place of the
   `merge-unknown` or `project-section-key-ignored` it would otherwise raise, naming the file, the form, its 2.0 form,
   and `reference migrate`. The default layout warns only when the skill's folder is given and holds no
   `<name>.default.md`. `check` fails the `compose` check on one in the main document, as on any defect (R116).

@@ -89,11 +89,11 @@ Load `references/customize.md` from this skill's folder and follow it.
 
 ## Migrate
 
-Use Migrate for files a customizer or an author wrote: under `.agents/references/` at the root or in a folder below it, under `~/.agents/references/`, or in a plugin's or a skill's source folder in this repository. `migrate` rewrites each version 1 form as its 2.0 form (`merge: merge-sections` is removed, `merge: first-wins` becomes `merge: replace`, `overrides` becomes `extends`, a skill's `references/<name>.md` becomes `<name>.default.md`), and renames each file under a name a plugin renamed. It keeps the body and every other key.
+Use Migrate for files a customizer or an author wrote: under `.agents/references/` at the root or in a folder below it, under `~/.agents/references/`, or in a plugin's or a skill's source folder in this repository. `migrate` rewrites each version 1 form as its 2.0 form (`merge: merge-sections` is removed, `merge: first-wins` becomes `merge: replace`, `overrides` becomes `extends`, a skill's `references/<name>.md` becomes `<name>.default.md`, a qualified-name override `<plugin>/<name>.md` moves out of its subfolder to `<name>.md` with `extends: [<plugin>]`), and renames each file under a name a plugin renamed. It keeps the body and every other key.
 
 1. Run `migrate`, with the names to limit it to, if any. For a plugin's source folder, add `--plugin <folder>`; for a skill's, add `--default <folder>` and the names the skill loads, since its other files may be its own documents. It prints the plan and writes nothing.
 2. If it answers `0 changes`, say so and stop.
-3. Show the user every row: the file, its tier, and the change. Say plainly that each `user` row edits a file in their home folder that no git history restores. For a `manual` row, show why; for a selection in a project folder, offer the `customize` command it gives, through [Customize](#customize).
+3. Show the user every row: the file, its tier, and the change. Say plainly that each `user` row edits a file in their home folder that no git history restores. For a `manual` row, show why; for a selection or a qualified-name override in a project folder, offer the `customize` command it gives, through [Customize](#customize).
 4. With no user present, write nothing, and report the plan.
 5. Only after the user approves, run the same command with `--write`.
 6. Run `check` with the changed names. Report any `reference-legacy-format` or `reference-renamed` left, with its file.
