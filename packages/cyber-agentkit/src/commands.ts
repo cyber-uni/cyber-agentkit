@@ -10,6 +10,7 @@ export type {
 	ReferenceImplementationsReport,
 	ReferenceListReport,
 	ReferenceLoadEntry,
+	ReferenceMigrateReport,
 	ReferenceSearchReport,
 	ReferenceWhereOutput,
 } from './references/reference.command.js'

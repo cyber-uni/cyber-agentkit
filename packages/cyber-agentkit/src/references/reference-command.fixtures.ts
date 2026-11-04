@@ -108,6 +108,8 @@ export const implementations = (id: string, args: Args = {}) =>
 export const create = (name: string, args: Args = {}) => exec(commands.create, { format: 'text', name, ...args })
 export const customize = (name: string, args: Args = {}) => exec(commands.customize, { format: 'text', name, ...args })
 export const remove = (name: string, args: Args = {}) => exec(commands.delete, { format: 'text', name, ...args })
+export const migrate = (names: string[] | undefined, args: Args = {}) =>
+	exec(commands.migrate, { format: 'text', names, ...args })
 
 /** Everything the last run put on stdout, concatenated. */
 export function written(): string {
