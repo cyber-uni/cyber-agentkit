@@ -107,7 +107,8 @@ instruction, not by what an agent does.
 **Load (UC12, UC17)**
 
 - R89 (UC12, E62): The load line names the references and "the `reference` skill of `cyber-agentkit`", or, for an
-  interface, "the implementations of the `<id>` interface"; for a skill written for one harness, it may add that
+  interface, "the implementations of the `<id>` interface", and, for a skill that works on one artifact, "for
+  `<artifact>`" (UC24); for a skill written for one harness, it may add that
   harness's typed form of the skill. When the agent cannot tell the caller's folder, Load runs without the skill's
   default and tells the user.
 - R90 (UC17, E63): With the loaded references, Load states the order to follow where instructions conflict: company and

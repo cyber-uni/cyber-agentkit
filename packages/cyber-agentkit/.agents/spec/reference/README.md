@@ -35,6 +35,9 @@ was built from changes, the agent is told to revise the document.
 
 Some instructions cannot be read in advance: those a harness delivers from a company or team server, and a single
 feature's own. The agent combines them with the document while it works, following a stated order of precedence.
+A skill that works on one artifact, such as one feature's spec, can name it when it loads: the artifact adds what
+applies to it alone, and sets a section aside only by a waiver that states a reason and an expiry, which the agent and
+the trace both see.
 Customizations come from people who never coordinate, so a fault in one never stops the rest: each name is answered with
 what can be found, and every fault is reported as a warning.
 
@@ -43,7 +46,8 @@ what can be found, and every fault is reported as a warning.
 - N1 Installing, enabling, or removing plugins. That is [dependencies](../dependencies/README.md).
 - N2 Finding references by meaning. Results are returned in a deterministic order.
 - N3 Reading any path, or a folder other than `references/`. A name is never a path. Non-Markdown references are
-  [formats](./formats/README.md); `assets/` belongs to [asset](../asset/README.md).
+  [formats](./formats/README.md); `assets/` belongs to [asset](../asset/README.md). The one file read by path is the
+  artifact a load names (K39), and only for its contribution.
 - N13 Reading company or team instructions a harness delivers from a server. The agent combines them at run time
   (`.research/machine-wide-content`).
 - N14 Running a model when a name is loaded, in this version. A model runs only when a customizer generates or revises a
@@ -55,19 +59,22 @@ what can be found, and every fault is reported as a warning.
   request generates the document again.
 - N17 A routing table that lists project sections in place of their text. Every project section is inlined: no one can
   predict which folders the agent will touch after it loads a name, or rely on it to open a route when its work moves.
+- N18 Writing an artifact's contribution or waivers. Its author edits the artifact; no command writes to it.
+- N19 Limiting how long a waiver may last, or who may write one. Review of the artifact decides that.
+- N20 Taking an artifact in `list`, `search`, `where`, or `check`. A `load` with a trace shows what it did.
 - N9 Editing a generated document by hand. A change goes in the customizer's request, and the document is generated
   again.
 
 **Key terms** (shared terms: [glossary](../glossary.md)):
 
-- K1 **tier**: where a contribution for a name comes from: `managed`, `repo`, `project`, `user`, `plugin`, or `default`.
-  `plugin` and `default` build the stack (K14). `user` applies over the stack, and `repo` over that (K23). `managed`
-  applies over the main document and each project section (K27), and `project` adds sections after the main document
-  (K24). A write goes to `repo`, which reaches everyone working in the repository, or to `user`, which reaches only
+- K1 **tier**: where a contribution for a name comes from: `managed`, `artifact`, `repo`, `project`, `user`, `plugin`,
+  or `default`. `plugin` and `default` build the stack (K14). `user` applies over the stack, and `repo` over that (K23).
+  `managed` applies over the main document, each project section, and the artifact contribution (K27); `project` adds
+  sections after the main document (K24), and `artifact` adds after those (K40). A write goes to `repo`, which reaches everyone working in the repository, or to `user`, which reaches only
   you, in every repository.
 - K2 **layer**: one folder read for a name: one per plugin for `plugin`, the calling skill's folder for `default`,
   `~/.agents/references/` for `user`, `.agents/references/` at the root for `repo`, each `.agents/references/` below the
-  root and each package plugin's (K36) for `project`, and, for `managed`, the one beside the managed settings of the harness that
+  root and each package plugin's (K36) for `project`, the artifact a load names for `artifact`, and, for `managed`, the one beside the managed settings of the harness that
   detection names as running. Other harnesses' managed folders are never read, and none is read when detection names
   more than one harness.
 - K4 **qualified name**: `<plugin>/<name>`: that plugin's implementation of a name, with the stack it builds on.
@@ -133,11 +140,17 @@ what can be found, and every fault is reported as a warning.
   version differs from the installed one, or a recorded source is gone. Load still uses it, and suggests revising it. A
   plugin's or a default's own file is compared only by `check`.
 - K27 **managed contribution**: the file answering the name in `references/` of the current harness's managed
-  folder, placed there by an admin. It applies at load over the main document and each project section, with its merge
-  operation (K5), so it ranks above every other tier. Its text reaches the agent only through load: no written
-  contribution holds it, generated or not.
-- K28 **resolved reference**: what load returns for a name: the main document, followed by its project sections, with
-  the managed contribution applied over the main document and over each project section (K27).
+  folder, placed there by an admin. It applies at load over the main document, each project section, and the artifact
+  contribution, with its merge operation (K5), so it ranks above every other tier. Its text reaches the agent only
+  through load: no written contribution holds it, generated or not.
+- K28 **resolved reference**: what load returns for a name: the main document, followed by its project sections and
+  then the artifact contribution, with the managed contribution applied over each (K27).
+- K39 **artifact**: the one file a skill works on, such as one feature's spec, that a load names by its path. It is a
+  Markdown file inside the root, and it is read only for its contributions.
+- K40 **artifact contribution**: the artifact's entry for a name: text it adds to the reference, and waivers. It follows
+  the project sections in the resolved reference. Its text adds; it drops or replaces nothing below it.
+- K41 **waiver**: an artifact's statement that one section of a reference, by heading path, does not apply to it, with a
+  reason and an expiry date. Until the expiry, the section's text gives way to a note saying so.
 - K36 **package plugin**: a plugin that a `package.json` below the root declares and the plugin tier does not hold (R13).
   It never joins the stack: its contribution of a name reaches only that package's folder, as a project section
   (R115), so the main document is the same from every working folder.
@@ -157,12 +170,13 @@ what can be found, and every fault is reported as a warning.
 
 ## Use Cases
 
-**Actors and goals.** A4, A7, and A8 are affected by the outcome without invoking it.
+**Actors and goals.** A4, A5.6, A7, and A8 are affected by the outcome without invoking it.
 
 | ID | Actor | Goal |
 | --- | --- | --- |
 | A1.1 | A1 consumer (a skill, or the agent running it) | Load the instructions it names: the main document and each project section after it, with any managed contribution applied over both, marked with the folder it applies to |
 | A1.2 | A1 | When a name can't be answered, know the reason, since each needs a different next step, and carry on |
+| A1.4 | A1 | Load the instructions for the one artifact it works on, with that artifact's additions and waivers applied |
 | A1.3 | A1 | Know the order of precedence for combining the document with instructions it cannot load: company and team instructions, and a single feature's own |
 | A2.1 | A2 inspector (anyone) | Know what an agent reads for a name, and why |
 | A3.1 | A3 finder (anyone) | Find the names that exist, to load one or customize one |
@@ -182,6 +196,9 @@ what can be found, and every fault is reported as a warning.
 | A7.2 | A7 | Be told when a document was built from plugins that have since changed, and how to revise it |
 | A8.1 | A8 project maintainer (a team owning one folder of a monorepo) | Add only what differs in their folder, and have the agent follow it whenever its work is there |
 | A8.2 | A8 | List a plugin in their package's `package.json` and have its version of a name apply only to work in their folder |
+| A5.6 | A5 | Know when an artifact sets aside one of their sections, why, and until when, and keep a section it must not lower |
+| A9.1 | A9 artifact author (who writes the artifact a skill works on, such as one feature's spec) | Add what applies to their artifact alone to the reference loaded for it |
+| A9.2 | A9 | Set one section aside for their artifact, visibly, with a reason and an expiry |
 
 **Child specs.** Each use case lives in the child that owns it; UC8 stays here.
 
@@ -192,6 +209,7 @@ what can be found, and every fault is reported as a warning.
 | [interfaces](./interfaces/README.md) | UC6, UC15 | Interfaces |
 | [skill](./skill/README.md) | UC4, UC12, UC17 | Fallback, Load |
 | [formats](./formats/README.md) | UC13 | R65 to R72, R92 to R95 |
+| [artifact](./artifact/README.md) | UC24, UC25 | Artifact contributions, Waivers |
 
 ### UC8 — Consumers read a stable output (A1.1)
 
@@ -224,7 +242,8 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
   its name; a name not `found` prints its message in its place, with its options when `ambiguous`. Each project section
   follows the main document as `<project folder="...">...</project>`, in path order. The wrapper, not a heading, marks
   where a section starts and ends, so its own headings keep their levels. The `folder` is the section's path relative
-  to the root.
+  to the root. The artifact contribution follows the project sections as `<artifact path="...">...</artifact>`, its
+  path relative to the root.
 
 **Names**
 
