@@ -37,6 +37,7 @@ npx -y cyber-agentkit reference load agent-readiness-weights
 | `create <name>` | Starts a contribution, with `merge: patch` unless `--merge` says otherwise |
 | `customize <name>` | Picks what a name builds on, or writes a body generated from your request; see [Customizing a reference](#customizing-a-reference) |
 | `delete <name>` | Deletes a contribution, and reports what answers the name afterwards |
+| `migrate [name]...` | Rewrites files left in a version 1 form, and renames files under a name a plugin renamed; see [Migrating from version 1](#migrating-from-version-1) |
 | `implementations <id>` | The implementations of an [interface](/cyber-agentkit/concepts/reference-interfaces/) a consumer can load |
 | `check [name]...` | Checks references against their [interface](/cyber-agentkit/concepts/reference-interfaces/) and warns of hidden files |
 
@@ -245,6 +246,15 @@ A plugin's or a skill default's contribution lists its older names in frontmatte
 an older name resolves the new one with a `reference-renamed` warning. A file in a tier still filed
 under an older name applies as the new name.
 
+A rename that `aliases` cannot state, such as a plain document that became an interface document, goes
+in the plugin's rename table, `references/_renames.yaml`: a YAML mapping of each older name to its new
+name. It changes nothing at load beyond a `reference-renamed` warning on a load of the older name;
+`reference migrate` applies it.
+
+```yaml
+project-tracker.contract: project-tracker.capabilities.interface
+```
+
 ## Customizing a reference
 
 `reference customize` is for a change that is easier to ask for than to write. It runs no model. The
@@ -268,6 +278,32 @@ writes.
 A generated document names the plugins it was built from and their versions. When a source plugin's
 version has changed, `load` warns `reference-stale`. The document still loads. Ask the skill to
 customize it again to regenerate it from the new source and your recorded request.
+
+## Migrating from version 1
+
+Version 2.0 retired some forms version 1 wrote. A file still in one loads as 2.0 reads it, with a
+`reference-legacy-format` warning naming its 2.0 form, and `check` fails it:
+
+| Version 1 | 2.0 |
+| --- | --- |
+| `merge: merge-sections` | no `merge`: `patch` is the default |
+| `merge: first-wins` | `merge: replace` |
+| `overrides: [<plugin>]` | `extends: [<plugin>]` |
+| a skill's default at `references/<name>.md` | `references/<name>.default.md` |
+| a selection `reference select` wrote in a folder below the root | `reference customize <name> --extends <step>...` at the root |
+
+`reference migrate` finds these files, and the files under a name a plugin renamed, and prints the
+plan: each file, its tier, and the change. It writes nothing until you add `--write`. It reads the repo
+tier, the user tier, and every project section; with `--plugin <folder>` or `--default <folder>`, it
+reads only that source folder in the repository instead. A user-tier file has no git history to
+restore it, so read its rows before you apply them. A change it cannot make safely, such as a selection
+in a project folder, is a `manual` row that says what to do. It never changes a managed file or an
+installed plugin or skill.
+
+```sh
+npx -y cyber-agentkit reference migrate          # print the plan
+npx -y cyber-agentkit reference migrate --write  # apply it
+```
 
 ## Names and statuses
 

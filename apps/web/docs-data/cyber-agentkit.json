@@ -47,6 +47,10 @@
 					"result": "The skill runs `delete release-checklist --dry-run`, shows the file and what answers the name afterwards, and deletes only after you approve."
 				},
 				{
+					"prompt": "Load reported reference-legacy-format. Fix my reference files.",
+					"result": "The skill runs `migrate` and shows every change it would make, saying which files are in your home folder, where no git history restores them. After you approve, it runs `migrate --write`, then `check`, and reports anything left."
+				},
+				{
 					"prompt": "How is commit-style built?",
 					"result": "The skill runs `load commit-style --trace` and reports the stack, the contributions behind each section with the operation each applied, and each layer that was `shadowed`, `not used`, or `not read`, with its reason."
 				}
@@ -137,6 +141,20 @@
 					"title": "Check every reference.",
 					"args": ["check"],
 					"explain": "The answer gives the failures, if any, the warnings passed on, and the count that pass. The command exits 0 when it answered, even when a check fails."
+				}
+			]
+		},
+		"reference migrate": {
+			"examples": [
+				{
+					"title": "Print the plan.",
+					"args": ["migrate"],
+					"explain": "Nothing is written. Each row gives a file in a version 1 form, or under a name a plugin renamed, and what it becomes."
+				},
+				{
+					"title": "Apply it.",
+					"args": ["migrate", "--write"],
+					"explain": "Every change that is not manual is made, and the same plan is printed."
 				}
 			]
 		},
