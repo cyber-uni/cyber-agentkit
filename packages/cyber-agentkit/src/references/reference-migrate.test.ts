@@ -321,6 +321,17 @@ describe('source folders (R123, UC22.7, UC22.8)', () => {
 		expect(read(join(root, '.agents/references/tracker.md'))).toMatch(/merge-sections/)
 	})
 
+	it('leaves an old-layout default to a person when the skill also holds the new one', () => {
+		const { root, home, layers } = setup()
+		const folder = skillFolder(root, { 'tracker.md': 'old\n', 'tracker.default.md': 'new\n' })
+
+		const [row] = migrateReferences(layers, { home, default: folder, names: ['tracker'], write: true }).rows
+
+		expect(row).not.toHaveProperty('to')
+		expect(row?.manual).toMatch(/tracker.default.md is there too/)
+		expect(read(join(folder, 'references/tracker.md'))).toBe('old\n')
+	})
+
 	it("rewrites a plugin's source folder, applying no rename there", () => {
 		const { root, home, layers } = setup()
 		write(root, 'plugin/plugin.json', '{"name":"mine"}')

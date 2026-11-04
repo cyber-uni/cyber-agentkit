@@ -226,11 +226,13 @@ export function migrateReferences(layers: ReferenceLayers, options: MigrateOptio
 				const to = join(place.dir, `${file.name}${defaultSuffix}.md`)
 				const finding = defaultLayoutFinding(file.name)
 				if (existsSync(to)) {
-					rows.push({
-						...rowOf(base, finding),
-						to: undefined,
-						manual: `${file.name}${defaultSuffix}.md is there too and answers the name; the old file is not read, so delete it by hand once nothing in it is needed`,
-					})
+					const { to: _, ...kept } = finding
+					rows.push(
+						rowOf(base, {
+							...kept,
+							manual: `${file.name}${defaultSuffix}.md is there too and answers the name; the old file is not read, so delete it by hand once nothing in it is needed`,
+						}),
+					)
 				} else {
 					rows.push(rowOf(base, finding))
 					Object.assign(operation, { moveFrom: file.path, moveTo: to })
