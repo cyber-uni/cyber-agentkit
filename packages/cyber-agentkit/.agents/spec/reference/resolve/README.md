@@ -50,6 +50,9 @@ IDs are shared across the parent and its children.
     is not delivered, and neither is a non-Markdown file in a project folder, each with a warning (R99).
   - UC1.19 A project section holds `merge`, `extends`, `implements`, or `aliases` (K24): the key is ignored, with a
     warning naming it and the folder, and the section is still delivered.
+  - UC1.22 A contribution is in a legacy form (K37): it is read as 2.0 reads that key or file, with a warning naming the
+    file, the form, its 2.0 form, and `reference migrate` as the fix (R119). An installed plugin's file names its
+    author's fix instead.
 
 ### UC2 — Explain a resolution (A2.1)
 
@@ -167,6 +170,8 @@ IDs are shared across the parent and its children.
   - UC19.8 An interface is renamed (its document lists the older id in `aliases`, R96): `implements: <old id>@<version>`
     in an implementation resolves to the renamed interface, and a load of `<old id>` or `<old id>.<key>` resolves `<id>`
     or `<id>.<key>`, each with a warning.
+  - UC19.9 A plugin's rename table (K38) lists the name as an older one: a load of it answers as before, with a
+    warning naming the new name and `reference migrate` (R120).
 
 ### UC21 — Scope a package's plugin to its folder (A8.2)
 
@@ -274,6 +279,15 @@ Edge IDs are in [graph.md](./graph.md).
   default's own file that records `sources` is never stale at load: only `check` compares it (R86). A
   contribution that records no sources is never stale.
 
+**Legacy forms (UC1.22)**
+
+- R119 (UC1, E72): A contribution in a legacy form (K37) answers as 2.0 reads it: `merge-sections` and `first-wins`
+  read as `patch`, `overrides` changes nothing, a project-folder selection's `extends` is ignored, and a skill's
+  `references/<name>.md` is not read as its default (UC12.5). Each raises `reference-legacy-format` in place of the
+  `merge-unknown` or `project-section-key-ignored` it would otherwise raise, naming the file, the form, its 2.0 form,
+  and `reference migrate`. The default layout warns only when the skill's folder is given and holds no
+  `<name>.default.md`. `check` fails the `compose` check on one in the main document, as on any defect (R116).
+
 **Layers**
 
 - R12 (UC1): The layers load in this order: the stack, then `user`, then `repo`, then managed. The `project` tier holds
@@ -320,3 +334,6 @@ Edge IDs are in [graph.md](./graph.md).
 - R98 (UC19, E65): A name a contribution holds as its own is never read as an alias, with a warning that the alias is
   not used. An alias two names list is `ambiguous`, with both as options. `list` and `search` show only the new name,
   and the trace names the alias used.
+- R120 (UC19, E73): A load of a name a plugin's rename table (K38) lists as older, and that no contribution holds as
+  its own, warns `reference-renamed`, naming the new name, the plugin, and `reference migrate`. It still answers as
+  that name. An entry that is not a pair of valid bare names is ignored, with a `rename-invalid` warning.

@@ -1,6 +1,6 @@
 # Reference
 
-Loads, finds, inspects, creates, customizes, and deletes [references](https://cyber-uni.github.io/cyber-agentkit/concepts/reference-documents/): Markdown documents (or JSON, YAML, TOML, or text files, which are never merged) an agent reads on demand by name. It routes each request to the `reference` command, run from a launcher bundled in `scripts/`, and writes or deletes a reference only after the user approves it. Type `/reference` to run it yourself. Installed as a Claude Code plugin, it is `/cyber-agentkit:reference` (pnpm install: `pnpm-cyber-agentkit-reference`). Installed with pnpm, it is `pnpm-cyber-agentkit-reference`.
+Loads, finds, inspects, creates, customizes, deletes, and migrates [references](https://cyber-uni.github.io/cyber-agentkit/concepts/reference-documents/): Markdown documents (or JSON, YAML, TOML, or text files, which are never merged) an agent reads on demand by name. It routes each request to the `reference` command, run from a launcher bundled in `scripts/`, and writes or deletes a reference only after the user approves it. Type `/reference` to run it yourself. Installed as a Claude Code plugin, it is `/cyber-agentkit:reference` (pnpm install: `pnpm-cyber-agentkit-reference`). Installed with pnpm, it is `pnpm-cyber-agentkit-reference`.
 
 | Mode | When |
 | --- | --- |
@@ -11,6 +11,7 @@ Loads, finds, inspects, creates, customizes, and deletes [references](https://cy
 | Update | editing the user's own hand-written file in place |
 | Customize | picking what a name builds on, changing its prose by request through a generator subagent, implementing an interface by request, or revising a stale generated document |
 | Delete | removing a repo, user, or project-section contribution, saying first what answers the name afterwards |
+| Migrate | rewriting files left in a version 1 form, and renaming files under a name a plugin renamed, with `migrate`; it shows the plan, calls out `user` files, and runs `migrate --write` only once the user approves |
 | Wire a skill | giving a skill the line below |
 
 It ships in the `cyber-agentkit` plugin:

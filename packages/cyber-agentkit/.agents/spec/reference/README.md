@@ -144,6 +144,16 @@ what can be found, and every fault is reported as a warning.
 - K32 **alias**: an older name a plugin's or a default's contribution of a name lists in `aliases`, so load lines and
   customizations written for the older name still reach it after a rename. An interface document lists the older ids of
   its interface.
+- K37 **legacy form**: a form of a contribution that version 1 wrote and 2.0 retired, each with the 2.0 form that says
+  the same: `merge: merge-sections` (now `patch`, the default, so no `merge`); `merge: first-wins` (now `replace`);
+  `overrides: [<plugin>...]`, the plugins a copy sat above, an entry possibly qualified as `<plugin>/<name>` (now
+  `extends`); a skill's default at `references/<name>.md` in its folder (now `<name>.default.md`); and, in a project
+  folder, a selection, the `extends` with no body that `reference select` wrote when run below the root (now a pick
+  for the whole repository, written by `reference customize <name> --extends <step>...`). A selection `select` wrote at
+  the root is already a 2.0 selection (K16). Version 1 shipped no pin file, so none is a legacy form.
+- K38 **rename table**: `references/_renames.yaml` in a plugin, a YAML mapping of each older name to its new name. It
+  declares renames that `aliases` cannot (K32), such as a plain document renamed to an interface document. Unlike an
+  alias, it changes nothing at load: `migrate` applies it, and a load of an older name warns.
 
 ## Use Cases
 
@@ -161,11 +171,13 @@ what can be found, and every fault is reported as a warning.
 | A5.2 | A5 | Remove a customization, and learn what answers afterwards |
 | A5.3 | A5 | Pick which implementation answers a name, and the order in which plugins extend it |
 | A5.4 | A5 | Revise a generated document when a plugin it was built from changes, without restating their request |
+| A5.5 | A5 | Bring the files they wrote in a legacy form, or under a name a plugin renamed, to the current form and name, seeing every change before it is made |
 | A6.1 | A6 plugin author | Ship skills that load references by name, with defaults others can implement or extend |
 | A6.2 | A6 | Extend another plugin's implementation, or the loading skill's default, by replacing or adding to some of its sections, in effect once installed |
 | A6.3 | A6 | Publish an interface that states which sections an implementation must hold and what each holds, and know an implementation meets it |
 | A6.4 | A6 | Ship its own implementation of another skill's interface, loaded by itself under a name the plugin owns |
 | A6.5 | A6 | Rename a name its plugin owns without breaking the load lines and customizations written for the old one |
+| A6.6 | A6 | Declare its renames once, so every customizer's files move to the new names without the plugin rewriting them |
 | A7.1 | A7 agent user | Be told when the agent ran without instructions it asked for, or without the customizations placed for it |
 | A7.2 | A7 | Be told when a document was built from plugins that have since changed, and how to revise it |
 | A8.1 | A8 project maintainer (a team owning one folder of a monorepo) | Add only what differs in their folder, and have the agent follow it whenever its work is there |
@@ -175,8 +187,8 @@ what can be found, and every fault is reported as a warning.
 
 | Child | Use cases | Criteria |
 | --- | --- | --- |
-| [resolve](./resolve/README.md) | UC1, UC2, UC3, UC7, UC10, UC19, UC21 | Composition, Stack, Reporting, Layers, Finding, Renames |
-| [write](./write/README.md) | UC5, UC9, UC11, UC18, UC20 | Writing |
+| [resolve](./resolve/README.md) | UC1, UC2, UC3, UC7, UC10, UC19, UC21 | Composition, Stack, Reporting, Legacy forms, Layers, Finding, Renames |
+| [write](./write/README.md) | UC5, UC9, UC11, UC18, UC20, UC22, UC23 | Writing, Migrating |
 | [interfaces](./interfaces/README.md) | UC6, UC15 | Interfaces |
 | [skill](./skill/README.md) | UC4, UC12, UC17 | Fallback, Load |
 | [formats](./formats/README.md) | UC13 | R65 to R72, R92 to R95 |
@@ -230,9 +242,9 @@ Edge IDs are in [graph.md](./graph.md); E1 and E2 are in [resolve's](./resolve/g
 
 **Read-only reads**
 
-- R19 (UC1–UC3, UC6, E21): `load`, `where`, `list`, `search`, `check`, and `implementations` create, change, or delete
-  no file. Only `create`, `customize`, and `delete` write; none writes in the managed tier or an installed copy of a
-  plugin or skill.
+- R19 (UC1–UC3, UC6, UC22, E21): `load`, `where`, `list`, `search`, `check`, `implementations`, and `migrate` without
+  `--write` create, change, or delete no file. Only `create`, `customize`, `delete`, and `migrate --write` write; none
+  writes in the managed tier or an installed copy of a plugin or skill.
 
 ## Open questions
 
@@ -240,6 +252,7 @@ None.
 
 ## References
 
+- Legacy forms and `migrate` (K37, K38, UC22): issue #142.
 - Interfaces design: issue #97 (closed). Name-pattern listing: #79 (closed). #110 (open): its default marker and pin
   file are replaced by `extends` and selection (UC7, UC9), and its alias by K32 (UC19). #107 (open): overrides and hard
   plugin dependencies.

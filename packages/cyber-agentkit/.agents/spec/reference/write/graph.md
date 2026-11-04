@@ -20,3 +20,12 @@ Outcomes of `create`, `customize`, and `delete`:
 | E26 | where `create`, `customize`, or `delete` writes | `customize`: the `repo`, `user`, or a folder's `<name>.md`; `create` and `delete` also a plugin's or skill's source folder in the repository; never managed or an installed copy |
 | E28 | the file written is hidden by a higher `replace` or `remove` | written, with a warning naming the hiding contribution |
 | E32 | `delete` finds no file at the place chosen | a no-op saying nothing was there and what answers the name now |
+
+## Migrating
+
+Outcomes of `migrate`:
+
+| Edge | Decision | Outcome |
+| --- | --- | --- |
+| E74 | `migrate` with or without `--write` | without: the plan, nothing written; with: each row not manual applied, and the same plan |
+| E75 | where `migrate` reads | the `repo` and `user` tiers and every project section, or only a plugin's or skill's source folder in the repository; never managed or an installed copy |

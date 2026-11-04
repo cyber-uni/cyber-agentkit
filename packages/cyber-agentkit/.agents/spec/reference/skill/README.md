@@ -33,6 +33,8 @@ IDs are shared across the parent and its children.
   - UC4.6 A generated document is stale (UC1.14): the reference is used as loaded, and the user is told which
     plugins changed and that Customize mode revises it from its recorded request (UC20).
   - UC4.7 Any other warning: the reference is used as loaded, and the user is told the warning, one line each.
+  - UC4.8 A legacy form or a renamed name (`reference-legacy-format`, `reference-renamed`): the reference is used as
+    loaded, and the user is told that Migrate mode brings the files up to date (UC23).
 
 ### UC12 — Wire a skill to load references (A6.1)
 
@@ -99,7 +101,8 @@ instruction, not by what an agent does.
   from the command.
 - R23 (UC4, E25): An `invalid` name's path is never read.
 - R88 (UC4, E61): Every warning a load returns is passed on to the user, one line each. A stale warning
-  also names the plugins that changed and says Customize mode revises the document from its recorded request.
+  also names the plugins that changed and says Customize mode revises the document from its recorded request. A
+  `reference-legacy-format` or `reference-renamed` warning also says Migrate mode updates the file.
 
 **Load (UC12, UC17)**
 

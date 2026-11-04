@@ -195,7 +195,7 @@ describe('composition (R3 to R7, R42, R49, R50)', () => {
 
 	it('reads an unknown merge as patch, with a warning', () => {
 		const resolved = resolve([
-			layer('repo', { [`${name}.md`]: doc('merge: first-wins', '## Create\n\nmine\n') }),
+			layer('repo', { [`${name}.md`]: doc('merge: interleave', '## Create\n\nmine\n') }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 

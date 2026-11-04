@@ -9,6 +9,7 @@ import { implementationsCommand } from './reference-implementations.command.js'
 import type { ReferencePlugin } from './reference-layers.js'
 import { listCommand } from './reference-list.command.js'
 import { loadCommand } from './reference-load.command.js'
+import { migrateCommand } from './reference-migrate.command.js'
 import { searchCommand } from './reference-search.command.js'
 import { whereCommand } from './reference-where.command.js'
 
@@ -20,6 +21,7 @@ export type { ReferenceDeleteReport } from './reference-delete.command.js'
 export type { ReferenceImplementationsReport } from './reference-implementations.command.js'
 export type { ReferenceListReport } from './reference-list.command.js'
 export type { ReferenceLoadEntry } from './reference-load.command.js'
+export type { ReferenceMigrateReport } from './reference-migrate.command.js'
 export type { ReferenceSearchReport } from './reference-search.command.js'
 export type { ReferenceWhereOutput } from './reference-where.command.js'
 
@@ -36,6 +38,7 @@ export type ReferenceCommands = {
 	create: cli.Command
 	customize: cli.Command
 	delete: cli.Command
+	migrate: cli.Command
 	check: cli.Command
 	implementations: cli.Command
 }
@@ -51,6 +54,7 @@ export function createReferenceCommands({ plugin }: ReferenceCommandOptions = {}
 		create: createCommand(layersFor),
 		customize: customizeCommand(layersFor),
 		delete: deleteCommand(layersFor),
+		migrate: migrateCommand(layersFor),
 		check: checkCommand(layersFor),
 		implementations: implementationsCommand(layersFor),
 	}
@@ -65,13 +69,14 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 		create,
 		customize,
 		delete: remove,
+		migrate,
 		check,
 		implementations,
 	} = createReferenceCommands(options)
 	return command({
 		name: 'reference',
 		description:
-			'Read reference documents by name, composed from the managed, repo, user, plugin, and default tiers, and create, customize, or delete a contribution.',
-		commands: [load, list, search, where, create, customize, remove, implementations, check],
+			'Read reference documents by name, composed from the managed, repo, user, plugin, and default tiers, create, customize, or delete a contribution, and migrate version 1 files.',
+		commands: [load, list, search, where, create, customize, remove, migrate, implementations, check],
 	})
 }

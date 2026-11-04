@@ -41,3 +41,10 @@ A name resolves to one of these outcomes, each on its own:
 | Edge | Decision | Outcome |
 | --- | --- | --- |
 | E65 | a name listed in another name's `aliases`, and held by no contribution as its own | resolves the new name, with a warning; listed by two names, `ambiguous` |
+
+## Legacy forms
+
+| Edge | Decision | Outcome |
+| --- | --- | --- |
+| E72 | a contribution in a legacy form | read as 2.0 reads it, with `reference-legacy-format` naming the 2.0 form and `reference migrate` |
+| E73 | a load of a name a plugin's rename table lists as older | answered as that name, with `reference-renamed` naming the new name |

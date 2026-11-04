@@ -144,6 +144,9 @@ export {
 	repoReferencesDir,
 	userReferencesDir,
 } from './references/reference-layers.js'
+export type { LegacyForm } from './references/reference-legacy.js'
+export type { MigrateOptions, MigrateResult, MigrationRow, MigrationTier } from './references/reference-migrate.js'
+export { migrateReferences } from './references/reference-migrate.js'
 export type { ReferenceName } from './references/reference-name.js'
 export type { ProjectFolder, ProjectFolderCache, ProjectFolders } from './references/reference-projects.js'
 export type {

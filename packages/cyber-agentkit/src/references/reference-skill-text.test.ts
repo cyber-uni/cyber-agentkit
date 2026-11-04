@@ -83,6 +83,20 @@ describe('the reference skill text', () => {
 		expect(load).toContain('Customize mode revises the document from its recorded request')
 	})
 
+	it('says Migrate mode updates a file a legacy-format or renamed warning names (R88, UC4.8)', () => {
+		expect(load).toContain('A `reference-legacy-format` warning means a file is in a form version 1 wrote')
+		expect(load).toContain('say that Migrate mode updates it')
+	})
+
+	it('shows the plan, calls out user files, and writes only once the user approves (R127)', () => {
+		const migrate = section(skill, 'Migrate')
+		expect(migrate).toContain('It prints the plan and writes nothing.')
+		expect(migrate).toContain('each `user` row edits a file in their home folder that no git history restores')
+		expect(migrate).toContain('With no user present, write nothing, and report the plan.')
+		expect(migrate).toContain('Only after the user approves, run the same command with `--write`.')
+		expect(skill).toContain('migrating')
+	})
+
 	it('gives a load line naming the references and the skill of its package, or an interface (R89)', () => {
 		const wire = section(skill, 'Wire a skill')
 		expect(wire).toContain('Load `<name>` and `<name>` with the `reference` skill of `cyber-agentkit`.')

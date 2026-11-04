@@ -92,7 +92,7 @@ export function checkScope(scope: string | undefined): void {
 	}
 }
 
-function sourceFolder(value: string, root: string, kind: 'plugin' | 'skill'): string {
+export function sourceFolder(value: string, root: string, kind: 'plugin' | 'skill'): string {
 	const folder = resolve(value)
 	const qualifies = kind === 'plugin' ? Boolean(pluginManifestName(folder)) : skillName(folder) !== undefined
 	if (!qualifies) {

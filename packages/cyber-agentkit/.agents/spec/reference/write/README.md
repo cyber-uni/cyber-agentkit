@@ -149,6 +149,52 @@ IDs are shared across the parent and its children.
   - UC11.6 A non-Markdown name: its file goes, with its metadata file (K31); a selection that is a metadata file alone
     goes by itself.
 
+### UC22 — Migrate legacy files (A5.5, A6.6)
+
+- **Trigger:** load or check warns `reference-legacy-format` or `reference-renamed` (UC1.22, UC19.9), or a customizer
+  updates a plugin that moved to 2.0 or renamed its names. The customizer often does not know cyber-agentkit is there:
+  it came as a dependency of the plugin they installed.
+- **Entry points:** Skill: the `reference` skill's Migrate mode (UC23), the primary delivery. Code:
+  `reference migrate [name...]`; `migrateReferences`.
+- **Inputs:** optionally, names to limit the run to; the root; optionally a plugin's or a skill's source folder in the
+  repository, in place of the tiers; whether to apply (`--write`).
+- **Outcome:** the plan: one row per change, each with the file, its tier (and folder for a project section), the
+  form, what it is now, and what it becomes. Without `--write`, nothing is written. With `--write`, each change is
+  applied and the same plan is returned. A rewrite changes only the legacy form; the body and every other key stay as
+  written. A file under an older name, from a plugin's rename table (K38) or an owner's `aliases` (K32), is renamed to
+  the new name, a non-Markdown file with its metadata file. Afterwards, load raises no `reference-legacy-format` or
+  `reference-renamed` for a changed file. So a plugin moving to 2.0, or renaming a name, does not have to find and
+  rewrite its customizers' files itself.
+- **Extensions:**
+  - UC22.1 Nothing to migrate: the empty answer, an explicit zero. It is not an error.
+  - UC22.2 `overrides` beside an `extends`: dropped when `extends` names every plugin it names; otherwise the row is
+    manual, with why, and the file is not changed.
+  - UC22.3 A selection in a project folder: manual. The row gives the `reference customize <name> --extends <step>...`
+    that records the pick for the whole repository; the file is left for the customizer to delete.
+  - UC22.4 A legacy `merge` or `overrides` in a project section: removed, since a project section carries neither
+    (K24).
+  - UC22.5 A file under an older name whose new name already has a file in that folder, or an older name that two
+    sources rename differently: manual, and nothing is moved.
+  - UC22.6 A `user` file: changed like the others with `--write`. No git history restores it, so its rows say so.
+  - UC22.7 A skill's source folder: a default in the old layout is renamed only for a name given, since the folder's
+    other files may be the skill's own documents, not defaults.
+  - UC22.8 A plugin's or a skill's source folder that does not qualify, or lies outside the repository (an installed
+    copy): refused, and nothing is written (R24).
+
+### UC23 — Migrate from the skill (A5.5)
+
+- **Trigger:** a load reports `reference-legacy-format` or `reference-renamed`, or the user asks to migrate their
+  reference files.
+- **Entry points:** Skill: the `reference` skill's Migrate mode, reached as `/cyber-agentkit:reference migrate` in
+  Claude Code. This use case is behavior of the skill's instructions.
+- **Inputs:** the request; the plan `migrate` returns.
+- **Outcome:** the user sees every change, with the `user` tier's rows called out, and the skill applies them only once
+  the user approves, then checks the names again.
+- **Extensions:**
+  - UC23.1 The user declines: nothing is written.
+  - UC23.2 No user is present: nothing is written, and the plan is reported.
+  - UC23.3 A manual row: the skill shows why, and for a project-folder selection offers the `customize` it gives.
+
 ## Criteria
 
 Edge IDs are in [graph.md](./graph.md).
@@ -186,3 +232,26 @@ Edge IDs are in [graph.md](./graph.md).
   The written document is whole and records the interface and its version. A `missing` name under a found interface's
   namespace is not customized without naming the interface. Naming the interface with a project folder writes a project
   section instead (UC18.14).
+
+**Migrating (UC22, UC23)**
+
+- R121 (UC22, E74): `migrate` without `--write` writes nothing and returns the plan, one row per change, each with its
+  path, tier, folder for a project section, form, from, and to, or `manual` with why in place of to. With `--write`,
+  it applies every row that is not manual, and returns the same plan.
+- R122 (UC22): Each legacy form becomes its 2.0 form (K37): `merge: merge-sections` is removed, `merge: first-wins`
+  becomes `merge: replace`, `overrides` becomes `extends` with each qualified entry reduced to its plugin, and a
+  default's `references/<name>.md` becomes `<name>.default.md`. In a project section, a legacy `merge` and `overrides`
+  are removed. The body and every other key are kept as written.
+- R123 (UC22, E75): By default `migrate` reads the `repo` tier, the `user` tier, and every project section below the
+  root in a folder git does not ignore. Given a plugin's or a skill's source folder (`--plugin`, `--default`), it reads
+  only that folder's `references/`, which must qualify (R24). It never reads to change a managed folder, an installed
+  plugin, or an installed skill.
+- R124 (UC22): A `repo`, `user`, or project-section file filed under an older name, from a rename table (K38) of a
+  plugin the plugin tier holds or from an owner's `aliases` (K32), is renamed to the new name, with its metadata file.
+  When the new name already has a file in that folder, or two sources give different new names, the row is manual.
+- R125 (UC22): Names given limit the run to the files of those names, a file under an older name of one included. A
+  default in the old layout is recognized only for a name given with `--default`.
+- R126 (UC22): After `migrate --write`, `load` of each changed name raises no `reference-legacy-format`, and no
+  `reference-renamed` for a renamed file.
+- R127 (UC23): Migrate mode shows the plan, calls out each `user` row as having no git history, and runs
+  `migrate --write` only once the user approves; with no user present, it writes nothing.
