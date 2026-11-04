@@ -41,6 +41,7 @@ A name resolves to one of these outcomes, each on its own:
 | Edge | Decision | Outcome |
 | --- | --- | --- |
 | E65 | a name listed in another name's `aliases`, and held by no contribution as its own | resolves the new name, with a warning; listed by two names, `ambiguous` |
+| E76 | a name an interface document lists in `aliases` | `<old id>.interface`, and `<old id>` of a `many` interface, resolve the interface document, with a warning |
 
 ## Legacy forms
 

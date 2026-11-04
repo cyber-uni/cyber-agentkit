@@ -172,6 +172,10 @@ IDs are shared across the parent and its children.
     or `<id>.<key>`, each with a warning.
   - UC19.9 A plugin's rename table (K38) lists the name as an older one: a load of it answers as before, with a
     warning naming the new name and `reference migrate` (R120).
+  - UC19.10 A plain document becomes the interface document of a `many` interface (the interface document lists the
+    plain name in `aliases`, R128): a load of the plain name resolves the interface document, with a warning. A `repo`
+    or `user` file under the plain name applies as the interface document, which is never composed, so it is reported.
+    `check` and `implementations` take the plain name as they take the interface's own.
 
 ### UC21 — Scope a package's plugin to its folder (A8.2)
 
@@ -337,3 +341,10 @@ Edge IDs are in [graph.md](./graph.md).
 - R120 (UC19, E73): A load of a name a plugin's rename table (K38) lists as older, and that no contribution holds as
   its own, warns `reference-renamed`, naming the new name, the plugin, and `reference migrate`. It still answers as
   that name. An entry that is not a pair of valid bare names is ignored, with a `rename-invalid` warning.
+- R128 (UC19, E76): An alias on an interface document is also an older name of the document. A load of
+  `<old id>.interface` resolves `<id>.interface`. No implementation of a `many` interface is named `<old id>`, so for
+  one a load of `<old id>` resolves the interface document too: a plain document that becomes a `many` interface keeps
+  its name. For a `one` interface, `<old id>` is the implementation's older name (R96). A file filed under either older
+  name in a tier applies as the interface document (R97) and, as an interface is never composed, is reported with
+  `interface-not-composed`. `check <older name>` checks the interface document, and `implementations <old id>` lists
+  the interface's implementations, each with a `reference-renamed` warning.

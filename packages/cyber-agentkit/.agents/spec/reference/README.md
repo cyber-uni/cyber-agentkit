@@ -143,7 +143,7 @@ what can be found, and every fault is reported as a warning.
   (R115), so the main document is the same from every working folder.
 - K32 **alias**: an older name a plugin's or a default's contribution of a name lists in `aliases`, so load lines and
   customizations written for the older name still reach it after a rename. An interface document lists the older ids of
-  its interface.
+  its interface, which are also older names of the document (R128).
 - K37 **legacy form**: a form of a contribution that version 1 wrote and 2.0 retired, each with the 2.0 form that says
   the same: `merge: merge-sections` (now `patch`, the default, so no `merge`); `merge: first-wins` (now `replace`);
   `overrides: [<plugin>...]`, the plugins a copy sat above, an entry possibly qualified as `<plugin>/<name>` (now
@@ -152,8 +152,8 @@ what can be found, and every fault is reported as a warning.
   for the whole repository, written by `reference customize <name> --extends <step>...`). A selection `select` wrote at
   the root is already a 2.0 selection (K16). Version 1 shipped no pin file, so none is a legacy form.
 - K38 **rename table**: `references/_renames.yaml` in a plugin, a YAML mapping of each older name to its new name. It
-  declares renames that `aliases` cannot (K32), such as a plain document renamed to an interface document. Unlike an
-  alias, it changes nothing at load: `migrate` applies it, and a load of an older name warns.
+  declares renames that `aliases` cannot (K32), such as a plain document renamed to a `one` interface's document.
+  Unlike an alias, it changes nothing at load: `migrate` applies it, and a load of an older name warns.
 
 ## Use Cases
 
