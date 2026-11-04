@@ -246,13 +246,32 @@ A plugin's or a skill default's contribution lists its older names in frontmatte
 an older name resolves the new one with a `reference-renamed` warning. A file in a tier still filed
 under an older name applies as the new name.
 
-A rename that `aliases` cannot state, such as a plain document that became an interface document, goes
-in the plugin's rename table, `references/_renames.yaml`: a YAML mapping of each older name to its new
-name. It changes nothing at load beyond a `reference-renamed` warning on a load of the older name;
-`reference migrate` applies it.
+An interface document's `aliases` list the interface's older ids. Each is also an older name of the
+document, so a plain reference that became the document of a `many` interface keeps its name:
+
+```md
+---
+aliases: [project-tracker.contract]
+interface:
+  cardinality: many
+  version: 1
+  sections: [Tracker, Detect]
+---
+```
+
+With that in `project-tracker.capabilities.interface.md`, `reference load project-tracker.contract`
+loads the interface document, and `implements: project-tracker.contract@1` still finds the interface.
+A repo or user file under the old name is reported with `interface-not-composed`, because an interface
+is never composed. For a `one` interface, the old id names the implementation, not the document.
+
+A rename that `aliases` cannot state, such as a plain document that became a `one` interface's
+document, goes in the plugin's rename table, `references/_renames.yaml`: a YAML mapping of each older
+name to its new name. It changes nothing at load beyond a `reference-renamed` warning on a load of the
+older name; `reference migrate` applies it.
 
 ```yaml
-project-tracker.contract: project-tracker.capabilities.interface
+# commit.convention is a `one` interface
+commit.style: commit.convention.interface
 ```
 
 ## Customizing a reference
