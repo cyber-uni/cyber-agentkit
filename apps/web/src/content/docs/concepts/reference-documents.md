@@ -39,6 +39,7 @@ npx -y cyber-agentkit reference load agent-readiness-weights
 | `delete <name>` | Deletes a contribution, and reports what answers the name afterwards |
 | `migrate [name]...` | Rewrites files left in a version 1 form, and renames files under a name a plugin renamed; see [Migrating from version 1](#migrating-from-version-1) |
 | `implementations <id>` | The implementations of an [interface](/cyber-agentkit/concepts/reference-interfaces/) a consumer can load |
+| `audit <skill>` | Reports what a skill hard-codes that could move into references: its files, the references it loads, and pattern leads with their lines. It writes nothing and records no verdict |
 | `check [name]...` | Checks references against their [interface](/cyber-agentkit/concepts/reference-interfaces/) and warns of hidden files |
 
 `create`, `customize`, and `delete` act on the repo tier by default (`.agents/references/` at the
