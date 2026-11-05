@@ -19,3 +19,7 @@
 ## 2026-11-05 (commands)
 
 - Recorded the `/skill` commands (create, check or doctor, fix or improve, enhance) and the closed-versus-open aspect split. Q5 and Q6 closed: scan is a helper, not a mode.
+
+## 2026-11-05 (names)
+
+- Settled the command names (create, check, fix, enhance) and the core-versus-open split as a convention in the `/skill` text, not an interface field.
