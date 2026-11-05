@@ -33,7 +33,7 @@ A real process, the richest of the three. Authoring rules cover open-source vers
 A runtime that attributes a failure to one skill, rewrites it in isolation, gates it, and deploys or rolls back. Its bundled skill-creator is a modified copy of Anthropic's. Adds rollback and failure attribution. E7.
 
 ### Ownership
-Decided by the owner: O1, split by role. Considered and not chosen: aced owns everything (a plugin that does not use aced could not implement the interface without depending on it), and a new neutral plugin (a fourth plugin, and aced's rules would have to move out).
+Decided by the owner: first O1 (split by role), then simplified to cyber-agentkit owning contracts, defaults, scan helper, and `/skill`, with aced and universal-plugin as extenders only (see `conclusion.md`). Considered and not chosen: aced owns everything (a plugin that does not use aced could not implement the interface without depending on it), and a new neutral plugin (a fourth plugin, and aced's rules would have to move out).
 
 ## Contradictions
 
