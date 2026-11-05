@@ -11,6 +11,7 @@ import { listCommand } from './reference-list.command.js'
 import { loadCommand } from './reference-load.command.js'
 import { migrateCommand } from './reference-migrate.command.js'
 import { searchCommand } from './reference-search.command.js'
+import { auditCommand } from './reference-skill-audit.command.js'
 import { whereCommand } from './reference-where.command.js'
 
 export type { ReferenceCheckReport } from './reference-check.command.js'
@@ -30,6 +31,7 @@ export type { ReferenceListReport } from './reference-list.command.js'
 export type { ReferenceLoadEntry } from './reference-load.command.js'
 export type { ReferenceMigrateReport } from './reference-migrate.command.js'
 export type { ReferenceSearchReport } from './reference-search.command.js'
+export type { ReferenceAuditReport } from './reference-skill-audit.command.js'
 export type { ReferenceWhereOutput } from './reference-where.command.js'
 
 export type ReferenceCommandOptions = {
@@ -54,6 +56,7 @@ export type ReferenceCommands = {
 	migrate: cli.Command
 	check: cli.Command
 	implementations: cli.Command
+	audit: cli.Command
 }
 
 /** A factory, so each host CLI names itself as the plugin whose own references come first. */
@@ -73,6 +76,7 @@ export function createReferenceCommands({
 		migrate: migrateCommand(layersFor, path),
 		check: checkCommand(layersFor, path),
 		implementations: implementationsCommand(layersFor, path),
+		audit: auditCommand(layersFor, path),
 	}
 }
 
@@ -88,11 +92,12 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 		migrate,
 		check,
 		implementations,
+		audit,
 	} = createReferenceCommands(options)
 	return command({
 		name: 'reference',
 		description:
 			'Read reference documents by name, composed from the managed, repo, user, plugin, and default tiers, create, customize, or delete a contribution, and migrate version 1 files.',
-		commands: [load, list, search, where, create, customize, remove, migrate, implementations, check],
+		commands: [load, list, search, where, create, customize, remove, migrate, implementations, audit, check],
 	})
 }
