@@ -1,0 +1,5 @@
+---
+"cyber-agentkit": minor
+---
+
+Add `reference audit <skill>`, which reports what a skill hard-codes that could move into references. Give the skill's folder or its name. It lists the skill's files with their sizes, the references the skill loads with whether each ships a default and which tiers answer it, and leads found by pattern with their lines: git hosts and trackers, command-line tools, paths, URLs, and step lists. A lead is a candidate, not a verdict. The `reference` skill has the agent judge each lead against the six concerns (provider, workflow, tool, output format, policy, environment), propose the interface the skill should depend on, and leave the decision to the user. `--also <term>` flags a host or tool of your own. The command writes nothing; an approved finding is applied with `create --default` and the existing steps to wire a skill.

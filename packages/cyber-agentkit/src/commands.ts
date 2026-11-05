@@ -1,5 +1,6 @@
 export { createAssetCommand } from './assets/asset.command.js'
 export type {
+	ReferenceAuditReport,
 	ReferenceCheckReport,
 	ReferenceCommandOptions,
 	ReferenceCommands,
