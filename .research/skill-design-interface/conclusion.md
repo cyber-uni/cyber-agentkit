@@ -59,7 +59,8 @@ High on what each source says: all were read in the primary text. Medium on the 
 - Whether the removal of aced's authoring skills covers all five (define-skill, skillify, improve-skill, improve, define-governance) is not settled. `define-governance` is a sibling for rule sets, which `/skill` routes to (A2).
 - Decided: Q1 many interfaces; Q2 handled by extending `reference customize` to a family by wildcard; Q4 a default for every aspect in cyber-agentkit; Q7 gradual; Q9 pre- and post-conditions per aspect.
 - Decided: aspect interfaces are named family, dot, aspect, each with a one-implementation setting, and no interface named for the family itself exists, so nothing collides with the many-implementations naming (id, dot, key). The family is a naming convention; a wildcard in customize and in the implementations listing is new work, and the spec lists interface composition as a non-goal today. Read in the spec and code; not exercised by a test.
-- Open: Q5 and Q6 (scan command name and visibility). Deferred: whether the removal covers all of aced's authoring skills.
+- Decided: `/skill` has four commands, create, check (or doctor), fix (or improve), and enhance. Scan is the Concerns aspect's helper (`reference scan`), not a mode, which closes Q5 and Q6. Command meanings are a proposed reading recorded on the issue. The core aspects are a fixed sequence for create; the others are an open set found through the family wildcard, which enhance runs.
+- Open: the final names for check/doctor and fix/improve, and whether closed versus open needs an interface flag or only a convention. Deferred: whether the removal covers all of aced's authoring skills.
 
 ## What should be checked again later
 

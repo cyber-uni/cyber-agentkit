@@ -15,3 +15,7 @@
 ## 2026-11-05 (naming)
 
 - Resolved the aspect naming collision: ids may contain dots, a one-implementation interface matches only its exact id, and no interface named for the family exists. Wildcard over a family is new work. Deferred the aced authoring-skills question.
+
+## 2026-11-05 (commands)
+
+- Recorded the `/skill` commands (create, check or doctor, fix or improve, enhance) and the closed-versus-open aspect split. Q5 and Q6 closed: scan is a helper, not a mode.
