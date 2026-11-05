@@ -10,6 +10,7 @@
 | [machine-wide-content](./machine-wide-content/conclusion.md) | Which harnesses read skills, plugins, and instructions from a machine-wide folder, where managed (team or company) content lives, and what `cyber-agentkit` needs to read |
 | [skill-resolution](./skill-resolution/conclusion.md) | Where each harness keeps a plugin's skills, how an installed plugin maps to its folder, which copy of a same-named skill runs, whether a running skill is told its folder, and whether a plugin-root `references/` is in the Agent Plugins spec |
 | [prose-update](./prose-update/conclusion.md) | How to merge prose a tool wrote and the owner edited when the tool ships a new wording: three-way merge at sentence level with a retired-wordings history as the base, when to escalate to an agent, and prior art |
+| [skill-design-interface](./skill-design-interface/conclusion.md) | What stages skill-writing tools share, whether any separates configuration from process, which aspects the `skill-design` interface needs, and which plugin owns the interface, the front door, and the implementations |
 
 Each topic under `.research/<topic-slug>/` holds four files: `conclusion.md` (the current best
 answer), `topic.md` (the full investigation), `evidence.md` (claims with source URLs and
