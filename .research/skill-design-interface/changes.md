@@ -7,3 +7,7 @@
 ## 2026-11-05 (later)
 
 - Recorded the owner's answers: Q1 many interfaces, Q2 handled by extending `reference customize` to a family of references by wildcard, Q4 cyber-agentkit ships a default for every aspect with aced and universal-plugin as advanced customizations (tentative change to the ownership split), Q7 gradual, Q9 open. Read the reference feature: required sections, versions, and one-or-many already exist; customize is per name; a dot-separated aspect name may collide with the many-implementations naming. Conclusion's ownership table not yet revised, pending confirmation.
+
+## 2026-11-05 (ownership and Q9)
+
+- Ownership simplified: cyber-agentkit owns contracts, defaults, scan helper, and the `/skill` front door; aced and universal-plugin are extenders only. Q9 settled as pre- and post-conditions per aspect; the rebelytics precedence rule is withdrawn. Conclusion materially changed (ownership table, verdict items 3 and 4).

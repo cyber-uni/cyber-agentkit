@@ -12,20 +12,20 @@ Issue #153 proposes a `skill-design` reference interface: the stages a skill aut
 
 1. **The aspect list needs a lifecycle group, and A11 is not an empty gap.** Nine sources are now read. Only one, rebelytics' task-observer, has a step for separating configuration from process (the three-container rule). No source has the step as #153 frames it: a named reference with a default inside the skill, which another team can override.
 2. **Add two optional aspects, Distribution and Lifecycle.** Fold writing style and the content budget into Shape and Trigger. Leave session learning and failure attribution out: they automate running the process and are not steps in it.
-3. **Ownership follows option O1, split by role** (decided by the owner, November 2026).
-   - `cyber-agentkit` defines the interface (the contract only: section names, required or optional, the link to the agentskills.io floor) and owns the Concerns aspect, including the scan helper.
-   - `aced` provides the front door and the default implementation. The front door is `/skill`, a routing skill. The existing aced authoring skills are removed in its favor.
-   - `universal-plugin` implements Compatibility and Distribution.
+3. **Ownership: cyber-agentkit owns everything a user needs to start; aced and universal-plugin are extenders** (decided by the owner, November 2026; supersedes option O1).
+   - `cyber-agentkit` owns the interface contracts (one interface per aspect), a default for every aspect, the scan helper, and the front door `/skill`, a routing skill. It already ships skills for its own features.
+   - `aced` extends with its eval loop and audits. `universal-plugin` extends with per-harness manifests and distribution. aced's existing authoring skills are removed gradually (Q7).
+4. **Substitutability is pre- and post-conditions, not text.** Each aspect is a pure function: an override may differ from the default in any way as long as its output meets the aspect's postcondition. So each aspect interface states its inputs and a checkable output.
 
 ## Reference material
 
 | Role | Owner | Why |
 | --- | --- | --- |
-| R1 Defines the interface | cyber-agentkit | Already owns the reference mechanism, depends on no other agent-layer package, and is the natural home of the interface registry (#151) |
-| R2 Front-facing skill | aced, as `/skill` | Users already know aced's skill authoring; `/skill` routes (A2) to the right artifact and loads the interface |
-| R3 Meat, Intent / Shape / Trigger / Security / Verification | aced | Holds the five questions, three patterns, description rules, structural audit, eval loop |
-| R3 Meat, Compatibility / Distribution | universal-plugin | Already derives each harness's files from one manifest |
-| R3 Meat, Concerns and the scan helper | cyber-agentkit | Owns the reference feature the helper reads |
+| R1 Defines the interfaces | cyber-agentkit | Owns the reference mechanism, depends on no other agent-layer package, and is the home of the interface registry (#151) |
+| R2 Front-facing skill `/skill` | cyber-agentkit | A front door in another plugin would need that plugin installed before the contract and defaults are reachable |
+| R3 Default for every aspect, Concerns, scan helper | cyber-agentkit | Owns the reference feature; Compatibility defaults rest on its harness research |
+| R3 Extension, eval loop and audits | aced | Holds the structural audit and eval loop |
+| R3 Extension, per-harness manifests and distribution | universal-plugin | Already derives each harness's files from one manifest |
 
 | New candidate aspect | Seen in |
 | --- | --- |
@@ -40,7 +40,7 @@ High on what each source says: all were read in the primary text. Medium on the 
 
 ## Strongest supporting evidence
 
-- Rebelytics states the three-container rule in terms close to Concerns step 1: "would a different person running this skill need a different value here?" Its precedence rule (config wins for configuration, the skill wins for process, config can never relax a rule) is a ready answer for Q2.
+- Rebelytics states the three-container rule in terms close to Concerns step 1: "would a different person running this skill need a different value here?" Its precedence rule (config can never relax a rule) was considered as an answer to substitutability and withdrawn: it would make the default untouchable. Q2 is handled by customizing a family of references (Q1: many interfaces).
 - Distribution appears in two sources and lifecycle in three, independently.
 
 ## Strongest weakening evidence
@@ -57,7 +57,8 @@ High on what each source says: all were read in the primary text. Medium on the 
 
 - Unread: the plugin-dev `skill-creator-original` reference, autoharness `skills_guard.py` and `format_spec.md`, rebelytics `weekly-review.md`, and the Memento-Skills `dream/` package. The Memento "dream" consolidation claim rests on its README.
 - Whether the removal of aced's authoring skills covers all five (define-skill, skillify, improve-skill, improve, define-governance) is not settled. `define-governance` is a sibling for rule sets, which `/skill` routes to (A2).
-- Q1 (one interface or many), Q2 (mixing), Q4 (required aspects), Q5 and Q6 (command name and visibility), Q7 (who moves aced onto the interface) and Q9 (checking substitutability) remain open. O1 leans toward Q1 answered "many", since each aspect then has a natural owner.
+- Decided: Q1 many interfaces; Q2 handled by extending `reference customize` to a family by wildcard; Q4 a default for every aspect in cyber-agentkit; Q7 gradual; Q9 pre- and post-conditions per aspect.
+- Open: how to name aspect interfaces (a dot-separated aspect name may collide with the many-implementations naming, which uses the interface id, a dot, then a key; verify in the reference spec), Q5 and Q6 (scan command name and visibility), and whether the removal covers all of aced's authoring skills.
 
 ## What should be checked again later
 
