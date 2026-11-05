@@ -155,3 +155,41 @@ describe('the reference skill text', () => {
 		expect(text).not.toMatch(/\bshow <name>|\bselect <name>/)
 	})
 })
+
+describe('the reference skill text: audit', () => {
+	it('routes an audit request to a mode that proposes and never writes', () => {
+		expect(skill).toContain('[Audit](#audit)')
+		const audit = section(skill, 'Audit')
+		expect(audit).toContain('audit <skill>')
+		expect(audit).toContain('a lead is a candidate, not a finding')
+		expect(audit).toContain('keep it in the skill or move it to a reference')
+		expect(audit).toContain('The command records no verdict and writes nothing; the verdicts are your proposal')
+		expect(audit).toContain('The user decides each one.')
+	})
+
+	it('names the six concerns and the interface each should depend on', () => {
+		const audit = section(skill, 'Audit')
+		for (const concern of [
+			'provider or host',
+			'workflow or process',
+			'tool',
+			'output format',
+			'policy',
+			'environment',
+		]) {
+			expect(audit.toLowerCase(), concern).toContain(concern)
+		}
+		expect(audit).toContain('depend on an interface, not on a concrete provider')
+		expect(audit).toContain('follows the interface the reference implements')
+		expect(audit).toContain('A large workflow fits in a reference.')
+	})
+
+	it('applies an approved finding with create and wire, never to an installed skill, and checks the defaults', () => {
+		const audit = section(skill, 'Audit')
+		expect(audit).toContain('`create <name> --default <skill folder>`')
+		expect(audit).toContain('[Wire a skill](#wire-a-skill)')
+		expect(audit).toContain('Never edit a skill with `editable: false`')
+		expect(audit).toContain('`defaultAnswers: true`')
+		expect(audit).toContain('behaves as before')
+	})
+})

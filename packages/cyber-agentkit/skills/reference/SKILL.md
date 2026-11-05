@@ -30,6 +30,7 @@ Each contribution applies with its `merge`: `patch` (the default) replaces the t
 | remove a repo, user, or project-section contribution | [Delete](#delete) |
 | bring reference files written for version 1 to the 2.0 form, or rename them as a plugin renamed their names, as a `reference-legacy-format` or `reference-renamed` warning asks | [Migrate](#migrate) |
 | make a skill load a reference | [Wire a skill](#wire-a-skill) |
+| find what a skill hard-codes that could move into references | [Audit](#audit) |
 
 Ask only when the request fits two modes. Otherwise pick one; outside Load, say which. Invoked as `/reference` with no request, run `list` from [Find](#find) and ask what to do with one.
 
@@ -109,9 +110,21 @@ Load the implementations of the `<id>` interface with the `reference` skill of `
 
 A skill written for one harness may add that harness's typed form after the skill's name; the README lists each one. The skill may ship its own default of a name at `references/<name>.default.md` in its folder. Load adds it below every other contribution, and reads it on its own only when the command cannot run. A copy at `references/<name>.md` is not read as a default.
 
+## Audit
+
+Audit a skill for concerns that could move into references. The skill's author owns the result: you propose, the user decides.
+
+1. Run `audit <skill>`, with the skill's folder or its name. Add `--also <term>` for a host or tool of the user's own that the patterns do not know. It reports the skill's files with their sizes, `editable`, the references it loads (`loads`) with whether each ships a default and which tiers answer it, `gaps` (loads with no default), `interfaces` it loads, and `leads`.
+2. Read the skill. Remember that a lead is a candidate, not a finding: a pattern matched, and nothing more. Add what the patterns missed, such as a workflow written in prose with no list markers.
+3. For each candidate, state its concern: provider or host, workflow or process, tool, output format or template, policy or criteria, or environment or paths. Then decide whether to keep it in the skill or move it to a reference, with a one-line reason. Keep what the skill cannot work without: its trigger description, its core purpose, and steps with no sensible alternative. List kept candidates too, so the author sees they were considered.
+4. For each move, name the interface the skill should depend on instead of the concrete thing: the skill should depend on an interface, not on a concrete provider, tool, or workflow, so a new host, tracker, or workflow is added by writing an implementation of the reference, not by editing the skill. A suggested name follows the interface the reference implements, not a fixed naming rule. A large workflow fits in a reference. For each move, give the text to lift into the default and the line to replace.
+5. Report the proposals as a list, each labeled. The command records no verdict and writes nothing; the verdicts are your proposal in this reply. The user decides each one.
+6. Apply only a finding the user approves, with the commands that exist: `create <name> --default <skill folder>` for the default (see [Create](#create)), then [Wire a skill](#wire-a-skill) for the load line. Never edit a skill with `editable: false`: it is an installed copy and not the author's. Report the findings, and offer an override reference to the user instead.
+7. After applying, run `audit <skill>` again. Each moved reference must show `defaultAnswers: true` when no override exists, and the skill behaves as before. Say so when a load shows another tier answering, or a gap.
+
 ## Rules
 
-- **Only Create, Update, Customize, Delete, and Migrate write.** Load writes only a pick the user made for an ambiguous name. Find, Inspect, and Wire a skill change no reference file.
+- **Only Create, Update, Customize, Delete, and Migrate write.** Load writes only a pick the user made for an ambiguous name. Find, Inspect, Audit, and Wire a skill change no reference file.
 - **Never edit, move, rename, or delete a reference an installed plugin or skill ships, or a managed one, not even to migrate it.** Customize it instead. Its callers load it by name.
 - **Never edit a generated document by hand.** Customize it again with its request.
 - **Write only what the user approves.** Show the file and its path before you write or delete it. With no user present, write nothing.
