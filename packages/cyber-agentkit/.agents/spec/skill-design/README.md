@@ -35,6 +35,23 @@ rest.
 - **N5.** A general way to compose any group of references. Only a family of aspects needs the wildcard in customize and
   in the implementations listing.
 
+## Key terms
+
+- **K1. Aspect.** One step of designing a skill, published as the reference interface `skill-design.aspects.<aspect>`,
+  with one implementation chosen. Its contract is what it receives and the criteria its output meets.
+- **K2. Core aspect.** Intent, Criteria, Shape, Trigger, or Verification. `create` walks the first four in that order,
+  then builds the skill and runs Verification against the Criteria. **Open aspect:** any other. `enhance` runs each as a
+  review.
+- **K3. Family.** The aspect interfaces under `skill-design.aspects`, addressed by a wildcard. No interface is named for
+  the family.
+- **K4. Front door.** The `/skill` skill with the commands create, backfill, check, fix, and enhance.
+- **K5. Backfill.** Designing a skill from a source that already exists, such as a session, existing instructions, or
+  another skill, instead of from the author's answers. The source shows what the skill does, not what it should do, so
+  the author still decides.
+
+Default, implementation, extend, selection, and interface are as in [reference](../reference/README.md). Criterion is as
+in the design-spec skill.
+
 ## Open questions
 
 - **Q1.** Autonomy by command. Direction: `backfill` and `fix` act more on their own; `create` and `enhance` propose and
