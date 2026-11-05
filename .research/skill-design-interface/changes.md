@@ -11,3 +11,7 @@
 ## 2026-11-05 (ownership and Q9)
 
 - Ownership simplified: cyber-agentkit owns contracts, defaults, scan helper, and the `/skill` front door; aced and universal-plugin are extenders only. Q9 settled as pre- and post-conditions per aspect; the rebelytics precedence rule is withdrawn. Conclusion materially changed (ownership table, verdict items 3 and 4).
+
+## 2026-11-05 (naming)
+
+- Resolved the aspect naming collision: ids may contain dots, a one-implementation interface matches only its exact id, and no interface named for the family exists. Wildcard over a family is new work. Deferred the aced authoring-skills question.

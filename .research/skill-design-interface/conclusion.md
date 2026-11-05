@@ -58,7 +58,8 @@ High on what each source says: all were read in the primary text. Medium on the 
 - Unread: the plugin-dev `skill-creator-original` reference, autoharness `skills_guard.py` and `format_spec.md`, rebelytics `weekly-review.md`, and the Memento-Skills `dream/` package. The Memento "dream" consolidation claim rests on its README.
 - Whether the removal of aced's authoring skills covers all five (define-skill, skillify, improve-skill, improve, define-governance) is not settled. `define-governance` is a sibling for rule sets, which `/skill` routes to (A2).
 - Decided: Q1 many interfaces; Q2 handled by extending `reference customize` to a family by wildcard; Q4 a default for every aspect in cyber-agentkit; Q7 gradual; Q9 pre- and post-conditions per aspect.
-- Open: how to name aspect interfaces (a dot-separated aspect name may collide with the many-implementations naming, which uses the interface id, a dot, then a key; verify in the reference spec), Q5 and Q6 (scan command name and visibility), and whether the removal covers all of aced's authoring skills.
+- Decided: aspect interfaces are named family, dot, aspect, each with a one-implementation setting, and no interface named for the family itself exists, so nothing collides with the many-implementations naming (id, dot, key). The family is a naming convention; a wildcard in customize and in the implementations listing is new work, and the spec lists interface composition as a non-goal today. Read in the spec and code; not exercised by a test.
+- Open: Q5 and Q6 (scan command name and visibility). Deferred: whether the removal covers all of aced's authoring skills.
 
 ## What should be checked again later
 
