@@ -16,6 +16,7 @@ describe('reference command', () => {
 			'delete',
 			'migrate',
 			'implementations',
+			'audit',
 			'check',
 		])
 	})

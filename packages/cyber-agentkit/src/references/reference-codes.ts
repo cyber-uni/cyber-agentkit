@@ -153,6 +153,14 @@ export const referenceCodes = {
 		kind: 'usage',
 		when: 'a flag given without the one it needs: `--request` without `--body`, or the reverse (R82)',
 	},
+	'skill-not-found': {
+		kind: 'usage',
+		when: 'an `audit` skill given as a name or folder that no installed or local skill matches',
+	},
+	'skill-ambiguous': {
+		kind: 'refused',
+		when: 'an `audit` skill name that more than one skill carries; the details give each folder',
+	},
 	'option-invalid': {
 		kind: 'usage',
 		when: 'a flag given a value it does not accept, such as an unknown `--merge` operation (R27)',
