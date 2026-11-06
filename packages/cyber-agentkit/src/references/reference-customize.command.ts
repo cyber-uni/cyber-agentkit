@@ -210,6 +210,9 @@ export function customizeCommand(layersFor: LayersFor): cli.Command {
 			},
 			trace: { ...traceOption, description: 'After the write, add the trace, in which the written file applies.' },
 		},
+		examples: [
+			{ command: 'cyber-agentkit reference customize my-topic', description: 'Customize a reference for this project' },
+		],
 		async run(args: CustomizeCommandArgs) {
 			const format = this.format
 			try {

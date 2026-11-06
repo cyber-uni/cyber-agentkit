@@ -14,6 +14,7 @@ vi.mock('clibuilder', async (importOriginal) => {
 		cli: (...args: Parameters<typeof actual.cli>) => {
 			if (thrown.value === undefined) return actual.cli(...args)
 			const app = {
+				default: () => app,
 				command: () => app,
 				parse: async () => {
 					throw thrown.value
@@ -122,5 +123,15 @@ describe('run', () => {
 		thrown.value = 'not an error'
 		expect(await run(['node', 'cyber-agentkit', 'reference', 'list'])).toBe(2)
 		expect(stderr).toHaveBeenCalledWith('error: Invalid command.\n')
+	})
+})
+
+describe('bare invocation', () => {
+	it('shows the harness and the commands as live data, not a usage error', async () => {
+		expect(await run(['node', 'cyber-agentkit'])).toBe(0)
+		const out = stdout.mock.calls.map(([chunk]) => String(chunk)).join('')
+		expect(out).toContain('bin: cyber-agentkit')
+		expect(out).toContain('harness:')
+		expect(out).toContain('commands[3]: reference,asset,prose-update')
 	})
 })

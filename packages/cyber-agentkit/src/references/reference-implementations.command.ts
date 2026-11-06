@@ -69,6 +69,12 @@ export function implementationsCommand(layersFor: LayersFor): cli.Command {
 					"Add each one's name, tier, and version, the interface's cardinality and accepted versions, and the ones left out with why.",
 			},
 		},
+		examples: [
+			{
+				command: 'cyber-agentkit reference implementations my-interface',
+				description: 'List what implements an interface',
+			},
+		],
 		async run(args: CommonArgs & { id: string; accept: string | undefined; trace: boolean | undefined }) {
 			try {
 				const accept = parseAccept(args.accept)

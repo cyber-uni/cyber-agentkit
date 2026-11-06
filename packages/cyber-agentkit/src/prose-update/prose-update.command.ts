@@ -10,8 +10,11 @@ const text = (what: string) => ({ description: `${what}, as text.`, type: t.stri
 const file = (what: string) => ({ description: `${what}, read from this file.`, type: t.string().optional() })
 
 function usage(message: string): never {
-	process.stderr.write(`error: usage: ${message}\n`)
-	throw CliError.reported(exitCodes.usage)
+	throw new CliError(`usage: ${message}`, {
+		code: 'invalid-usage',
+		exitCode: exitCodes.usage,
+		help: 'Run `cyber-agentkit prose-update <classify|retire> --help` for the options.',
+	})
 }
 
 /** Exactly one of `--<name>` and `--<name>-from`. */
@@ -42,6 +45,12 @@ function classifyCommand(): cli.Command {
 				type: t.array(t.string()).optional(),
 			},
 		},
+		examples: [
+			{
+				command: 'cyber-agentkit prose-update classify --offered-from new.md --found-from old.md --retired-from v1.md',
+				description: 'Decide what to do with the prose found in a file',
+			},
+		],
 		async run(args: {
 			offered?: string | undefined
 			'offered-from'?: string | undefined
@@ -97,8 +106,7 @@ function classifyCommand(): cli.Command {
 				})
 			} catch (error) {
 				if (!(error instanceof ProseUpdateError)) throw error
-				process.stderr.write(`error: ${error.code}: ${error.message}\n`)
-				throw CliError.reported(exitCodes.error)
+				throw new CliError(error.message, { code: error.code, exitCode: exitCodes.error })
 			}
 		},
 	})
@@ -117,6 +125,13 @@ function retireCommand(): cli.Command {
 			date: { description: 'The date of the entry, written as given.', type: t.string() },
 			reason: { description: 'Why the wording was replaced.', type: t.string() },
 		},
+		examples: [
+			{
+				command:
+					"cyber-agentkit prose-update retire --history-from history.md --wording-from old.md --date 2026-11 --reason 'reworded'",
+				description: 'Add the outgoing wording to the history',
+			},
+		],
 		async run(args: {
 			history?: string | undefined
 			'history-from'?: string | undefined

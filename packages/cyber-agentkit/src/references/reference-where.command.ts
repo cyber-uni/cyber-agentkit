@@ -50,6 +50,7 @@ export function whereCommand(layersFor: LayersFor): cli.Command {
 			in: { ...inOption, description: "A folder strictly below the root: also give its project section's file." },
 			trace: { ...traceOption, description: 'Add every layer checked, with its outcome.' },
 		},
+		examples: [{ command: 'cyber-agentkit reference where my-topic', description: 'Show which layers hold my-topic' }],
 		async run(
 			args: CommonArgs & {
 				name: string
