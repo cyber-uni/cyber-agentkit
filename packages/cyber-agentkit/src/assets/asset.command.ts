@@ -47,6 +47,7 @@ function listCommand(): cli.Command {
 		name: 'list',
 		description: "List every file in a skill's assets/ folder with its size.",
 		options: { skill: skillOption, root: rootOption },
+		examples: [{ command: 'cyber-agentkit asset list --skill my-skill', description: "List a skill's asset files" }],
 		async run(args: Common) {
 			try {
 				const entries = listAssets(args.skill, rootOf(args))

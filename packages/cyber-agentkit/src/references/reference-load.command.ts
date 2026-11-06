@@ -108,6 +108,13 @@ export function loadCommand(layersFor: LayersFor): cli.Command {
 			},
 			trace: traceOption,
 		},
+		examples: [
+			{ command: 'cyber-agentkit reference load my-topic', description: 'Print one reference' },
+			{
+				command: 'cyber-agentkit reference load my-topic other-topic --format json',
+				description: 'Print several as JSON',
+			},
+		],
 		async run(
 			args: CommonArgs & {
 				names: string[]

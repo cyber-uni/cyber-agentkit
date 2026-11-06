@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { cli, exitCodes } from 'clibuilder'
+import { homeHeader, result } from 'clibuilder/axi'
 import { createAssetCommand } from './assets/asset.command.js'
+import { detectHarness } from './detection/detect-harness.js'
 import { createProseUpdateCommand } from './prose-update/prose-update.command.js'
 import { createReferenceCommand } from './references/reference.command.js'
 
@@ -34,6 +36,27 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 		description:
 			'Work with the AI agent harness running here: read its layered reference documents, and update prose a tool wrote earlier.',
 	})
+		.default({
+			description: 'Show the harness running here and the commands to read its references and assets.',
+			examples: [{ command: 'cyber-agentkit', description: 'Show the detected harness and the commands' }],
+			run() {
+				const { harness, candidates } = detectHarness()
+				return result(
+					{
+						...homeHeader({ description: 'Work with the AI agent harness running here', bin: 'cyber-agentkit' }),
+						harness,
+						...(candidates.length > 1 ? { candidates } : {}),
+						commands: ['reference', 'asset', 'prose-update'],
+					},
+					{
+						help: [
+							'Run `cyber-agentkit reference list` to see every reference',
+							'Run `cyber-agentkit reference load <name>` to read one',
+						],
+					},
+				)
+			},
+		})
 		.command(createReferenceCommand({ plugin: { name, root } }))
 		.command(createAssetCommand({ plugin: { name, root } }))
 		.command(createProseUpdateCommand())

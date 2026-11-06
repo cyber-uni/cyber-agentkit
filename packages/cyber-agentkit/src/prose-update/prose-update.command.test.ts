@@ -54,12 +54,13 @@ describe('prose-update classify', () => {
 		const code = await run(argv('classify', '--offered', ' ', '--found', 'A.', '--retired', 'A.'))
 
 		expect(code).toBe(1)
-		expect(stderr).toHaveBeenCalledWith(expect.stringContaining('empty-offered'))
+		expect(printed()).toContain('code: empty-offered')
 	})
 
 	it('is misuse to pass both or neither of an input', async () => {
 		expect(await run(argv('classify', '--found', 'A.', '--retired', 'A.'))).toBe(2)
-		expect(stderr).toHaveBeenCalledWith(expect.stringContaining('--offered'))
+		expect(printed()).toContain('code: invalid-usage')
+		expect(printed()).toContain('--offered')
 	})
 })
 

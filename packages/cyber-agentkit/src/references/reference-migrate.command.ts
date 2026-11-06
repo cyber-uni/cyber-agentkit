@@ -71,6 +71,7 @@ export function migrateCommand(layersFor: LayersFor): cli.Command {
 				type: t.boolean().optional(),
 			},
 		},
+		examples: [{ command: 'cyber-agentkit reference migrate', description: 'Migrate version 1 reference files' }],
 		async run(
 			args: CommonArgs & {
 				names?: string[] | undefined

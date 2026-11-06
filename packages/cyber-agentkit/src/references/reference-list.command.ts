@@ -57,6 +57,13 @@ export function listCommand(layersFor: LayersFor): cli.Command {
 			root: rootOption,
 			trace: { ...traceOption, description: 'Add one row per name per layer holding it, with its outcome.' },
 		},
+		examples: [
+			{ command: 'cyber-agentkit reference list', description: 'List every reference name' },
+			{
+				command: "cyber-agentkit reference list 'project-tracker.*'",
+				description: 'List the names matching a pattern',
+			},
+		],
 		async run(args: CommonArgs & { pattern?: string | undefined; trace: boolean | undefined }) {
 			try {
 				const home = homedir()

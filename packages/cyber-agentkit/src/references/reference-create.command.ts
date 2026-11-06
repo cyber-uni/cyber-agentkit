@@ -69,6 +69,9 @@ export function createCommand(layersFor: LayersFor): cli.Command {
 			},
 			trace: { ...traceOption, description: 'After the write, add the trace, in which the new file applies.' },
 		},
+		examples: [
+			{ command: 'cyber-agentkit reference create my-topic', description: 'Start a new reference named my-topic' },
+		],
 		async run(args: CreateArgs) {
 			const format = this.format
 			try {

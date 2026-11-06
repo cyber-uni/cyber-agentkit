@@ -37,6 +37,9 @@ export function searchCommand(layersFor: LayersFor): cli.Command {
 			root: rootOption,
 			trace: { ...traceOption, description: 'Add the tier and plugin or skill of each match.' },
 		},
+		examples: [
+			{ command: 'cyber-agentkit reference search "worktree leases"', description: 'Find references by topic' },
+		],
 		async run(args: CommonArgs & { query: string; trace: boolean | undefined }) {
 			const query = args.query.trim()
 			try {

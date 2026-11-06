@@ -51,6 +51,9 @@ export function checkCommand(layersFor: LayersFor): cli.Command {
 			root: rootOption,
 			trace: { ...traceOption, description: 'Add every entry checked, with its kind and unsupported sections.' },
 		},
+		examples: [
+			{ command: 'cyber-agentkit reference check', description: 'Check every reference against its interface' },
+		],
 		async run(args: CommonArgs & { names?: string[] | undefined; trace: boolean | undefined }) {
 			try {
 				const home = homedir()
