@@ -1,5 +1,18 @@
 # cyber-agentkit
 
+## 2.2.0
+
+### Minor Changes
+
+- 9e72fdd: Every `asset` command carries `examples` in its help. `createAssetCommand()` takes `path`, the command line that reaches the `asset` commands in the host CLI, and every example starts with it. It defaults to `cyber-agentkit asset`.
+- f2dcd59: Requires clibuilder 12.2 and follows its AXI conventions. A bare `cyber-agentkit` shows live data (the detected harness and the commands, with next steps) instead of a `missing-command` error. Every `reference` command, `prose-update classify` and `retire`, and `asset list` carry `examples` in their help. `prose-update` failures are coded `CliError`s on stdout (`invalid-usage` with exit code 2, or the classifier's own code with exit code 1) instead of lines on stderr.
+- 2c8567f: `createReferenceCommand()` and `createReferenceCommands()` take `path`, the command line that reaches the `reference` commands in the host CLI, such as `buddy-agent-harness reference`. Every example in their help starts with it. It defaults to `cyber-agentkit reference`.
+- 976eb29: `reference search` shows the best 10 matches. When more match, its answer adds a `count`, such as `10 of 21 total`, and a hint to run it again with `--full`, which shows every match.
+
+### Patch Changes
+
+- 5aa7055: `reference load` and `reference check` now report a qualified-name override, a `<plugin>/<name>.md` in a subfolder of `.agents/references/` or `~/.agents/references/` (or a project folder's), with `reference-legacy-format`. No version read these files, so the override never applied. `reference migrate` plans each one, and `--write` moves it to `<name>.md` with `extends: [<plugin>]`. It leaves the file to you when the plugin is not installed (the row says what it would extend), when the name already has a file there, or when it sits in a project folder (the row gives the `reference customize` to run at the root).
+
 ## 2.1.0
 
 ### Minor Changes
