@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ReferenceSearchReport } from './reference.command.js'
-import { failure, json, plugins, repo, search, write } from './reference-command.fixtures.js'
+import { failure, json, plugins, repo, search, stdout, write } from './reference-command.fixtures.js'
 
 describe('search', () => {
 	it('gives matches of name, description, and match, best first, with no echoed query', async () => {
@@ -40,6 +40,24 @@ describe('search', () => {
 			empty: '0 references match "guide"',
 			help: [expect.any(String), expect.stringContaining('reference list')],
 		})
+	})
+
+	it('shows the best 10 matches with their count and the --full hint, and every match under --full', async () => {
+		const root = repo()
+		for (let i = 0; i < 12; i++) write(root, `.agents/references/guide-${i}.md`, 'body\n')
+
+		expect(await search('guide', { root })).toBe(0)
+		const cut = json<ReferenceSearchReport & { help: string[] }>()
+		expect(cut.count).toBe('10 of 12 total')
+		expect(cut.references).toHaveLength(10)
+		expect(cut.help).toEqual(['Run `reference search "guide" --full` for every match.'])
+
+		stdout.mockClear()
+		expect(await search('guide', { root, full: true })).toBe(0)
+		const all = json<ReferenceSearchReport & { help?: string[] }>()
+		expect(all.references).toHaveLength(12)
+		expect(all.count).toBeUndefined()
+		expect(all.help).toBeUndefined()
 	})
 
 	it('exits 2 on an empty query with query-missing', async () => {

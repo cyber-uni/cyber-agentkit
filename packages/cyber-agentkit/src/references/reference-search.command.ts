@@ -1,7 +1,7 @@
 import { homedir } from 'node:os'
 import type { cli } from 'clibuilder'
 import { command, t } from 'clibuilder'
-import { empty, result } from 'clibuilder/axi'
+import { empty, fullOption, result, truncateList } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
 import { searchReferences } from './reference-catalog.js'
 import {
@@ -15,6 +15,8 @@ import {
 } from './reference-command-support.js'
 
 export type ReferenceSearchReport = {
+	/** `10 of 21 total`, when more matched than are shown. */
+	count?: string
 	references: {
 		name: string
 		description?: string
@@ -29,6 +31,9 @@ export type ReferenceSearchReport = {
 	defaults?: string
 }
 
+/** The matches shown without `--full`. They come best first, so the cut keeps the best ones. */
+export const searchLimit = 10
+
 export function searchCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'search',
@@ -37,9 +42,10 @@ export function searchCommand(layersFor: LayersFor, path = defaultReferencePath)
 		options: {
 			root: rootOption,
 			trace: { ...traceOption, description: 'Add the tier and plugin or skill of each match.' },
+			full: { ...fullOption, description: `Show every match, not only the best ${searchLimit}.` },
 		},
 		examples: [{ command: `${path} search "worktree leases"`, description: 'Find references by topic' }],
-		async run(args: CommonArgs & { query: string; trace: boolean | undefined }) {
+		async run(args: CommonArgs & { query: string; trace: boolean | undefined; full: boolean | undefined }) {
 			const query = args.query.trim()
 			try {
 				const home = homedir()
@@ -51,8 +57,10 @@ export function searchCommand(layersFor: LayersFor, path = defaultReferencePath)
 						help: [...(defaults ? [defaults] : []), 'Try other words, or run `reference list` for every name.'],
 					})
 				}
+				const shown = truncateList(matches, { limit: searchLimit, full: args.full })
 				const report: ReferenceSearchReport = compact({
-					references: matches.map(({ name, description, match, folder, tier, plugin, skill, loadedBy }) =>
+					count: shown.truncated ? shown.count : undefined,
+					references: shown.items.map(({ name, description, match, folder, tier, plugin, skill, loadedBy }) =>
 						compact(
 							args.trace
 								? { name, description, match, folder, loadedBy, tier, plugin, skill }
@@ -61,7 +69,9 @@ export function searchCommand(layersFor: LayersFor, path = defaultReferencePath)
 					),
 					defaults,
 				})
-				return result(report)
+				return shown.truncated
+					? result(report, { help: [`Run \`reference search ${JSON.stringify(query)} --full\` for every match.`] })
+					: result(report)
 			} catch (error) {
 				return asCliError(error, 'Reference search failed.')
 			}
