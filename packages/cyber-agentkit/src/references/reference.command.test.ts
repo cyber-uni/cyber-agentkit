@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createReferenceCommand } from './reference.command.js'
+import { createReferenceCommand, createReferenceCommands } from './reference.command.js'
+
+type Node = { name: string; examples?: { command: string; description: string }[] }
 
 describe('reference command', () => {
 	it('groups every subcommand under `reference`', () => {
@@ -18,5 +20,21 @@ describe('reference command', () => {
 			'implementations',
 			'check',
 		])
+	})
+
+	it('gives every subcommand examples that start with `cyber-agentkit reference` by default', () => {
+		for (const command of Object.values(createReferenceCommands()) as unknown as Node[]) {
+			expect(command.examples?.length, command.name).toBeGreaterThan(0)
+			for (const { command: line } of command.examples ?? [])
+				expect(line).toMatch(new RegExp(`^cyber-agentkit reference ${command.name}\\b`))
+		}
+	})
+
+	it('starts every example with the path the host mounts the commands at', () => {
+		const path = 'buddy-agent-harness reference'
+		const group = createReferenceCommand({ path }) as unknown as { commands: Node[] }
+		for (const command of group.commands)
+			for (const { command: line } of command.examples ?? [])
+				expect(line).toMatch(new RegExp(`^${path} ${command.name}\\b`))
 	})
 })

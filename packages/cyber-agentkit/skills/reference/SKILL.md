@@ -50,6 +50,7 @@ Load `references/load.md` from this skill's folder and follow it, then return to
 ## Find
 
 - For a topic, run `search <query>`. If nothing matches, say that nothing matched. Do not guess a name.
+- When `search` carries a `count` field, it shows only the best matches. Run it again with `--full` when none of them fits.
 - For every reference, run `list`. Add `--trace` for every contribution of each name and its outcome.
 - For every name matching a pattern, run `list '<pattern>'`. `*` stands for any run of characters and the rest is literal.
 - For the implementations of an interface, run `implementations <id>`. It lists each one a consumer can load, with its pin. Add `--trace` for each one it left out, with why.

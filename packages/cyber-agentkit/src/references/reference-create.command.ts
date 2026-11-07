@@ -8,6 +8,7 @@ import {
 	asCliError,
 	type CreateArgs,
 	compact,
+	defaultReferencePath,
 	displayTrace,
 	givenRoot,
 	inOption,
@@ -36,7 +37,7 @@ export type ReferenceCreateReport = {
 	trace?: ReferenceTrace
 }
 
-export function createCommand(layersFor: LayersFor): cli.Command {
+export function createCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'create',
 		description:
@@ -69,9 +70,7 @@ export function createCommand(layersFor: LayersFor): cli.Command {
 			},
 			trace: { ...traceOption, description: 'After the write, add the trace, in which the new file applies.' },
 		},
-		examples: [
-			{ command: 'cyber-agentkit reference create my-topic', description: 'Start a new reference named my-topic' },
-		],
+		examples: [{ command: `${path} create my-topic`, description: 'Start a new reference named my-topic' }],
 		async run(args: CreateArgs) {
 			const format = this.format
 			try {

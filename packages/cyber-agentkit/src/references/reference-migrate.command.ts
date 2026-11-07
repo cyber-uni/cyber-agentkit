@@ -8,6 +8,7 @@ import {
 	asCliError,
 	type CommonArgs,
 	compact,
+	defaultReferencePath,
 	givenRoot,
 	type LayersFor,
 	rootOption,
@@ -41,7 +42,7 @@ function summary(rows: readonly MigrationRow[], written: boolean): string {
 	return `${applied} ${applied === 1 ? 'change' : 'changes'} to make; run \`reference migrate --write\` with the same arguments to apply ${applied === 1 ? 'it' : 'them'}.${left}`
 }
 
-export function migrateCommand(layersFor: LayersFor): cli.Command {
+export function migrateCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'migrate',
 		description:
@@ -71,7 +72,7 @@ export function migrateCommand(layersFor: LayersFor): cli.Command {
 				type: t.boolean().optional(),
 			},
 		},
-		examples: [{ command: 'cyber-agentkit reference migrate', description: 'Migrate version 1 reference files' }],
+		examples: [{ command: `${path} migrate`, description: 'Migrate version 1 reference files' }],
 		async run(
 			args: CommonArgs & {
 				names?: string[] | undefined

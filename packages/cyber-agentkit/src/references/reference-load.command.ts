@@ -10,6 +10,7 @@ import {
 	type CommonArgs,
 	compact,
 	defaultOption,
+	defaultReferencePath,
 	deliveredText,
 	displayTrace,
 	type LayersFor,
@@ -87,7 +88,7 @@ function loadText(resolved: readonly ResolvedReference[]): Answer<string> {
 	return document(resolved.map(tag).join('\n\n'))
 }
 
-export function loadCommand(layersFor: LayersFor): cli.Command {
+export function loadCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'load',
 		description:
@@ -109,9 +110,9 @@ export function loadCommand(layersFor: LayersFor): cli.Command {
 			trace: traceOption,
 		},
 		examples: [
-			{ command: 'cyber-agentkit reference load my-topic', description: 'Print one reference' },
+			{ command: `${path} load my-topic`, description: 'Print one reference' },
 			{
-				command: 'cyber-agentkit reference load my-topic other-topic --format json',
+				command: `${path} load my-topic other-topic --format json`,
 				description: 'Print several as JSON',
 			},
 		],

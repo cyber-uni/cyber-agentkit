@@ -12,6 +12,9 @@ type BooleanOption = { description: string; type: ReturnType<ReturnType<typeof t
 
 export type CommonArgs = { root: string | undefined }
 
+/** The command line that reaches the reference commands in `cyber-agentkit`'s own CLI. */
+export const defaultReferencePath = 'cyber-agentkit reference'
+
 export const rootOption: StringOption = {
 	description:
 		'The repository root: its `.agents/references/` is the repo tier, and its `package.json` names the dependency plugins. Defaults to the nearest folder at or above the current directory holding `.git`, else the current directory.',

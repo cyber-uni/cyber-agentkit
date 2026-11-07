@@ -7,6 +7,7 @@ import {
 	asCliError,
 	type CommonArgs,
 	compact,
+	defaultReferencePath,
 	givenRoot,
 	inOption,
 	type LayersFor,
@@ -55,7 +56,7 @@ function deleteReport(deleted: DeleteResult, home: string): ReferenceDeleteRepor
 	})
 }
 
-export function deleteCommand(layersFor: LayersFor): cli.Command {
+export function deleteCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'delete',
 		description:
@@ -72,9 +73,7 @@ export function deleteCommand(layersFor: LayersFor): cli.Command {
 				type: t.boolean().optional(),
 			},
 		},
-		examples: [
-			{ command: 'cyber-agentkit reference delete my-topic', description: 'Delete your contribution to my-topic' },
-		],
+		examples: [{ command: `${path} delete my-topic`, description: 'Delete your contribution to my-topic' }],
 		async run(
 			args: CommonArgs & {
 				name: string

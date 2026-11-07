@@ -1,7 +1,7 @@
 import type { cli } from 'clibuilder'
 import { command } from 'clibuilder'
 import { checkCommand } from './reference-check.command.js'
-import { layerSource } from './reference-command-support.js'
+import { defaultReferencePath, layerSource } from './reference-command-support.js'
 import { createCommand } from './reference-create.command.js'
 import { customizeCommand } from './reference-customize.command.js'
 import { deleteCommand } from './reference-delete.command.js'
@@ -28,6 +28,12 @@ export type { ReferenceWhereOutput } from './reference-where.command.js'
 export type ReferenceCommandOptions = {
 	/** The plugin running the command; see `ReferenceLayerOptions['plugin']`. */
 	plugin?: ReferencePlugin | undefined
+	/**
+	 * The command line that reaches these commands where the host mounts them, such as
+	 * `buddy-agent-harness reference`. Each command's `examples` start with it. Defaults to
+	 * `cyber-agentkit reference`.
+	 */
+	path?: string | undefined
 }
 
 export type ReferenceCommands = {
@@ -44,19 +50,22 @@ export type ReferenceCommands = {
 }
 
 /** A factory, so each host CLI names itself as the plugin whose own references come first. */
-export function createReferenceCommands({ plugin }: ReferenceCommandOptions = {}): ReferenceCommands {
+export function createReferenceCommands({
+	plugin,
+	path = defaultReferencePath,
+}: ReferenceCommandOptions = {}): ReferenceCommands {
 	const layersFor = layerSource(plugin)
 	return {
-		load: loadCommand(layersFor),
-		list: listCommand(layersFor),
-		search: searchCommand(layersFor),
-		where: whereCommand(layersFor),
-		create: createCommand(layersFor),
-		customize: customizeCommand(layersFor),
-		delete: deleteCommand(layersFor),
-		migrate: migrateCommand(layersFor),
-		check: checkCommand(layersFor),
-		implementations: implementationsCommand(layersFor),
+		load: loadCommand(layersFor, path),
+		list: listCommand(layersFor, path),
+		search: searchCommand(layersFor, path),
+		where: whereCommand(layersFor, path),
+		create: createCommand(layersFor, path),
+		customize: customizeCommand(layersFor, path),
+		delete: deleteCommand(layersFor, path),
+		migrate: migrateCommand(layersFor, path),
+		check: checkCommand(layersFor, path),
+		implementations: implementationsCommand(layersFor, path),
 	}
 }
 
