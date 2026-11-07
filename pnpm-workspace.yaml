@@ -28,6 +28,3 @@ minimumReleaseAgeExclude:
   - astro@7.2.8
   # Brief requires universal-plugin>=0.14.0 (skill script build). Published 2026-10-12; removable once it is 1 day old.
   - universal-plugin@0.14.0
-  # Upgrade to clibuilder 12.2 (owner approved the waiver). Published 2026-11-06T09:30Z; removable once it is 1 day old.
-  - clibuilder@12.2.0
-  - args-minus@0.2.3
