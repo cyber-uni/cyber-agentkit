@@ -9,6 +9,7 @@ import {
 	asCliError,
 	type CommonArgs,
 	compact,
+	defaultReferencePath,
 	type LayersFor,
 	rootOption,
 	traceOption,
@@ -40,7 +41,7 @@ export type ReferenceListReport = {
 	warnings?: ReferenceWarning[]
 }
 
-export function listCommand(layersFor: LayersFor): cli.Command {
+export function listCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'list',
 		description:
@@ -58,9 +59,9 @@ export function listCommand(layersFor: LayersFor): cli.Command {
 			trace: { ...traceOption, description: 'Add one row per name per layer holding it, with its outcome.' },
 		},
 		examples: [
-			{ command: 'cyber-agentkit reference list', description: 'List every reference name' },
+			{ command: `${path} list`, description: 'List every reference name' },
 			{
-				command: "cyber-agentkit reference list 'project-tracker.*'",
+				command: `${path} list 'project-tracker.*'`,
 				description: 'List the names matching a pattern',
 			},
 		],

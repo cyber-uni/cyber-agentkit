@@ -8,6 +8,7 @@ import {
 	asCliError,
 	type CommonArgs,
 	compact,
+	defaultReferencePath,
 	deliveredText,
 	displayTrace,
 	givenRoot,
@@ -143,7 +144,7 @@ function text(customized: CustomizeResult, shown: ReferenceCustomizeReport): str
 	return `${shown.path}\n\n${shown.hint}${meta}\n`
 }
 
-export function customizeCommand(layersFor: LayersFor): cli.Command {
+export function customizeCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'customize',
 		description:
@@ -210,9 +211,7 @@ export function customizeCommand(layersFor: LayersFor): cli.Command {
 			},
 			trace: { ...traceOption, description: 'After the write, add the trace, in which the written file applies.' },
 		},
-		examples: [
-			{ command: 'cyber-agentkit reference customize my-topic', description: 'Customize a reference for this project' },
-		],
+		examples: [{ command: `${path} customize my-topic`, description: 'Customize a reference for this project' }],
 		async run(args: CustomizeCommandArgs) {
 			const format = this.format
 			try {

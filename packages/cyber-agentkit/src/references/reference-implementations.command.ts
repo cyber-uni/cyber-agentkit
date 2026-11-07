@@ -8,6 +8,7 @@ import {
 	asCliError,
 	type CommonArgs,
 	compact,
+	defaultReferencePath,
 	type LayersFor,
 	rootOption,
 	traceOption,
@@ -44,7 +45,7 @@ function parseAccept(value: string | undefined): number[] | undefined {
 	return versions.map(Number)
 }
 
-export function implementationsCommand(layersFor: LayersFor): cli.Command {
+export function implementationsCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'implementations',
 		description:
@@ -71,7 +72,7 @@ export function implementationsCommand(layersFor: LayersFor): cli.Command {
 		},
 		examples: [
 			{
-				command: 'cyber-agentkit reference implementations my-interface',
+				command: `${path} implementations my-interface`,
 				description: 'List what implements an interface',
 			},
 		],

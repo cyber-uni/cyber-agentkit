@@ -8,6 +8,7 @@ import {
 	asCliError,
 	type CommonArgs,
 	compact,
+	defaultReferencePath,
 	type LayersFor,
 	rootOption,
 	traceOption,
@@ -28,7 +29,7 @@ export type ReferenceSearchReport = {
 	defaults?: string
 }
 
-export function searchCommand(layersFor: LayersFor): cli.Command {
+export function searchCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'search',
 		description: 'Find references by name, description, tags, headings, or body, best match first.',
@@ -37,9 +38,7 @@ export function searchCommand(layersFor: LayersFor): cli.Command {
 			root: rootOption,
 			trace: { ...traceOption, description: 'Add the tier and plugin or skill of each match.' },
 		},
-		examples: [
-			{ command: 'cyber-agentkit reference search "worktree leases"', description: 'Find references by topic' },
-		],
+		examples: [{ command: `${path} search "worktree leases"`, description: 'Find references by topic' }],
 		async run(args: CommonArgs & { query: string; trace: boolean | undefined }) {
 			const query = args.query.trim()
 			try {

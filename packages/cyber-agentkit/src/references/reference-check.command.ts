@@ -9,6 +9,7 @@ import {
 	asCliError,
 	type CommonArgs,
 	compact,
+	defaultReferencePath,
 	type LayersFor,
 	rootOption,
 	traceOption,
@@ -35,7 +36,7 @@ export type ReferenceCheckReport = {
 	}[]
 }
 
-export function checkCommand(layersFor: LayersFor): cli.Command {
+export function checkCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'check',
 		description:
@@ -51,9 +52,7 @@ export function checkCommand(layersFor: LayersFor): cli.Command {
 			root: rootOption,
 			trace: { ...traceOption, description: 'Add every entry checked, with its kind and unsupported sections.' },
 		},
-		examples: [
-			{ command: 'cyber-agentkit reference check', description: 'Check every reference against its interface' },
-		],
+		examples: [{ command: `${path} check`, description: 'Check every reference against its interface' }],
 		async run(args: CommonArgs & { names?: string[] | undefined; trace: boolean | undefined }) {
 			try {
 				const home = homedir()
