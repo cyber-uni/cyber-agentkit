@@ -13,7 +13,15 @@ import { type AssetTrace, type ResolvedAsset, resolveAsset } from './resolve-ass
 export type AssetResolveCommandOptions = {
 	/** The plugin running the command; see `AssetLayerOptions['plugin']`. */
 	plugin?: AssetPlugin | undefined
+	/**
+	 * The command line that reaches the `asset` commands where the host mounts them, such as
+	 * `buddy-agent-harness asset`. Each command's `examples` start with it. Defaults to `cyber-agentkit asset`.
+	 */
+	path?: string | undefined
 }
+
+/** The command line that reaches the asset commands in `cyber-agentkit`'s own CLI. */
+export const defaultAssetPath = 'cyber-agentkit asset'
 
 type AssetShowEntry =
 	| string
@@ -162,7 +170,7 @@ function showText(resolved: readonly ResolvedAsset[]): Answer<string> | undefine
 	return document(blocks.join('\n\n'))
 }
 
-function loadCommand(layersFor: LayersFor): cli.Command {
+function loadCommand(layersFor: LayersFor, path: string): cli.Command {
 	return command({
 		name: 'load',
 		description:
@@ -183,6 +191,10 @@ function loadCommand(layersFor: LayersFor): cli.Command {
 			},
 			trace: traceOption,
 		},
+		examples: [
+			{ command: `${path} load rules`, description: 'Print the asset named rules' },
+			{ command: `${path} load rules --default skills/my-skill`, description: "Include a skill's own default" },
+		],
 		async run(
 			args: CommonArgs & {
 				names: string[]
@@ -222,7 +234,7 @@ function loadCommand(layersFor: LayersFor): cli.Command {
 	})
 }
 
-function namesCommand(layersFor: LayersFor): cli.Command {
+function namesCommand(layersFor: LayersFor, path: string): cli.Command {
 	return command({
 		name: 'names',
 		description:
@@ -239,6 +251,7 @@ function namesCommand(layersFor: LayersFor): cli.Command {
 			root: rootOption,
 			trace: { ...traceOption, description: 'Add one row per name per layer holding it, with its outcome.' },
 		},
+		examples: [{ command: `${path} names`, description: 'List every asset name' }],
 		async run(args: CommonArgs & { pattern?: string | undefined; trace: boolean | undefined }) {
 			try {
 				const home = homedir()
@@ -268,7 +281,7 @@ function namesCommand(layersFor: LayersFor): cli.Command {
 	})
 }
 
-function whereCommand(layersFor: LayersFor): cli.Command {
+function whereCommand(layersFor: LayersFor, path: string): cli.Command {
 	return command({
 		name: 'where',
 		description:
@@ -285,6 +298,7 @@ function whereCommand(layersFor: LayersFor): cli.Command {
 			default: defaultOption,
 			trace: { ...traceOption, description: 'Add every layer checked, with its outcome.' },
 		},
+		examples: [{ command: `${path} where rules`, description: 'Show where a customization of rules is written' }],
 		async run(args: CommonArgs & { name: string; default: string | undefined; trace: boolean | undefined }) {
 			const format = this.format
 			try {
@@ -317,7 +331,14 @@ function whereCommand(layersFor: LayersFor): cli.Command {
 export type AssetResolveCommands = { load: cli.Command; names: cli.Command; where: cli.Command }
 
 /** The tiered, by-name commands over `assets/` folders. `asset`'s own commands act on a path. */
-export function createAssetResolveCommands({ plugin }: AssetResolveCommandOptions = {}): AssetResolveCommands {
+export function createAssetResolveCommands({
+	plugin,
+	path = defaultAssetPath,
+}: AssetResolveCommandOptions = {}): AssetResolveCommands {
 	const layersFor = layerSource(plugin)
-	return { load: loadCommand(layersFor), names: namesCommand(layersFor), where: whereCommand(layersFor) }
+	return {
+		load: loadCommand(layersFor, path),
+		names: namesCommand(layersFor, path),
+		where: whereCommand(layersFor, path),
+	}
 }

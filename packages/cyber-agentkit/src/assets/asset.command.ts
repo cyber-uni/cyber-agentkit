@@ -5,7 +5,11 @@ import type { cli } from 'clibuilder'
 import { command, exitCodes, t } from 'clibuilder'
 import { CliError, document, isCliError, result } from 'clibuilder/axi'
 import { assetLayers } from './asset-layers.js'
-import { type AssetResolveCommandOptions, createAssetResolveCommands } from './asset-resolve.command.js'
+import {
+	type AssetResolveCommandOptions,
+	createAssetResolveCommands,
+	defaultAssetPath,
+} from './asset-resolve.command.js'
 import { copyAsset } from './copy-asset.js'
 import { selectAsset } from './select-asset.js'
 import { AssetError, deleteAsset, listAssets, showAsset, writeAsset } from './skill-assets.js'
@@ -42,12 +46,12 @@ function rootOf(args: { root: string | undefined }): string {
 	return resolve(args.root ?? process.cwd())
 }
 
-function listCommand(): cli.Command {
+function listCommand(path: string): cli.Command {
 	return command({
 		name: 'list',
 		description: "List every file in a skill's assets/ folder with its size.",
 		options: { skill: skillOption, root: rootOption },
-		examples: [{ command: 'cyber-agentkit asset list --skill my-skill', description: "List a skill's asset files" }],
+		examples: [{ command: `${path} list --skill skills/my-skill`, description: "List a skill's asset files" }],
 		async run(args: Common) {
 			try {
 				const entries = listAssets(args.skill, rootOf(args))
@@ -59,12 +63,15 @@ function listCommand(): cli.Command {
 	})
 }
 
-function showCommand(): cli.Command {
+function showCommand(path: string): cli.Command {
 	return command({
 		name: 'show',
 		description: 'Print a text asset as written.',
 		arguments: [{ name: 'path', description: pathDescription, type: t.string() }],
 		options: { skill: skillOption, root: rootOption },
+		examples: [
+			{ command: `${path} show data/rules.json --skill skills/my-skill`, description: 'Print one asset file' },
+		],
 		async run(args: Common & { path: string }) {
 			try {
 				return document(showAsset(args.skill, rootOf(args), args.path))
@@ -82,7 +89,7 @@ type WriteArgs = Omit<Common, 'skill'> & {
 	from: string | undefined
 }
 
-function writeCommand(mode: 'create' | 'update', host: AssetResolveCommandOptions): cli.Command {
+function writeCommand(mode: 'create' | 'update', host: AssetResolveCommandOptions, path: string): cli.Command {
 	const create = mode === 'create'
 	return command({
 		name: mode,
@@ -115,6 +122,23 @@ function writeCommand(mode: 'create' | 'update', host: AssetResolveCommandOption
 					}
 				: {}),
 		},
+		examples: create
+			? [
+					{
+						command: `${path} create data/rules.json --skill skills/my-skill --from rules.json`,
+						description: 'Add an asset to a skill from a local file',
+					},
+					{
+						command: `${path} create rules --copy my-plugin`,
+						description: "Copy a plugin's rules asset into this project to edit",
+					},
+				]
+			: [
+					{
+						command: `${path} update data/rules.json --skill skills/my-skill --from rules.json`,
+						description: "Replace a skill's asset from a local file",
+					},
+				],
 		async run(
 			args: WriteArgs & { copy?: string | undefined; scope?: string | undefined; default?: string | undefined },
 		) {
@@ -153,12 +177,15 @@ function writeCommand(mode: 'create' | 'update', host: AssetResolveCommandOption
 	})
 }
 
-function deleteCommand(): cli.Command {
+function deleteCommand(path: string): cli.Command {
 	return command({
 		name: 'delete',
 		description: "Delete an asset from a skill's source folder, and any folder it leaves empty.",
 		arguments: [{ name: 'path', description: pathDescription, type: t.string() }],
 		options: { skill: skillOption, root: rootOption },
+		examples: [
+			{ command: `${path} delete data/rules.json --skill skills/my-skill`, description: "Delete a skill's asset file" },
+		],
 		async run(args: Common & { path: string }) {
 			try {
 				return document(`${deleteAsset(args.skill, rootOf(args), args.path)}\n\ndeleted.\n`)
@@ -169,7 +196,7 @@ function deleteCommand(): cli.Command {
 	})
 }
 
-function selectCommand(options: AssetResolveCommandOptions): cli.Command {
+function selectCommand(options: AssetResolveCommandOptions, path: string): cli.Command {
 	return command({
 		name: 'select',
 		description:
@@ -194,6 +221,10 @@ function selectCommand(options: AssetResolveCommandOptions): cli.Command {
 			},
 			clear: { description: 'Remove the selection.', type: t.boolean().optional() },
 		},
+		examples: [
+			{ command: `${path} select rules my-plugin`, description: "Answer rules from my-plugin's asset" },
+			{ command: `${path} select rules --clear`, description: 'Remove the selection' },
+		],
 		async run(args: {
 			name: string
 			option: string | undefined
@@ -229,21 +260,22 @@ function selectCommand(options: AssetResolveCommandOptions): cli.Command {
 }
 
 export function createAssetCommand(options: AssetResolveCommandOptions = {}): cli.Command {
-	const { load, names, where } = createAssetResolveCommands(options)
+	const path = options.path ?? defaultAssetPath
+	const { load, names, where } = createAssetResolveCommands({ ...options, path })
 	return command({
 		name: 'asset',
 		description:
 			"Manage a skill's assets/ files by path (list, show, create, update, delete), and load one by name through the tiers (load, names, where, select).",
 		commands: [
-			listCommand(),
-			showCommand(),
-			writeCommand('create', options),
-			writeCommand('update', options),
-			deleteCommand(),
+			listCommand(path),
+			showCommand(path),
+			writeCommand('create', options, path),
+			writeCommand('update', options, path),
+			deleteCommand(path),
 			load,
 			names,
 			where,
-			selectCommand(options),
+			selectCommand(options, path),
 		],
 	})
 }
