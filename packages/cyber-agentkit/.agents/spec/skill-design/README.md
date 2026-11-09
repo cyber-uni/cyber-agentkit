@@ -70,6 +70,30 @@ in the design-spec skill.
 | A4.1 | Plugin author | Ships an extension or a new open aspect without any change to `/skill`. |
 | A4.2 | Plugin author | Knows their implementation meets the aspect's criteria. |
 
+## Use cases
+
+### UC1 — Create a skill for a described job (A1.1)
+
+- **Trigger:** the author wants an agent to do a job repeatably, and has no skill for it.
+- **Entry points:** skill (primary): `/skill create [description]`.
+- **Inputs:** the author's description of the job; the selected implementation for each aspect (the default unless
+  customized); where the skill goes.
+- **Success:** the skill exists at the chosen location. It meets the Agent Skills specification and each core aspect's
+  criteria, and Verification has passed against the Criteria. The author approved the output of Intent, Criteria, Shape,
+  and Trigger before each was written.
+- **Extensions:**
+  - **UC1.1** A skill with that name already exists. `/skill` stops without overwriting it and points to `check`, `fix`,
+    or `enhance`.
+  - **UC1.2** The author rejects an aspect's draft. That aspect is redrafted, and any aspect approved after it is
+    reopened.
+  - **UC1.3** The selected implementation for an aspect cannot be found. That aspect uses the default, and the author is
+    told which aspect fell back and which implementation was missing.
+  - **UC1.4** Verification fails. The skill stays in place, and the failing criteria are reported so `fix` can repair
+    them.
+  - **UC1.5** The author stops partway. The aspects already approved stay on disk.
+- **Example:** `/skill create "summarize a PR for release notes"`. The author approves the intent, two criteria, a
+  single-file shape, and the trigger description; Verification runs the two criteria against a sample PR.
+
 ## Open questions
 
 - **Q1.** Autonomy by command. Direction: `backfill` and `fix` act more on their own; `create` and `enhance` propose and
