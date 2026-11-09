@@ -94,6 +94,29 @@ in the design-spec skill.
 - **Example:** `/skill create "summarize a PR for release notes"`. The author approves the intent, two criteria, a
   single-file shape, and the trigger description; Verification runs the two criteria against a sample PR.
 
+### UC2 — Backfill a skill from work already done (A1.2)
+
+- **Trigger:** the author has already done the job some other way (in a session, as instructions in a document, or in
+  another skill) and wants it as a skill.
+- **Entry points:** skill (primary): `/skill backfill [description]`.
+- **Inputs:** the source, which is the current session's context unless the description names another (a document or
+  another skill); the description, which can also say which job in the source to capture; the selected implementation
+  for each aspect; where the skill goes.
+- **Success:** the same as UC1, except that each aspect's draft starts from the source. The skill generalizes the
+  source so it can be reused: the agent proposes what it generalizes over (what would differ on the next run, such as
+  the repo, the version, or the target) and the author confirms it. The author decides every point where the source is
+  silent, or where what it did differs from what the skill should do. The source is left unchanged.
+- **Extensions:**
+  - **UC2.1** The description names a source that cannot be read. `/skill` stops and names the source.
+  - **UC2.2** The source says nothing for an aspect. That aspect is drafted from the author's answers, as in UC1.
+  - **UC2.3** The source holds more than one job, and the description does not say which. `/skill` proposes one skill
+    per job, and the author picks which to build.
+  - **UC2.4** The same outcomes as UC1.1 and UC1.3 to UC1.5.
+  - **UC2.5** The session holds no work to capture and the description names no other source. `/skill` says there is
+    nothing to backfill and points to `create`.
+- **Example:** `/skill backfill` right after a release done by hand. The session shows the steps taken; the agent
+  proposes the package and the version as what varies, and the author decides which steps the skill keeps.
+
 ## Open questions
 
 - **Q1.** Autonomy by command. Direction: `backfill` and `fix` act more on their own; `create` and `enhance` propose and
