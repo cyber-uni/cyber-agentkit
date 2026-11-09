@@ -52,6 +52,24 @@ rest.
 Default, implementation, extend, selection, and interface are as in [reference](../reference/README.md). Criterion is as
 in the design-spec skill.
 
+## Actors and goals
+
+| ID | Actor | Goal |
+| --- | --- | --- |
+| A1.1 | Skill author | Gets a working skill for a job they describe, without knowing the aspects beforehand. |
+| A1.2 | Skill author | Turns work already done (a session, existing instructions, another skill) into a skill whose behavior they chose, not one copied from the source. |
+| A1.3 | Skill author | Knows, for each aspect, whether a skill meets that aspect's criteria, with the skill left unchanged. |
+| A1.4 | Skill author | Has the failures that check or the evals found repaired. |
+| A1.5 | Skill author | Improves a skill that already passes, on the open aspects. |
+| A2.1 | Agent running `/skill`, including a self-improve loop | Does A1's work with only the autonomy the user allowed. It never guesses an input it has no source for, and reports each one instead. |
+| A3.1 | Team lead | Swaps or extends one aspect and keeps the rest. |
+| A3.2 | Team lead | Chooses an implementation for every aspect in one pass, such as taking one plugin's whole set or mixing several, instead of changing aspects one at a time. |
+| A3.3 | Team lead | Sets how much freedom each command has. |
+| A3.4 | Team lead | Sees which implementation each aspect uses. |
+| A3.5 | Team lead | Applies a choice to the whole repo, or only to themselves. |
+| A4.1 | Plugin author | Ships an extension or a new open aspect without any change to `/skill`. |
+| A4.2 | Plugin author | Knows their implementation meets the aspect's criteria. |
+
 ## Open questions
 
 - **Q1.** Autonomy by command. Direction: `backfill` and `fix` act more on their own; `create` and `enhance` propose and
@@ -62,3 +80,5 @@ in the design-spec skill.
 - **Q3.** Whether skill distribution (`npx skills`) is an aspect of `skill-design`, or belongs to plugin distribution.
 - **Q4.** Where the default eval loop and structural audit end and aced's BDD-style evals begin. The default is closer to
   `skill-creator`; aced's approach involves SDD.
+- **Q5.** What a skill consumer, who uses a designed skill but never runs `/skill`, gets from `skill-design`. They are
+  affected by the outcome, so they may be an actor, but no goal for them is settled.
