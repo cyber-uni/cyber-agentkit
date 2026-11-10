@@ -18,16 +18,17 @@ the whole tool and keep the copy current. None of them asks the author what a di
 differently, so choices like the output template end up written into the skill. Anyone who must trust a skill before
 sharing it has no common bar to check it against.
 
-`skill-design` splits the work of designing a skill into **aspects**: intent, shape, trigger, verification, and others.
+`skill-design` splits the work of designing a skill into **aspects**: intent, criteria, shape, trigger, verification, and others.
 Each aspect states what it receives and what it must produce. `cyber-agentkit` ships a default for every aspect and a
 front door, `/skill`, with six commands: create a skill, backfill one from work already done, check it without running
-it, test it by running its evals, fix what check or test found, and enhance it beyond that. A team or plugin replaces one aspect with its own and keeps the
-rest.
+it, test it by running its evals, fix what check or test found, and enhance it beyond that. A team or plugin replaces one
+aspect with its own and keeps the rest.
 
 ## Non-goals
 
 - **N1.** Defining what a valid skill is. The Agent Skills specification is the floor, and every aspect works within it.
-- **N2.** Generating plugin manifests or distributing plugins. `universal-plugin` does that.
+- **N2.** Generating plugin manifests, or distributing skills or plugins, such as through `npx skills`.
+  `universal-plugin` does the plugin part.
 - **N3.** Deciding when the process runs: a schedule, or a trigger from session events. The steps are in scope, and the
   loop that calls them is not.
 - **N4.** Designing artifacts other than skills (agents, commands, plugins, references), and deciding which one a
@@ -35,6 +36,8 @@ rest.
 - **N5.** A general way to compose any group of references. Only a family of aspects needs the wildcard in customize and
   in the implementations listing.
 - **N6.** Building an eval engine. The default Verification runs on an existing one.
+- **N7.** Vetting a skill someone else wrote before using it: its source, whether it is maintained, its licence. A
+  skill consumer, who uses a designed skill but never runs `/skill`, is left to a later spec.
 
 ## Key terms
 
@@ -167,7 +170,9 @@ in the design-spec skill.
   - **UC4.4** A repair makes another criterion fail. With the author present, `/skill` shows both criteria and the
     author keeps the change, undoes it, or asks for another repair. With no author present, the repair is undone and
     both criteria are reported.
-  - **UC4.5** The skill came from an installed plugin. The edit goes ahead (see Q2).
+  - **UC4.5** The skill came from an installed plugin. Before the first edit, `/skill` says that a plugin update will
+    overwrite it, then edits, and offers to file an issue with the plugin's source. With no author present, no issue is
+    filed.
   - **UC4.6** The selected implementation for an aspect cannot be found. The default is used, as in UC1.3.
 - **Example:** `check` fails Trigger on `release-notes` and offers `fix`. The author accepts, `fix` adds when-not-to-use
   lines to the description, and `check` then passes Trigger.
@@ -312,7 +317,8 @@ in the design-spec skill.
 - **Success:** once the plugin is installed, `/skill` finds a new open aspect through the family wildcard, and
   `enhance` reviews it, with no change to `/skill`. An implementation is listed by `implementations` only when it
   passes the interface check, as in [reference UC6](../reference/interfaces/README.md) and UC15. The author can tell
-  whether its output meets the aspect's criteria, not only its sections (Q6).
+  whether its output meets the aspect's criteria, not only its sections, by running `/skill check` and `/skill test`
+  with the implementation picked (Q6).
 - **Extensions:**
   - **UC11.1** A new aspect is named `interface` or `default`. It is refused, because `skill-design.aspects.interface`
     and `skill-design.aspects.default` would collide with the name endings the `reference` spec gives interface
@@ -329,6 +335,7 @@ in the design-spec skill.
 - R2 (UC1.3, UC3.3, UC4.6, UC5.6, UC6.6): When an aspect's selected implementation cannot be found, the command uses
   that aspect's default and says which aspect fell back and which implementation was missing.
 - R3 (UC1, UC2, UC4, UC5): A skill that `create` or `backfill` writes meets the Agent Skills specification.
+- R78 (UC3, UC4, UC6): No judge runs unless the author names one.
 - R4 (UC3, UC6): In an interactive run that found failures, `check` and `test` end by offering `fix`. Nothing changes
   unless the author accepts. With no author present, no offer is made.
 
@@ -340,8 +347,8 @@ in the design-spec skill.
   and points to `check`, `fix`, and `enhance`.
 - R8 (UC1.2): When the author rejects an aspect's draft, that aspect is redrafted, and every aspect after it in K2's
   order that was approved is reopened.
-- R9 (UC1.4): When the last step's `test` fails, the skill stays in place and the failing criteria are reported.
-- R10 (UC1.5): When the author stops partway, every aspect already approved stays on disk.
+- R9 (UC1.4, UC2.4): When the last step's `test` fails, the skill stays in place and the failing criteria are reported.
+- R10 (UC1.5, UC2.4): When the author stops partway, every aspect already approved stays on disk.
 - R11 (UC2): `backfill` leaves its source unchanged.
 - R12 (UC2): Before it drafts, `backfill` proposes what the skill generalizes over, and the author confirms it.
 - R13 (UC2.2): An aspect the source says nothing for is drafted from the author's answers, as in `create`.
@@ -362,7 +369,7 @@ in the design-spec skill.
 - R75 (UC3, UC11): An aspect implementation names its check script (K8) in front matter, and the script run in CI
   runs the check script of each selected implementation. An implementation that extends another, and names none of
   its own, uses the one it extends, as the `reference` spec merges front matter.
-- R76 (UC3): An implementation with no check script has all its criteria reported as not checked in CI.- R20 (UC3.2): A skill that fails the Agent Skills specification gets those failures reported, and every aspect is
+- R20 (UC3.2): A skill that fails the Agent Skills specification gets those failures reported, and every aspect is
   still checked in the same run.
 - R21 (UC3.4): A criterion that only a run can decide is reported as not checked and points to `test`, never as a
   pass.
@@ -404,7 +411,9 @@ in the design-spec skill.
 - R42 (UC4.4, UC5.4): When a change makes another criterion fail, the author is shown both criteria and keeps the
   change, undoes it, or asks for another repair. With no author present, the change is undone and both criteria are
   reported.
-- R43 (UC4.5): `fix` edits a skill that came from an installed plugin.
+- R43 (UC4.5): `fix` edits a skill that came from an installed plugin. Before the first edit it says that a plugin
+  update will overwrite the change, and after it offers to file an issue with the plugin's source. With no author
+  present, no issue is filed.
 
 **Enhance and self-improvement (UC5, UC7)**
 
@@ -439,7 +448,7 @@ in the design-spec skill.
 - R61 (UC10): With no setting, `create` and `enhance` are `ask`, and `backfill` and `fix` are `apply-safe`.
 - R62 (UC10): At `apply-safe`, a command applies only the changes after which `check` and `test` pass with no
   criterion worse, and asks about the rest; with no author present, it reports the rest. At `apply`, it applies every
-  change and reports each one.
+  change except those R74 keeps for the author, and reports each one.
 - R74 (UC2, UC4.3, UC10): A decision only the author can make (R12, R13, R41) is asked at every level, whatever else
   the level applies on its own. With no author present, it is reported as not applied.
 - R63 (UC10.1): A level set for `check` or `test` has no effect, and `/skill` says so.
@@ -453,7 +462,7 @@ in the design-spec skill.
 
 - R67 (UC8, UC11): Each aspect is the reference interface `skill-design.aspects.<aspect>`, and `cyber-agentkit` ships a
   default for every aspect it defines.
-- R68 (UC8): After a pick for one aspect, the next command uses it for that aspect, and every other aspect behaves as
+- R68 (UC8, UC11): After a pick for one aspect, the next command uses it for that aspect, and every other aspect behaves as
   before.
 - R69 (UC9): One `customize` on `skill-design.aspects.*` writes a pick for every aspect it matches, and one
   `implementations` on it lists each aspect with the implementation it uses and the ones available.
@@ -466,15 +475,9 @@ in the design-spec skill.
 
 ## Open questions
 
-- **Q2.** Editing a skill that came from an installed plugin is allowed. Whether `/skill` first says that a plugin update
-  will overwrite the edit is leaning yes, in one line.
-- **Q3.** Whether skill distribution (`npx skills`) is an aspect of `skill-design`, or belongs to plugin distribution.
-- **Q5.** What a skill consumer, who uses a designed skill but never runs `/skill`, gets from `skill-design`. They are
-  affected by the outcome, so they may be an actor, but no goal for them is settled. The supply-chain checks on a
-  skill (its source, whether it is maintained, its licence) may belong here rather than in `check`.
-- **Q6.** How a plugin author tells that an aspect implementation's output meets the aspect's criteria. Direction:
-  each aspect interface ships sample skills with known results, so the default and another implementation can be run
-  side by side. Not settled.
+- **Q6.** Whether each aspect interface ships sample skills with known results, so a plugin author runs `/skill check`
+  and `/skill test` on them with the default and with their implementation, side by side. To settle in the aspect child
+  specs.
 
 ## References
 
