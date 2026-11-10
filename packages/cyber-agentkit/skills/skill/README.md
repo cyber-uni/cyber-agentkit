@@ -6,7 +6,7 @@ or test found, and enhances it beyond that. Intent, Shape, and Trigger are built
 open aspect, such as Security, are references (`skill-design.aspects.<aspect>`) that another plugin can replace through
 the `reference` skill's Customize mode. The default Verification runs each case several times in a sandbox, on
 promptfoo, beside a run without the skill. Type `/skill` to run it yourself. Installed as a Claude Code plugin, it is
-`/cyber-agentkit:skill`.
+`/cyber-agentkit:skill` (pnpm install: `pnpm-cyber-agentkit-skill`).
 
 | Command | Does |
 | --- | --- |

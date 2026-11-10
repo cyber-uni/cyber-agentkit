@@ -64,7 +64,7 @@ program does the same way every time, such as parsing or validating a file. Prop
 
 - **SHP-1** [script] The `SKILL.md` body is at most 500 lines.
 - **SHP-2** [script] Every file the body links exists, and every file under `references/` is linked from the body or
-  from a file it links.
+  from a file it links, except a reference default (`<name>.default.md`), which is loaded by name.
 - **SHP-3** [read] A step that a program could do the same way every time is a script, not prose.
 - **SHP-4** [read] Each file under `references/` is read only on some paths; text every run needs is in `SKILL.md`.
 
@@ -84,6 +84,16 @@ plausibly make that belong to that other job.
 - **TRG-4** [run] The skill fires on the requests it should and not on near misses.
 
 **Fix.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result.
+
+## Run the command
+
+```sh
+node <this skill's folder>/scripts/skill.mjs <subcommand> ...
+```
+
+`scripts/skill.mjs` is the package's `skill` command bundled into one file. When it is missing or cannot run, use
+`pnpm exec cyber-agentkit skill` when the package is a direct dependency, else `npx -y cyber-agentkit@2.1.0 skill`,
+with the same arguments.
 
 ## Autonomy
 

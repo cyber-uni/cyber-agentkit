@@ -2,6 +2,7 @@
 description: The default Criteria aspect of /skill - a skill's Criteria as a Done when list of boolean statements about its result.
 tags: [skill-design, aspect, criteria]
 implements: skill-design.aspects.criteria@1
+check-script: ../skills/skill/scripts/check-criteria.mjs
 ---
 
 ## Draft

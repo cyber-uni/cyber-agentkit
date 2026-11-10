@@ -2,6 +2,7 @@
 description: The default Verification aspect of /skill - eval cases in evals/evals.yaml, run on promptfoo in a sandbox, several runs per case against a run without the skill.
 tags: [skill-design, aspect, verification, evals, promptfoo]
 implements: skill-design.aspects.verification@1
+check-script: ../skills/skill/scripts/check-verification.mjs
 ---
 
 ## Draft
@@ -50,7 +51,7 @@ A rubric is a list of checks; a run passes the criterion when every check passes
 
 ## Run
 
-Run `node <the /skill folder>/scripts/skill-test.mjs <skill folder>`. Add `--judge <model>` only when the author named
+Run `node <the /skill folder>/scripts/skill.mjs test <skill folder>`. Add `--judge <model>` only when the author named
 a judge, and `--baseline <folder>` to compare with another version instead of a run without the skill.
 
 - The default is `runs: 3` and `threshold: 2`. A criterion passes when it passes in at least `threshold` runs.

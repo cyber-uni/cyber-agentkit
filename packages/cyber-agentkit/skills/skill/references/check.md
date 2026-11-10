@@ -9,9 +9,10 @@ say where you looked.
 
 ## 2. Run the script checks
 
-Run `node <this skill's folder>/scripts/skill-check.mjs <skill folder>`. It reports the Agent Skills specification
-checks and every `script` check of the chosen implementations, and lists the rest as not checked. When the script is
-missing or cannot run, decide the `script` checks yourself by reading the files.
+Run `check <skill folder> --format json` as `SKILL.md`'s Run the command says. It reports the Agent Skills
+specification checks and every `script` check of the chosen implementations, running each one's check script, and
+lists the rest as not checked. It exits 1 when a check fails. When no form of the command can run, decide the `script`
+checks yourself by reading the files. The same command runs in CI.
 
 ## 3. Decide the rest
 

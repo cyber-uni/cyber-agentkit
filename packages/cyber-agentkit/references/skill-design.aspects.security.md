@@ -2,6 +2,7 @@
 description: The default Security aspect of /skill - a skill asks before outside effects, carries no secrets, and never treats fetched content as instructions.
 tags: [skill-design, aspect, security]
 implements: skill-design.aspects.security@1
+check-script: ../skills/skill/scripts/check-security.mjs
 ---
 
 ## Criteria
