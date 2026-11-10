@@ -6,8 +6,8 @@ status: draft
 # skill-design: a skill author designs a skill through aspects they can swap one at a time
 
 **Outcome:** an author, human or agent, creates, backfills, checks, tests, fixes, and enhances a skill by running `/skill`. Each
-step of that work is an aspect whose default ships with `cyber-agentkit`, and any plugin can replace one aspect without editing
-the others.
+step of that work is an aspect whose default ships with `cyber-agentkit`, and any plugin can replace a swappable aspect without
+editing the others.
 
 ## What
 
@@ -41,8 +41,10 @@ aspect with its own and keeps the rest.
 
 ## Key terms
 
-- **K1. Aspect.** One step of designing a skill, published as the reference interface `skill-design.aspects.<aspect>`,
-  with one implementation chosen. Its contract is what it receives and the criteria its output meets.
+- **K1. Aspect.** One step of designing a skill. Its contract is what it receives and the criteria its output meets.
+  A **swappable aspect** is published as the reference interface `skill-design.aspects.<aspect>`, with one
+  implementation chosen: Criteria, Verification, and every open aspect. Intent, Shape, and Trigger are written into
+  `/skill` itself and are not swapped. Where a criterion speaks of an aspect's implementation, it means a swappable one.
 - **K2. Core aspect.** Intent, Criteria, Shape, Trigger, or Verification. `create` walks the first four in that order,
   then builds the skill and runs Verification against the Criteria. **Open aspect:** any other. `enhance` reviews every
   aspect, core and open.
@@ -131,8 +133,8 @@ in the design-spec skill.
 
 **Aspects and implementations (UC11)**
 
-- R67 (UC8, UC11): Each aspect is the reference interface `skill-design.aspects.<aspect>`, and `cyber-agentkit` ships a
-  default for every aspect it defines.
+- R67 (UC8, UC11): Each swappable aspect (K1) is the reference interface `skill-design.aspects.<aspect>`, and
+  `cyber-agentkit` ships a default for every one it defines, including the open aspect Security.
 - R71 (UC11): An open aspect that an installed plugin ships is checked by `check` and reviewed by `enhance`, with no
   change to `/skill`.
 - R72 (UC11.1): An aspect named `interface` or `default` is refused.
