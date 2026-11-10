@@ -475,3 +475,22 @@ in the design-spec skill.
 - **Q6.** How a plugin author tells that an aspect implementation's output meets the aspect's criteria. Direction:
   each aspect interface ships sample skills with known results, so the default and another implementation can be run
   side by side. Not settled.
+
+## References
+
+- Design record: issue #153. Why aspects, the ownership split between `cyber-agentkit`, aced, and `universal-plugin`,
+  and the tools compared: `.research/skill-design-interface`.
+- Interface, default, implementation, extend, selection, picks, and the `interface` and `default` name endings (K1,
+  UC8, UC11.1): [reference](../reference/README.md), its [write](../reference/write/README.md) (UC9, UC18) and
+  [interfaces](../reference/interfaces/README.md) (UC6, UC15) specs. The wildcard on `skill-design.aspects.*` (UC9,
+  R69) is a change to that spec, which owns its behavior.
+- The validity floor (N1, R3, R20): the [Agent Skills specification](https://agentskills.io/specification).
+- Criterion, and how criteria are written: the `design-spec` skill and `.research/design-spec-criteria`.
+- The eval system the default Verification builds on, rubrics as pass or fail per run, pass rates, isolation, and
+  baselines (N6, K6, UC6, R22 to R35): `.research/skill-evals`.
+- The split of `check` into a CI script part and an agent part (UC3, R19, R75): aced's `improve-skill` and its
+  `validate.mjs`.
+- Suggestions offered one at a time, only accepted ones written (UC5): `buddy-agent-harness` `enhance`.
+- Self-improvement from use without hooks, repeat evidence before a rule, and eval-gated skill changes (UC7, R54 to
+  R60): [`agent-self-improvement`](https://github.com/repobuddy/buddy-agent-harness/tree/main/.research/agent-self-improvement)
+  in `buddy-agent-harness` (pull request repobuddy/buddy-agent-harness#309).
