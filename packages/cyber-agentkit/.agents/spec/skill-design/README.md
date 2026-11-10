@@ -129,6 +129,7 @@ in the design-spec skill.
 - **Success:** every aspect that has criteria, core or open, gets a pass or a fail. Each fail names the criterion it
   breaks and the part of the skill that breaks it. The checks a script can run give the same result without an agent,
   so they can run in CI. Nothing in the skill is run or changed.
+  In an interactive run with failures, it ends by offering `fix`; nothing changes unless the author accepts.
 - **Extensions:**
   - **UC3.1** The skill cannot be found. `/skill` stops and names what it looked for.
   - **UC3.2** The skill fails the Agent Skills specification. Those failures are reported, and the aspects are still
@@ -138,6 +139,29 @@ in the design-spec skill.
     `test`, never as a pass.
 - **Example:** `/skill check release-notes` passes Intent, Criteria, Shape, and Security, and fails Trigger because the
   description does not say when not to use the skill.
+
+### UC4 — Fix what check or test found (A1.4)
+
+- **Trigger:** failures were reported, by a `check` or `test` run that just ended or by an earlier result, and the
+  author, or an agent, wants them repaired.
+- **Entry points:** skill (primary): `/skill fix [skill]`, or accepting the offer at the end of `check` or `test`.
+- **Inputs:** the skill; the failures, from the latest `check` or `test` result in the session, or else from running
+  `check`, and `test` only when the author asks for it; the selected implementation for each aspect; optionally, a
+  judge.
+- **Success:** each failure is repaired, or reported as not repaired with the reason. Each change touches only what a
+  failure named. The checks that failed are run again and pass.
+- **Extensions:**
+  - **UC4.1** The skill cannot be found. `/skill` stops and names what it looked for.
+  - **UC4.2** There are no failures. `/skill` says there is nothing to fix and leaves the skill unchanged.
+  - **UC4.3** A repair needs a decision only the author can make, such as changing the Intent. The author is asked;
+    with no author present, the failure is reported as not repaired.
+  - **UC4.4** A repair makes another criterion fail. With the author present, `/skill` shows both criteria and the
+    author keeps the change, undoes it, or asks for another repair. With no author present, the repair is undone and
+    both criteria are reported.
+  - **UC4.5** The skill came from an installed plugin. The edit goes ahead (see Q2).
+  - **UC4.6** The selected implementation for an aspect cannot be found. The default is used, as in UC1.3.
+- **Example:** `check` fails Trigger on `release-notes` and offers `fix`. The author accepts, `fix` adds when-not-to-use
+  lines to the description, and `check` then passes Trigger.
 
 ## Open questions
 
