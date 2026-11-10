@@ -108,7 +108,7 @@ in the design-spec skill.
   `enhance` reviews it, with no change to `/skill`. An implementation is listed by `implementations` only when it
   passes the interface check, as in [reference UC6](../reference/interfaces/README.md) and UC15. The author can tell
   whether its output meets the aspect's criteria, not only its sections, by running `/skill check` and `/skill test`
-  with the implementation picked (Q6).
+  on the sample skills with the implementation picked, beside the default's results.
 - **Extensions:**
   - **UC11.1** A new aspect is named `interface` or `default`. It is refused, because `skill-design.aspects.interface`
     and `skill-design.aspects.default` would collide with the name endings the `reference` spec gives interface
@@ -140,12 +140,13 @@ in the design-spec skill.
 - R75 (UC3, UC11): An aspect implementation names its check script (K8) in front matter, and the script run in CI
   runs the check script of each selected implementation. An implementation that extends another, and names none of
   its own, uses the one it extends, as the `reference` spec merges front matter.
+- R79 (UC11): `cyber-agentkit` ships sample skills, each with its expected `check` and `test` results, as the evals of
+  `/skill` itself. With any implementation picked, `/skill check` and `/skill test` on them report that
+  implementation's results beside the expected ones.
 
 ## Open questions
 
-- **Q6.** Whether each aspect interface ships sample skills with known results, so a plugin author runs `/skill check`
-  and `/skill test` on them with the default and with their implementation, side by side. To settle in the aspect child
-  specs.
+None.
 
 ## References
 
