@@ -34,6 +34,7 @@ rest.
   request needs.
 - **N5.** A general way to compose any group of references. Only a family of aspects needs the wildcard in customize and
   in the implementations listing.
+- **N6.** Building an eval engine. The default Verification runs on an existing one.
 
 ## Key terms
 
@@ -50,6 +51,8 @@ rest.
 - **K5. Backfill.** Designing a skill from a source that already exists, such as a session, existing instructions, or
   another skill, instead of from the author's answers. The source shows what the skill does, not what it should do, so
   the author still decides.
+- **K6. Rubric.** For one criterion, what a run's output is judged on, so that the run passes or fails it. The
+  Verification aspect writes it during `create`, alongside the eval cases.
 
 Default, implementation, extend, selection, and interface are as in [reference](../reference/README.md). Criterion is as
 in the design-spec skill.
@@ -189,6 +192,43 @@ in the design-spec skill.
   release-notes` suggests a criterion excluding them, citing that correction, and Security suggests asking before the
   skill posts to GitHub. The author accepts both.
 
+### UC6 — Test a skill by running it (A1.6)
+
+- **Trigger:** the author wants to know whether the skill fires on the requests it should and not on near misses, and
+  whether running it gives a result that meets its Criteria, for example after a change or before sharing it.
+- **Entry points:** skill (primary): `/skill test [skill]`. `create` also runs it as its last step (UC1).
+- **Inputs:** the skill; its Criteria, each with a rubric; its eval cases, meaning requests that should and should not
+  trigger it and sample inputs for outcome runs; the baseline, a run without the skill by default or a previous
+  version; the selected implementation for each aspect, where Verification's implementation decides how cases are run
+  and judged; optionally, a judge.
+- **Success:** each trigger case reports whether the skill fired, against what was expected. Each case runs several
+  times, isolated from the other runs and from the author's environment. Each run passes or fails each criterion's
+  rubric; each criterion reports its pass rate and passes when the rate meets the threshold Verification's
+  implementation sets. Each criterion's result is shown beside the baseline's, and the cases that changed between pass
+  and fail since the last run are listed. Each fail names the case and the output that broke it. The result is saved in
+  one shape that every Verification implementation writes, where `fix`, `enhance`, and the next `test` read it. The
+  skill is unchanged. In an interactive run with failures, it ends by offering `fix`.
+- **Extensions:**
+  - **UC6.1** The skill cannot be found. `/skill` stops and names what it looked for.
+  - **UC6.2** The skill has no Criteria. Outcomes are reported as not tested, pointing to `check` and `fix`; trigger
+    cases still run.
+  - **UC6.3** The skill has no eval cases. `/skill` proposes cases from the Intent and Criteria, and the author approves
+    them before any run. With no author present, nothing is tested and the missing cases are reported.
+  - **UC6.4** A run errors or hits a limit, such as time or token budget. That case is reported as not run, with the
+    reason, and never as a pass.
+  - **UC6.5** A case gives different results on different runs. That is expected: the pass rate over the runs is the
+    result.
+  - **UC6.6** The selected implementation for an aspect cannot be found. The default is used, as in UC1.3.
+  - **UC6.7** A criterion has no rubric. That criterion is reported as not tested, pointing to `fix`.
+  - **UC6.8** A case would cause an outside effect the run cannot contain, such as posting to GitHub. It is not run, and
+    is reported as such.
+  - **UC6.9** There is no earlier result. The list of changed cases is left out, and the report says so.
+  - **UC6.10** The baseline cannot be run, for example because the previous version cannot be found. Results are
+    reported without it, and the report says so.
+- **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
+  criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
+  the merge commit that appeared, and `/skill` offers `fix`.
+
 ## Open questions
 
 - **Q1.** Autonomy by command. Direction: `backfill` and `fix` act more on their own; `create` and `enhance` propose and
@@ -197,8 +237,6 @@ in the design-spec skill.
 - **Q2.** Editing a skill that came from an installed plugin is allowed. Whether `/skill` first says that a plugin update
   will overwrite the edit is leaning yes, in one line.
 - **Q3.** Whether skill distribution (`npx skills`) is an aspect of `skill-design`, or belongs to plugin distribution.
-- **Q4.** Where the default eval loop and structural audit end and aced's BDD-style evals begin. The default is closer to
-  `skill-creator`; aced's approach involves SDD.
 - **Q5.** What a skill consumer, who uses a designed skill but never runs `/skill`, gets from `skill-design`. They are
   affected by the outcome, so they may be an actor, but no goal for them is settled. The supply-chain checks on a
   skill (its source, whether it is maintained, its licence) may belong here rather than in `check`.
