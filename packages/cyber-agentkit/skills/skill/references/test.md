@@ -18,9 +18,9 @@ outside effect is not run, and is reported as such.
 
 ## 3. Save the result
 
-Write the result to `.agents/skill-design/results/<skill name>/latest.json` at the repository root (or under `~/` when
-the skill is outside a repository), after moving the previous `latest.json` to `<its at>.json` beside it. Every
-Verification implementation writes this shape:
+The result goes to `.agents/skill-design/results/<skill name>/latest.json` at the repository root (or under `~/` when
+the skill is outside a repository), after the previous `latest.json` moves to `<its at>.json` beside it. The default
+Verification's command saves it; another implementation writes the same shape:
 
 ```json
 {
@@ -32,7 +32,7 @@ Verification implementation writes this shape:
   "threshold": 2,
   "baseline": "without the skill",
   "trigger": [
-    { "prompt": "write release notes", "expect": "fire", "fired": 3, "ran": 3, "status": "pass" }
+    { "case": "trigger-1", "prompt": "write release notes", "expect": "fire", "fired": 3, "ran": 3, "status": "pass" }
   ],
   "criteria": [
     {
@@ -44,13 +44,23 @@ Verification implementation writes this shape:
       "failures": [{ "case": "two-prs", "run": 2, "output": "Merge pull request #12" }]
     }
   ],
-  "notRun": [{ "case": "post-to-github", "reason": "outside effect" }]
+  "cases": [
+    { "case": "trigger-1", "status": "pass" },
+    { "case": "two-prs", "status": "fail" }
+  ],
+  "notRun": [{ "case": "post-to-github", "reason": "outside effect" }],
+  "changed": [{ "case": "two-prs", "from": "pass", "to": "fail" }],
+  "cost": 0.06
 }
 ```
 
 `status` is `pass`, `fail`, `not-tested` (with a `reason`), or `not-run` (with a `reason`). A run that errors or hits a
 limit is in `notRun` and never counts as a pass. When the baseline cannot run, `baseline` holds the reason and no
 criterion has a `baseline` field.
+
+`cases` holds each case's status: an outcome case passes when every criterion it tests meets the threshold in it.
+`changed` lists the cases that went between `pass` and `fail` since the previous result; with no previous result it is
+left out and `noPrevious` is `true`. `cost` is the runs' total in US dollars, when the engine reports it.
 
 ## Report
 

@@ -51,16 +51,19 @@ A rubric is a list of checks; a run passes the criterion when every check passes
 
 ## Run
 
-Run `node <the /skill folder>/scripts/skill.mjs test <skill folder>`. Add `--judge <model>` only when the author named
-a judge, and `--baseline <folder>` to compare with another version instead of a run without the skill.
+Run `test <skill folder>` with the `/skill` command, as its Run the command says. It runs promptfoo at a pinned version
+through `npx`, so the first run downloads it. Add `--judge <model>` only when the author named a judge, `--baseline
+<folder>` to compare with another version instead of a run without the skill, and `--model <model>` to choose the model
+each run uses. It saves the result, prints it, and exits 1 when a case or a criterion fails. Each run makes model calls:
+say so before the first run in a session.
 
 - The default is `runs: 3` and `threshold: 2`. A criterion passes when it passes in at least `threshold` runs.
 - Each run starts in a fresh copy of the case's files, with no user configuration, memory, or user-level skills, and
-  only the skill under test installed. It runs on promptfoo through its Claude Agent SDK provider, or through
-  `claude plugin eval` where that is available.
+  only the skill under test installed, through promptfoo's Claude Agent SDK provider and Claude Code's own login. Web
+  tools are off, and each run stops at 20 turns or $0.50.
 - Each case runs twice over: once with the skill and once without it, which is the baseline.
 - A run that errors or hits its time or token limit counts as not run, never as a pass.
-- A trigger case passes when the skill fired (`expect: fire`) or did not (`expect: skip`) in at least `threshold`
+- A trigger case runs only with the skill. It passes when the skill fired (`expect: fire`) or did not (`expect: skip`) in at least `threshold`
   runs.
 
 ## Criteria
