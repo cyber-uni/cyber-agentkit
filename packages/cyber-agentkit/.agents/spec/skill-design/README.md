@@ -120,6 +120,25 @@ in the design-spec skill.
 - **Example:** `/skill backfill` right after a release done by hand. The session shows the steps taken; the agent
   proposes the package and the version as what varies, and the author decides which steps the skill keeps.
 
+### UC3 — Check a skill as written (A1.3)
+
+- **Trigger:** the author wants to know whether the skill is soundly built as written, meaning its structure,
+  description, and instructions meet each aspect's criteria, before running it.
+- **Entry points:** skill (primary): `/skill check [skill]`.
+- **Inputs:** the skill, by name or path; the selected implementation for each aspect; optionally, a judge.
+- **Success:** every aspect that has criteria, core or open, gets a pass or a fail. Each fail names the criterion it
+  breaks and the part of the skill that breaks it. The checks a script can run give the same result without an agent,
+  so they can run in CI. Nothing in the skill is run or changed.
+- **Extensions:**
+  - **UC3.1** The skill cannot be found. `/skill` stops and names what it looked for.
+  - **UC3.2** The skill fails the Agent Skills specification. Those failures are reported, and the aspects are still
+    checked in the same run.
+  - **UC3.3** The selected implementation for an aspect cannot be found. The default is used, as in UC1.3.
+  - **UC3.4** A criterion can only be decided by running the skill. It is reported as not checked and pointed to
+    `test`, never as a pass.
+- **Example:** `/skill check release-notes` passes Intent, Criteria, Shape, and Security, and fails Trigger because the
+  description does not say when not to use the skill.
+
 ## Open questions
 
 - **Q1.** Autonomy by command. Direction: `backfill` and `fix` act more on their own; `create` and `enhance` propose and
@@ -131,4 +150,5 @@ in the design-spec skill.
 - **Q4.** Where the default eval loop and structural audit end and aced's BDD-style evals begin. The default is closer to
   `skill-creator`; aced's approach involves SDD.
 - **Q5.** What a skill consumer, who uses a designed skill but never runs `/skill`, gets from `skill-design`. They are
-  affected by the outcome, so they may be an actor, but no goal for them is settled.
+  affected by the outcome, so they may be an actor, but no goal for them is settled. The supply-chain checks on a
+  skill (its source, whether it is maintained, its licence) may belong here rather than in `check`.
