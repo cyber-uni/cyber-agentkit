@@ -40,8 +40,8 @@ rest.
 - **K1. Aspect.** One step of designing a skill, published as the reference interface `skill-design.aspects.<aspect>`,
   with one implementation chosen. Its contract is what it receives and the criteria its output meets.
 - **K2. Core aspect.** Intent, Criteria, Shape, Trigger, or Verification. `create` walks the first four in that order,
-  then builds the skill and runs Verification against the Criteria. **Open aspect:** any other. `enhance` runs each as a
-  review.
+  then builds the skill and runs Verification against the Criteria. **Open aspect:** any other. `enhance` reviews every
+  aspect, core and open.
 - **K3. Family.** The aspect interfaces under `skill-design.aspects`, addressed by a wildcard. No interface is named for
   the family.
 - **K4. Front door.** The `/skill` skill with the commands create, backfill, check, test, fix, and enhance. `check`
@@ -62,7 +62,7 @@ in the design-spec skill.
 | A1.2 | Skill author | Turns work already done (a session, existing instructions, another skill) into a skill whose behavior they chose, not one copied from the source. |
 | A1.3 | Skill author | Knows, for each aspect, whether a skill as written meets that aspect's criteria, without running it and with the skill left unchanged. |
 | A1.4 | Skill author | Has the failures that check or test found repaired. |
-| A1.5 | Skill author | Improves a skill that already passes, on the open aspects. |
+| A1.5 | Skill author | Gets suggestions to improve a skill that already passes, on any aspect, from reading the skill, from how it was used, or from their own request, and applies only the ones they accept. |
 | A1.6 | Skill author | Knows whether the skill fires on the requests it should and not on near misses, and whether running it gives a result that meets its Criteria. |
 | A2.1 | Agent running `/skill`, including a self-improve loop | Does A1's work with only the autonomy the user allowed. It never guesses an input it has no source for, and reports each one instead. |
 | A3.1 | Team lead | Swaps or extends one aspect and keeps the rest. |
@@ -162,6 +162,32 @@ in the design-spec skill.
   - **UC4.6** The selected implementation for an aspect cannot be found. The default is used, as in UC1.3.
 - **Example:** `check` fails Trigger on `release-notes` and offers `fix`. The author accepts, `fix` adds when-not-to-use
   lines to the description, and `check` then passes Trigger.
+
+### UC5 — Suggest enhancements to a skill (A1.5, A2.1)
+
+- **Trigger:** the skill passes `check`, and the author wants to know what could make it better. They may have evidence
+  from using it, such as a run that went wrong or a correction they made, or a request of their own.
+- **Entry points:** skill (primary): `/skill enhance [skill] [prompt]`.
+- **Inputs:** the skill; an optional prompt, which is a focus ("make it safer"), a request ("also draft the changelog
+  entry"), or a pointer to evidence; evidence of use, the current session by default; the selected implementation for
+  each aspect.
+- **Success:** `/skill` reviews the skill against every aspect, and against the evidence and the prompt when there are
+  any. It offers each suggestion on its own, with the change, the aspect it touches, and the reason; a suggestion that
+  came from evidence cites it. A suggestion the skill already covers is not offered. The author's answer to one
+  suggestion decides nothing about the others. Only accepted suggestions are written, and a change to a core aspect
+  reopens the core aspects after it, as in UC1.2. `check` passes afterwards. With no author present, `/skill` applies
+  only what the autonomy setting allows (Q1) and reports the rest.
+- **Extensions:**
+  - **UC5.1** The skill cannot be found. `/skill` stops and names what it looked for.
+  - **UC5.3** The skill fails `check`. `/skill` points to `fix`, and continues only if the author says so.
+  - **UC5.4** An accepted suggestion makes a criterion fail. Handled as in UC4.4.
+  - **UC5.5** There is nothing to suggest. That is reported, and the skill is unchanged.
+  - **UC5.6** The selected implementation for an aspect cannot be found. The default is used, as in UC1.3.
+  - **UC5.7** The request describes a different job from the skill's Intent. `/skill` says so and points to `create`.
+  - **UC5.9** The prompt names evidence that cannot be read. `/skill` stops and names it.
+- **Example:** after a run in which the author told the skill to leave out merge commits, `/skill enhance
+  release-notes` suggests a criterion excluding them, citing that correction, and Security suggests asking before the
+  skill posts to GitHub. The author accepts both.
 
 ## Open questions
 
