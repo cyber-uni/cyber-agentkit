@@ -5,8 +5,8 @@ status: draft
 
 # skill-design: a skill author designs a skill through aspects they can swap one at a time
 
-**Outcome:** an author, human or agent, creates, backfills, checks, fixes, and enhances a skill by running `/skill`. Each step of
-that work is an aspect whose default ships with `cyber-agentkit`, and any plugin can replace one aspect without editing
+**Outcome:** an author, human or agent, creates, backfills, checks, tests, fixes, and enhances a skill by running `/skill`. Each
+step of that work is an aspect whose default ships with `cyber-agentkit`, and any plugin can replace one aspect without editing
 the others.
 
 ## What
@@ -20,8 +20,8 @@ sharing it has no common bar to check it against.
 
 `skill-design` splits the work of designing a skill into **aspects**: intent, shape, trigger, verification, and others.
 Each aspect states what it receives and what it must produce. `cyber-agentkit` ships a default for every aspect and a
-front door, `/skill`, with five commands: create a skill, backfill one from work already done, check one against what each aspect must produce, fix what
-check or the evals found, and enhance one beyond that. A team or plugin replaces one aspect with its own and keeps the
+front door, `/skill`, with six commands: create a skill, backfill one from work already done, check it without running
+it, test it by running its evals, fix what check or test found, and enhance it beyond that. A team or plugin replaces one aspect with its own and keeps the
 rest.
 
 ## Non-goals
@@ -44,7 +44,9 @@ rest.
   review.
 - **K3. Family.** The aspect interfaces under `skill-design.aspects`, addressed by a wildcard. No interface is named for
   the family.
-- **K4. Front door.** The `/skill` skill with the commands create, backfill, check, fix, and enhance.
+- **K4. Front door.** The `/skill` skill with the commands create, backfill, check, test, fix, and enhance. `check`
+  reads the skill against every aspect's criteria without running it, like a linter; `test` runs the Verification
+  aspect's evals, both whether the skill fires on the right requests and whether its result meets the Criteria.
 - **K5. Backfill.** Designing a skill from a source that already exists, such as a session, existing instructions, or
   another skill, instead of from the author's answers. The source shows what the skill does, not what it should do, so
   the author still decides.
@@ -58,9 +60,10 @@ in the design-spec skill.
 | --- | --- | --- |
 | A1.1 | Skill author | Gets a working skill for a job they describe, without knowing the aspects beforehand. |
 | A1.2 | Skill author | Turns work already done (a session, existing instructions, another skill) into a skill whose behavior they chose, not one copied from the source. |
-| A1.3 | Skill author | Knows, for each aspect, whether a skill meets that aspect's criteria, with the skill left unchanged. |
-| A1.4 | Skill author | Has the failures that check or the evals found repaired. |
+| A1.3 | Skill author | Knows, for each aspect, whether a skill as written meets that aspect's criteria, without running it and with the skill left unchanged. |
+| A1.4 | Skill author | Has the failures that check or test found repaired. |
 | A1.5 | Skill author | Improves a skill that already passes, on the open aspects. |
+| A1.6 | Skill author | Knows whether the skill fires on the requests it should and not on near misses, and whether running it gives a result that meets its Criteria. |
 | A2.1 | Agent running `/skill`, including a self-improve loop | Does A1's work with only the autonomy the user allowed. It never guesses an input it has no source for, and reports each one instead. |
 | A3.1 | Team lead | Swaps or extends one aspect and keeps the rest. |
 | A3.2 | Team lead | Chooses an implementation for every aspect in one pass, such as taking one plugin's whole set or mixing several, instead of changing aspects one at a time. |
@@ -120,7 +123,7 @@ in the design-spec skill.
 ## Open questions
 
 - **Q1.** Autonomy by command. Direction: `backfill` and `fix` act more on their own; `create` and `enhance` propose and
-  the author decides each item; `check` changes nothing. Customizing the `skill-design` references themselves needs no
+  the author decides each item; `check` and `test` change nothing. Customizing the `skill-design` references themselves needs no
   approval each time. What each default is, and where a user changes it, is not settled.
 - **Q2.** Editing a skill that came from an installed plugin is allowed. Whether `/skill` first says that a plugin update
   will overwrite the edit is leaning yes, in one line.
