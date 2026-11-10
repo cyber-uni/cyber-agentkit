@@ -53,6 +53,9 @@ rest.
   the author still decides.
 - **K6. Rubric.** For one criterion, what a run's output is judged on, so that the run passes or fails it. The
   Verification aspect writes it during `create`, alongside the eval cases.
+- **K7. Autonomy.** How much a command applies on its own: `ask` proposes each item and the author decides;
+  `apply-safe` applies what passes `check` and `test` with no criterion worse and asks about the rest; `apply` applies
+  everything and still reports it.
 
 Default, implementation, extend, selection, and interface are as in [reference](../reference/README.md). Criterion is as
 in the design-spec skill.
@@ -179,7 +182,7 @@ in the design-spec skill.
   came from evidence cites it. A suggestion the skill already covers is not offered. The author's answer to one
   suggestion decides nothing about the others. Only accepted suggestions are written, and a change to a core aspect
   reopens the core aspects after it, as in UC1.2. `check` passes afterwards. With no author present, `/skill` applies
-  only what the autonomy setting allows (Q1) and reports the rest.
+  only what the autonomy setting allows (UC10) and reports the rest.
 - **Extensions:**
   - **UC5.1** The skill cannot be found. `/skill` stops and names what it looked for.
   - **UC5.3** The skill fails `check`. `/skill` points to `fix`, and continues only if the author says so.
@@ -237,7 +240,7 @@ in the design-spec skill.
 - **Entry points:** skill (primary): `/skill enhance [skill] [prompt]`, run by the agent with that evidence (UC5). When
   the loop runs is out of scope (N3).
 - **Inputs:** the evidence, from what the harness already records (the session where the skill ran, past transcripts,
-  its memory store), with no hooks required; the skill; the autonomy setting (Q1).
+  its memory store), with no hooks required; the skill; the autonomy setting (UC10).
 - **Success:** the evidence becomes suggestions, as in UC5. A lesson is offered only once it has occurred at least
   twice. A trigger miss also becomes a new trigger eval case, and a wrong result a new outcome case, so the same
   failure is tested from then on. A suggestion is applied only when the autonomy setting allows it and `test` shows no
@@ -255,14 +258,73 @@ in the design-spec skill.
   `enhance` with that session; it adds a "no merge commits" criterion and a case for it, `test` shows the criterion
   passing and nothing worse, and the change is applied within the autonomy setting and reported.
 
+### UC8 — Choose an implementation for one aspect (A3.1, A3.5)
+
+- **Trigger:** a team wants a different rule for one step of designing a skill, such as its own trigger check, and
+  keeps the rest.
+- **Entry points:** skill (primary): the `reference` skill's Customize mode. Code: `reference customize
+  skill-design.aspects.<aspect>`.
+- **Inputs:** the aspect; the pick, as in [reference UC9](../reference/write/README.md); the tier, `repo` for the whole
+  repository or `user` for the customizer alone.
+- **Success:** the next `/skill` command uses the pick for that aspect and leaves every other aspect as it was. Picking,
+  extending, tiers, and what happens when a picked plugin is missing are as in reference UC9 and UC18.
+- **Extensions:** none beyond reference UC9 and UC18; at run time a pick that cannot be found falls back to the
+  default, as in UC1.3.
+
+### UC9 — Choose for every aspect at once (A3.2, A3.4)
+
+- **Trigger:** a team adopts `skill-design` and wants to choose an implementation for each aspect in one pass, or see
+  which one each aspect uses.
+- **Entry points:** skill (primary): the `reference` skill's Customize and Find modes. Code: `reference customize` and
+  `reference implementations` on `skill-design.aspects.*`.
+- **Inputs:** the wildcard `skill-design.aspects.*`; for customize, a pick per aspect or one plugin for all of them;
+  the tier.
+- **Success:** one command writes a pick for each aspect the wildcard matches, and one command lists each aspect with
+  the implementation it uses and the ones available. The wildcard is a change to the `reference` spec, which owns its
+  behavior; this spec states only the goal (N5).
+- **Extensions:**
+  - **UC9.1** One plugin is picked for all aspects and does not implement some of them. Those aspects keep their
+    current pick, and the result names them.
+
+### UC10 — Set how much each command applies on its own (A3.3)
+
+- **Trigger:** a team or user wants commands to apply more, or less, without asking.
+- **Entry points:** skill (primary): the `reference` skill's Customize mode on `skill-design.autonomy`.
+- **Inputs:** a level (K7) per command; the tier.
+- **Success:** each command acts at its level. With no setting, `create` and `enhance` are `ask`, `backfill` and `fix`
+  are `apply-safe`, and `check` and `test` change nothing at any level. Customizing the `skill-design` references
+  themselves needs no approval each time. The setting lives outside the `aspects` segment, so the aspect wildcard
+  never matches it.
+- **Extensions:**
+  - **UC10.1** A level is set for `check` or `test`. It has no effect, and `/skill` says so.
+  - **UC10.2** A level names no known value. That command uses its default, and `/skill` says so.
+
+### UC11 — Ship a new open aspect or an implementation (A4.1, A4.2)
+
+- **Trigger:** a plugin author wants to add an open aspect, or ship their own implementation of an existing aspect.
+- **Entry points:** skill (primary): the `reference` skill's Create and Inspect modes. Code: `reference create`,
+  `reference check`, `reference implementations`.
+- **Inputs:** for a new aspect, an interface document named `skill-design.aspects.<aspect>`; for an implementation, a
+  document that implements one; the plugin.
+- **Success:** once the plugin is installed, `/skill` finds a new open aspect through the family wildcard, and
+  `enhance` reviews it, with no change to `/skill`. An implementation is listed by `implementations` only when it
+  passes the interface check, as in [reference UC6](../reference/interfaces/README.md) and UC15. The author can tell
+  whether its output meets the aspect's criteria, not only its sections (Q6).
+- **Extensions:**
+  - **UC11.1** A new aspect is named `interface` or `default`. It is refused, because `skill-design.aspects.interface`
+    and `skill-design.aspects.default` would collide with the name endings the `reference` spec gives interface
+    documents and defaults (its K8 and K13).
+  - **UC11.2** A plugin tries to add a core aspect. It becomes an open aspect; only `cyber-agentkit` defines the core
+    five (K2).
+
 ## Open questions
 
-- **Q1.** Autonomy by command. Direction: `backfill` and `fix` act more on their own; `create` and `enhance` propose and
-  the author decides each item; `check` and `test` change nothing. Customizing the `skill-design` references themselves needs no
-  approval each time. What each default is, and where a user changes it, is not settled.
 - **Q2.** Editing a skill that came from an installed plugin is allowed. Whether `/skill` first says that a plugin update
   will overwrite the edit is leaning yes, in one line.
 - **Q3.** Whether skill distribution (`npx skills`) is an aspect of `skill-design`, or belongs to plugin distribution.
 - **Q5.** What a skill consumer, who uses a designed skill but never runs `/skill`, gets from `skill-design`. They are
   affected by the outcome, so they may be an actor, but no goal for them is settled. The supply-chain checks on a
   skill (its source, whether it is maintained, its licence) may belong here rather than in `check`.
+- **Q6.** How a plugin author tells that an aspect implementation's output meets the aspect's criteria. Direction:
+  each aspect interface ships sample skills with known results, so the default and another implementation can be run
+  side by side. Not settled.
