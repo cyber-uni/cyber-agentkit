@@ -10,7 +10,7 @@ November 2026
 
 ## Verdict
 
-1. **No system fits whole. The best base is promptfoo.** It is the only candidate that is an npm library, is actively released, runs agents through several harnesses (Claude Agent SDK, Codex SDK, OpenCode SDK, and any shell command), and has deterministic assertions, a binary-capable LLM rubric, repeats, a pass threshold, a skill-fired assertion, and file and JUnit output. Confidence: medium. Three needs are unverified for it: a pass rate across repeats, a with-skill versus without-skill baseline, and Cursor and Copilot CLI drivers (see `topic.md`).
+1. **No system fits whole. The best base is promptfoo.** It is the only candidate that is an npm library, is actively released, runs agents through several harnesses (Claude Agent SDK, Codex SDK, OpenCode SDK, and any shell command), and has deterministic assertions, a binary-capable LLM rubric, repeats, a pass threshold, a skill-fired assertion, and file and JUnit output. Confidence: medium. A pass rate across repeats and a with-skill versus without-skill baseline were confirmed by a spike (E20); Cursor and Copilot CLI drivers are still unverified (see `topic.md`).
 2. **The runner-up is a thin runner owned by cyber-agentkit.** It copies the data model of `claude plugin eval`: one folder per case, one file per grader, a with arm and a without arm, three runs by default, and one versioned result JSON. It needs one small driver per harness. Pick it if a spike shows promptfoo cannot give a clean pass rate and baseline delta, or if its Node and size cost is not acceptable.
 3. **Claude Code's own `claude plugin eval` is the best Claude driver, not the base.** It does everything asked, including a no-plugin baseline, OS sandbox, and CI exit codes. But it runs only Claude Code, is marked experimental in the manifest, and reads only a plugin. Use it as a design reference, and optionally as a backend for the Claude harness.
 4. **Do not build on** evalite (archived, no longer maintained), OpenAI Evals (Python, dashboard now preferred), autoevals (scorers only, no runner), or DeepEval and Inspect AI as the default (Python first, no skill concept). Inspect AI with `inspect_swe` is the strongest sandboxed option for Claude Code, Codex CLI, and Gemini CLI, but it needs Python and Docker.
@@ -33,7 +33,9 @@ What the aspect's criteria judge is the saved result (per-run verdicts, pass rat
 
 ## Next step
 
-Run a one-day spike, not part of this topic: one skill, one trigger case and one outcome case, promptfoo with the Claude Agent SDK provider, `repeat: 5`, two provider entries (with skill, without skill). Check that the JSON gives a per-case pass rate. Then decide between the base and the runner-up.
+Done 2026-11-10 (E20): the spike showed a per-case pass rate over repeats and a with-skill versus without-skill
+baseline in one promptfoo run, through pinned `npx`, with Claude Code's own login. A small wrapper provider gives each
+run a fresh copy of the case's files. promptfoo stays the base.
 
 ## Decision (2026-11-10)
 

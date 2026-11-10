@@ -93,8 +93,6 @@ Confidence: H high, M medium, L low. Read 2026-11-10. "Unverified" means the cla
 - Confidence: M.
 
 ## Unverified list
-- Pass rate across promptfoo repeats without custom code.
-- With-skill versus without-skill comparison in one promptfoo run.
 - Cursor and Copilot CLI drivers for any candidate.
 - Inspect AI model-graded grade scale.
 - DeepEval repeats and sandboxing.
@@ -112,3 +110,19 @@ Confidence: H high, M medium, L low. Read 2026-11-10. "Unverified" means the cla
 - Sources: https://api.npmjs.org/downloads/point/last-week/promptfoo (and the same for each package) ;
   https://api.github.com/repos/promptfoo/promptfoo
 - Confidence: H.
+
+## E20. Spike: promptfoo 0.125.1 with the Claude Agent SDK provider, 2026-11-10
+
+- Claim: run as `npx -y -p promptfoo@0.125.1 -p @anthropic-ai/claude-agent-sdk@0.3.322 promptfoo eval -c <config>
+  --output <file>.json --no-cache`, it ran a made-up skill with no `ANTHROPIC_API_KEY`, through the logged-in Claude
+  Code session, when the provider sets `apiKeyRequired: false`. `evaluateOptions.repeat` repeats each case (a
+  top-level `repeat` is ignored); each run is one `results.results[]` entry with `repeatIndex`, `testIdx`,
+  `provider.label`, `success`, `cost`, `response.metadata.skillCalls` (empty when the skill did not fire), and
+  `gradingResult.componentResults[]` with each assertion's `metric`. Two provider entries give the with-skill and
+  without-skill arms. `setting_sources: [project]` with `skills: all` loads only skills in the run folder's
+  `.claude/skills/`; a user-level skill did not fire. The provider in 0.125.1 has no `copy_working_dir` and deletes its
+  temp folder, so a fresh copy of a case's files per run needs a wrapper provider that sets `working_dir`.
+  24 runs on `claude-haiku-5-5` took about a minute and cost about $0.06.
+- Source: a spike run in a scratch folder; provider options read from the installed package. Promptfoo docs:
+  https://www.promptfoo.dev/docs/providers/claude-agent-sdk/
+- Confidence: H for what ran; M that it holds for later promptfoo versions.
