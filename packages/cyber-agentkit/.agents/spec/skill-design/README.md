@@ -56,6 +56,8 @@ rest.
 - **K7. Autonomy.** How much a command applies on its own: `ask` proposes each item and the author decides;
   `apply-safe` applies what passes `check` and `test` with no criterion worse and asks about the rest; `apply` applies
   everything and still reports it.
+- **K8. Check script.** The part of an aspect implementation that a script runs without an agent. Its front matter
+  names it, and the script reports which of the implementation's criteria it decides.
 
 Default, implementation, extend, selection, and interface are as in [reference](../reference/README.md). Criterion is as
 in the design-spec skill.
@@ -130,7 +132,8 @@ in the design-spec skill.
 
 - **Trigger:** the author wants to know whether the skill is soundly built as written, meaning its structure,
   description, and instructions meet each aspect's criteria, before running it.
-- **Entry points:** skill (primary): `/skill check [skill]`.
+- **Entry points:** skill (primary): `/skill check [skill]`. Script: a check script that `/skill` ships, run without an
+  agent, for CI; it covers only the checks a script can decide.
 - **Inputs:** the skill, by name or path; the selected implementation for each aspect; optionally, a judge.
 - **Success:** every aspect that has criteria, core or open, gets a pass or a fail. Each fail names the criterion it
   breaks and the part of the skill that breaks it. The checks a script can run give the same result without an agent,
@@ -292,8 +295,8 @@ in the design-spec skill.
 - **Entry points:** skill (primary): the `reference` skill's Customize mode on `skill-design.autonomy`.
 - **Inputs:** a level (K7) per command; the tier.
 - **Success:** each command acts at its level. With no setting, `create` and `enhance` are `ask`, `backfill` and `fix`
-  are `apply-safe`, and `check` and `test` change nothing at any level. Customizing the `skill-design` references
-  themselves needs no approval each time. The setting lives outside the `aspects` segment, so the aspect wildcard
+  are `apply-safe`, and `check` and `test` change nothing at any level. To customize the `skill-design` references,
+  the author picks them from one list instead of being asked about each in turn. The setting lives outside the `aspects` segment, so the aspect wildcard
   never matches it.
 - **Extensions:**
   - **UC10.1** A level is set for `check` or `test`. It has no effect, and `/skill` says so.
@@ -316,6 +319,150 @@ in the design-spec skill.
     documents and defaults (its K8 and K13).
   - **UC11.2** A plugin tries to add a core aspect. It becomes an open aspect; only `cyber-agentkit` defines the core
     five (K2).
+
+## Criteria
+
+**Every command (UC1 to UC6)**
+
+- R1 (UC3.1, UC4.1, UC5.1, UC6.1): When the skill named cannot be found, the command stops, names what it looked for,
+  and writes nothing.
+- R2 (UC1.3, UC3.3, UC4.6, UC5.6, UC6.6): When an aspect's selected implementation cannot be found, the command uses
+  that aspect's default and says which aspect fell back and which implementation was missing.
+- R3 (UC1, UC2, UC4, UC5): A skill that `create` or `backfill` writes meets the Agent Skills specification.
+- R4 (UC3, UC6): In an interactive run that found failures, `check` and `test` end by offering `fix`. Nothing changes
+  unless the author accepts. With no author present, no offer is made.
+
+**Create and backfill (UC1, UC2)**
+
+- R5 (UC1): `create` drafts Intent, Criteria, Shape, and Trigger in that order, then builds the skill, then runs `test`.
+- R6 (UC1, UC2, UC10): At `ask`, no aspect's output is written before the author approves it.
+- R7 (UC1.1, UC2.4): When a skill with that name exists at the chosen location, the command stops, leaves it unchanged,
+  and points to `check`, `fix`, and `enhance`.
+- R8 (UC1.2): When the author rejects an aspect's draft, that aspect is redrafted, and every aspect after it in K2's
+  order that was approved is reopened.
+- R9 (UC1.4): When the last step's `test` fails, the skill stays in place and the failing criteria are reported.
+- R10 (UC1.5): When the author stops partway, every aspect already approved stays on disk.
+- R11 (UC2): `backfill` leaves its source unchanged.
+- R12 (UC2): Before it drafts, `backfill` proposes what the skill generalizes over, and the author confirms it.
+- R13 (UC2.2): An aspect the source says nothing for is drafted from the author's answers, as in `create`.
+- R14 (UC2.1): When the named source cannot be read, `backfill` stops and names it.
+- R15 (UC2.3): When the source holds more than one job and the description names none, `backfill` proposes one skill
+  per job and builds none until the author picks.
+- R16 (UC2.5): When the session holds no work and no other source is named, `backfill` says there is nothing to
+  backfill, points to `create`, and writes nothing.
+
+**Check (UC3)**
+
+- R17 (UC3): Every aspect that has criteria, core or open, gets a pass, a fail, or a not checked. Each fail names the
+  criterion and the part of the skill that breaks it.
+- R18 (UC3): `check` changes no file and runs no part of the skill.
+- R19 (UC3): The check script runs only the checks a script can decide, and each gives the same result as in
+  `/skill check`. It reports every other check as not checked, needing `/skill check`, never as a pass. It exits
+  non-zero when any check it ran fails.
+- R75 (UC3, UC11): An aspect implementation names its check script (K8) in front matter, and the script run in CI
+  runs the check script of each selected implementation. An implementation that extends another, and names none of
+  its own, uses the one it extends, as the `reference` spec merges front matter.
+- R76 (UC3): An implementation with no check script has all its criteria reported as not checked in CI.- R20 (UC3.2): A skill that fails the Agent Skills specification gets those failures reported, and every aspect is
+  still checked in the same run.
+- R21 (UC3.4): A criterion that only a run can decide is reported as not checked and points to `test`, never as a
+  pass.
+
+**Test (UC6)**
+
+- R22 (UC6): Each trigger case reports whether the skill fired, beside what was expected.
+- R23 (UC6): Each case runs the number of times Verification's implementation sets, each run in a sandbox. No run
+  sees state from another run, or the author's own configuration, memory, or user-level skills.
+- R24 (UC6, UC6.5): Each criterion reports its pass rate over the runs and the threshold, and passes only when the rate
+  meets the threshold.
+- R25 (UC6): Each criterion's result is shown beside the baseline's. With no baseline named, the baseline is a run
+  without the skill.
+- R26 (UC6, UC6.9): The report lists the cases that changed between pass and fail since the last saved result. With
+  no saved result, the list is left out and the report says so.
+- R27 (UC6): Each fail names the case and the output that broke it.
+- R28 (UC6): The result is saved in one shape that every Verification implementation writes, and `fix`, `enhance`,
+  and the next `test` read it.
+- R29 (UC6): `test` changes no file of the skill.
+- R30 (UC6.2): A skill with no Criteria gets its outcomes reported as not tested, pointing to `check` and `fix`, and
+  its trigger cases still run.
+- R31 (UC6.3): A skill with no eval cases gets cases proposed from its Intent and Criteria, and none runs before the
+  author approves them. With no author present, nothing runs and the missing cases are reported.
+- R32 (UC6.4): A run that errors or hits a limit is reported as not run, with the reason, and never counts as a pass.
+- R33 (UC6.7): A criterion with no rubric is reported as not tested, pointing to `fix`.
+- R34 (UC6.8): A case that would cause an outside effect the run cannot contain is not run, and is reported as such.
+- R35 (UC6.10): When the baseline cannot be run, results are reported without it, and the report says so.
+
+**Fix (UC4)**
+
+- R36 (UC4): `fix` repairs the failures in the latest `check` or `test` result of the session. With none, it runs
+  `check`, and runs `test` only when the author asks.
+- R37 (UC4): Each failure is repaired or reported as not repaired, with the reason.
+- R38 (UC4): No part of the skill changes that no failure named.
+- R39 (UC4): After repairing, `fix` runs the failed checks again and reports their result.
+- R40 (UC4.2): With no failures, `fix` says there is nothing to fix and leaves the skill unchanged.
+- R41 (UC4.3): A repair that needs a decision only the author can make is asked. With no author present, the failure
+  is reported as not repaired.
+- R42 (UC4.4, UC5.4): When a change makes another criterion fail, the author is shown both criteria and keeps the
+  change, undoes it, or asks for another repair. With no author present, the change is undone and both criteria are
+  reported.
+- R43 (UC4.5): `fix` edits a skill that came from an installed plugin.
+
+**Enhance and self-improvement (UC5, UC7)**
+
+- R44 (UC5): `enhance` reviews the skill against every aspect installed, core and open.
+- R45 (UC5): Each suggestion is offered on its own, with the change, the aspect it touches, and the reason. A
+  suggestion drawn from evidence cites it.
+- R46 (UC5): No suggestion repeats a change the skill's text already has, or one the author declined earlier for this
+  skill.
+- R47 (UC5): Only accepted suggestions are written, and the answer to one decides nothing about the others.
+- R48 (UC5): A written change to a core aspect reopens every core aspect after it, as in R8.
+- R49 (UC5): After `enhance` writes, `check` passes, or R42 applies.
+- R50 (UC5.3): When the skill fails `check`, `enhance` points to `fix` and goes on only if the author says so. With no
+  author present, it stops.
+- R51 (UC5.5): With nothing to suggest, `enhance` says so and leaves the skill unchanged.
+- R52 (UC5.7): When the request describes a different job from the skill's Intent, `enhance` says so, points to
+  `create`, and leaves the skill unchanged.
+- R53 (UC5.9): When the prompt names evidence that cannot be read, `enhance` stops and names it.
+- R54 (UC7): A lesson from evidence of use is offered only once it occurs at least twice across all the evidence
+  read, whether in one session or several.
+- R55 (UC7): A trigger miss adds a trigger eval case, and a wrong result adds an outcome case.
+- R56 (UC7): A suggestion is applied without the author only when the autonomy level allows it and `test` shows no
+  criterion worse than the last saved result. Every other suggestion is left for the author, citing its evidence.
+- R57 (UC7): Evidence is read from what the harness already records, with no hook installed.
+- R58 (UC7.1): Evidence that points at another skill, or at no skill, changes nothing, and the report says where it
+  points.
+- R59 (UC7.2): When `test` cannot run, the change is not applied and is left as a suggestion.
+- R60 (UC7.4): A skill that came from an installed plugin is not edited from evidence of use; the suggestion is left
+  for the author to contribute upstream.
+
+**Autonomy (UC10)**
+
+- R61 (UC10): With no setting, `create` and `enhance` are `ask`, and `backfill` and `fix` are `apply-safe`.
+- R62 (UC10): At `apply-safe`, a command applies only the changes after which `check` and `test` pass with no
+  criterion worse, and asks about the rest; with no author present, it reports the rest. At `apply`, it applies every
+  change and reports each one.
+- R74 (UC2, UC4.3, UC10): A decision only the author can make (R12, R13, R41) is asked at every level, whatever else
+  the level applies on its own. With no author present, it is reported as not applied.
+- R63 (UC10.1): A level set for `check` or `test` has no effect, and `/skill` says so.
+- R64 (UC10.2): A level that names no known value leaves that command at its default, and `/skill` says so.
+- R65 (UC10): The level is read from the reference `skill-design.autonomy`, which the wildcard
+  `skill-design.aspects.*` does not match.
+- R66 (UC8, UC9, UC10): To customize the `skill-design` references, `/skill` lists them, and the author picks which to
+  customize in one answer instead of being asked about each in turn.
+
+**Aspects and implementations (UC8, UC9, UC11)**
+
+- R67 (UC8, UC11): Each aspect is the reference interface `skill-design.aspects.<aspect>`, and `cyber-agentkit` ships a
+  default for every aspect it defines.
+- R68 (UC8): After a pick for one aspect, the next command uses it for that aspect, and every other aspect behaves as
+  before.
+- R69 (UC9): One `customize` on `skill-design.aspects.*` writes a pick for every aspect it matches, and one
+  `implementations` on it lists each aspect with the implementation it uses and the ones available.
+- R70 (UC9.1): When one plugin is picked for every aspect and lacks some, those aspects keep their current pick, and
+  the result names them.
+- R71 (UC11): An open aspect that an installed plugin ships is checked by `check` and reviewed by `enhance`, with no
+  change to `/skill`.
+- R72 (UC11.1): An aspect named `interface` or `default` is refused.
+- R73 (UC11.2): An aspect a plugin marks as core is treated as open.
 
 ## Open questions
 
