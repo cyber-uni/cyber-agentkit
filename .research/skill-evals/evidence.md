@@ -103,3 +103,12 @@ Confidence: H high, M medium, L low. Read 2026-11-10. "Unverified" means the cla
 - Whether inspect_swe requires Docker.
 - Whether the whole anthropics/skills repo is Apache 2.0.
 - Whether `claude plugin eval` leaves experimental status.
+
+## E19. Popularity, 2026-11-10
+
+- Claim: weekly npm downloads 2026-11-03 to 2026-11-09: promptfoo 1,246,072; autoevals 620,405; evalite 514,142;
+  vitest-evals 242,687; deepeval 31,342. promptfoo on GitHub: 27,024 stars, 2,705 forks, 962 open issues, not
+  archived, pushed 2026-11-09.
+- Sources: https://api.npmjs.org/downloads/point/last-week/promptfoo (and the same for each package) ;
+  https://api.github.com/repos/promptfoo/promptfoo
+- Confidence: H.

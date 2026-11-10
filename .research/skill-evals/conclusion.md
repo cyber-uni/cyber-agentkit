@@ -34,3 +34,17 @@ What the aspect's criteria judge is the saved result (per-run verdicts, pass rat
 ## Next step
 
 Run a one-day spike, not part of this topic: one skill, one trigger case and one outcome case, promptfoo with the Claude Agent SDK provider, `repeat: 5`, two provider entries (with skill, without skill). Check that the JSON gives a per-case pass rate. Then decide between the base and the runner-up.
+
+## Decision (2026-11-10)
+
+The user chose to start the default on promptfoo, and to add `claude plugin eval` as the Claude backend once it is
+available for this use (it is experimental and reads only plugins today). Both write into the one result shape that
+cyber-agentkit owns.
+
+## Sandboxing and popularity
+
+promptfoo does not sandbox runs itself. Isolation comes from the driver: the Claude Agent SDK provider copies the
+working directory per case and takes a `sandbox` block and tool allow and deny lists; the Codex SDK provider has a
+filesystem `sandbox_mode` with network set apart; `exec:` has none. A case whose outside effect cannot be contained
+must therefore not be run. promptfoo had about 1.25 million npm downloads in the week of 2026-11-03 and about 27,000
+GitHub stars.
