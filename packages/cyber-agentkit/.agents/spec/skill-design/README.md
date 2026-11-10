@@ -67,7 +67,7 @@ in the design-spec skill.
 | A1.4 | Skill author | Has the failures that check or test found repaired. |
 | A1.5 | Skill author | Gets suggestions to improve a skill that already passes, on any aspect, from reading the skill, from how it was used, or from their own request, and applies only the ones they accept. |
 | A1.6 | Skill author | Knows whether the skill fires on the requests it should and not on near misses, and whether running it gives a result that meets its Criteria. |
-| A2.1 | Agent running `/skill`, including a self-improve loop | Does A1's work with only the autonomy the user allowed. It never guesses an input it has no source for, and reports each one instead. |
+| A2.1 | Agent improving a skill it uses | Makes the skill better from what happened while using it, keeping only changes the evals show help, within the autonomy the user allowed. |
 | A3.1 | Team lead | Swaps or extends one aspect and keeps the rest. |
 | A3.2 | Team lead | Chooses an implementation for every aspect in one pass, such as taking one plugin's whole set or mixing several, instead of changing aspects one at a time. |
 | A3.3 | Team lead | Sets how much freedom each command has. |
@@ -228,6 +228,32 @@ in the design-spec skill.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
+
+### UC7 — Improve a skill from its own use (A2.1)
+
+- **Trigger:** while or after using a skill, the agent sees evidence that the skill could be better: the user corrected
+  the result, a step failed or was worked around, or the skill fired when it should not have, or did not when it
+  should.
+- **Entry points:** skill (primary): `/skill enhance [skill] [prompt]`, run by the agent with that evidence (UC5). When
+  the loop runs is out of scope (N3).
+- **Inputs:** the evidence, from what the harness already records (the session where the skill ran, past transcripts,
+  its memory store), with no hooks required; the skill; the autonomy setting (Q1).
+- **Success:** the evidence becomes suggestions, as in UC5. A lesson is offered only once it has occurred at least
+  twice. A trigger miss also becomes a new trigger eval case, and a wrong result a new outcome case, so the same
+  failure is tested from then on. A suggestion is applied only when the autonomy setting allows it and `test` shows no
+  criterion worse than the last result; every other suggestion is left for the author, citing its evidence.
+- **Extensions:**
+  - **UC7.1** The evidence points at another skill, or at no skill (for example a fault in the harness). Nothing
+    changes, and the report says where the evidence points.
+  - **UC7.2** `test` cannot run, for example because there are no cases or the budget ran out. The change is not
+    applied, and is left as a suggestion.
+  - **UC7.3** The change makes a criterion worse than the last result. The change is not applied, as in UC4.4 with no
+    author present.
+  - **UC7.4** The skill came from an installed plugin. The skill is not edited, because a plugin update would overwrite
+    the change; the suggestion is left for the author to contribute upstream.
+- **Example:** in one session the user tells the agent twice to leave out merge commits. At the end the agent runs
+  `enhance` with that session; it adds a "no merge commits" criterion and a case for it, `test` shows the criterion
+  passing and nothing worse, and the change is applied within the autonomy setting and reported.
 
 ## Open questions
 
