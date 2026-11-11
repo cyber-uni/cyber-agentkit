@@ -84,7 +84,7 @@ contract apply here; IDs are shared across the parent and its children.
   read, whether in one session or several.
 - R55 (UC7): A trigger miss adds a trigger eval case, and a wrong result adds an outcome case.
 - R56 (UC7): A suggestion is applied without the author only when the autonomy level allows it and `test` shows no
-  criterion worse than the last saved result. Every other suggestion is left for the author, citing its evidence.
+  criterion worse than the skill's expected result, or, with none, the last saved result. Every other suggestion is left for the author, citing its evidence.
 - R57 (UC7): Evidence is read from what the harness already records, with no hook installed.
 - R58 (UC7.1): Evidence that points at another skill, or at no skill, changes nothing, and the report says where it
   points.
