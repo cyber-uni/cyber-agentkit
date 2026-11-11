@@ -106,6 +106,8 @@ contract apply here; IDs are shared across the parent and its children.
   accept of it is refused. A case ID the eval set does not hold is an error, and nothing runs.
 - R103 (UC6): Fewer than half of the machine's hardware threads, and at least one, run at once. An eval set may ask
   for fewer, never more.
+- R104 (UC6): In a run, one shell command stops after 30 seconds unless the model asks for longer, and after 2 minutes
+  at most, so a runaway command fails fast and the run goes on.
 - R101 (UC6): `/skill test` starts the run so the author can keep working, and passes the progress on to them at most
   once a minute, while something has changed since the last update. Each update gives the count so far, each run with
   the skill that failed or was not run since the last update, and the latest heartbeat when no run ended.

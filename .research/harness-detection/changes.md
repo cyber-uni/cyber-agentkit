@@ -199,3 +199,7 @@ updated.
 
 Added E-CC-D11: the undocumented `CLAUDE_SECURESTORAGE_CONFIG_DIR`, which `skill test` uses to give each run an empty Claude
 config folder while the login stays in the real one.
+
+## 2026-11-11 (Bash timeouts)
+
+- Added E-CC-D12: the Bash timeout variables and `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS`, from the vendor docs, used to limit one shell command in skill test runs.

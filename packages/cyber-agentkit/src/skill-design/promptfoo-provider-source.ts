@@ -50,11 +50,13 @@ function decide(check, output, dir) {
 // folder, because its keychain entry is named after the folder and that name cannot be set from here. A login
 // set through ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN passes through as is. A version manager's node
 // shim reads its config from the home folder, so the node running this provider goes first on PATH: a
-// skill's node scripts still run.
+// skill's node scripts still run. One shell command may take 30 s by default and 2 min at most, and one that
+// reaches its limit stops instead of moving to the background (E-CC-D12), so a runaway find / costs seconds,
+// not the whole run.
 function isolatedHome(home) {
   const real = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
   const PATH = [path.dirname(process.execPath), process.env.PATH].filter(Boolean).join(path.delimiter)
-  const env = { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, '.config'), CLAUDE_CONFIG_DIR: real, PATH }
+  const env = { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, '.config'), CLAUDE_CONFIG_DIR: real, PATH, BASH_DEFAULT_TIMEOUT_MS: '30000', BASH_MAX_TIMEOUT_MS: '120000', CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1' }
   if (process.platform !== 'darwin') {
     env.CLAUDE_CONFIG_DIR = path.join(home, '.claude')
     env.CLAUDE_SECURESTORAGE_CONFIG_DIR = process.env.CLAUDE_SECURESTORAGE_CONFIG_DIR || real

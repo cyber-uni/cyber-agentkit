@@ -117,6 +117,9 @@ say so before the first run in a session.
   marked partial, is compared with the expected result for those cases only, and is never saved as the expected result.
 - A run stops after `timeout` seconds (300 by default, set in `evals.yaml`); its Claude process and the shells and commands it started are killed, and it counts as not run with the reason `time limit`. A process stuck in uninterruptible disk sleep cannot be killed; the test stops waiting for it and goes on.
 - A run that errors or hits its time or token limit counts as not run, never as a pass.
+- In a run, one shell command stops after 30 seconds unless the model asks for longer, and after 2 minutes at most;
+  it is stopped, not moved to the background, so a runaway command such as `find /` costs seconds, not the whole run.
+  A skill under test cannot start a background command.
 - A trigger case runs only with the skill. It passes when the skill fired (`expect: fire`) or did not (`expect: skip`) in at least `threshold`
   runs. A trigger run is cut short: it ends at the first skill the model calls, counting as fired only when that is the skill under test, or after three turns, so it does not go on to do the whole job. Running out of those turns is not an error.
 

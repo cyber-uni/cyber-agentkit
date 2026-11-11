@@ -78,6 +78,13 @@ describe('promptfooProviderSource home (F4, F10)', () => {
 		expect(env.PATH?.split(delimiter)[0]).toBe(dirname(process.execPath))
 		expect(homeEntries).toEqual([])
 	})
+
+	it('limits one shell command to 30 s by default and 2 min at most, stopping it at the limit (R104)', () => {
+		const { env } = runProvider(true)
+		expect(env.BASH_DEFAULT_TIMEOUT_MS).toBe('30000')
+		expect(env.BASH_MAX_TIMEOUT_MS).toBe('120000')
+		expect(env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS).toBe('1')
+	})
 })
 
 describe('promptfooProviderSource time limit (F8)', () => {
