@@ -12,6 +12,7 @@ works through the aspects below.
 
 | Command | Use it when | Instructions |
 | --- | --- | --- |
+| `help` | the author wants to know what each command does, or which one fits | [references/help.md](references/help.md) |
 | `create [description]` | the author wants a new skill for a job they describe | [references/create.md](references/create.md) |
 | `check [skill]` | the author wants to know whether a skill as written meets each aspect, without running it | [references/check.md](references/check.md) |
 | `test [skill]` | the author wants the skill's evals run: does it fire on the right requests, and does its result meet its Criteria | [references/test.md](references/test.md) |
@@ -20,7 +21,7 @@ works through the aspects below.
 | `customize [aspect]` | the author wants to see or change which implementation each aspect uses, or how much each command applies on its own | [references/customize.md](references/customize.md) |
 
 Take an explicit command first. Otherwise read the intent from the request; if it fits two commands, ask which. With
-no request, list the commands and ask.
+no request, follow `help`.
 
 ## Aspects
 

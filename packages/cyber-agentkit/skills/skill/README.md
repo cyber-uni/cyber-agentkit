@@ -9,6 +9,7 @@ promptfoo, beside a run without the skill. Type `/skill` to run it yourself. Ins
 
 | Command | Does |
 | --- | --- |
+| `help` | lists and explains the commands; also what a bare `/skill` shows |
 | `create` | drafts Intent, Criteria, Shape, and Trigger for approval, builds the skill, then checks and tests it |
 | `check` | reads the skill against every aspect; changes nothing |
 | `test` | runs the evals and saves the result; changes nothing |
