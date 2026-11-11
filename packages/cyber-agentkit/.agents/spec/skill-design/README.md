@@ -112,8 +112,9 @@ in the design-spec skill.
 - **Success:** once the plugin is installed, `/skill` finds a new open aspect through the family wildcard, and
   `enhance` reviews it, with no change to `/skill`. An implementation is listed by `implementations` only when it
   passes the interface check, as in [reference UC6](../reference/interfaces/README.md) and UC15. The author can tell
-  whether its output meets the aspect's criteria, not only its sections, by running `/skill check` and `/skill test`
-  on the sample skills with the implementation picked, beside the default's results.
+  whether its output meets the aspect's criteria, not only its sections, by running `/skill`'s evals on the sample
+  skills with the implementation picked: `/skill check` reports a pass or the problems it found, as a linter does,
+  and `/skill test` reports its results beside the default's.
 - **Extensions:**
   - **UC11.1** A new aspect is named `interface` or `default`. It is refused, because `skill-design.aspects.interface`
     and `skill-design.aspects.default` would collide with the name endings the `reference` spec gives interface
@@ -145,9 +146,10 @@ in the design-spec skill.
 - R75 (UC3, UC11): An aspect implementation names its check script (K8) in front matter, and the script run in CI
   runs the check script of each selected implementation. An implementation that extends another, and names none of
   its own, uses the one it extends, as the `reference` spec merges front matter.
-- R79 (UC11): `cyber-agentkit` ships sample skills, each with its expected `check` and `test` results, as the evals of
-  `/skill` itself. With any implementation picked, `/skill check` and `/skill test` on them report that
-  implementation's results beside the expected ones.
+- R79 (UC11): `cyber-agentkit` ships sample skills as the evals of `/skill` itself: one that passes every check, and
+  one with known problems. Each eval case states what `check` must report on a sample, a pass or the problems it has;
+  `check` saves nothing to compare with. A sample that passes keeps its expected `test` result, and with any
+  implementation picked, `/skill test` on it reports that implementation's results beside the expected ones.
 
 ## Open questions
 
