@@ -6,7 +6,7 @@ status: draft
 # skill-design/customize — a team chooses each aspect's implementation and how much each command applies on its own
 
 Part of [skill-design](../README.md). Its What, non-goals, key terms, actors, every-command criteria, and aspect
-contract apply here; IDs are shared across the parent and its children.
+contract apply here; IDs are shared across the parent and its children. Retired IDs: R61.
 
 ## Use cases
 
@@ -43,8 +43,8 @@ contract apply here; IDs are shared across the parent and its children.
 - **Trigger:** a team or user wants commands to apply more, or less, without asking.
 - **Entry points:** skill (primary): the `reference` skill's Customize mode on `skill-design.autonomy`.
 - **Inputs:** a level (K7) per command; the tier.
-- **Success:** each command acts at its level. With no setting, `create` and `enhance` are `ask`, `skillify` and `fix`
-  are `apply-safe`, and `check` and `test` change nothing at any level. To customize the `skill-design` references,
+- **Success:** each command acts at its level. With no setting, `create` and `enhance` are `ask`, `fix` is
+  `apply-safe`, and `check` and `test` change nothing at any level. To customize the `skill-design` references,
   the author picks them from one list instead of being asked about each in turn. The setting lives outside the `aspects` segment, so the aspect wildcard
   never matches it.
 - **Extensions:**
@@ -55,11 +55,12 @@ contract apply here; IDs are shared across the parent and its children.
 
 **Autonomy (UC10)**
 
-- R61 (UC10): With no setting, `create` and `enhance` are `ask`, and `skillify` and `fix` are `apply-safe`.
+- R90 (UC10): With no setting, `create` and `enhance` are `ask`, and `fix` is `apply-safe`. `skillify` has no level of
+  its own: the `create` it runs acts at `create`'s level.
 - R62 (UC10): At `apply-safe`, a command applies only the changes after which `check` and `test` pass with no
   criterion worse, and asks about the rest; with no author present, it reports the rest. At `apply`, it applies every
   change except those R74 keeps for the author, and reports each one.
-- R74 (UC2, UC4.3, UC10): A decision only the author can make (R12, R13, R41) is asked at every level, whatever else
+- R74 (UC2, UC4.3, UC10): A decision only the author can make (R13, R41) is asked at every level, whatever else
   the level applies on its own. With no author present, it is reported as not applied.
 - R63 (UC10.1): A level set for `check` or `test` has no effect, and `/skill` says so.
 - R64 (UC10.2): A level that names no known value leaves that command at its default, and `/skill` says so.

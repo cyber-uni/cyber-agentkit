@@ -5,7 +5,8 @@ status: draft
 
 # skill-design: a skill author designs a skill through aspects they can swap one at a time
 
-**Outcome:** an author, human or agent, creates, skillifies, checks, tests, fixes, and enhances a skill by running `/skill`. Each
+**Outcome:** an author, human or agent, creates, checks, tests, fixes, and enhances a skill by running `/skill`, and
+turns work already done into one by running `/skillify`. Each
 step of that work is an aspect whose default ships with `cyber-agentkit`, and any plugin can replace a swappable aspect without
 editing the others.
 
@@ -20,8 +21,9 @@ sharing it has no common bar to check it against.
 
 `skill-design` splits the work of designing a skill into **aspects**: intent, criteria, shape, trigger, verification, and others.
 Each aspect states what it receives and what it must produce. `cyber-agentkit` ships a default for every aspect and a
-front door, `/skill`, with six commands: create a skill, skillify one from work already done, check it without running
-it, test it by running its evals, fix what check or test found, and enhance it beyond that. A team or plugin replaces one
+front door, `/skill`, with five commands: create a skill, check it without running it, test it by running its evals,
+fix what check or test found, and enhance it beyond that. A second skill, `/skillify`, turns work already done into
+the description `create` needs and runs it. A team or plugin replaces one
 aspect with its own and keeps the rest.
 
 ## Non-goals
@@ -50,7 +52,7 @@ aspect with its own and keeps the rest.
   aspect, core and open.
 - **K3. Family.** The aspect interfaces under `skill-design.aspects`, addressed by a wildcard. No interface is named for
   the family.
-- **K4. Front door.** The `/skill` skill with the commands create, skillify, check, test, fix, and enhance. `check`
+- **K4. Front door.** The `/skill` skill with the commands create, check, test, fix, and enhance. `check`
   reads the skill against every aspect's criteria without running it, like a linter; `test` runs the Verification
   aspect's evals, both whether the skill fires on the right requests and whether its result meets the Criteria.
 - **K5. Skillify.** Designing a skill from a source that already exists, such as a session, existing instructions, or
