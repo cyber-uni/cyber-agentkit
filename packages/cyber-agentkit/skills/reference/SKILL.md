@@ -53,7 +53,7 @@ Load [references/load.md](references/load.md) from this skill's folder and follo
 - When `search` carries a `count` field, it shows only the best matches. Run it again with `--full` when none of them fits.
 - For every reference, run `list`. Add `--trace` for every contribution of each name and its outcome.
 - For every name matching a pattern, run `list '<pattern>'`. `*` stands for any run of characters and the rest is literal.
-- For the implementations of an interface, run `implementations <id>`. It lists each one a consumer can load, with its pin. Add `--trace` for each one it left out, with why.
+- For the implementations of an interface, run `implementations <id>`. It lists each one a consumer can load, with its pin. Add `--trace` for each one it left out, with why. For a `one` interface it also gives `inUse`, the implementation a load builds on: a pin, or `default`. A family `<prefix>.*` lists every interface under the prefix at once, each as `implementations <id>` lists it.
 - When `list` or `search` carries a `defaults` field, say that skills' defaults were not searched, and why.
 
 ## Inspect

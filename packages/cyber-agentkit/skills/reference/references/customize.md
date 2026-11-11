@@ -28,6 +28,7 @@ Skip this step for `--in <folder>`: a project section takes no picks.
 1. The options are the plugins that hold the name, each `<plugin>/<name>`, and `default` when a skill has one. An ambiguous name lists them in its `options`.
 2. Ask the customizer which to build on, bottom first, even when only one is left.
 3. Run `customize <name> --extends <step>... --dry-run` with the target's flags. A step is a plugin's name, `<plugin>:<merge>` (such as `house-style:combine`), or `default`. For steps that contribute only some sections, write the whole `extends` list to a YAML file and pass `--extends-file <file>`. To remove the picks, pass `--extends none`.
+   To pick for every interface of a family at once, such as the aspects of one skill, give the family `<prefix>.*` as the name with the same `--extends` steps and no `sections`. Each `one` interface a step can answer gets the picks; one no step holds keeps what it had, and a `many` one is skipped; the result names both.
 4. Show the path and the content. On approval, run it without `--dry-run`.
 
 The picks record, as `declined`, every plugin holding the name that they leave out, so load stops asking about it. When load warns `plugin-not-selected` about a plugin installed later, ask the customizer whether to add it to the picks or leave it out; to leave it out, write the same picks again.
