@@ -1,0 +1,225 @@
+{
+	"version": 1,
+	"skill": "skill",
+	"at": "2026-11-11T07:42:45.910Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"trigger": [
+		{
+			"case": "trigger-1",
+			"prompt": "Is my release-notes skill any good? Check it.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"prompt": "Write a skill that drafts release notes from merged pull requests.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"prompt": "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"prompt": "Run the evals for the release-notes skill.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"prompt": "Turn what we just did into a skill.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"prompt": "Load our style reference and tell me what it says about tone.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"prompt": "Add a rule to AGENTS.md that this repo uses pnpm.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"prompt": "Review my diff before I push.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		}
+	],
+	"criteria": [
+		{
+			"id": "C1",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C2",
+			"status": "pass",
+			"passed": 9,
+			"ran": 9,
+			"baseline": {
+				"passed": 9,
+				"ran": 9
+			}
+		},
+		{
+			"id": "C3",
+			"status": "pass",
+			"passed": 6,
+			"ran": 6,
+			"baseline": {
+				"passed": 3,
+				"ran": 6
+			}
+		},
+		{
+			"id": "C4",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C5",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C6",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 2,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C7",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		}
+	],
+	"cases": [
+		{
+			"case": "trigger-1",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"status": "pass"
+		},
+		{
+			"case": "check-passing",
+			"status": "pass"
+		},
+		{
+			"case": "check-flawed",
+			"status": "pass"
+		},
+		{
+			"case": "check-missing",
+			"status": "pass"
+		},
+		{
+			"case": "create-existing",
+			"status": "pass"
+		},
+		{
+			"case": "create-ask",
+			"status": "pass"
+		},
+		{
+			"case": "fix-flawed",
+			"status": "pass"
+		}
+	],
+	"notRun": [],
+	"cost": 6.9014,
+	"comparedWith": "previous",
+	"changed": [
+		{
+			"case": "trigger-5",
+			"from": "fail",
+			"to": "pass"
+		},
+		{
+			"case": "check-flawed",
+			"from": "fail",
+			"to": "pass"
+		},
+		{
+			"case": "fix-flawed",
+			"from": "fail",
+			"to": "pass"
+		}
+	]
+}
