@@ -2,7 +2,7 @@
  * The promptfoo provider `skill test` writes beside its config. promptfoo's Claude Agent SDK provider
  * (0.125.1) runs in a temp folder it deletes and has no `copy_working_dir` (research E20), so this
  * wrapper makes each run's folder: a fresh copy of the case's files committed in a new git repository, plus the
- * skill under `.claude/skills/<name>/` in the arm that has it (excluded from git status), or, for a skill developed in a plugin, that arm's copy of the plugin loaded as a local plugin (R91). A trigger run ends when the skill is called, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. After the run it decides the rubric checks that
+ * skill under `.claude/skills/<name>/` in the arm that has it (excluded from git status), or, for a skill developed in a plugin, that arm's copy of the plugin loaded as a local plugin (R91). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. After the run it decides the rubric checks that
  * need no judge in that folder, records whether the skill fired, and removes the folder. Each run also gets an empty home folder.
  * It resolves promptfoo from the npx install running it.
  */
@@ -116,19 +116,27 @@ export default class SkillRun {
       git(['add', '-A'])
       git(['commit', '-q', '-m', 'case files', '--allow-empty'])
       if (skillDir) fs.cpSync(skillDir, path.join(dir, '.claude', 'skills', skillName), { recursive: true })
-      fs.appendFileSync(path.join(dir, '.git', 'info', 'exclude'), '.claude/\n')
+      fs.appendFileSync(path.join(dir, '.git', 'info', 'exclude'), '.claude/\n.skill-test/\n')
+      // Every Skill call the run makes, one JSON line each ({ skill, args }), so a rubric can check what one skill passed to another.
+      const callLog = path.join(dir, '.skill-test', 'skill-calls.jsonl')
+      fs.mkdirSync(path.dirname(callLog), { recursive: true })
       const marker = 'SKILL_TEST_RUN=' + randomUUID()
       const env = { ...isolatedHome(home), SKILL_TEST_RUN: marker.split('=')[1] }
       const children = []
-      // A trigger case only needs to know whether the skill fired. A hook records the Skill call and ends the run there; a turn cap of three
-      // backs it up for a run that never calls it. The SDK answers a cap with an error that carries no skill calls, so the hook is the record.
+      // A trigger case only needs to know which skill the request chose. A hook records each Skill call and ends a trigger run at the first
+      // one, counting it as fired when it is the skill under test; a turn cap of three backs it up for a run that calls none. The SDK
+      // answers a cap with an error that carries no skill calls, so the hook is the record.
       let hookFired = false
       const watchSkill = async (input) => {
-        if (input.tool_name !== 'Skill' || !names.includes(String(input.tool_input?.skill ?? '').trim())) return {}
-        hookFired = true
-        return { continue: false, stopReason: 'the skill fired' }
+        if (input.tool_name !== 'Skill') return {}
+        const name = String(input.tool_input?.skill ?? '').trim()
+        fs.appendFileSync(callLog, JSON.stringify({ skill: name, args: String(input.tool_input?.args ?? '') }) + '\n')
+        if (vars.kind !== 'trigger') return {}
+        if (names.includes(name)) hookFired = true
+        return { continue: false, stopReason: names.includes(name) ? 'the skill fired' : 'another skill fired' }
       }
-      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(pluginDir ? { plugins: [{ type: 'local', path: pluginDir }] } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3, hooks: { PreToolUse: [{ matcher: 'Skill', hooks: [watchSkill] }] } } : {}), env, working_dir: dir, spawn_claude_code_process: spawnInGroup(children) } } })
+      const hooks = { PreToolUse: [{ matcher: 'Skill', hooks: [watchSkill] }] }
+      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(pluginDir ? { plugins: [{ type: 'local', path: pluginDir }] } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3 } : {}), hooks, env, working_dir: dir, spawn_claude_code_process: spawnInGroup(children) } } })
       const controller = new AbortController()
       let limit
       const timedOut = new Promise((resolve) => {

@@ -104,6 +104,8 @@ describe('skill test', () => {
 		expect(providers[0]?.config.inner).toMatchObject({ setting_sources: ['project'], apiKeyRequired: false })
 		expect(seen.config?.['evaluateOptions']).toMatchObject({ repeat: 3 })
 		expect(seen.provider).toContain("loadApiProvider('anthropic:claude-agent-sdk'")
+		expect(seen.provider).toContain('.skill-test/\\n') // the call log is excluded from git status
+		expect(seen.provider).toContain("'skill-calls.jsonl'")
 
 		const saved = join(root, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json')
 		expect(existsSync(saved)).toBe(false) // no .git: saved under the home folder instead

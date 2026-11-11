@@ -96,6 +96,9 @@ say so before the first run in a session.
   `plugins` option, so it reads the plugin's references and other skills as an install would. It is then called
   `<plugin>:<skill>`. The baseline loads the same copy without the skill, or with the `--baseline` version in its place.
   The copy leaves out `node_modules` and `.git`.
+- Each run records every skill it calls in `.skill-test/skill-calls.jsonl`, one JSON line `{"skill", "args"}` per call,
+  excluded from `git status`. A `script` check reads it to decide what a skill handed to another, such as the
+  description a skill passed to `/skill create`.
 - Each run's `HOME`, `XDG_CONFIG_HOME`, and `CLAUDE_CONFIG_DIR` point at fresh empty folders, so a skill's own CLI run
   through Bash finds no user references or plugins, no installed Claude Code plugin is loaded, and the Bash tool sources
   no user shell snapshot. Claude Code's login still works because `CLAUDE_SECURESTORAGE_CONFIG_DIR` points at the real
@@ -110,7 +113,7 @@ say so before the first run in a session.
 - A run stops after `timeout` seconds (300 by default, set in `evals.yaml`); its Claude process and the shells and commands it started are killed, and it counts as not run with the reason `time limit`. A process stuck in uninterruptible disk sleep cannot be killed; the test stops waiting for it and goes on.
 - A run that errors or hits its time or token limit counts as not run, never as a pass.
 - A trigger case runs only with the skill. It passes when the skill fired (`expect: fire`) or did not (`expect: skip`) in at least `threshold`
-  runs. A trigger run is cut short: it ends when the model calls the skill, or after three turns, so it does not go on to do the whole job. Running out of those turns is not an error.
+  runs. A trigger run is cut short: it ends at the first skill the model calls, counting as fired only when that is the skill under test, or after three turns, so it does not go on to do the whole job. Running out of those turns is not an error.
 
 ## Criteria
 
