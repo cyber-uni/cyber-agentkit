@@ -25,7 +25,9 @@ contract apply here; IDs are shared across the parent and its children.
   implementation sets. Each criterion's result is shown beside the baseline's, and the cases that changed between pass
   and fail since the skill's expected result are listed. Each fail names the case and the output that broke it. The result is saved in
   one shape that every Verification implementation writes, where `fix`, `enhance`, and the next `test` read it. The
-  skill is unchanged. In an interactive run with failures, it ends by offering `fix`.
+  skill is unchanged. In an interactive run with failures, it ends by offering `fix`. While it runs, the author sees
+  how many runs it will make, each run as it ends, and a sign it is still working when no run has ended for a while,
+  so a long test never looks stuck.
 - **Extensions:**
   - **UC6.1** The skill cannot be found. `/skill` stops and names what it looked for.
   - **UC6.2** The skill has no Criteria. Outcomes are reported as not tested, pointing to `check` and `fix`; trigger
@@ -87,3 +89,14 @@ contract apply here; IDs are shared across the parent and its children.
 - R91 (UC6.13): When a folder above the skill holds a plugin manifest whose skills folder holds the skill, each run
   loads that plugin from the working copy, and the baseline loads it without the skill. Each run reads the plugin's
   references and other skills, and none from an installed copy of it.
+- R97 (UC6): Before the first run, `test` reports how many runs it will make, and, when the skill has a saved result,
+  about how long and how much they took last time.
+- R98 (UC6): When a run ends, `test` reports its case, its arm (with or without the skill), its run number, its count
+  out of the total, and its outcome (pass or fail for a result case, fired or not for a trigger case, or not run with
+  the reason), never the model's reply.
+- R99 (UC6): When no run has ended for 30 seconds, `test` reports how many runs are in progress and how long the
+  longest has taken, and repeats that every 30 seconds until a run ends.
+- R100 (UC6): Progress goes where the result does not: the result's shape and stream are unchanged, and asking for
+  no output turns progress off.
+- R101 (UC6): `/skill test` starts the run so the author can keep working, and passes the progress on to them as it
+  comes, at least at each heartbeat and every few runs.
