@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { cli } from 'clibuilder'
@@ -324,6 +324,210 @@ describe('skill test', () => {
 			writeFileSync(latest, JSON.stringify({ ...saved, folder: join(tmpdir(), 'skill-vanished-xyz') }))
 			await test(skill.folder, fakeRun({}), root)
 			expect(JSON.parse(readFileSync(latest, 'utf8')).folder).toBe(skill.folder)
+		})
+	})
+})
+
+describe('skill test progress (UC6)', () => {
+	const gitRepo = () => {
+		const root = repo()
+		mkdirSync(join(root, '.git'))
+		return root
+	}
+	const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk))
+	const pause = (ms: number) => new Promise((done) => setTimeout(done, ms))
+
+	async function testWith(folder: string, run: PromptfooRun, root: string, ...extra: string[]) {
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
+			createSkillCommand({ runPromptfoo: run, progress: { heartbeatMs: 60, pollMs: 10 } }),
+		)
+		return app.parse<number | undefined>([
+			'node',
+			'cyber-agentkit',
+			'skill',
+			'test',
+			folder,
+			'--root',
+			root,
+			'--format',
+			'json',
+			...extra,
+		])
+	}
+
+	/** A fake promptfoo that reports its runs the way the provider and the hook do: start lines, then end lines. */
+	function reporting(lines: object[][], between = 0): PromptfooRun {
+		const inner = fakeRun({})
+		return async (folder, config, output) => {
+			for (const batch of lines) {
+				appendFileSync(join(folder, 'progress.jsonl'), batch.map((line) => `${JSON.stringify(line)}\n`).join(''))
+				if (between) await pause(between)
+			}
+			return inner(folder, config, output)
+		}
+	}
+	const start = (name: string, run: number, t = Date.now(), arm = 'skill') => ({
+		event: 'start',
+		case: name,
+		arm,
+		run,
+		kind: 'outcome',
+		t,
+	})
+	const end = (name: string, run: number, outcome: string, durationMs: number, arm = 'skill', reason?: string) => ({
+		event: 'end',
+		case: name,
+		arm,
+		run,
+		kind: 'outcome',
+		outcome,
+		durationMs,
+		t: Date.now(),
+		...(reason ? { reason } : {}),
+	})
+
+	describe('before the first run (R97)', () => {
+		it('says how many runs it will make, counting a trigger case once and an outcome case in both arms', async () => {
+			const first = errors()
+			await testWith(goodSkill().folder, fakeRun({}), gitRepo())
+			expect(first).toEqual([])
+			expect(errors()[0]).toBe(
+				'skill test: 24 runs (7 cases × 3, outcome cases with and without the skill, trigger cases with it)\n',
+			)
+		})
+
+		it('adds how long and how much the last saved result took, and leaves out what it lacks', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			await testWith(skill.folder, fakeRun({}), root) // no saved result yet
+			expect(errors()[0]).not.toContain('last time')
+			const latest = join(root, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json')
+			const saved = JSON.parse(readFileSync(latest, 'utf8'))
+			writeFileSync(latest, JSON.stringify({ ...saved, durationMs: 14 * 60_000, cost: 8.5 }))
+			stderr.mockClear()
+			await testWith(skill.folder, fakeRun({}), root)
+			expect(errors()[0]).toContain('; last time about 14 min, $8.50\n')
+			// an older result has a cost and no duration
+			writeFileSync(latest, JSON.stringify({ ...saved, durationMs: undefined, cost: 8.5 }))
+			stderr.mockClear()
+			await testWith(skill.folder, fakeRun({}), root)
+			expect(errors()[0]).toContain('; last time about $8.50\n')
+		})
+
+		it('falls back to the expected result when nothing is saved, and saves how long the run took', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			writeFileSync(
+				join(skill.folder, 'evals', 'expected.json'),
+				JSON.stringify({ cases: [], cost: 2, durationMs: 90_000 }),
+			)
+			await testWith(skill.folder, fakeRun({}), root)
+			expect(errors()[0]).toContain('; last time about 2 min, $2.00\n')
+			const saved = JSON.parse(
+				readFileSync(join(root, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'), 'utf8'),
+			)
+			expect(saved.durationMs).toBeGreaterThanOrEqual(0)
+		})
+	})
+
+	describe('as each run ends (R98)', () => {
+		it('prints one line per ended run with its count, case, run, arm, outcome and time, and never the reply', async () => {
+			const run = reporting([
+				[start('two-prs', 1), start('two-prs', 2, undefined, 'baseline')],
+				[end('two-prs', 1, 'pass', 48_000), end('two-prs', 2, 'fail', 125_000, 'baseline')],
+				[end('trigger-1', 3, 'not run', 300_000, 'skill', 'time limit')],
+			])
+			await testWith(goodSkill().folder, run, gitRepo())
+			expect(errors().slice(1)).toEqual([
+				'[1/24] two-prs run 1 (with skill): pass, 48s\n',
+				'[2/24] two-prs run 2 (without skill): fail, 2m05s\n',
+				'[3/24] trigger-1 run 3 (with skill): not run: time limit, 5m00s\n',
+			])
+			expect(errors().join('')).not.toContain('"x"')
+		})
+
+		it('reports fired and not fired for a trigger run, and holds a half-written line until it is whole', async () => {
+			const fired = { ...end('trigger-1', 1, 'fired', 4_000), kind: 'trigger' }
+			const quiet = { ...end('trigger-4', 1, 'not fired', 3_000), kind: 'trigger' }
+			const inner = fakeRun({})
+			const run: PromptfooRun = async (folder, config, output) => {
+				const file = join(folder, 'progress.jsonl')
+				appendFileSync(file, `${JSON.stringify(fired)}\n${JSON.stringify(quiet).slice(0, 20)}`)
+				await pause(60)
+				appendFileSync(file, `${JSON.stringify(quiet).slice(20)}\n`)
+				return inner(folder, config, output)
+			}
+			await testWith(goodSkill().folder, run, gitRepo())
+			expect(errors().slice(1)).toEqual([
+				'[1/24] trigger-1 run 1 (with skill): fired, 4s\n',
+				'[2/24] trigger-4 run 1 (with skill): not fired, 3s\n',
+			])
+		})
+
+		it('asks promptfoo for the progress through the provider and an afterEach hook', async () => {
+			const seen: { config?: Record<string, unknown> } = {}
+			await testWith(goodSkill().folder, fakeRun(seen), gitRepo())
+			const providers = seen.config?.['providers'] as { config: { progressFile?: string } }[]
+			expect(providers[0]?.config.progressFile).toMatch(/skill-test-.*progress\.jsonl$/)
+			expect(providers[1]?.config.progressFile).toBe(providers[0]?.config.progressFile)
+			expect(seen.config?.['extensions']).toEqual(['file://./progress-hook.mjs:afterEach'])
+		})
+	})
+
+	describe('when no run ends (R99)', () => {
+		it('says how many runs are in progress and how long the longest has taken, every interval, until one ends', async () => {
+			const old = Date.now() - 65_000
+			const run = reporting([[start('two-prs', 1, old), start('two-prs', 2, Date.now() - 5_000)]])
+			const inner = reporting([])
+			await testWith(
+				goodSkill().folder,
+				async (folder, config, output) => {
+					await run(folder, config, output)
+					await pause(200)
+					appendFileSync(join(folder, 'progress.jsonl'), `${JSON.stringify(end('two-prs', 1, 'pass', 66_000))}\n`)
+					return inner(folder, config, output)
+				},
+				gitRepo(),
+			)
+			const lines = errors().slice(1)
+			const beats = lines.filter((line) => line.startsWith('still running'))
+			expect(beats.length).toBeGreaterThanOrEqual(2)
+			for (const beat of beats) expect(beat).toMatch(/^still running: 2 runs in progress, longest 1m\d+s\n$/)
+			expect(lines.at(-1)).toBe('[1/24] two-prs run 1 (with skill): pass, 1m06s\n')
+		})
+
+		it('stays quiet while runs keep ending', async () => {
+			const lines = [
+				[start('two-prs', 1)],
+				[end('two-prs', 1, 'pass', 1000)],
+				[start('two-prs', 2)],
+				[end('two-prs', 2, 'pass', 1000)],
+			]
+			await testWith(goodSkill().folder, reporting(lines, 20), gitRepo())
+			expect(errors().filter((line) => line.startsWith('still running'))).toEqual([])
+		})
+	})
+
+	describe('where it goes (R100)', () => {
+		it('leaves the result on stdout as it was, with no progress in it', async () => {
+			const run = reporting([[start('two-prs', 1)], [end('two-prs', 1, 'pass', 1000)]])
+			await testWith(goodSkill().folder, run, gitRepo())
+			const withProgress = printed()
+			stdout.mockClear()
+			await testWith(goodSkill().folder, fakeRun({}), gitRepo(), '--silent')
+			const without = printed()
+			for (const text of [withProgress, without]) {
+				expect(text).not.toContain('[1/24]')
+				expect(text).not.toContain('skill test:')
+				expect(JSON.parse(text)).toMatchObject({ skill: 'release-notes', runs: 3 })
+			}
+			expect(Object.keys(JSON.parse(withProgress)).sort()).toEqual(Object.keys(JSON.parse(without)).sort())
+		})
+
+		it('prints no progress with --silent', async () => {
+			const run = reporting([[start('two-prs', 1)], [end('two-prs', 1, 'pass', 1000)]], 30)
+			await testWith(goodSkill().folder, run, gitRepo(), '--silent')
+			expect(errors().filter((line) => /skill test:|\[\d+\/|still running/.test(line))).toEqual([])
 		})
 	})
 })

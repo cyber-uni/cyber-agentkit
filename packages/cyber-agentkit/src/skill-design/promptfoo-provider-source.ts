@@ -5,6 +5,9 @@
  * skill under `.claude/skills/<name>/` in the arm that has it (excluded from git status), or, for a skill developed in a plugin, that arm's copy of the plugin loaded as a local plugin (R91). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. After the run it decides the rubric checks that
  * need no judge in that folder, records whether the skill fired, and removes the folder. Each run also gets an empty home folder.
  * It resolves promptfoo from the npx install running it.
+ *
+ * Progress (R98, R99): when its config names a `progressFile`, the provider appends one JSON line when a run starts
+ * ({ event: 'start', case, arm, run, kind, t }); `promptfooHookSource` appends the line when it ends.
  */
 export const promptfooProviderSource = String.raw`import { execFileSync, execSync, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
@@ -104,6 +107,8 @@ export default class SkillRun {
     const names = pluginName ? [skillName, pluginName + ':' + skillName] : [skillName]
     const vars = context.vars
     if (vars.kind === 'trigger' && arm !== 'skill') return { output: '', metadata: { arm, skipped: true } }
+    if (this.config.progressFile)
+      try { fs.appendFileSync(this.config.progressFile, JSON.stringify({ event: 'start', case: context.test?.description ?? '', arm, run: (context.repeatIndex ?? vars.__repeatIndex ?? 0) + 1, kind: vars.kind, t: Date.now() }) + '\n') } catch {}
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-run-'))
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-home-'))
     try {
@@ -172,5 +177,33 @@ export default class SkillRun {
       for (const folder of [dir, home]) try { fs.rmSync(folder, { recursive: true, force: true }) } catch {}
     }
   }
+}
+`
+
+/**
+ * The promptfoo `afterEach` extension `skill test` writes beside its config. promptfoo calls it once each run is
+ * graded, so it knows what the provider cannot: whether the run met its criteria. It appends the run's end line to
+ * `progress.jsonl` next to itself ({ event: 'end', case, arm, run, kind, outcome, reason?, durationMs, t }), where
+ * `outcome` is `pass` or `fail` (every assertion of the run), `fired` or `not fired` for a trigger run, or
+ * `not run` with the reason. It never writes the model's reply, and a run the baseline arm skips writes nothing.
+ */
+export const promptfooHookSource = String.raw`import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const file = path.join(path.dirname(fileURLToPath(import.meta.url)), 'progress.jsonl')
+
+export async function afterEach({ result }) {
+  try {
+    const response = result.response
+    if (response?.metadata?.skipped) return
+    const kind = result.vars?.kind ?? result.testCase?.vars?.kind
+    const error = response?.error ?? (response === undefined ? result.error ?? 'no response' : undefined)
+    const line = { event: 'end', case: result.testCase?.description ?? '', arm: result.provider?.label === 'with-skill' ? 'skill' : 'baseline', run: (result.repeatIndex ?? 0) + 1, kind, durationMs: result.latencyMs, t: Date.now() }
+    if (error) { line.outcome = 'not run'; line.reason = String(error).split('\n')[0].slice(0, 200) }
+    else if (kind === 'trigger') line.outcome = response?.metadata?.fired ? 'fired' : 'not fired'
+    else line.outcome = result.success ? 'pass' : 'fail'
+    fs.appendFileSync(file, JSON.stringify(line) + '\n')
+  } catch {}
 }
 `

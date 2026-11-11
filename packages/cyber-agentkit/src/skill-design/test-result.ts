@@ -45,6 +45,8 @@ export type TestResult = {
 	/** In a `test` report only: this run passed with no expected result, and was saved as it (R80). */
 	savedAsExpected?: true
 	cost?: number
+	/** How long the run took, in milliseconds; results saved before it was recorded lack it. */
+	durationMs?: number
 }
 
 /** The fields of one promptfoo `results.results[]` entry that `skill test` reads. */

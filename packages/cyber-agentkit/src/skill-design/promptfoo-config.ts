@@ -12,6 +12,8 @@ export type ConfigOptions = {
 	judge?: string | undefined
 	/** The provider file's path, relative to the config. */
 	provider: string
+	/** The progress file's absolute path, and the `afterEach` hook file's path relative to the config (R98): without them a run reports no progress. */
+	progress?: { file: string; hook: string } | undefined
 	/**
 	 * The plugin the skill is developed in (R91): each arm loads its own copy of it, `withSkill` holding the skill and
 	 * `baseline` holding the baseline's version or none. The skill is then not copied into the run folder.
@@ -45,6 +47,7 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 			arm,
 			skillName: options.skillName,
 			timeout: plan.timeout,
+			...(options.progress ? { progressFile: options.progress.file } : {}),
 			...(plugin
 				? { pluginName: plugin.name, pluginDir: arm === 'skill' ? plugin.withSkill : plugin.baseline }
 				: skillDir
@@ -96,6 +99,7 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 	return {
 		description: `skill test: ${options.skillName}`,
 		prompts: ['{{prompt}}'],
+		...(options.progress ? { extensions: [`file://${options.progress.hook}:afterEach`] } : {}),
 		evaluateOptions: { maxConcurrency: 3, repeat: plan.runs },
 		providers: [
 			provider('with-skill', 'skill', options.skillFolder),

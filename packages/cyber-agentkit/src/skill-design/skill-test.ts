@@ -13,10 +13,11 @@ import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { stringify } from 'yaml'
 import { promptfooConfig, promptfooPackages } from './promptfoo-config.js'
-import { promptfooProviderSource } from './promptfoo-provider-source.js'
+import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
 import { readSkill, type SkillFiles } from './skill-files.js'
 import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
 import type { TestPlan } from './test-plan.js'
+import { plannedRuns, type ProgressWatch, watchProgress } from './test-progress.js'
 import { compareWithPrevious, readPromptfooOutput, type TestResult } from './test-result.js'
 
 /** Runs promptfoo on a config in a folder and answers its output JSON, or why it could not. */
@@ -61,6 +62,8 @@ export type TestOptions = {
 	verification: string
 	at: string
 	run: PromptfooRun
+	/** Where progress lines go while promptfoo runs (R98, R99); without it the run reports none. */
+	progress?: Pick<ProgressWatch, 'write' | 'heartbeatMs' | 'pollMs' | 'now'> | undefined
 }
 
 /** Runs a plan and reads the result; the baseline falls back to a run without the skill when its folder holds no skill (R35). */
@@ -76,6 +79,8 @@ export async function runTest(
 	const folder = mkdtempSync(join(tmpdir(), 'skill-test-'))
 	try {
 		writeFileSync(join(folder, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(join(folder, 'progress-hook.mjs'), promptfooHookSource)
+		const progressFile = join(folder, 'progress.jsonl')
 		// A skill developed in a plugin runs inside a copy of that plugin, with its references and other skills (R91).
 		const found = findSkillPlugin(options.skill.folder)
 		let plugin: { name: string; withSkill: string; baseline: string } | undefined
@@ -92,9 +97,20 @@ export async function runTest(
 			model: options.model,
 			judge: options.judge,
 			provider: './provider.mjs',
+			progress: { file: progressFile, hook: './progress-hook.mjs' },
 		})
 		writeFileSync(join(folder, 'promptfooconfig.yaml'), stringify(config))
-		const ran = await options.run(folder, 'promptfooconfig.yaml', 'output.json')
+		const started = Date.now()
+		const watch = options.progress
+			? watchProgress({ ...options.progress, file: progressFile, total: plannedRuns(options.plan) })
+			: undefined
+		let ran: Awaited<ReturnType<PromptfooRun>>
+		try {
+			ran = await options.run(folder, 'promptfooconfig.yaml', 'output.json')
+		} finally {
+			watch?.stop()
+		}
+		const durationMs = Date.now() - started
 		if ('problem' in ran) return { problem: `promptfoo did not run: ${ran.problem}` }
 		const dropped = options.baselineFolder !== undefined && baselineFolder === undefined
 		const result = readPromptfooOutput(ran.output, options.plan, {
@@ -108,7 +124,7 @@ export async function runTest(
 					: 'without the skill',
 			baselineRan: !dropped,
 		})
-		return { result, warnings }
+		return { result: { ...result, durationMs }, warnings }
 	} finally {
 		rmSync(folder, { recursive: true, force: true })
 	}
@@ -193,4 +209,15 @@ export function acceptResult(result: TestResult, skillFolder: string): string {
 export function readLatest(folder: string): TestResult | undefined {
 	const latest = join(folder, 'latest.json')
 	return existsSync(latest) ? (JSON.parse(readFileSync(latest, 'utf8')) as TestResult) : undefined
+}
+
+/** The result a new run is measured against for the plan line (R97): the latest saved one, else the skill's expected result. */
+export function lastResult(folder: string, skillFolder: string): TestResult | undefined {
+	const latest = readLatest(folder)
+	if (latest) return latest
+	try {
+		return JSON.parse(readFileSync(expectedPath(skillFolder), 'utf8')) as TestResult
+	} catch {
+		return undefined
+	}
 }

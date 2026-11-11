@@ -14,6 +14,7 @@ import { readSkill } from './skill-files.js'
 import {
 	acceptResult,
 	expectedPath,
+	lastResult,
 	type PromptfooRun,
 	readLatest,
 	resultsFolder,
@@ -22,12 +23,15 @@ import {
 	saveResult,
 } from './skill-test.js'
 import { planTest } from './test-plan.js'
+import { planLine } from './test-progress.js'
 import type { TestResult } from './test-result.js'
 
 export type SkillCommandOptions = {
 	plugin?: ReferencePlugin | undefined
 	/** How promptfoo runs; tests pass a fake. */
 	runPromptfoo?: PromptfooRun | undefined
+	/** How `skill test` polls the progress file and spaces its "still running" lines; tests shorten them. */
+	progress?: { heartbeatMs?: number | undefined; pollMs?: number | undefined } | undefined
 }
 
 function answerThenFail(answer: Answer<any>, format: Format): never {
@@ -127,7 +131,7 @@ function testText(result: TestResult): string {
 	return `${lines.join('\n')}\n`
 }
 
-function testCommand({ plugin, runPromptfoo: run = runPromptfoo }: SkillCommandOptions): cli.Command {
+function testCommand({ plugin, runPromptfoo: run = runPromptfoo, progress }: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'test',
 		description:
@@ -166,7 +170,7 @@ function testCommand({ plugin, runPromptfoo: run = runPromptfoo }: SkillCommandO
 			},
 		],
 		async run(
-			this: { format: Format },
+			this: { format: Format; ui?: { displayLevel?: string } },
 			args: {
 				folder: string
 				model?: string
@@ -198,6 +202,11 @@ function testCommand({ plugin, runPromptfoo: run = runPromptfoo }: SkillCommandO
 			const verification = loadAspect('skill-design.aspects.verification', layers, (path) => collapseHome(home, path))
 			const name =
 				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+			// Progress goes to stderr, never into the result, and `--silent` turns it off (R100).
+			const report =
+				this.ui?.displayLevel === 'none' ? undefined : (line: string) => void process.stderr.write(`${line}\n`)
+			const resultFolder = resultsFolder(resultsBase(args.root, home), name)
+			report?.(planLine(planned.plan, lastResult(resultFolder, skill.folder)))
 			const ran = await runTest({
 				plan: planned.plan,
 				skill,
@@ -208,13 +217,14 @@ function testCommand({ plugin, runPromptfoo: run = runPromptfoo }: SkillCommandO
 				verification: `${verification.name} from ${verification.implementation}`,
 				at: new Date().toISOString(),
 				run,
+				progress: report ? { ...progress, write: report } : undefined,
 			})
 			if ('problem' in ran) {
 				process.stderr.write(`error: promptfoo-failed: ${ran.problem}\n`)
 				throw CliError.reported(exitCodes.error)
 			}
 			for (const warning of ran.warnings) process.stderr.write(`warning: ${warning}\n`)
-			const saved = saveResult(resultsFolder(resultsBase(args.root, home), name), ran.result, skill.folder)
+			const saved = saveResult(resultFolder, ran.result, skill.folder)
 			const failed = [...saved.trigger, ...saved.criteria].some((item) => item.status === 'fail')
 			// The first run that passes becomes the expected result when there is none (R80).
 			const firstPass = !failed && !existsSync(expectedPath(skill.folder))
