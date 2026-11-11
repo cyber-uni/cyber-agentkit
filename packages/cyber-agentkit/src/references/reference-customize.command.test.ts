@@ -1,7 +1,11 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import type { ReferenceCustomizeBase, ReferenceCustomizeReport } from './reference.command.js'
+import type {
+	ReferenceCustomizeBase,
+	ReferenceCustomizeReport,
+	ReferenceFamilyCustomizeReport,
+} from './reference.command.js'
 import {
 	base,
 	errors,
@@ -20,7 +24,8 @@ import {
 	write,
 	written,
 } from './reference-command.fixtures.js'
-import { recipeInterface } from './reference-interface.fixtures.js'
+import { customizeReference } from './reference-customize.js'
+import { aspectImplementation, aspectInterface, recipeInterface } from './reference-interface.fixtures.js'
 
 /** Each run's stdout on its own, so a test can read the last run's answer. */
 const customize = (name: string, args: Record<string, unknown> = {}) => {
@@ -667,5 +672,131 @@ describe('customize records the plugins its picks leave out (R114, R113, UC9.7)'
 		stderr.mockClear()
 		expect(await load(['name'], { root })).toBe(0)
 		expect(warned()).toBe(false)
+	})
+})
+
+describe('customize <prefix>.* (UC24, R130 to R136)', () => {
+	const tone = 'skill-design.aspects.tone'
+	const voice = 'skill-design.aspects.voice'
+	const length = 'skill-design.aspects.length'
+	const aspects = (id: string) => join('.agents/references', `${id}.md`)
+	const fixture = () => {
+		const root = repo()
+		plugins(root, {
+			owner: {
+				[`${tone}.interface`]: aspectInterface(),
+				[`${voice}.interface`]: aspectInterface(),
+				[`${length}.interface`]: aspectInterface('many'),
+				'skill-design.aspects.plain': '## Plain\n',
+			},
+			a: { [tone]: aspectImplementation(tone, 'a'), [voice]: aspectImplementation(voice, 'a') },
+			b: { [tone]: aspectImplementation(tone, 'b') },
+		})
+		return root
+	}
+
+	it('writes, for each one interface, the file customize <id> writes with the same steps, in the tier asked (R130, R131)', async () => {
+		const single = fixture()
+		expect(await customize(tone, { root: single, extends: ['a'] })).toBe(0)
+		expect(await customize(voice, { root: single, extends: ['a'] })).toBe(0)
+		const file = (at: string, id: string) => readFileSync(join(at, aspects(id)), 'utf8')
+
+		const root = fixture()
+		expect(await customize('skill-design.aspects.*', { root, extends: ['a'], format: 'json' })).toBe(0)
+
+		expect(file(root, tone)).toBe(file(single, tone))
+		expect(file(root, voice)).toBe(file(single, voice))
+		expect(file(root, tone)).toBe('---\nextends: [a]\ndeclined: [b]\n---\n')
+		expect(existsSync(join(root, aspects('skill-design.aspects.plain')))).toBe(false)
+		const report = json<ReferenceFamilyCustomizeReport>()
+		expect(report.family).toBe('skill-design.aspects.*')
+		expect(report.interfaces.map(({ interface: id, outcome }) => `${id} ${outcome}`)).toEqual([
+			`${length} skipped`,
+			`${tone} written`,
+			`${voice} written`,
+		])
+		expect(report.interfaces[1]).toMatchObject({ path: join(root, aspects(tone)), extends: ['a'], status: 'found' })
+
+		const user = fixture()
+		write(hostRoot, `references/${tone}.md`, aspectImplementation(tone, 'host'))
+		expect(await customize('skill-design.aspects.*', { root: user, scope: 'user', extends: ['host'] })).toBe(0)
+		expect(existsSync(join(user, aspects(tone)))).toBe(false)
+		expect(readFileSync(join(fakeHome.value, '.agents/references', `${tone}.md`), 'utf8')).toBe(
+			'---\nextends: [host]\n---\n',
+		)
+		expect(existsSync(join(fakeHome.value, '.agents/references', `${voice}.md`))).toBe(false)
+		expect(written()).toContain('keeps what it had')
+	})
+
+	it('keeps an interface no step can answer, and names it in the result (R132)', async () => {
+		const root = fixture()
+		const held = write(root, aspects(voice), '---\nextends: [a]\n---\n')
+
+		expect(await customize('skill-design.aspects.*', { root, extends: ['b'], format: 'json' })).toBe(0)
+
+		expect(readFileSync(held, 'utf8')).toBe('---\nextends: [a]\n---\n')
+		expect(readFileSync(join(root, aspects(tone)), 'utf8')).toBe('---\nextends: [b]\ndeclined: [a]\n---\n')
+		const kept = json<ReferenceFamilyCustomizeReport>().interfaces.find(({ outcome }) => outcome === 'kept')
+		expect(kept).toMatchObject({
+			interface: voice,
+			reason: expect.stringContaining('neither default nor a plugin holding'),
+		})
+	})
+
+	it('skips a many interface and names it (R133)', async () => {
+		const root = fixture()
+
+		expect(await customize('skill-design.aspects.*', { root, extends: ['a'], format: 'json' })).toBe(0)
+
+		expect(existsSync(join(root, aspects(length)))).toBe(false)
+		expect(json<ReferenceFamilyCustomizeReport>().interfaces[0]).toMatchObject({
+			interface: length,
+			outcome: 'skipped',
+			reason: expect.stringContaining('many'),
+		})
+	})
+
+	it('is an error with no match, or with a step giving sections, and writes nothing (R135)', async () => {
+		const root = fixture()
+		expect(await customize('nothing.*', { root, extends: ['a'] })).toBe(1)
+		expect(lastError().code).toBe('interface-unknown')
+
+		const file = write(root, 'picks.yaml', 'extends:\n  - a:\n      sections: [Aspect]\n')
+		expect(await customize('skill-design.aspects.*', { root, 'extends-file': file })).toBe(1)
+		expect(lastError().code).toBe('step-invalid')
+		expect(lastError().error).toMatch(/gives sections/)
+
+		// A refusal for one interface refuses them all.
+		write(root, `.agents/references/${voice}/README.md`, '## Aspect\n\nmine\n')
+		expect(await customize('skill-design.aspects.*', { root, extends: ['a'] })).toBe(1)
+		expect(lastError().code).toBe('file-exists')
+		expect(existsSync(join(root, aspects(tone)))).toBe(false)
+	})
+
+	it('is invalid with * anywhere but the last segment (R136)', async () => {
+		const root = fixture()
+		for (const name of ['skill-design.*.tone', '*', 'a*.*']) {
+			expect(await customize(name, { root, extends: ['a'] })).toBe(2)
+			expect(lastError().code).toBe('name-invalid')
+		}
+		expect(existsSync(join(root, aspects(tone)))).toBe(false)
+	})
+
+	it('is accepted by customizeReference, which writes the same files and returns each interface (UC24 entry point)', async () => {
+		const root = fixture()
+
+		const customized = await customizeReference('skill-design.aspects.*', {
+			root,
+			home: fakeHome.value,
+			env: {},
+			extends: ['a'],
+		})
+
+		expect(customized.interfaces.map(({ interface: id, outcome }) => `${id} ${outcome}`)).toEqual([
+			`${length} skipped`,
+			`${tone} written`,
+			`${voice} written`,
+		])
+		expect(readFileSync(join(root, aspects(tone)), 'utf8')).toBe('---\nextends: [a]\ndeclined: [b]\n---\n')
 	})
 })

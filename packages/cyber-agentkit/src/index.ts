@@ -108,6 +108,8 @@ export type {
 	CustomizeAction,
 	CustomizeReferenceOptions,
 	CustomizeResult,
+	FamilyCustomizeEntry,
+	FamilyCustomizeResult,
 	GeneratorBase,
 } from './references/reference-customize.js'
 export { customizeReference } from './references/reference-customize.js'
@@ -116,6 +118,7 @@ export type { ReferenceErrorOptions } from './references/reference-error.js'
 export { ReferenceFailure as ReferenceError } from './references/reference-error.js'
 export type {
 	ExcludedImplementation,
+	FamilyImplementations,
 	ImplementationsOptions,
 	ReferenceImplementation,
 	ReferenceImplementations,
@@ -147,7 +150,8 @@ export {
 export type { LegacyForm } from './references/reference-legacy.js'
 export type { MigrateOptions, MigrateResult, MigrationRow, MigrationTier } from './references/reference-migrate.js'
 export { migrateReferences } from './references/reference-migrate.js'
-export type { ReferenceName } from './references/reference-name.js'
+export type { FamilyName, ReferenceName } from './references/reference-name.js'
+export { isFamilyName } from './references/reference-name.js'
 export type { ProjectFolder, ProjectFolderCache, ProjectFolders } from './references/reference-projects.js'
 export type {
 	GeneratedRecord,

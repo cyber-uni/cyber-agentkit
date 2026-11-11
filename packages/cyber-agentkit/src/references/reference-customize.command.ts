@@ -21,8 +21,9 @@ import {
 	traceText,
 	writeWarnings,
 } from './reference-command-support.js'
-import { type CustomizeResult, customizeContribution } from './reference-customize.js'
+import { type CustomizeResult, customizeContribution, type FamilyCustomizeResult } from './reference-customize.js'
 import { ReferenceFailure } from './reference-error.js'
+import { isFamilyName, parseFamily } from './reference-name.js'
 import { describeAnswer } from './reference-write.js'
 import { validateWrite } from './reference-write-checks.js'
 import type { ReferenceTrace, ResolvedProjectSection } from './resolve-reference.js'
@@ -58,6 +59,17 @@ export type ReferenceCustomizeReport = {
 	hints?: string[]
 	warnings?: ReferenceWarning[]
 	trace?: ReferenceTrace
+}
+
+/** `customize <prefix>.*`: one entry per interface of the family, in name order (UC24). `written` carries what a single name's report does. */
+export type ReferenceFamilyCustomizeReport = {
+	family: string
+	interfaces: (Partial<ReferenceCustomizeReport> & {
+		interface: string
+		outcome: 'written' | 'kept' | 'skipped'
+		reason?: string
+	})[]
+	hint?: string
 }
 
 type CustomizeCommandArgs = CommonArgs & {
@@ -144,13 +156,44 @@ function text(customized: CustomizeResult, shown: ReferenceCustomizeReport): str
 	return `${shown.path}\n\n${shown.hint}${meta}\n`
 }
 
+function familyReport(
+	customized: FamilyCustomizeResult,
+	args: CustomizeCommandArgs,
+	home: string,
+): ReferenceFamilyCustomizeReport {
+	return compact({
+		family: customized.family,
+		interfaces: customized.interfaces.map(({ interface: id, outcome, reason, result: each }) =>
+			compact({ interface: id, outcome, reason, ...(each ? report(each, args, home) : {}) }),
+		),
+		hint: customized.dryRun
+			? 'Nothing was written. Run again without --dry-run to write it.'
+			: 'Run `load <interface>` for each composed document.',
+	})
+}
+
+function familyText(customized: FamilyCustomizeResult, shown: ReferenceFamilyCustomizeReport): string {
+	return `${customized.interfaces
+		.map(({ interface: id, outcome, reason, result: each }, at) => {
+			if (!each) return `${id}: ${outcome}. ${reason}\n`
+			const own = shown.interfaces[at] as ReferenceCustomizeReport
+			return `${id}: ${outcome}.\n${text(each, own)}`
+		})
+		.join('\n')}`
+}
+
 export function customizeCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'customize',
 		description:
 			"Customize a name for the repo or user tier, or a folder's project section, running no model: pick what it builds on (`extends`), write a body generated from a request with its record, or print what the generator reads (--base). Writes a file a contribution above hides, with a warning.",
 		arguments: [
-			{ name: 'name', description: 'Reference name, without the `.md` extension.', type: t.string() },
+			{
+				name: 'name',
+				description:
+					'Reference name, without the `.md` extension; or a family, `<prefix>.*`, to pick for every interface under the prefix at once (takes --extends or --extends-file, no `sections`).',
+				type: t.string(),
+			},
 			{
 				name: 'steps',
 				description: 'More steps for --extends, so `--extends a b` lists both, bottom first.',
@@ -211,7 +254,13 @@ export function customizeCommand(layersFor: LayersFor, path = defaultReferencePa
 			},
 			trace: { ...traceOption, description: 'After the write, add the trace, in which the written file applies.' },
 		},
-		examples: [{ command: `${path} customize my-topic`, description: 'Customize a reference for this project' }],
+		examples: [
+			{ command: `${path} customize my-topic`, description: 'Customize a reference for this project' },
+			{
+				command: `${path} customize my-skill.aspects.* --extends house-style`,
+				description: 'Pick one plugin for every interface under a prefix',
+			},
+		],
 		async run(args: CustomizeCommandArgs) {
 			const format = this.format
 			try {
@@ -235,8 +284,13 @@ export function customizeCommand(layersFor: LayersFor, path = defaultReferencePa
 					base: args.base,
 					dryRun: args['dry-run'],
 				}
+				const family = isFamilyName(args.name) || args.name.includes('*') ? parseFamily(args.name) : undefined
 				// A usage error comes before anything is read, `root-missing` included (C3).
-				validateWrite({ command: 'customize', ...request })
+				validateWrite({
+					command: 'customize',
+					...request,
+					name: family === undefined || family.invalid !== undefined ? args.name : family.prefix,
+				})
 				if (args.steps?.length && args.extends === undefined) {
 					throw new ReferenceFailure(
 						'options-missing',
@@ -244,6 +298,17 @@ export function customizeCommand(layersFor: LayersFor, path = defaultReferencePa
 					)
 				}
 				const layers = await layersFor({ root: args.root, default: args.default }, home)
+				if (family !== undefined) {
+					const customized = customizeContribution(
+						layers,
+						{ ...request, name: args.name as `${string}.*`, root: layers.root ?? request.root },
+						{ display },
+					)
+					const shown = familyReport(customized, args, home)
+					if (format !== 'text') return result(shown)
+					for (const { result: each } of customized.interfaces) writeWarnings(each?.warnings ?? [])
+					return document(familyText(customized, shown))
+				}
 				const customized = customizeContribution(layers, { ...request, root: layers.root ?? request.root }, { display })
 				if (customized.action === 'base') {
 					if (format !== 'text') return result(baseReport(customized))

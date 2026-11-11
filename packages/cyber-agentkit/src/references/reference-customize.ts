@@ -3,9 +3,13 @@ import { dirname, sep } from 'node:path'
 import { editFrontmatter } from './create-reference.js'
 import type { LoadReferenceOptions } from './load-reference.js'
 import { baseLayers, type GeneratorBase, generatorBase } from './reference-base.js'
+import { interfaceLookup } from './reference-check.js'
 import type { ReferenceWarning } from './reference-codes.js'
 import { hasBody, parseDocument } from './reference-document.js'
+import { ReferenceFailure } from './reference-error.js'
+import { familyInterfaces } from './reference-implementations.js'
 import type { ReferenceLayers } from './reference-layers.js'
+import { type FamilyName, isFamilyName, parseFamily } from './reference-name.js'
 import {
 	generatedFrontmatter,
 	isGenerated,
@@ -15,7 +19,7 @@ import {
 } from './reference-sources.js'
 import { type ExtendsStep, readExtends } from './reference-stack.js'
 import { describeAnswer, hiddenWarning } from './reference-write.js'
-import { type CustomizePlan, validateWrite } from './reference-write-checks.js'
+import { type CustomizePlan, readExtendsFile, validateWrite } from './reference-write-checks.js'
 import type { TargetArgs, WriteScope } from './reference-write-target.js'
 import { type ResolvedReference, type ResolveOptions, resolveReference } from './resolve-reference.js'
 import { type PlaceOptions, prepareWrite } from './write-reference.js'
@@ -266,6 +270,93 @@ function after(
 	return { ...result, after: resolveReference(plan.name, { ...layers, projects: new Map() }, options) }
 }
 
+/** What `customize <family>` did for one interface of the family (R131 to R133). */
+export type FamilyCustomizeEntry = {
+	interface: string
+	/** `written`: the picks went to the file (R131). `kept`: no step can answer it (R132). `skipped`: it is a `many` interface (R133). */
+	outcome: 'written' | 'kept' | 'skipped'
+	/** Why nothing was written, for `kept` and `skipped`. */
+	reason?: string
+	/** What `customize <id>` with the same steps returned, for `written`. */
+	result?: CustomizeResult
+}
+
+/** What `customize <prefix>.*` did: one entry per matched interface, in name order (UC24). */
+export type FamilyCustomizeResult = {
+	family: string
+	scope: WriteScope
+	dryRun: boolean
+	interfaces: FamilyCustomizeEntry[]
+}
+
+/** Whether a step, at any depth, gives `sections`: they differ per interface, so a family takes none (UC24.4). */
+function givesSections(value: unknown): boolean {
+	if (Array.isArray(value)) return value.some(givesSections)
+	if (typeof value !== 'object' || value === null) return false
+	return Object.values(value).some((keys) => {
+		if (typeof keys !== 'object' || keys === null || Array.isArray(keys)) return false
+		const record = keys as Record<string, unknown>
+		return record['sections'] !== undefined || givesSections(record['extends'])
+	})
+}
+
+/**
+ * Customizes every `one` interface of a family (K39) with the same steps (R131): for each, the file
+ * `customize <id>` with those steps writes, in the tier asked. An interface no step can answer keeps
+ * what it had (R132); a `many` interface is skipped (R133). Every interface is planned first, so a
+ * refusal for any of them, a family matching none (R135), or a step giving `sections` leaves every
+ * file as it was.
+ */
+export function customizeFamily(
+	layers: ReferenceLayers,
+	args: CustomizeArgs,
+	options: ResolveOptions = {},
+): FamilyCustomizeResult {
+	const parsed = parseFamily(args.name)
+	if (parsed.invalid !== undefined) throw new ReferenceFailure('name-invalid', parsed.invalid)
+	// Usage errors first, as for one name; the prefix stands in for the name.
+	const usage = validateWrite({ command: 'customize', ...args, name: parsed.prefix })
+	const given = [args.base, args.request, args.body, args.implements, args.merge].some((value) => value !== undefined)
+	if (given) {
+		throw new ReferenceFailure(
+			'options-conflict',
+			'a family takes only picks: --extends or --extends-file, with --scope and --dry-run; a body, a merge, or a base is per name.',
+		)
+	}
+	const picks = args.extendsFile === undefined ? usage.picks : readExtendsFile(args.extendsFile)
+	if (picks !== undefined && picks !== 'none' && givesSections(picks.values)) {
+		throw new ReferenceFailure(
+			'step-invalid',
+			`a step of ${args.name} gives sections, which differ per interface; pick for one interface at a time to change sections.`,
+		)
+	}
+	const lookup = interfaceLookup(layers, options)
+	const ids = familyInterfaces(args.name, layers, options)
+	const planned = ids.map((id): FamilyCustomizeEntry & { answer?: CustomizeArgs } => {
+		const cardinality = lookup(id).value?.cardinality
+		if (cardinality === 'many') {
+			return { interface: id, outcome: 'skipped', reason: `${id} is a many interface, which has no single pick.` }
+		}
+		const each = { ...args, name: id }
+		try {
+			const plan = validateWrite({ command: 'customize', ...each }, layers, options)
+			if (picks !== 'none' && plan.base.status !== 'found') {
+				return { interface: id, outcome: 'kept', reason: `no step holds ${id}; it keeps what it had.` }
+			}
+		} catch (error) {
+			if (error instanceof ReferenceFailure && error.code === 'step-invalid') {
+				return { interface: id, outcome: 'kept', reason: `${error.message} It keeps what it had.` }
+			}
+			throw error
+		}
+		return { interface: id, outcome: 'written', answer: each }
+	})
+	const interfaces = planned.map(({ answer, ...entry }) =>
+		answer === undefined ? entry : { ...entry, result: customizeContribution(layers, answer, options) },
+	)
+	return { family: args.name, scope: (args.scope ?? 'repo') as WriteScope, dryRun: Boolean(args.dryRun), interfaces }
+}
+
 /**
  * Customizes a name for the `repo` or `user` tier or a folder's project section, running no model:
  * writes the picks (a selection), or a body the generator wrote with its record, or, with `base`,
@@ -274,9 +365,20 @@ function after(
  */
 export function customizeContribution(
 	layers: ReferenceLayers,
+	args: CustomizeArgs & { name: FamilyName },
+	options?: ResolveOptions,
+): FamilyCustomizeResult
+export function customizeContribution(
+	layers: ReferenceLayers,
+	args: CustomizeArgs,
+	options?: ResolveOptions,
+): CustomizeResult
+export function customizeContribution(
+	layers: ReferenceLayers,
 	args: CustomizeArgs,
 	options: ResolveOptions = {},
-): CustomizeResult {
+): CustomizeResult | FamilyCustomizeResult {
+	if (isFamilyName(args.name) || args.name.includes('*')) return customizeFamily(layers, args, options)
 	const plan = validateWrite({ command: 'customize', ...args }, layers, options)
 	const result: CustomizeResult = {
 		name: plan.name.name,
@@ -314,10 +416,21 @@ export type CustomizeReferenceOptions = LoadReferenceOptions &
 /**
  * Customizes a name the way `reference customize` does and returns its record: what was written,
  * its warnings (such as `reference-hidden`), and the name resolved after; with `base`, the
- * generator's input. A refused customization throws `ReferenceError` with its code, marked `usage`
+ * generator's input. Given a family (`<prefix>.*`, K39) it customizes every `one` interface under the
+ * prefix with the same picks and returns a {@link FamilyCustomizeResult}; a family built at runtime,
+ * not written as one literal, is typed as a single name's result, so check it with `isFamilyName`.
+ * A refused customization throws `ReferenceError` with its code, marked `usage`
  * for a wrong call.
  */
-export async function customizeReference(name: string, options: CustomizeReferenceOptions): Promise<CustomizeResult> {
+export async function customizeReference(
+	family: FamilyName,
+	options: CustomizeReferenceOptions,
+): Promise<FamilyCustomizeResult>
+export async function customizeReference(name: string, options: CustomizeReferenceOptions): Promise<CustomizeResult>
+export async function customizeReference(
+	name: string,
+	options: CustomizeReferenceOptions,
+): Promise<CustomizeResult | FamilyCustomizeResult> {
 	const { layers, args } = await prepareWrite('customize', name, options)
 	return customizeContribution(layers, args)
 }
