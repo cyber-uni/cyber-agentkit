@@ -194,3 +194,12 @@ uniqueness claim `skill-resolution` already contradicted. The unreleased 2.x on 
 published, make the command an opt-in (`opencode/slash`), and its code registers no skill commands (E-OC-S4).
 `skillInvocation('opencode')` now returns `/<skill>`, not namespaced. R4's OpenCode row and the open questions are
 updated.
+
+## 2026-11-10 — skill-test credentials folder
+
+Added E-CC-D11: the undocumented `CLAUDE_SECURESTORAGE_CONFIG_DIR`, which `skill test` uses to give each run an empty Claude
+config folder while the login stays in the real one.
+
+## 2026-11-11 (Bash timeouts)
+
+- Added E-CC-D12: the Bash timeout variables and `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS`, from the vendor docs, used to limit one shell command in skill test runs.

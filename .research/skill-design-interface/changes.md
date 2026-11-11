@@ -23,3 +23,7 @@
 ## 2026-11-05 (names)
 
 - Settled the command names (create, check, fix, enhance) and the core-versus-open split as a convention in the `/skill` text, not an interface field.
+
+## 2026-11-11 (build)
+
+- Recorded what was built under issue #153: seven `/skill` commands, `/skillify` in cyber-agentkit, the default Verification (`skill test` on promptfoo) in cyber-agentkit rather than aced, and the family wildcard with the implementation in use. Conclusion materially changed (verdict item 3, ownership table, decided items).

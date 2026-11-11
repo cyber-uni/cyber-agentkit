@@ -22,7 +22,11 @@
 			"scripts": {
 				"skills/reference/scripts/reference.mjs": "src/references/reference.skill-script.ts",
 				"skills/asset/scripts/asset.mjs": "src/assets/asset.skill-script.ts",
-				"skills/prose-update/scripts/prose-update.mjs": "src/prose-update/prose-update.skill-script.ts"
+				"skills/prose-update/scripts/prose-update.mjs": "src/prose-update/prose-update.skill-script.ts",
+				"skills/skill/scripts/skill.mjs": "src/skill-design/skill.skill-script.ts",
+				"skills/skill/scripts/check-criteria.mjs": "src/skill-design/check-scripts/criteria.check-script.ts",
+				"skills/skill/scripts/check-verification.mjs": "src/skill-design/check-scripts/verification.check-script.ts",
+				"skills/skill/scripts/check-security.mjs": "src/skill-design/check-scripts/security.check-script.ts"
 			}
 		}
 	}

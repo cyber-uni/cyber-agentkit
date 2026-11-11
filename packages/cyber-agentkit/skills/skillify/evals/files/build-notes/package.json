@@ -1,0 +1,8 @@
+{
+	"name": "toolbox",
+	"private": true,
+	"scripts": {
+		"build": "universal-plugin plugin build --root .",
+		"format": "biome format --write skills src"
+	}
+}

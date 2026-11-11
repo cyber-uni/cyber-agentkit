@@ -438,7 +438,7 @@ function isStep(value: unknown): boolean {
 }
 
 /** An `--extends-file`: a YAML `extends` list, or a mapping holding one, every step key kept (R79). */
-function readExtendsFile(path: string): Picks {
+export function readExtendsFile(path: string): Picks {
 	const invalid = (why: string) =>
 		new ReferenceFailure('extends-file-invalid', `the --extends-file ${path} ${why}.`, { details: { path } })
 	let text: string

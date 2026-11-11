@@ -1,0 +1,95 @@
+runs: 3
+threshold: 2
+trigger:
+  - { prompt: "Is my release-notes skill any good? Check it.", expect: fire }
+  - { prompt: "Write a skill that drafts release notes from merged pull requests.", expect: fire }
+  - { prompt: "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.", expect: fire }
+  - { prompt: "Run the evals for the release-notes skill.", expect: fire }
+  - { prompt: "Which implementation does each skill-design aspect use? I may switch some.", expect: fire }
+  - { prompt: "Turn what we just did into a skill.", expect: skip }
+  - { prompt: "Load our style reference and tell me what it says about tone.", expect: skip }
+  - { prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
+  - { prompt: "Review my diff before I push.", expect: skip }
+# files/samples holds two sample skills (R79): release-notes passes every check; release-notes-flawed passes every
+# script check but fails TRG-3 (its description says how it works), CRI-3 ("The notes are clear"), and SHP-3 (its
+# grouping step is prose a script could do).
+outcome:
+  - id: check-passing
+    prompt: Check the skill in .agents/skills/release-notes.
+    files: files/samples
+    criteria: [C2, C3]
+    checks:
+      C3:
+        - not-regex: "\\b[Ff][Aa][Ii][Ll](s|ed|ures?)?\\b[:* ]{1,4}\\b(INT|SHP|TRG|CRI|VER|SEC)-[0-9]|\\b(INT|SHP|TRG|CRI|VER|SEC)-[0-9]+\\b[^\\n.]{0,30}\\b[Ff][Aa][Ii][Ll]"
+  - id: check-flawed
+    prompt: Check the skill in .agents/skills/release-notes-flawed.
+    files: files/samples
+    criteria: [C2, C3]
+    checks:
+      C3:
+        - contains: TRG-3
+        - contains: CRI-3
+        - contains: SHP-3
+  - id: check-missing
+    prompt: Check the skill in .agents/skills/deploy-notes.
+    files: files/samples
+    criteria: [C1, C2]
+  - id: create-existing
+    prompt: Create a skill named release-notes in .agents/skills that writes release notes from merged pull requests.
+    files: files/samples
+    criteria: [C4]
+  - id: create-ask
+    prompt: Create a skill in .agents/skills that drafts a changelog entry for each merged pull request.
+    files: files/samples
+    criteria: [C5]
+  - id: fix-flawed
+    prompt: >-
+      Check the skill in .agents/skills/release-notes-flawed, then fix what the check finds. I approve every change;
+      don't ask again.
+    files: files/samples
+    criteria: [C6, C7]
+  - id: help
+    prompt: I want to create, check, test, or fix an agent skill. Which commands can I use? List them all.
+    files: files/samples
+    criteria: [C8]
+  - id: customize-show
+    prompt: Show me which implementation each aspect of /skill uses. Don't change anything yet.
+    files: files/samples
+    criteria: [C9]
+rubrics:
+  C1:
+    - regex: "deploy-notes"
+    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+  C2:
+    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+  C4:
+    - regex: "check"
+    - regex: "fix"
+    - regex: "enhance"
+    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+  C5:
+    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+  C6:
+    - script: >-
+        f=.agents/skills/release-notes-flawed/SKILL.md;
+        ! grep -q 'The notes are clear' $f
+        && ! awk 'NR>1 && /^---$/{exit} NR>1' $f | grep -qE 'prs\.json|RELEASE_NOTES'
+        && grep -qE 'scripts/[A-Za-z0-9_-]+\.(mjs|js|cjs|sh|py)' $f
+  C7:
+    - script: >-
+        test -z "$(git status --porcelain --untracked-files=all | grep -v ' .agents/skills/release-notes-flawed/')"
+        && git diff --quiet HEAD -- .agents/skills/release-notes-flawed/README.md
+  C8:
+    - regex: "\\bcreate\\b"
+    - regex: "\\bcheck\\b"
+    - regex: "\\btest\\b"
+    - regex: "\\bfix\\b"
+    - regex: "\\benhance\\b"
+    - regex: "\\bcustomize\\b"
+    - regex: "skillify"
+    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+  C9:
+    - regex: "[Cc]riteria"
+    - regex: "[Vv]erification"
+    - regex: "[Ss]ecurity"
+    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""

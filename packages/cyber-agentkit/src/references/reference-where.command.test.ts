@@ -10,6 +10,7 @@ import {
 	plugins,
 	repo,
 	skill,
+	stdout,
 	where,
 	write,
 } from './reference-command.fixtures.js'
@@ -87,6 +88,14 @@ describe('where', () => {
 		expect(await where('a/b/c', { root: repo() })).toBe(0)
 		expect(json()).toMatchObject({ name: 'a/b/c', status: 'invalid' })
 		expect(errors()).toBe('')
+	})
+
+	it('answers a family, or a * anywhere else, as an invalid name: only customize and implementations take one (R136)', async () => {
+		for (const name of ['skill-design.*', 'a.*.b', '*']) {
+			stdout.mockClear()
+			expect(await where(name, { root: repo() })).toBe(0)
+			expect(json()).toMatchObject({ name, status: 'invalid' })
+		}
 	})
 
 	it('writes warnings to stderr in text', async () => {

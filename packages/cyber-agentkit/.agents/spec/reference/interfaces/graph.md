@@ -14,9 +14,17 @@ check; other warnings are passed on.
 | E52 | an interface's own block malformed | a failure entry |
 | E36 | an implementation against its interface | a required section left out or marked unsupported fails; an optional one is listed unsupported |
 | E60 | a plugin or default file whose recorded base version differs from the installed one | `check` warns, never a failure; `load` says nothing |
-| E37 | `implementations` of an interface | an unknown interface is an error; otherwise the candidates that pass, or an empty answer |
+| E37 | `implementations` of an interface | an unknown interface is an error; otherwise the candidates that pass, or an empty answer, and for a `one` interface the one in use |
 | E38 | `check` with no names | every name found; a name several plugins hold also as each `<plugin>/<name>`; each skill's default as its skill loads it |
 | E70 | a warning `load` raises for a checked name's document | a defect in the document itself fails it; any other is passed on |
 | E71 | a warning `load` raises for a checked name's project section | passed on, naming its file, never a failure |
 | E39 | `load` of a document failing its interface | printed, with a warning naming the check |
 | E68 | a `repo`, `user`, or project-section file hidden by a higher `replace` or `remove` | `check` warns, never a failure (R112) |
+
+## Families
+
+| Edge | Decision | Outcome |
+| --- | --- | --- |
+| E77 | a name ending in `.*` | a family: the interfaces under its prefix; none matching is an error; `*` elsewhere, or a family given to another command, is `invalid` |
+| E78 | `customize` of a family, per matched interface | a `one` interface the steps can answer gets their selection; one they cannot answer keeps what it had and is named; a `many` interface is skipped and named |
+| E79 | `implementations` of a family | each matched interface, in name order, as `implementations <id>` lists it |

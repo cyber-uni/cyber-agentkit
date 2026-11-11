@@ -133,3 +133,31 @@ implements: scaffold.recipe@1
 
 - \`package.json\`
 `
+
+/** An interface document of the aspect family (K39): one section `Aspect`, `one` unless asked otherwise. */
+export const aspectInterface = (cardinality: 'one' | 'many' = 'one') => `---
+description: What an aspect holds.
+interface:
+  cardinality: ${cardinality}
+  version: 1
+  sections:
+    - heading: Aspect
+      required: true
+---
+
+## Aspect
+
+The aspect's rule.
+`
+
+/** A whole implementation of an aspect interface, for the plugin that ships it. */
+export const aspectImplementation = (id: string, text = 'rule') => `---
+description: ${text}
+implements: ${id}@1
+merge: replace
+---
+
+## Aspect
+
+${text}
+`

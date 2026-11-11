@@ -1,0 +1,320 @@
+import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join, resolve } from 'node:path'
+import type { cli } from 'clibuilder'
+import { command, exitCodes, t } from 'clibuilder'
+import { type Answer, CliError, type Format, printAnswer, result } from 'clibuilder/axi'
+import { collapseHome } from '../command-output/collapse-home.js'
+import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
+import type { SkillCheckReport } from './check-skill.js'
+import { runCheckScript } from './run-check-script.js'
+import { aspectNames, loadAspect } from './skill-aspects.js'
+import { checkSkill } from './skill-check.js'
+import { readSkill } from './skill-files.js'
+import {
+	acceptResult,
+	expectedPath,
+	lastResult,
+	type PromptfooRun,
+	readLatest,
+	resultsFolder,
+	runPromptfoo,
+	runTest,
+	saveResult,
+} from './skill-test.js'
+import { planTest } from './test-plan.js'
+import { planLine } from './test-progress.js'
+import type { TestResult } from './test-result.js'
+
+export type SkillCommandOptions = {
+	plugin?: ReferencePlugin | undefined
+	/** How promptfoo runs; tests pass a fake. */
+	runPromptfoo?: PromptfooRun | undefined
+	/** How `skill test` polls the progress file and spaces its "still running" lines; tests shorten them. */
+	progress?: { heartbeatMs?: number | undefined; pollMs?: number | undefined } | undefined
+	/** The machine's hardware threads, which bound how many runs go at once (R103); tests set it. */
+	threads?: number | undefined
+}
+
+function answerThenFail(answer: Answer<any>, format: Format): never {
+	const text = printAnswer(answer, format)
+	if (text !== undefined) process.stdout.write(text)
+	throw CliError.reported(exitCodes.error)
+}
+
+function textReport(report: SkillCheckReport): string {
+	const lines = [
+		`${report.skill}: ${report.status} (${report.passed} passed, ${report.failed} failed, ${report.notChecked} not checked)`,
+	]
+	for (const aspect of report.aspects) {
+		lines.push(`${aspect.aspect} (${aspect.implementation}): ${aspect.status}`)
+		for (const check of aspect.checks) {
+			if (check.status === 'pass') continue
+			const where = check.file ? ` [${check.file}]` : ''
+			const needs = check.needs ? ` (needs /skill ${check.needs})` : ''
+			lines.push(
+				`  ${check.id} ${check.status}: ${check.message ?? ''}${where}${check.status === 'not-checked' ? needs : ''}`,
+			)
+		}
+	}
+	return `${lines.join('\n')}\n`
+}
+
+function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
+	return command({
+		name: 'check',
+		description:
+			'Check a skill folder against every aspect without running it: the checks a script decides pass or fail, and every other check is listed as not checked. Exits 1 when any check fails.',
+		arguments: [{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() }],
+		options: {
+			root: {
+				description:
+					'The repository root whose references choose each aspect. Defaults to the nearest folder at or above the current directory holding `.git`.',
+				type: t.string().optional(),
+			},
+		},
+		examples: [{ command: 'cyber-agentkit skill check .agents/skills/release-notes', description: 'Check one skill' }],
+		async run(this: { format: Format }, args: { folder: string; root?: string | undefined }) {
+			const skill = readSkill(args.folder)
+			if (!skill) {
+				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			const home = homedir()
+			const layers = await referenceLayers({
+				root: args.root,
+				cwd: process.cwd(),
+				home,
+				platform: process.platform,
+				env: process.env,
+				plugin,
+			})
+			const display = (path: string) => collapseHome(home, path)
+			const aspects = aspectNames(layers).map((name) => loadAspect(name, layers, display))
+			for (const aspect of aspects)
+				for (const warning of aspect.warnings) process.stderr.write(`warning: ${aspect.aspect}: ${warning}\n`)
+			const report = checkSkill(skill, aspects, runCheckScript)
+			const answer = result(report, { render: { text: textReport } })
+			if (report.failed) answerThenFail(answer, this.format)
+			return answer
+		},
+	})
+}
+
+/** The folder results live under: the repository root, or the home folder outside a repository. */
+function resultsBase(rootOption: string | undefined, home: string): string {
+	const root = rootOption === undefined ? findRoot(process.cwd()) : resolve(rootOption)
+	return existsSync(join(root, '.git')) ? root : home
+}
+
+function testText(result: TestResult): string {
+	const lines = [
+		`${result.skill}: ${result.runs} runs per case, threshold ${result.threshold}, baseline ${result.baseline}`,
+	]
+	for (const item of result.trigger)
+		lines.push(
+			`trigger ${item.case} (${item.expect}): ${item.status}, fired ${item.fired} of ${item.ran} — ${item.prompt}`,
+		)
+	for (const item of result.criteria) {
+		const rate = item.ran === undefined ? '' : ` ${item.passed} of ${item.ran}`
+		const base = item.baseline ? `, baseline ${item.baseline.passed} of ${item.baseline.ran}` : ''
+		lines.push(`${item.id}: ${item.status}${rate}${base}${item.reason ? ` — ${item.reason}` : ''}`)
+		for (const failure of item.failures ?? [])
+			lines.push(
+				`  ${failure.case} run ${failure.run}: ${failure.output.split('\n').slice(0, 3).join(' ').slice(0, 200)}`,
+			)
+	}
+	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
+	if (result.partial)
+		lines.push(`partial: only ${result.partial.cases.join(', ')} ran; not saved as the expected result`)
+	if (result.savedAsExpected) lines.push('no expected result yet: saved this passing result as evals/expected.json')
+	if (result.noPrevious) lines.push('no expected or previous result to compare with')
+	else
+		for (const item of result.changed ?? [])
+			lines.push(`changed since ${result.comparedWith}: ${item.case} ${item.from} → ${item.to}`)
+	return `${lines.join('\n')}\n`
+}
+
+function testCommand({
+	plugin,
+	runPromptfoo: run = runPromptfoo,
+	progress,
+	threads,
+}: SkillCommandOptions): cli.Command {
+	return command({
+		name: 'test',
+		description:
+			"Run a skill's evals (evals/evals.yaml) on promptfoo, several runs per case, each in a fresh folder, beside a run without the skill, and save the result. Makes model calls. Exits 1 when a case or criterion fails.",
+		arguments: [
+			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
+		],
+		options: {
+			model: {
+				description: 'The model each run uses. Defaults to the Agent SDK default.',
+				type: t.string().optional(),
+			},
+			judge: {
+				description: 'The model that decides `judge` rubrics. Without it, those criteria are not tested.',
+				type: t.string().optional(),
+			},
+			baseline: {
+				description: 'Another version of the skill to compare with, instead of a run without the skill.',
+				type: t.string().optional(),
+			},
+			root: {
+				description: 'The repository root the result is saved under. Defaults to the nearest folder holding `.git`.',
+				type: t.string().optional(),
+			},
+			case: {
+				description:
+					'Run only the case with this ID, an outcome case ID or `trigger-<n>`; repeat it for more. The result is marked partial, is compared for those cases only, and is never saved as the expected result.',
+				type: t.array(t.string()).optional(),
+			},
+			accept: {
+				description:
+					"After the run, also write its result to the skill's `evals/expected.json`, the expected result that later runs compare with.",
+				type: t.boolean().optional(),
+			},
+		},
+		examples: [
+			{ command: 'cyber-agentkit skill test .agents/skills/release-notes', description: 'Test one skill' },
+			{
+				command: 'cyber-agentkit skill test .agents/skills/release-notes --case two-prs --case trigger-1',
+				description: 'Try a change on two cases only',
+			},
+			{
+				command: 'cyber-agentkit skill test .agents/skills/release-notes --accept',
+				description: "Test it and keep the result as the skill's expected result",
+			},
+		],
+		async run(
+			this: { format: Format; ui?: { displayLevel?: string } },
+			args: {
+				folder: string
+				model?: string
+				judge?: string
+				baseline?: string
+				root?: string | undefined
+				accept?: boolean | undefined
+				case?: string[] | undefined
+			},
+		) {
+			const skill = readSkill(args.folder)
+			if (!skill) {
+				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			if (args.accept && args.case?.length) {
+				process.stderr.write(
+					'error: partial-accept: --accept cannot be used with --case; a partial result is never the expected result\n',
+				)
+				throw CliError.reported(exitCodes.usage)
+			}
+			const planned = planTest(skill, { judge: args.judge, cases: args.case, threads })
+			if ('problem' in planned) {
+				process.stderr.write(`error: ${planned.code}: ${planned.problem}\n`)
+				throw CliError.reported(planned.code === 'unknown-case' ? exitCodes.usage : exitCodes.error)
+			}
+			for (const warning of planned.warnings) process.stderr.write(`warning: ${warning}\n`)
+			const home = homedir()
+			const layers = await referenceLayers({
+				root: args.root,
+				cwd: process.cwd(),
+				home,
+				platform: process.platform,
+				env: process.env,
+				plugin,
+			})
+			const verification = loadAspect('skill-design.aspects.verification', layers, (path) => collapseHome(home, path))
+			const name =
+				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+			// Progress goes to stderr, never into the result, and `--silent` turns it off (R100).
+			const report =
+				this.ui?.displayLevel === 'none' ? undefined : (line: string) => void process.stderr.write(`${line}\n`)
+			const resultFolder = resultsFolder(resultsBase(args.root, home), name)
+			report?.(planLine(planned.plan, lastResult(resultFolder, skill.folder)))
+			const ran = await runTest({
+				plan: planned.plan,
+				skill,
+				skillName: name,
+				baselineFolder: args.baseline === undefined ? undefined : resolve(args.baseline),
+				model: args.model,
+				judge: args.judge,
+				verification: `${verification.name} from ${verification.implementation}`,
+				at: new Date().toISOString(),
+				run,
+				progress: report ? { ...progress, write: report } : undefined,
+			})
+			if ('problem' in ran) {
+				process.stderr.write(`error: promptfoo-failed: ${ran.problem}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			for (const warning of ran.warnings) process.stderr.write(`warning: ${warning}\n`)
+			const saved = saveResult(resultFolder, ran.result, skill.folder)
+			const failed = [...saved.trigger, ...saved.criteria].some((item) => item.status === 'fail')
+			// The first run that passes becomes the expected result when there is none (R80).
+			const firstPass = !failed && !saved.partial && !existsSync(expectedPath(skill.folder))
+			if (args.accept || firstPass) acceptResult(saved, skill.folder)
+			const reported: TestResult = !args.accept && firstPass ? { ...saved, savedAsExpected: true } : saved
+			const answer = result(reported, { render: { text: testText } })
+			if (failed) answerThenFail(answer, this.format)
+			return answer
+		},
+	})
+}
+
+function acceptCommand(_options: SkillCommandOptions): cli.Command {
+	return command({
+		name: 'accept',
+		description:
+			"Write the skill's last saved test result to its `evals/expected.json` as the expected result, without running the test or spending anything. Fails when there is no saved result.",
+		arguments: [{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() }],
+		options: {
+			root: {
+				description: 'The repository root the result was saved under. Defaults to the nearest folder holding `.git`.',
+				type: t.string().optional(),
+			},
+		},
+		examples: [
+			{
+				command: 'cyber-agentkit skill accept .agents/skills/release-notes',
+				description: 'Keep the last saved result as the expected result',
+			},
+		],
+		async run(this: { format: Format }, args: { folder: string; root?: string | undefined }) {
+			const skill = readSkill(args.folder)
+			if (!skill) {
+				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			const name =
+				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+			const latest = readLatest(resultsFolder(resultsBase(args.root, homedir()), name))
+			if (!latest) {
+				process.stderr.write(`error: no-result: no saved test result for ${name}; run \`skill test\` first\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			if (latest.partial) {
+				process.stderr.write(
+					`error: partial-result: the last test of ${name} ran only ${latest.partial.cases.join(', ')}; run the whole test to accept it\n`,
+				)
+				throw CliError.reported(exitCodes.error)
+			}
+			const path = acceptResult(latest, skill.folder)
+			return result(
+				{ skill: name, accepted: latest.at, expected: path },
+				{ render: { text: () => `accepted ${latest.at} as ${path}\n` } },
+			)
+		},
+	})
+}
+
+/** `skill`: the commands `/skill` runs without an agent. */
+export function createSkillCommand(options: SkillCommandOptions = {}): cli.Command {
+	return command({
+		name: 'skill',
+		description:
+			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, or accept a test result as its expected result.',
+		commands: [checkCommand(options), testCommand(options), acceptCommand(options)],
+	})
+}

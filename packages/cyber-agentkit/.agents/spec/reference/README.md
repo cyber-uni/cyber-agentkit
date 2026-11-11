@@ -156,6 +156,9 @@ what can be found, and every fault is reported as a warning.
 - K38 **rename table**: `references/_renames.yaml` in a plugin, a YAML mapping of each older name to its new name. It
   declares renames that `aliases` cannot (K32), such as a plain document renamed to a `one` interface's document.
   Unlike an alias, it changes nothing at load: `migrate` applies it, and a load of an older name warns.
+- K39 **family**: the interfaces whose ids start with a prefix followed by a dot, addressed as `<prefix>.*`, such as
+  `skill-design.aspects.*`. It matches interface documents only, at any depth below the prefix: never a plain document
+  and never an implementation's `<id>.<key>`. No document is named for the family itself.
 
 ## Use Cases
 
@@ -171,7 +174,7 @@ what can be found, and every fault is reported as a warning.
 | A4.1 | A4 admin | Have their instructions reach every repository on the machine, applied over everything else |
 | A5.1 | A5 customizer (a team for its repository, or a user for themselves) | Change what a skill reads without forking the plugin: say in their own words what to change, and get one concise document generated from it, or turn the name off |
 | A5.2 | A5 | Remove a customization, and learn what answers afterwards |
-| A5.3 | A5 | Pick which implementation answers a name, and the order in which plugins extend it |
+| A5.3 | A5 | Pick which implementation answers a name, and the order in which plugins extend it; or pick one for every interface of a family at once, and see which one each uses |
 | A5.4 | A5 | Revise a generated document when a plugin it was built from changes, without restating their request |
 | A5.5 | A5 | Bring the files they wrote in a legacy form, or under a name a plugin renamed, to the current form and name, seeing every change before it is made |
 | A6.1 | A6 plugin author | Ship skills that load references by name, with defaults others can implement or extend |
@@ -191,7 +194,7 @@ what can be found, and every fault is reported as a warning.
 | --- | --- | --- |
 | [resolve](./resolve/README.md) | UC1, UC2, UC3, UC7, UC10, UC19, UC21 | Composition, Stack, Reporting, Legacy forms, Layers, Finding, Renames |
 | [write](./write/README.md) | UC5, UC9, UC11, UC18, UC20, UC22, UC23 | Writing, Migrating |
-| [interfaces](./interfaces/README.md) | UC6, UC15 | Interfaces |
+| [interfaces](./interfaces/README.md) | UC6, UC15, UC24 | Interfaces, Families |
 | [skill](./skill/README.md) | UC4, UC12, UC17 | Fallback, Load |
 | [formats](./formats/README.md) | UC13 | R65 to R72, R92 to R95 |
 

@@ -12,6 +12,8 @@ IDs are shared across the parent and its children.
 - N16 Interface composition: an interface that includes others, or a document that implements several. A name fits
   one interface's namespace, so these would need implementations found by what a document declares. In this version
   `implements` names one interface (UC6.3).
+- N18 A general pattern over names. The only wildcard is a family (K39): `*` as the last segment, matching interfaces.
+  Plain documents and implementations are customized and listed one name at a time.
 
 ## Use Cases
 
@@ -33,7 +35,8 @@ IDs are shared across the parent and its children.
   required section is left out or marked unsupported; an optional one left out is listed unsupported. The line saying
   what a section holds guides implementers (a new implementation is stubbed with it, UC5) and is never checked.
   `implementations` lists the ones that pass, with how to pin each, its tier, description, and unsupported sections; the
-  ones left out can be shown with their reasons.
+  ones left out can be shown with their reasons. For a `one` interface it also says which one is in use: the one a load
+  of the name builds on.
 - **Extensions:**
   - UC6.1 A checked name is `missing`, `ambiguous`, or `invalid`: it fails, an entry in the result. A name a `remove`
     turned off (UC3.4) is listed `missing` and does not fail: it is off on purpose.
@@ -58,6 +61,7 @@ IDs are shared across the parent and its children.
   - UC6.13 A `repo` or `user` implementation of a `many` interface's `<id>.<key>`, written by `customize`
     (R111): `implementations` lists it under its bare name, with its tier, and the consuming skill loads it by that
     name (UC12.2). UC6.6 still holds: a skill's default is never listed.
+  - UC6.15 The name is a family (K39): UC24.
   - UC6.14 A name has project sections: the warnings load raises for them are passed on, each naming its file, and
     never fail. A project section declares no `implements` (K24), so it is not checked against an interface.
 
@@ -88,6 +92,28 @@ IDs are shared across the parent and its children.
   - UC15.6 The plugin that publishes the interface is not installed: `check` fails (UC6.3); the document still loads
     by its name.
   - UC15.7 The author wants to change only some of the owner's sections: that is extending, UC7, not this.
+
+### UC24 — Pick or list for a family of interfaces (A5.3, A3.1)
+
+- **Trigger:** a customizer wants one plugin to answer every interface of a family, such as the aspects of a skill
+  that publishes one interface per aspect; or wants to see, for each interface of the family, which implementation
+  answers it and which ones are available.
+- **Entry points:** Skill: the `reference` skill's Customize mode and Find mode. Code: `reference customize <prefix>.*`
+  with the steps, and `reference implementations <prefix>.*`; `customizeContribution` and `referenceImplementations`
+  given the family.
+- **Inputs:** the family; for customize, one list of steps, as UC9 takes them, without `sections`, and the tier.
+- **Outcome:** customize writes, for each `one` interface of the family, the selection UC9 writes for those steps.
+  The result lists each interface with what was written for it or why nothing was. `implementations` lists each
+  interface of the family with what UC6 lists for it, including the implementation in use.
+- **Extensions:**
+  - UC24.1 A picked plugin implements some interfaces of the family and not others: the others keep what they had, and
+    the result names them.
+  - UC24.2 An interface of the family has cardinality `many`: customize skips it and names it, since a `many` interface
+    has no single pick; `implementations` lists it as UC6 does.
+  - UC24.3 No interface matches the family: an error, as an unknown interface is (UC6.5); nothing is written.
+  - UC24.4 A step gives `sections`: an error, since sections differ per interface; nothing is written.
+  - UC24.5 `*` anywhere but the last segment, or a name with `*` given where a family is not accepted: the name is
+    `invalid` (R1).
 
 ## Criteria
 
@@ -122,5 +148,22 @@ Edge IDs are in [graph.md](./graph.md).
   plain document passes when composing it raises no defect.
 - R117 (UC6, E35): A checked name that is `missing`, `ambiguous`, or `invalid` fails, except a name a `remove` turned
   off, which is listed `missing` and passes.
+- R129 (UC6, UC24, E37): For a `one` interface, `implementations` reports the implementation in use: the pin of the
+  listed candidate, or `default`, that a load of the name builds on, or none when the name is not `found`.
 - R118 (UC6, E71): `check` passes on every warning `load` raises for a name's project sections, each naming its file,
   and never fails a name for one.
+
+**Families (UC24)**
+
+- R130 (UC24, E77): A family (K39) matches every interface whose id starts with its prefix and a dot, at any depth, and
+  nothing else.
+- R131 (UC24, E78): `customize <family>` with steps writes, for each matched `one` interface those steps can answer,
+  the same file `customize <id>` with those steps writes, in the tier asked.
+- R132 (UC24.1, E78): An interface no step can answer keeps the contribution it had, and the result names it.
+- R133 (UC24.2, E78): A matched `many` interface is skipped by `customize` and named in the result.
+- R134 (UC24, E79): `implementations <family>` lists each matched interface, in name order, with what
+  `implementations <id>` lists for it.
+- R135 (UC24.3, UC24.4, E77): A family matching no interface, or a `customize` step with `sections` on a family, is an
+  error, and nothing is written.
+- R136 (UC24.5, E77): `*` anywhere but the last segment makes the name `invalid`, and a family given to any command
+  other than `customize` and `implementations` is `invalid`.

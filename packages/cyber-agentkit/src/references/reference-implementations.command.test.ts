@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { ReferenceImplementationsReport } from './reference.command.js'
 import { errors, implementations, json, plugins, repo, stdout, write } from './reference-command.fixtures.js'
-import { recipeInterface, typescriptRecipe } from './reference-interface.fixtures.js'
+import {
+	aspectImplementation,
+	aspectInterface,
+	recipeInterface,
+	typescriptRecipe,
+} from './reference-interface.fixtures.js'
 
 describe('implementations', () => {
 	function fixture(): string {
@@ -62,5 +67,75 @@ describe('implementations', () => {
 			code: 'interface-unknown',
 		})
 		expect(errors()).toBe('')
+	})
+
+	describe('the implementation in use (R129)', () => {
+		const id = 'skill-design.aspects.tone'
+
+		it('reports it for a one interface, even when nothing is listed, and not for a many one', async () => {
+			const root = repo()
+			plugins(root, { owner: { [`${id}.interface`]: aspectInterface() }, a: { [id]: aspectImplementation(id) } })
+			write(root, `.agents/references/${id}.md`, '---\nextends: [a]\n---\n')
+
+			expect(await implementations(id, { root })).toBe(0)
+			expect(json<ReferenceImplementationsReport>()).toMatchObject({ inUse: `a/${id}` })
+
+			write(root, `.agents/references/${id}.md`, '---\nextends: [default]\n---\n')
+			stdout.mockClear()
+			expect(await implementations(id, { root, trace: true })).toBe(0)
+			expect(json<ReferenceImplementationsReport>()).toMatchObject({ interface: id, cardinality: 'one' })
+
+			const bare = repo()
+			plugins(bare, { owner: { [`${id}.interface`]: aspectInterface() } })
+			stdout.mockClear()
+			expect(await implementations(id, { root: bare })).toBe(0)
+			expect(json()).toMatchObject({ empty: `0 implementations of ${id}` })
+
+			const many = repo()
+			plugins(many, { owner: { [`${id}.interface`]: aspectInterface('many') } })
+			stdout.mockClear()
+			expect(await implementations(id, { root: many })).toBe(0)
+			expect(json()).toMatchObject({ empty: `0 implementations of ${id}` })
+		})
+	})
+
+	describe('a family (R130, R134, R135, R136)', () => {
+		const tone = 'skill-design.aspects.tone'
+		const length = 'skill-design.aspects.length'
+		const fixture = () => {
+			const root = repo()
+			plugins(root, {
+				owner: {
+					[`${tone}.interface`]: aspectInterface(),
+					[`${length}.interface`]: aspectInterface('many'),
+					'skill-design.aspects.plain': '## Plain\n',
+				},
+				a: { [tone]: aspectImplementation(tone, 'a tone') },
+			})
+			return root
+		}
+
+		it('lists each matched interface in name order with its in-use implementation (R130, R134)', async () => {
+			expect(await implementations('skill-design.aspects.*', { root: fixture() })).toBe(0)
+			expect(json<{ family: string; interfaces: unknown[] }>()).toEqual({
+				family: 'skill-design.aspects.*',
+				interfaces: [
+					{ interface: length, implementations: [] },
+					{
+						interface: tone,
+						inUse: `a/${tone}`,
+						implementations: [{ pin: `a/${tone}`, description: 'a tone' }],
+					},
+				],
+			})
+		})
+
+		it('is an error with no match, and invalid for * elsewhere (R135, R136)', async () => {
+			expect(await implementations('nothing.*', { root: fixture() })).toBe(1)
+			expect(json<{ code: string }>().code).toBe('interface-unknown')
+			stdout.mockClear()
+			expect(await implementations('skill-design.*.tone', { root: fixture() })).toBe(2)
+			expect(json<{ code: string }>().code).toBe('name-invalid')
+		})
 	})
 })

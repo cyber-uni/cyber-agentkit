@@ -2,6 +2,7 @@ import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import type { LoadReferenceOptions } from './load-reference.js'
 import { findRoot, type ReferenceLayers, referenceLayers } from './reference-layers.js'
+import { parseFamily } from './reference-name.js'
 import {
 	type CreateArgs,
 	type CreateResult,
@@ -80,7 +81,9 @@ export async function prepareWrite(
 		base: options.base,
 	}
 	// A usage error comes before anything is read, `root-missing` included (C3).
-	validateWrite({ command, ...args })
+	// A family (K39) is checked by its prefix: its usage errors are a name's.
+	const family = command === 'customize' ? parseFamily(name) : undefined
+	validateWrite({ command, ...args, name: family?.invalid === undefined ? (family?.prefix ?? name) : name })
 	const layers = await referenceLayers({
 		...options,
 		cwd,

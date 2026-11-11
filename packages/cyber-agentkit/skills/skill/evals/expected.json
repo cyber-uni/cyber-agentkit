@@ -1,0 +1,258 @@
+{
+	"version": 1,
+	"skill": "skill",
+	"at": "2026-11-11T09:27:44.312Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"trigger": [
+		{
+			"case": "trigger-1",
+			"prompt": "Is my release-notes skill any good? Check it.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"prompt": "Write a skill that drafts release notes from merged pull requests.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"prompt": "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"prompt": "Run the evals for the release-notes skill.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"prompt": "Which implementation does each skill-design aspect use? I may switch some.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"prompt": "Turn what we just did into a skill.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"prompt": "Load our style reference and tell me what it says about tone.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"prompt": "Add a rule to AGENTS.md that this repo uses pnpm.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-9",
+			"prompt": "Review my diff before I push.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		}
+	],
+	"criteria": [
+		{
+			"id": "C1",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C2",
+			"status": "pass",
+			"passed": 9,
+			"ran": 9,
+			"baseline": {
+				"passed": 9,
+				"ran": 9
+			}
+		},
+		{
+			"id": "C3",
+			"status": "pass",
+			"passed": 5,
+			"ran": 6,
+			"baseline": {
+				"passed": 3,
+				"ran": 6
+			},
+			"failures": [
+				{
+					"case": "check-passing",
+					"run": 1,
+					"output": "I checked `.agents/skills/release-notes` and it fails nothing. Everything passes except one check that only a test run can decide. I didn't change any files or run the skill.\n\n| Aspect | Result |\n| --- | --- |\n| Specification (SPEC-1–4) | pass |\n| Intent (INT-1, INT-3) | pass |\n| Shape (SHP-1–4) | pass |\n| Trigger (TRG-1, TRG-3) | pass; **TRG-4 not checked**, only `test` can decide it |\n| Criteria (CRI-1–6) | pass |\n| Verification (VER-1–8) | pass |\n| Security (SEC-1–6) | pass |\n\nThe check script decided 15 checks and reported no failures. I decided the other 17 by reading the skill:\n\n- **Intent:** The README's opening paragraph names one job and its result: release notes from `prs.json`, written to `RELEASE_NOTES.md` and grouped under Features and Fixes. It also names the job it doesn't do (summarizing a single pull request), and nothing in the steps goes beyond that.\n- **Shape:** The filtering and grouping rules are in `scripts/notes.mjs` rather than written as instructions. Since there's no `references/` folder, SHP-4 has nothing to fail.\n- **Trigger:** The description uses phrases people would actually type (\"write the release notes\", \"draft the changelog for 2.0\"). It says when to use the skill, not how it works.\n- **Criteria:** C1–C4 are each simply true or false of `RELEASE_NOTES.md`, and you can decide them from the output and the input file alone. Together they cover everything the Intent promises.\n- **Verification:** The three skip cases (summarize one PR, commit message, diff review) are plausible requests that belong to other jobs. Each rubric tests its own criterion, and the fixture contains no private data.\n- **Security:** Nothing happens outside the working copy. `prs.json` is only read as data, and the script receives the file path as an argument rather than running it as code.\n\nOn TRG-4: `evals/expected.json` records an earlier run where all 6 trigger cases and C1–C4 passed. That doesn't count as a pass here; to confirm it against the current files,…"
+				}
+			]
+		},
+		{
+			"id": "C4",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C5",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C6",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C7",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C8",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C9",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		}
+	],
+	"cases": [
+		{
+			"case": "trigger-1",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-9",
+			"status": "pass"
+		},
+		{
+			"case": "check-passing",
+			"status": "pass"
+		},
+		{
+			"case": "check-flawed",
+			"status": "pass"
+		},
+		{
+			"case": "check-missing",
+			"status": "pass"
+		},
+		{
+			"case": "create-existing",
+			"status": "pass"
+		},
+		{
+			"case": "create-ask",
+			"status": "pass"
+		},
+		{
+			"case": "fix-flawed",
+			"status": "pass"
+		},
+		{
+			"case": "help",
+			"status": "pass"
+		},
+		{
+			"case": "customize-show",
+			"status": "pass"
+		}
+	],
+	"notRun": [],
+	"cost": 8.5736,
+	"durationMs": 270438,
+	"totalRuns": 75,
+	"comparedWith": "expected",
+	"changed": []
+}

@@ -16,9 +16,16 @@ import { whereCommand } from './reference-where.command.js'
 export type { ReferenceCheckReport } from './reference-check.command.js'
 export { traceText } from './reference-command-support.js'
 export type { ReferenceCreateReport } from './reference-create.command.js'
-export type { ReferenceCustomizeBase, ReferenceCustomizeReport } from './reference-customize.command.js'
+export type {
+	ReferenceCustomizeBase,
+	ReferenceCustomizeReport,
+	ReferenceFamilyCustomizeReport,
+} from './reference-customize.command.js'
 export type { ReferenceDeleteReport } from './reference-delete.command.js'
-export type { ReferenceImplementationsReport } from './reference-implementations.command.js'
+export type {
+	ReferenceFamilyImplementationsReport,
+	ReferenceImplementationsReport,
+} from './reference-implementations.command.js'
 export type { ReferenceListReport } from './reference-list.command.js'
 export type { ReferenceLoadEntry } from './reference-load.command.js'
 export type { ReferenceMigrateReport } from './reference-migrate.command.js'
