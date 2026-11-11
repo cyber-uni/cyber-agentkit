@@ -45,7 +45,7 @@ Outside Load, when the script is missing or cannot run, use `pnpm exec cyber-age
 
 ## Load
 
-Load `references/load.md` from this skill's folder and follow it, then return to the caller's work.
+Load [references/load.md](references/load.md) from this skill's folder and follow it, then return to the caller's work.
 
 ## Find
 
@@ -65,7 +65,7 @@ Load `references/load.md` from this skill's folder and follow it, then return to
 
 ## Create
 
-Load `references/create.md` from this skill's folder and follow it.
+Load [references/create.md](references/create.md) from this skill's folder and follow it.
 
 ## Update
 
@@ -78,7 +78,7 @@ Use Update only for a file the user wrote by hand under `.agents/references/` or
 
 ## Customize
 
-Load `references/customize.md` from this skill's folder and follow it.
+Load [references/customize.md](references/customize.md) from this skill's folder and follow it.
 
 ## Delete
 
@@ -117,12 +117,13 @@ A skill written for one harness may add that harness's typed form after the skil
 - **Never edit a generated document by hand.** Customize it again with its request.
 - **Write only what the user approves.** Show the file and its path before you write or delete it. With no user present, write nothing.
 
-## Validate
+## Done when
 
-Before reporting a Create, Update, Customize, Delete, or Migrate done:
+Before reporting done, check each of these against the result. Report any that fails.
 
-- The written or deleted file is under `.agents/references/` at the root or in a folder below it, under `~/.agents/references/`, or, for Create and Delete, in a plugin's or a skill's source folder in this repository.
-- No file in an installed plugin or skill, or in a managed folder, changed.
-- The file and its path were shown to the user before the write or the delete, and a delete also said what answers the name afterwards. A migrate showed every row of its plan.
-- After a write, `load <name> --trace` reports the written file as `used`, or names what hides it.
-- A written reference that declares `implements` passes `check <name>`.
+- **C1.** A file written or deleted by Create, Update, Customize, Delete, or Migrate is under `.agents/references/` at the root or in a folder below it, under `~/.agents/references/`, or, for Create and Delete, in a plugin's or a skill's source folder in this repository.
+- **C2.** No file in an installed plugin or skill, or in a managed folder, changed.
+- **C3.** The file and its path were shown to the user before the write or the delete, and a delete also said what answers the name afterwards. A migrate showed every row of its plan.
+- **C4.** After a write, `load <name> --trace` reports the written file as `used`, or names what hides it.
+- **C5.** A written reference that declares `implements` passes `check <name>`.
+- **C6.** A Load, Find, or Inspect answer matches what the `reference` command printed. A search that matched nothing says so and names no reference.
