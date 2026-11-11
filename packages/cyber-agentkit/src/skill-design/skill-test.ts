@@ -17,7 +17,7 @@ import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provid
 import { readSkill, type SkillFiles } from './skill-files.js'
 import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
 import type { TestPlan } from './test-plan.js'
-import { plannedRuns, type ProgressWatch, watchProgress } from './test-progress.js'
+import { type ProgressWatch, plannedRuns, watchProgress } from './test-progress.js'
 import { compareWithPrevious, readPromptfooOutput, type TestResult } from './test-result.js'
 
 /** Runs promptfoo on a config in a folder and answers its output JSON, or why it could not. */
