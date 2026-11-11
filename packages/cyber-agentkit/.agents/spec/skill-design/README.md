@@ -21,7 +21,7 @@ sharing it has no common bar to check it against.
 
 `skill-design` splits the work of designing a skill into **aspects**: intent, criteria, shape, trigger, verification, and others.
 Each aspect states what it receives and what it must produce. `cyber-agentkit` ships a default for every aspect and a
-front door, `/skill`, with six commands: create a skill, check it without running it, test it by running its evals,
+front door, `/skill`, with seven commands: help lists the others, create a skill, check it without running it, test it by running its evals,
 fix what check or test found, enhance it beyond that, and customize which implementation each aspect uses. A second skill, `/skillify`, turns work already done into
 the description `create` needs and runs it. A team or plugin replaces one
 aspect with its own and keeps the rest.
@@ -52,7 +52,7 @@ aspect with its own and keeps the rest.
   aspect, core and open.
 - **K3. Family.** The aspect interfaces under `skill-design.aspects`, addressed by a wildcard. No interface is named for
   the family.
-- **K4. Front door.** The `/skill` skill with the commands create, check, test, fix, enhance, and customize. `check`
+- **K4. Front door.** The `/skill` skill with the commands help, create, check, test, fix, enhance, and customize. `check`
   reads the skill against every aspect's criteria without running it, like a linter; `test` runs the Verification
   aspect's evals, both whether the skill fires on the right requests and whether its result meets the Criteria;
   `customize` shows the `skill-design` references and hands the author's picks to the `reference` skill.
@@ -80,6 +80,7 @@ in the design-spec skill.
 | A1.4 | Skill author | Has the failures that check or test found repaired. |
 | A1.5 | Skill author | Gets suggestions to improve a skill that already passes, on any aspect, from reading the skill, from how it was used, or from their own request, and applies only the ones they accept. |
 | A1.6 | Skill author | Knows whether the skill fires on the requests it should and not on near misses, and whether running it gives a result that meets its Criteria. |
+| A1.7 | Skill author | Learns what each `/skill` command does and which one fits what they want, before running one. |
 | A2.1 | Agent improving a skill it uses | Makes the skill better from what happened while using it, keeping only changes the evals show help, within the autonomy the user allowed. |
 | A3.1 | Team lead | Swaps or extends one aspect and keeps the rest. |
 | A3.2 | Team lead | Chooses an implementation for every aspect in one pass, such as taking one plugin's whole set or mixing several, instead of changing aspects one at a time. |
@@ -89,7 +90,7 @@ in the design-spec skill.
 | A4.1 | Plugin author | Ships an extension or a new open aspect without any change to `/skill`. |
 | A4.2 | Plugin author | Knows their implementation meets the aspect's criteria. |
 
-**Child specs.** Each use case lives in the child that owns it; UC11 stays here.
+**Child specs.** Each use case lives in the child that owns it; UC11 and UC25 stay here.
 
 | Child | Use cases | Criteria |
 | --- | --- | --- |
@@ -123,6 +124,15 @@ in the design-spec skill.
   - **UC11.2** A plugin tries to add a core aspect. It becomes an open aspect; only `cyber-agentkit` defines the core
     five (K2).
 
+### UC25 — Learn the commands (A1.7)
+
+- **Trigger:** an author does not know which command fits, or runs `/skill` with no request.
+- **Entry points:** skill (primary): `/skill help`, and a bare `/skill`.
+- **Inputs:** none.
+- **Success:** the author sees every `/skill` command with its arguments, what it does, when to use it, and an
+  example, and is pointed to `/skillify` for designing a skill from work already done.
+- **Extensions:** none, help reads nothing and changes nothing, so it has no path that fails.
+
 ## Criteria
 
 **Every command (UC1 to UC6)**
@@ -135,6 +145,13 @@ in the design-spec skill.
 - R78 (UC3, UC4, UC6): No judge runs unless the author names one.
 - R4 (UC3, UC6): In an interactive run that found failures, `check` and `test` end by offering `fix`. Nothing changes
   unless the author accepts. With no author present, no offer is made.
+
+**Help (UC25)**
+
+- R94 (UC25): `/skill help` lists every command `/skill` routes to, each with its arguments, what it does, when to use
+  it, and an example, and names `/skillify`.
+- R95 (UC25): A bare `/skill` with no request shows the same list and asks which command the author wants.
+- R96 (UC25): `help` runs no script and changes no file.
 
 **Aspects and implementations (UC11)**
 
