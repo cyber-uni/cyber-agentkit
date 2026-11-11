@@ -49,6 +49,8 @@ export type TestResult = {
 	cost?: number
 	/** How long the run took, in milliseconds; results saved before it was recorded lack it. */
 	durationMs?: number
+	/** How many runs it planned; results saved before it was recorded lack it. */
+	totalRuns?: number
 }
 
 /** The fields of one promptfoo `results.results[]` entry that `skill test` reads. */

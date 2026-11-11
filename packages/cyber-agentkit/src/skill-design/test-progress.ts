@@ -32,8 +32,14 @@ function clock(ms: number): string {
 	return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m${String(seconds % 60).padStart(2, '0')}s`
 }
 
-/** The line written before the first run: the count, and about how long and how much the last saved result took (R97). */
-export function planLine(plan: TestPlan, last?: Pick<TestResult, 'durationMs' | 'cost'> | undefined): string {
+/**
+ * The line written before the first run: the count, and about how long and how much the last saved result took (R97).
+ * When the last result made a different number of runs, such as a full run before a partial one, it says how many.
+ */
+export function planLine(
+	plan: TestPlan,
+	last?: Pick<TestResult, 'durationMs' | 'cost' | 'totalRuns'> | undefined,
+): string {
 	const triggers = plan.cases.filter((item) => item.kind === 'trigger').length
 	const arms =
 		triggers === 0
@@ -48,7 +54,12 @@ export function planLine(plan: TestPlan, last?: Pick<TestResult, 'durationMs' | 
 		before.push(minutes < 1 ? `${Math.max(1, Math.round(last.durationMs / 1000))} s` : `${Math.round(minutes)} min`)
 	}
 	if (last?.cost) before.push(`$${last.cost.toFixed(2)}`)
-	if (before.length) line += `; last time about ${before.join(', ')}`
+	if (before.length) {
+		const other = last?.totalRuns !== undefined && last.totalRuns !== plannedRuns(plan)
+		line += other
+			? `; last time ${last.totalRuns} runs took about ${before.join(', ')}`
+			: `; last time about ${before.join(', ')}`
+	}
 	return line
 }
 

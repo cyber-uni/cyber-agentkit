@@ -124,7 +124,7 @@ export async function runTest(
 					: 'without the skill',
 			baselineRan: !dropped,
 		})
-		return { result: { ...result, durationMs }, warnings }
+		return { result: { ...result, durationMs, totalRuns: plannedRuns(options.plan) }, warnings }
 	} finally {
 		rmSync(folder, { recursive: true, force: true })
 	}

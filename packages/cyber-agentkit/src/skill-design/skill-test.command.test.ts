@@ -412,6 +412,11 @@ describe('skill test progress (UC6)', () => {
 			stderr.mockClear()
 			await testWith(skill.folder, fakeRun({}), root)
 			expect(errors()[0]).toContain('; last time about $8.50\n')
+			// the last result made a different number of runs, such as a full run before a partial one
+			writeFileSync(latest, JSON.stringify({ ...saved, durationMs: 14 * 60_000, cost: 8.5, totalRuns: 75 }))
+			stderr.mockClear()
+			await testWith(skill.folder, fakeRun({}), root)
+			expect(errors()[0]).toContain('; last time 75 runs took about 14 min, $8.50\n')
 		})
 
 		it('falls back to the expected result when nothing is saved, and saves how long the run took', async () => {
@@ -427,6 +432,7 @@ describe('skill test progress (UC6)', () => {
 				readFileSync(join(root, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'), 'utf8'),
 			)
 			expect(saved.durationMs).toBeGreaterThanOrEqual(0)
+			expect(saved.totalRuns).toBeGreaterThan(0)
 		})
 	})
 
