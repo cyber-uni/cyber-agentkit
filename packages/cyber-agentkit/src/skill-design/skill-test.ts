@@ -15,6 +15,7 @@ import { stringify } from 'yaml'
 import { promptfooConfig, promptfooPackages } from './promptfoo-config.js'
 import { promptfooProviderSource } from './promptfoo-provider-source.js'
 import { readSkill, type SkillFiles } from './skill-files.js'
+import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
 import type { TestPlan } from './test-plan.js'
 import { compareWithPrevious, readPromptfooOutput, type TestResult } from './test-result.js'
 
@@ -75,7 +76,16 @@ export async function runTest(
 	const folder = mkdtempSync(join(tmpdir(), 'skill-test-'))
 	try {
 		writeFileSync(join(folder, 'provider.mjs'), promptfooProviderSource)
+		// A skill developed in a plugin runs inside a copy of that plugin, with its references and other skills (R91).
+		const found = findSkillPlugin(options.skill.folder)
+		let plugin: { name: string; withSkill: string; baseline: string } | undefined
+		if (found) {
+			plugin = { name: found.name, withSkill: join(folder, 'plugin-with'), baseline: join(folder, 'plugin-baseline') }
+			copyPlugin(found.root, plugin.withSkill)
+			copyPlugin(found.root, plugin.baseline, options.skill.folder, baselineFolder)
+		}
 		const config = promptfooConfig(options.plan, {
+			plugin,
 			skillName: options.skillName,
 			skillFolder: options.skill.folder,
 			baselineFolder,

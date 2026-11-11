@@ -12,6 +12,11 @@ export type ConfigOptions = {
 	judge?: string | undefined
 	/** The provider file's path, relative to the config. */
 	provider: string
+	/**
+	 * The plugin the skill is developed in (R91): each arm loads its own copy of it, `withSkill` holding the skill and
+	 * `baseline` holding the baseline's version or none. The skill is then not copied into the run folder.
+	 */
+	plugin?: { name: string; withSkill: string; baseline: string } | undefined
 }
 
 /** The Agent SDK options for every run: only the run folder's own skills and settings, no web, a turn and cost cap. */
@@ -31,6 +36,7 @@ function inner(model: string | undefined): Record<string, unknown> {
 
 /** The promptfoo config for a plan: one provider per arm and one test per case, each criterion an assertion named by its ID. */
 export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<string, unknown> {
+	const plugin = options.plugin
 	const provider = (label: string, arm: string, skillDir: string | undefined) => ({
 		id: `file://${options.provider}`,
 		label,
@@ -38,7 +44,11 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 			arm,
 			skillName: options.skillName,
 			timeout: plan.timeout,
-			...(skillDir ? { skillDir } : {}),
+			...(plugin
+				? { pluginName: plugin.name, pluginDir: arm === 'skill' ? plugin.withSkill : plugin.baseline }
+				: skillDir
+					? { skillDir }
+					: {}),
 			inner: inner(options.model),
 		},
 	})

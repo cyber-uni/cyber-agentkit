@@ -2,7 +2,7 @@
  * The promptfoo provider `skill test` writes beside its config. promptfoo's Claude Agent SDK provider
  * (0.125.1) runs in a temp folder it deletes and has no `copy_working_dir` (research E20), so this
  * wrapper makes each run's folder: a fresh copy of the case's files committed in a new git repository, plus the
- * skill under `.claude/skills/<name>/` in the arm that has it (excluded from git status). A trigger run ends when the skill is called, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. After the run it decides the rubric checks that
+ * skill under `.claude/skills/<name>/` in the arm that has it (excluded from git status), or, for a skill developed in a plugin, that arm's copy of the plugin loaded as a local plugin (R91). A trigger run ends when the skill is called, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. After the run it decides the rubric checks that
  * need no judge in that folder, records whether the skill fired, and removes the folder. Each run also gets an empty home folder.
  * It resolves promptfoo from the npx install running it.
  */
@@ -99,7 +99,9 @@ export default class SkillRun {
   constructor(options) { this.options = options; this.config = options.config }
   id() { return this.options.id || 'skill-run' }
   async callApi(prompt, context) {
-    const { arm, skillDir, skillName, inner, timeout = 300 } = this.config
+    const { arm, skillDir, skillName, pluginDir, pluginName, inner, timeout = 300 } = this.config
+    // A skill loaded from a plugin is called <plugin>:<skill> (research E21).
+    const names = pluginName ? [skillName, pluginName + ':' + skillName] : [skillName]
     const vars = context.vars
     if (vars.kind === 'trigger' && arm !== 'skill') return { output: '', metadata: { arm, skipped: true } }
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-run-'))
@@ -122,11 +124,11 @@ export default class SkillRun {
       // backs it up for a run that never calls it. The SDK answers a cap with an error that carries no skill calls, so the hook is the record.
       let hookFired = false
       const watchSkill = async (input) => {
-        if (input.tool_name !== 'Skill' || String(input.tool_input?.skill ?? '').trim() !== skillName) return {}
+        if (input.tool_name !== 'Skill' || !names.includes(String(input.tool_input?.skill ?? '').trim())) return {}
         hookFired = true
         return { continue: false, stopReason: 'the skill fired' }
       }
-      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(vars.kind === 'trigger' ? { max_turns: 3, hooks: { PreToolUse: [{ matcher: 'Skill', hooks: [watchSkill] }] } } : {}), env, working_dir: dir, spawn_claude_code_process: spawnInGroup(children) } } })
+      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(pluginDir ? { plugins: [{ type: 'local', path: pluginDir }] } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3, hooks: { PreToolUse: [{ matcher: 'Skill', hooks: [watchSkill] }] } } : {}), env, working_dir: dir, spawn_claude_code_process: spawnInGroup(children) } } })
       const controller = new AbortController()
       let limit
       const timedOut = new Promise((resolve) => {
@@ -148,7 +150,7 @@ export default class SkillRun {
       }
       const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')
       const calls = response.metadata?.skillCalls ?? []
-      const fired = hookFired || calls.some((call) => call.name === skillName || call.input?.skill === skillName)
+      const fired = hookFired || calls.some((call) => names.includes(call.name) || names.includes(call.input?.skill))
       const checks = {}
       if (!response.error)
         for (const [id, list] of Object.entries(JSON.parse(vars.rubrics || '{}'))) {

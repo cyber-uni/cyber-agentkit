@@ -91,6 +91,11 @@ say so before the first run in a session.
   throwaway identity; the installed skill is excluded from `git status`), so a skill or a `script` check can use git. It has no user configuration, memory, or user-level skills, and
   only the skill under test installed, through promptfoo's Claude Agent SDK provider and Claude Code's own login. Web
   tools are off, and each run stops at 20 turns or $0.50.
+- A skill developed in a plugin (a folder above it holds `.claude-plugin/plugin.json`, and the skill is in that
+  plugin's skills folder) runs inside a copy of that plugin from the working copy, loaded through the provider's
+  `plugins` option, so it reads the plugin's references and other skills as an install would. It is then called
+  `<plugin>:<skill>`. The baseline loads the same copy without the skill, or with the `--baseline` version in its place.
+  The copy leaves out `node_modules` and `.git`.
 - Each run's `HOME`, `XDG_CONFIG_HOME`, and `CLAUDE_CONFIG_DIR` point at fresh empty folders, so a skill's own CLI run
   through Bash finds no user references or plugins, no installed Claude Code plugin is loaded, and the Bash tool sources
   no user shell snapshot. Claude Code's login still works because `CLAUDE_SECURESTORAGE_CONFIG_DIR` points at the real

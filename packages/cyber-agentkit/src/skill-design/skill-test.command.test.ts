@@ -127,6 +127,36 @@ describe('skill test', () => {
 		expect(readdirSync(folder)).toHaveLength(2)
 	})
 
+	it('loads the plugin a skill is developed in, and the baseline without the skill (R91)', async () => {
+		const skill = goodSkill()
+		const pluginRoot = join(skill.folder, '..')
+		mkdirSync(join(pluginRoot, '.claude-plugin'), { recursive: true })
+		writeFileSync(join(pluginRoot, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'kit' }))
+		const { renameSync } = await import('node:fs')
+		mkdirSync(join(pluginRoot, 'skills'), { recursive: true })
+		renameSync(skill.folder, join(pluginRoot, 'skills', 'release-notes'))
+		const folder = join(pluginRoot, 'skills', 'release-notes')
+		const seen: { config?: Record<string, unknown> } = {}
+		let copies: boolean[] = []
+		const run: PromptfooRun = async (dir, config, output) => {
+			const answer = await fakeRun(seen)(dir, config, output)
+			const providers = seen.config?.['providers'] as { config: { pluginDir?: string } }[]
+			const at = (i: number, path: string) => existsSync(join(providers[i]?.config.pluginDir ?? '/none', path))
+			copies = [
+				at(0, 'skills/release-notes/SKILL.md'),
+				at(1, '.claude-plugin/plugin.json'),
+				at(1, 'skills/release-notes'),
+			]
+			return answer
+		}
+		expect(await test(folder, run, repo())).toBe(0)
+		const providers = seen.config?.['providers'] as { config: Record<string, unknown> }[]
+		expect(providers.map((p) => p.config['pluginName'])).toEqual(['kit', 'kit'])
+		expect(providers.map((p) => p.config['skillDir'])).toEqual([undefined, undefined])
+		expect(copies).toEqual([true, true, false])
+		expect(readFileSync(join(folder, 'SKILL.md'), 'utf8')).toContain('name: release-notes')
+	})
+
 	it('stops with no-cases before any run when the skill has no evals (R31)', async () => {
 		const skill = goodSkill()
 		const { rmSync } = await import('node:fs')
