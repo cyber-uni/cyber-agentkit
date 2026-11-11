@@ -23,13 +23,19 @@ outcome:
     criteria: [C6]
     checks:
       C6:
-        - regex: "\\b([Nn]o|[Nn]othing|[Nn]one)\\b.{0,40}\\b(match|reference|found)"
+        - regex: "\\b([Nn]o|[Nn]ot|[Nn]one|[Nn]othing|[Ee]mpty|0 match(es)?)\\b|n't\\b"
   - id: create-approved
     prompt: >-
       Create a repo reference named deploy-checklist with one section, "## Steps", saying
       "Run the tests before you tag." I approve writing it; don't ask again.
     files: files/repo
     criteria: [C1, C2, C3, C4]
+  - id: customize-skill-default
+    prompt: >-
+      Our release-notes skill loads the release-notes.tone reference. For everyone in this repo,
+      change it to the present tense ("Adds", "Fixes"). I approve writing it; don't ask again.
+    files: files/repo-with-skill-default   # a repo skill whose references/release-notes.tone.default.md is the only contribution
+    criteria: [C1]
   - id: implement-interface
     prompt: >-
       Create a repo reference that implements the review.checklist interface, saying reviewers

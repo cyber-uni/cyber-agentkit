@@ -1,7 +1,7 @@
 {
 	"version": 1,
 	"skill": "reference",
-	"at": "2026-11-11T01:46:36.446Z",
+	"at": "2026-11-11T02:33:09.037Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 			"case": "trigger-5",
 			"prompt": "Write a skill that drafts release notes from merged pull requests.",
 			"expect": "skip",
-			"fired": 0,
+			"fired": 1,
 			"ran": 3,
 			"status": "pass"
 		},
@@ -60,7 +60,7 @@
 			"prompt": "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.",
 			"expect": "skip",
 			"fired": 0,
-			"ran": 3,
+			"ran": 2,
 			"status": "pass"
 		},
 		{
@@ -76,11 +76,11 @@
 		{
 			"id": "C1",
 			"status": "pass",
-			"passed": 6,
-			"ran": 6,
+			"passed": 9,
+			"ran": 9,
 			"baseline": {
 				"passed": 6,
-				"ran": 6
+				"ran": 9
 			}
 		},
 		{
@@ -126,19 +126,12 @@
 		{
 			"id": "C6",
 			"status": "pass",
-			"passed": 5,
+			"passed": 6,
 			"ran": 6,
 			"baseline": {
-				"passed": 3,
+				"passed": 5,
 				"ran": 6
-			},
-			"failures": [
-				{
-					"case": "find-none",
-					"run": 3,
-					"output": "I didn't find a reference about deploy checklists. Searches for \"deploy checklist\" and \"deploy\" both returned 0 matches.\n\nThis repository has only one reference, `style`, which is the house style for its documentation and isn't about deploys.\n\nIf you want one, I can create a `deploy-checklist` reference for the repo or just for you, using the checklist text you give me."
-				}
-			]
+			}
 		}
 	],
 	"cases": [
@@ -187,23 +180,21 @@
 			"status": "pass"
 		},
 		{
+			"case": "customize-skill-default",
+			"status": "pass"
+		},
+		{
 			"case": "implement-interface",
 			"status": "pass"
 		}
 	],
-	"notRun": [],
-	"cost": 2.9012,
-	"comparedWith": "previous",
-	"changed": [
+	"notRun": [
 		{
-			"case": "find-none",
-			"from": "fail",
-			"to": "pass"
-		},
-		{
-			"case": "create-approved",
-			"from": "fail",
-			"to": "pass"
+			"case": "trigger-7 (with-skill, run 1)",
+			"reason": "time limit"
 		}
-	]
+	],
+	"cost": 3.823,
+	"comparedWith": "expected",
+	"changed": []
 }
