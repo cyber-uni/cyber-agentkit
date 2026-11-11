@@ -60,10 +60,16 @@ export function planTest(skill: SkillFiles, { judge }: { judge?: string | undefi
 	const notTested: TestPlan['notTested'] = []
 	if (!items)
 		notTested.push({ id: '*', reason: 'the skill has no `## Done when`; run `/skill check` and `/skill fix`' })
+	const outcomeCases = evals.outcome ?? []
 	for (const id of criteria) {
-		const list = rubrics[id]
-		if (!list) notTested.push({ id, reason: 'it has no rubric; run `/skill fix`' })
-		else if (!judge && list.some((check) => 'judge' in check))
+		const testing = outcomeCases.filter((item) => (item.criteria ?? criteria).includes(id))
+		const lists = [
+			...(rubrics[id] ? [rubrics[id]] : []),
+			...testing.flatMap((item) => (item.checks?.[id] ? [item.checks[id]] : [])),
+		]
+		const covered = !!rubrics[id] || (testing.length > 0 && testing.every((item) => item.checks?.[id]))
+		if (!covered) notTested.push({ id, reason: 'it has no rubric; run `/skill fix`' })
+		else if (!judge && lists.some((list) => list.some((check) => 'judge' in check)))
 			notTested.push({ id, reason: 'its rubric needs a judge, and none was named' })
 	}
 	const untested = new Set(notTested.map(({ id }) => id))
@@ -89,7 +95,8 @@ export function planTest(skill: SkillFiles, { judge }: { judge?: string | undefi
 		const planned: PlannedCase = { id: item.id, kind: 'outcome', prompt: item.prompt, rubrics: {}, judged: {} }
 		if (item.files !== undefined) planned.files = resolve(skill.folder, 'evals', item.files)
 		for (const id of ids) {
-			const list = rubrics[id] as Record<string, unknown>[]
+			const list = item.checks?.[id] ?? rubrics[id]
+			if (!list) continue
 			const decided = list.filter((check) => !('judge' in check))
 			const judged = list.find((check) => 'judge' in check)
 			if (decided.length) planned.rubrics[id] = decided

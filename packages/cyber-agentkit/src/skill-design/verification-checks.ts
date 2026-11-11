@@ -20,13 +20,32 @@ export type EvalsFile = {
 	runs?: number
 	threshold?: number
 	trigger?: { prompt: string; expect: 'fire' | 'skip' }[]
-	outcome?: { id: string; prompt: string; files?: string; criteria?: string[]; effects?: 'outside' }[]
+	outcome?: {
+		id: string
+		prompt: string
+		files?: string
+		criteria?: string[]
+		effects?: 'outside'
+		checks?: Record<string, Record<string, unknown>[]>
+	}[]
 	rubrics?: Record<string, Record<string, unknown>[]>
 }
 
 const file = 'evals/evals.yaml'
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	!!value && typeof value === 'object' && !Array.isArray(value)
+
+/** The problems with one list of checks, a rubric or a case's `checks` entry; `what` names it. */
+function checkListProblems(list: unknown, what: string): string[] {
+	if (!Array.isArray(list) || !list.length) return [`${what} is not a list of checks`]
+	const problems: string[] = []
+	for (const check of list) {
+		const keys = isRecord(check) ? Object.keys(check) : []
+		if (keys.length !== 1 || !(rubricChecks as readonly string[]).includes(keys[0] as string))
+			problems.push(`${what} has a check that is not one of ${rubricChecks.join(', ')}`)
+	}
+	return problems
+}
 
 /** The problems with an `evals/evals.yaml` value against the format the default Verification gives. */
 export function evalsProblems(value: unknown): string[] {
@@ -67,23 +86,19 @@ export function evalsProblems(value: unknown): string[] {
 					problems.push(`${where}: \`criteria\` is not a list of IDs`)
 				if (item['effects'] !== undefined && item['effects'] !== 'outside')
 					problems.push(`${where}: \`effects\` is not \`outside\``)
+				const checks = item['checks']
+				if (checks !== undefined) {
+					if (!isRecord(checks)) problems.push(`${where}: \`checks\` is not a mapping of criterion IDs`)
+					else
+						for (const [id, list] of Object.entries(checks))
+							problems.push(...checkListProblems(list, `${where}: checks ${id}`))
+				}
 			})
 	}
 	const rubrics = value['rubrics']
 	if (rubrics !== undefined) {
 		if (!isRecord(rubrics)) problems.push('`rubrics` is not a mapping of criterion IDs')
-		else
-			for (const [id, list] of Object.entries(rubrics)) {
-				if (!Array.isArray(list) || !list.length) {
-					problems.push(`rubric ${id} is not a list of checks`)
-					continue
-				}
-				for (const check of list) {
-					const keys = isRecord(check) ? Object.keys(check) : []
-					if (keys.length !== 1 || !(rubricChecks as readonly string[]).includes(keys[0] as string))
-						problems.push(`rubric ${id} has a check that is not one of ${rubricChecks.join(', ')}`)
-				}
-			}
+		else for (const [id, list] of Object.entries(rubrics)) problems.push(...checkListProblems(list, `rubric ${id}`))
 	}
 	return problems
 }
@@ -121,11 +136,21 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 	else {
 		const ids = items.ids.filter((id): id is string => id !== undefined)
 		const rubrics = Object.keys(evals.rubrics ?? {})
-		const without = ids.filter((id) => !rubrics.includes(id))
+		const cases = evals.outcome ?? []
+		const covered = (id: string) => {
+			if (rubrics.includes(id)) return true
+			const testing = cases.filter((item) => (item.criteria ?? ids).includes(id))
+			return testing.length > 0 && testing.every((item) => item.checks && id in item.checks)
+		}
+		const without = ids.filter((id) => !covered(id))
 		const unknown = rubrics.filter((id) => !ids.includes(id))
+		const unknownChecks = [
+			...new Set(cases.flatMap((item) => Object.keys(item.checks ?? {})).filter((id) => !ids.includes(id))),
+		]
 		const message = [
 			...(without.length ? [`no rubric for ${without.join(', ')}`] : []),
 			...(unknown.length ? [`rubric ${unknown.join(', ')} names no criterion`] : []),
+			...(unknownChecks.length ? [`checks ${unknownChecks.join(', ')} name no criterion`] : []),
 		].join('; ')
 		outcomes.push(message ? { id: 'VER-3', status: 'fail', message, file } : { id: 'VER-3', status: 'pass' })
 	}

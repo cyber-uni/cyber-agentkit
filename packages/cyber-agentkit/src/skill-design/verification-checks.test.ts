@@ -39,6 +39,39 @@ describe('checkVerification', () => {
 		])
 	})
 
+	it('names a malformed per-case checks (F6)', () => {
+		expect(
+			evalsProblems({
+				outcome: [
+					{ id: 'a', prompt: 'p', checks: [] },
+					{ id: 'b', prompt: 'p', checks: { C1: [], C2: [{ smells: 'x' }] } },
+				],
+			}),
+		).toEqual([
+			'outcome case 1: `checks` is not a mapping of criterion IDs',
+			'outcome case 2: checks C1 is not a list of checks',
+			'outcome case 2: checks C2 has a check that is not one of contains, not-contains, regex, not-regex, file-exists, file-contains, script, judge',
+		])
+	})
+
+	it('counts a criterion as having a rubric when every case testing it has checks, and rejects unknown IDs in checks (F6)', () => {
+		const run = (evals: string) =>
+			byId(checkVerification(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': evals })))['VER-3']
+		const noC2 = goodEvals.replace(/ {2}C2:\n.*\n/, '')
+		expect(run(noC2)).toMatchObject({ status: 'fail', message: 'no rubric for C2' })
+		const withChecks = noC2.replace(
+			'  - { id: two-prs, prompt: write the notes, files: files/two-prs }',
+			'  - id: two-prs\n    prompt: write the notes\n    files: files/two-prs\n    criteria: [C1, C2]\n    checks:\n      C2:\n        - contains: ok',
+		)
+		expect(withChecks).not.toBe(noC2)
+		expect(run(withChecks)).toMatchObject({ status: 'pass' })
+		const unknownId = withChecks.replace(
+			'        - contains: ok',
+			'        - contains: ok\n      C9:\n        - contains: ok',
+		)
+		expect(run(unknownId)).toMatchObject({ status: 'fail', message: 'checks C9 name no criterion' })
+	})
+
 	it('fails too few trigger cases, uncovered or unknown rubrics, missing files, and a threshold over runs', () => {
 		const evals = goodEvals
 			.replace(/ {2}- \{ prompt: review my diff, expect: skip \}\n/, '')

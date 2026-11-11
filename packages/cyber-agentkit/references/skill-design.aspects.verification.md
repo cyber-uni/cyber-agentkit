@@ -36,6 +36,9 @@ outcome:
     files: files/two-prs      # copied into the run's folder; optional
     criteria: [C1, C2]        # optional; every criterion by default
     effects: outside          # optional; the case is not run
+    checks:                   # optional; per-case checks that replace rubrics.<ID> for this case
+      C2:
+        - contains: "no merge commits"
 rubrics:
   C1:
     - contains: "## Release notes"
@@ -48,6 +51,24 @@ rubrics:
 A rubric is a list of checks; a run passes the criterion when every check passes. The checks are `contains`,
 `not-contains`, `regex`, `not-regex`, `file-exists` and `file-contains` (`{path, text}`) on the run's folder,
 `script` (a command run in the run's folder that exits 0 to pass), and `judge` (a statement a named judge decides).
+
+A rubric judges every outcome case that tests its criterion by the same checks. When a case needs different checks, give
+it `checks`, a mapping of criterion ID to a list of checks of the same kinds. For that case, a criterion listed in
+`checks` uses those checks instead of `rubrics.<ID>`:
+
+```yaml
+outcome:
+  - id: find-none
+    prompt: Is there a reference about deploy checklists?
+    files: files/repo
+    criteria: [C6]
+    checks:
+      C6:
+        - regex: "(?i)(no|nothing|none)\\b.{0,40}\\b(match|reference|found)"
+```
+
+A criterion counts as having a rubric (VER-3) when it has `rubrics.<ID>` or when every outcome case that tests it has
+`checks.<ID>`. An ID in `checks` that is not a Criteria ID fails VER-3.
 
 ## Run
 

@@ -14,6 +14,17 @@ describe('planTest', () => {
 		expect(planned.plan.cases.at(-1)?.files).toMatch(/evals\/files\/two-prs$/)
 	})
 
+	it("uses a case's checks in place of the rubric for that criterion (F6)", () => {
+		const evals = goodEvals.replace(
+			'  - { id: two-prs, prompt: write the notes, files: files/two-prs }',
+			'  - id: two-prs\n    prompt: write the notes\n    files: files/two-prs\n    criteria: [C1, C2]\n    checks:\n      C2:\n        - contains: only-here',
+		)
+		const planned = planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': evals }))
+		if (!('plan' in planned)) throw new Error(planned.problem)
+		expect(planned.plan.cases.at(-1)?.rubrics['C2']).toEqual([{ contains: 'only-here' }])
+		expect(planned.plan.cases.at(-1)?.rubrics['C1']).toEqual([{ contains: '## Release notes' }])
+	})
+
 	it('refuses a skill with no cases, naming why, so the cases are drafted first (R31)', () => {
 		expect(planTest(makeSkill({ 'SKILL.md': goodSkillMd }))).toMatchObject({ code: 'no-cases' })
 		expect(planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': 'runs: 3\n' }))).toMatchObject({
