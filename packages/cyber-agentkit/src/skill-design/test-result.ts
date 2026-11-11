@@ -26,6 +26,8 @@ export type CaseStatus = { case: string; status: Status }
 export type TestResult = {
 	version: 1
 	skill: string
+	/** The skill's absolute folder when the result was saved; older results lack it. */
+	folder?: string
 	at: string
 	verification: string
 	runs: number

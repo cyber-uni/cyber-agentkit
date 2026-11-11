@@ -1,7 +1,16 @@
 import { execFile } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	renameSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { stringify } from 'yaml'
 import { promptfooConfig, promptfooPackages } from './promptfoo-config.js'
 import { promptfooProviderSource } from './promptfoo-provider-source.js'
@@ -123,8 +132,42 @@ export function saveResult(folder: string, result: TestResult, skillFolder: stri
 	const compared = expected
 		? compareWithPrevious(result, expected, 'expected')
 		: compareWithPrevious(result, previous, 'previous')
-	writeFileSync(latest, `${JSON.stringify(compared, null, '\t')}\n`)
-	return compared
+	const saved: TestResult = { ...compared, folder: skillFolder }
+	writeFileSync(latest, `${JSON.stringify(saved, null, '\t')}\n`)
+	pruneHistory(folder)
+	removeVanished(join(folder, '..'), basename(folder))
+	return saved
+}
+
+/** How many past results (`<at>.json`) a skill keeps beside `latest.json`. */
+export const keptPastResults = 5
+
+/** Deletes all but the most recent past results of one skill. */
+function pruneHistory(folder: string): void {
+	const past = readdirSync(folder)
+		.filter((name) => name.endsWith('.json') && name !== 'latest.json')
+		.sort()
+	for (const name of past.slice(0, Math.max(0, past.length - keptPastResults)))
+		rmSync(join(folder, name), { force: true })
+}
+
+/**
+ * Deletes the results folder of every other skill whose `latest.json` names a skill folder that no longer exists.
+ * A folder whose `latest.json` is missing, unparsable, or has no `folder` is left alone.
+ */
+function removeVanished(resultsRoot: string, current: string): void {
+	for (const entry of readdirSync(resultsRoot, { withFileTypes: true })) {
+		if (!entry.isDirectory() || entry.name === current) continue
+		try {
+			const latest = JSON.parse(readFileSync(join(resultsRoot, entry.name, 'latest.json'), 'utf8')) as {
+				folder?: unknown
+			}
+			if (typeof latest.folder === 'string' && latest.folder !== '' && !existsSync(latest.folder))
+				rmSync(join(resultsRoot, entry.name), { recursive: true, force: true })
+		} catch {
+			// unreadable: leave it alone
+		}
+	}
 }
 
 /** Writes a saved result as the skill's expected result, the same shape as `latest.json`. */

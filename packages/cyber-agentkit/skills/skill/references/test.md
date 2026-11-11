@@ -21,13 +21,18 @@ outside effect is not run, and is reported as such.
 
 The result goes to `.agents/skill-design/results/<skill name>/latest.json` at the repository root (or under `~/` when
 the skill is outside a repository), after the previous `latest.json` moves to `<its at>.json` beside it. The results
-folder holds a `.gitignore` containing `*`, so each run's result stays local and out of version control. The default
-Verification's command saves it; another implementation writes the same shape:
+folder holds a `.gitignore` containing `*`, so each run's result stays local and out of version control. Each save keeps
+`latest.json` and the 5 most recent past results of that skill, and deletes older ones. The result records the skill's
+absolute folder as `folder`. Each save also deletes the results folder of any other skill under the same results folder
+whose `latest.json` names a `folder` that no longer exists, so throwaway skills leave nothing behind; a results folder
+whose `latest.json` has no `folder` or cannot be read is left alone, and nothing outside the results folder, nor any
+`evals/expected.json`, is ever deleted. The default Verification's command saves it; another implementation writes the same shape:
 
 ```json
 {
   "version": 1,
   "skill": "release-notes",
+  "folder": "/home/me/code/app/skills/release-notes",
   "at": "2026-11-10T21:00:00Z",
   "verification": "skill-design.aspects.verification from cyber-agentkit",
   "runs": 3,

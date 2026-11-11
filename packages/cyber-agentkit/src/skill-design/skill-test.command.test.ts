@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { cli } from 'clibuilder'
@@ -206,6 +206,69 @@ describe('skill test', () => {
 			await test(skill.folder, fakeRun({}, false), root)
 			const second = JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'))
 			expect(second.comparedWith).toBe('previous')
+		})
+	})
+
+	describe('cleanup', () => {
+		const results = (root: string) => join(root, '.agents', 'skill-design', 'results')
+		const gitRepo = () => {
+			const root = repo()
+			mkdirSync(join(root, '.git'))
+			return root
+		}
+		const seed = (root: string, name: string, latest: string | undefined) => {
+			const folder = join(results(root), name)
+			mkdirSync(folder, { recursive: true })
+			if (latest !== undefined) writeFileSync(join(folder, 'latest.json'), latest)
+			return folder
+		}
+
+		it('keeps latest.json and the 5 most recent past results', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			const folder = seed(root, 'release-notes', undefined)
+			for (let day = 1; day <= 8; day++) writeFileSync(join(folder, `2026-01-0${day}T00-00-00.000Z.json`), '{}')
+			await test(skill.folder, fakeRun({}), root)
+			expect(readdirSync(folder).sort()).toEqual([
+				'2026-01-04T00-00-00.000Z.json',
+				'2026-01-05T00-00-00.000Z.json',
+				'2026-01-06T00-00-00.000Z.json',
+				'2026-01-07T00-00-00.000Z.json',
+				'2026-01-08T00-00-00.000Z.json',
+				'latest.json',
+			])
+		})
+
+		it('records the skill folder in the saved result', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			await test(skill.folder, fakeRun({}), root)
+			const saved = JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'))
+			expect(saved.folder).toBe(skill.folder)
+		})
+
+		it('removes the results of a skill whose folder is gone, and keeps the others', async () => {
+			const root = gitRepo()
+			const live = mkdtempSync(join(tmpdir(), 'skill-live-'))
+			const gone = seed(root, 'spike', JSON.stringify({ skill: 'spike', folder: join(tmpdir(), 'skill-vanished-xyz') }))
+			const kept = seed(root, 'live', JSON.stringify({ skill: 'live', folder: live }))
+			const old = seed(root, 'old', JSON.stringify({ skill: 'old', at: 'x' }))
+			const broken = seed(root, 'broken', '{ nope')
+			const empty = seed(root, 'empty', undefined)
+			await test(goodSkill().folder, fakeRun({}), root)
+			expect(existsSync(gone)).toBe(false)
+			for (const folder of [kept, old, broken, empty]) expect(existsSync(folder)).toBe(true)
+		})
+
+		it('never removes the current skill own results', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			await test(skill.folder, fakeRun({}), root)
+			const latest = join(results(root), 'release-notes', 'latest.json')
+			const saved = JSON.parse(readFileSync(latest, 'utf8'))
+			writeFileSync(latest, JSON.stringify({ ...saved, folder: join(tmpdir(), 'skill-vanished-xyz') }))
+			await test(skill.folder, fakeRun({}), root)
+			expect(JSON.parse(readFileSync(latest, 'utf8')).folder).toBe(skill.folder)
 		})
 	})
 })

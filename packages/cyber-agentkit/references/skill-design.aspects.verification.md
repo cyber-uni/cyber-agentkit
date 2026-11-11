@@ -79,7 +79,9 @@ Run `test <skill folder>` with the `/skill` command, as its Run the command says
 through `npx`, so the first run downloads it. Add `--judge <model>` only when the author named a judge, `--baseline
 <folder>` to compare with another version instead of a run without the skill, and `--model <model>` to choose the model
 each run uses. It saves the result, prints it, and exits 1 when a case or a criterion fails. Each run's result stays local (the
-results folder ignores itself). Add `--accept` to also keep the result as the skill's expected result,
+results folder ignores itself). Each save keeps `latest.json` and the 5 most recent past results of the skill, and deletes
+older ones. It also deletes the results of any other skill whose recorded skill folder no longer exists, and leaves a
+result with no recorded folder alone. Add `--accept` to also keep the result as the skill's expected result,
 `evals/expected.json`, which `changed` compares with in later runs; `skill accept <folder>` does the same with the last
 saved result without running. `expected.json` is optional, and the checks do not require it. Each run makes model calls:
 say so before the first run in a session.
