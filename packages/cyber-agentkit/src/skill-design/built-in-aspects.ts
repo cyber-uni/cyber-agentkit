@@ -18,7 +18,6 @@ export const builtInAspects: { aspect: string; checks: AspectCheck[] }[] = [
 				how: 'read',
 				statement: 'The opening paragraph of `README.md` names one job and the result the skill hands back.',
 			},
-			{ id: 'INT-2', how: 'read', statement: 'It names the nearest job the skill does not do, where one exists.' },
 			{ id: 'INT-3', how: 'read', statement: 'Nothing in the body works on a job the Intent does not name.' },
 		],
 	},

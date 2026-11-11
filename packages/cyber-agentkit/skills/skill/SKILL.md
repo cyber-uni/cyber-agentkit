@@ -43,7 +43,8 @@ reports it as not checked and points to `test`.
 ### Intent
 
 Produces the opening paragraph of the skill's `README.md`, right under its `#` title: the one job the skill does, who
-asks for it, the result it hands back, and the nearest job it does not do. It is for the people who keep the skill.
+asks for it, and the result it hands back. It may also name the nearest job the skill does not do, when readers are
+likely to confuse the two. It is for the people who keep the skill.
 `SKILL.md` carries no Intent paragraph: its description, steps, and `## Done when` already tell the agent the job and
 the result.
 
@@ -51,7 +52,6 @@ the result.
 fewer. Ask the author when the job could be read two ways, and when the result is not named.
 
 - **INT-1** [read] The opening paragraph of `README.md` names one job and the result the skill hands back.
-- **INT-2** [read] It names the nearest job the skill does not do, where one exists.
 - **INT-3** [read] Nothing in the body works on a job the Intent does not name.
 
 **Fix.** Changing the Intent is the author's decision: propose the change and ask, at every autonomy level.
