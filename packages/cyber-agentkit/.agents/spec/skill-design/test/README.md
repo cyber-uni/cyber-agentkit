@@ -52,6 +52,9 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC6.13** The skill is part of a plugin the author is developing in the working copy. Each run loads that plugin
     from the working copy, with its references and its other skills, as an install of it would; the baseline loads
     the same plugin without the skill. A copy of the plugin installed elsewhere is not used.
+  - **UC6.14** The author names some cases, to try a change without paying for every case. Only those cases run, and
+    the result says it covers only them. It is compared with the expected result for those cases only, and it never
+    becomes the expected result.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -98,6 +101,11 @@ contract apply here; IDs are shared across the parent and its children.
   longest has taken, and repeats that every 30 seconds until a run ends.
 - R100 (UC6): Progress goes where the result does not: the result's shape and stream are unchanged, and asking for
   no output turns progress off.
+- R102 (UC6.14): `test` given case IDs runs only those cases and marks its result as partial, naming them. A partial
+  result is compared with the expected result for those cases only, is never saved as the expected result, and an
+  accept of it is refused. A case ID the eval set does not hold is an error, and nothing runs.
+- R103 (UC6): Fewer than half of the machine's hardware threads, and at least one, run at once. An eval set may ask
+  for fewer, never more.
 - R101 (UC6): `/skill test` starts the run so the author can keep working, and passes the progress on to them at most
   once a minute, while something has changed since the last update. Each update gives the count so far, each run with
   the skill that failed or was not run since the last update, and the latest heartbeat when no run ended.
