@@ -134,3 +134,5 @@ Before reporting done, check each of these against the result. Report any that f
 - **C5.** At `ask`, `create` wrote nothing the author had not approved.
 - **C6.** After `fix`, the checks it repaired pass a fresh `check`.
 - **C7.** `fix` changed no part of the skill that no failure named, and no file outside it.
+- **C8.** `help` named every command and `/skillify`, and changed no file.
+- **C9.** `customize` showed each aspect with the implementation in use, and changed no file the author had not picked.

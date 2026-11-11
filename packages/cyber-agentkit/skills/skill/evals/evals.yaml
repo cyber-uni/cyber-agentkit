@@ -1,11 +1,11 @@
 runs: 3
 threshold: 2
-timeout: 600
 trigger:
   - { prompt: "Is my release-notes skill any good? Check it.", expect: fire }
   - { prompt: "Write a skill that drafts release notes from merged pull requests.", expect: fire }
   - { prompt: "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.", expect: fire }
   - { prompt: "Run the evals for the release-notes skill.", expect: fire }
+  - { prompt: "Which implementation does each skill-design aspect use? I may switch some.", expect: fire }
   - { prompt: "Turn what we just did into a skill.", expect: skip }
   - { prompt: "Load our style reference and tell me what it says about tone.", expect: skip }
   - { prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
@@ -20,7 +20,7 @@ outcome:
     criteria: [C2, C3]
     checks:
       C3:
-        - not-regex: "[Ff][Aa][Ii][Ll][^\\n]{0,60}\\b(INT|SHP|TRG|CRI|VER|SEC)-[0-9]|\\b(INT|SHP|TRG|CRI|VER|SEC)-[0-9][^\\n]{0,60}[Ff][Aa][Ii][Ll]"
+        - not-regex: "\\b[Ff][Aa][Ii][Ll](s|ed|ures?)?\\b[:* ]{1,4}\\b(INT|SHP|TRG|CRI|VER|SEC)-[0-9]|\\b(INT|SHP|TRG|CRI|VER|SEC)-[0-9]+\\b[^\\n.]{0,30}\\b[Ff][Aa][Ii][Ll]"
   - id: check-flawed
     prompt: Check the skill in .agents/skills/release-notes-flawed.
     files: files/samples
@@ -48,6 +48,14 @@ outcome:
       don't ask again.
     files: files/samples
     criteria: [C6, C7]
+  - id: help
+    prompt: I want to create, check, test, or fix an agent skill. Which commands can I use? List them all.
+    files: files/samples
+    criteria: [C8]
+  - id: customize-show
+    prompt: Show me which implementation each aspect of /skill uses. Don't change anything yet.
+    files: files/samples
+    criteria: [C9]
 rubrics:
   C1:
     - regex: "deploy-notes"
@@ -71,3 +79,17 @@ rubrics:
     - script: >-
         test -z "$(git status --porcelain --untracked-files=all | grep -v ' .agents/skills/release-notes-flawed/')"
         && git diff --quiet HEAD -- .agents/skills/release-notes-flawed/README.md
+  C8:
+    - regex: "\\bcreate\\b"
+    - regex: "\\bcheck\\b"
+    - regex: "\\btest\\b"
+    - regex: "\\bfix\\b"
+    - regex: "\\benhance\\b"
+    - regex: "\\bcustomize\\b"
+    - regex: "skillify"
+    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+  C9:
+    - regex: "[Cc]riteria"
+    - regex: "[Vv]erification"
+    - regex: "[Ss]ecurity"
+    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
