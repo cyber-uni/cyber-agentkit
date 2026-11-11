@@ -90,7 +90,8 @@ in the design-spec skill.
 
 | Child | Use cases | Criteria |
 | --- | --- | --- |
-| [create](./create/README.md) | UC1, UC2 | Create and backfill |
+| [create](./create/README.md) | UC1 | Create |
+| [backfill](./backfill/README.md) | UC2 | Backfill |
 | [check](./check/README.md) | UC3 | Check |
 | [test](./test/README.md) | UC6 | Test |
 | [fix](./fix/README.md) | UC4 | Fix |
