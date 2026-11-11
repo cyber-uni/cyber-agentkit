@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'n
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { cli } from 'clibuilder'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
 import { createSkillCommand } from './skill.command.js'
 import { goodSkill } from './skill-design.fixtures.js'
@@ -10,9 +10,17 @@ import type { PromptfooRun } from './skill-test.js'
 
 const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+// A test outside a repository saves under the home folder, so each test gets its own.
+let fakeHome = ''
+beforeEach(() => {
+	fakeHome = mkdtempSync(join(tmpdir(), 'skill-test-home-'))
+	vi.stubEnv('HOME', fakeHome)
+	vi.stubEnv('USERPROFILE', fakeHome)
+})
 afterEach(() => {
 	stdout.mockClear()
 	stderr.mockClear()
+	vi.unstubAllEnvs()
 })
 const printed = () => stdout.mock.calls.map(([chunk]) => String(chunk)).join('')
 
@@ -99,6 +107,7 @@ describe('skill test', () => {
 
 		const saved = join(root, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json')
 		expect(existsSync(saved)).toBe(false) // no .git: saved under the home folder instead
+		expect(existsSync(join(fakeHome, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'))).toBe(true)
 	})
 
 	it('saves under the repository root, moves the previous result aside, and exits 1 on a failure', async () => {
