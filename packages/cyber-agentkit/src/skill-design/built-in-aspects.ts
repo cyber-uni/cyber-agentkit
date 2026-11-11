@@ -34,7 +34,8 @@ export const builtInAspects: { aspect: string; checks: AspectCheck[] }[] = [
 			{
 				id: 'SHP-3',
 				how: 'read',
-				statement: 'A step that a program could do the same way every time is a script, not prose.',
+				statement:
+					'A step that applies fixed rules to data (filtering, sorting, grouping, counting, or formatting) is a script, not prose, however few its rules. Judgment, such as choosing what to say, stays prose.',
 			},
 			{
 				id: 'SHP-4',

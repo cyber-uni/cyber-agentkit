@@ -69,7 +69,8 @@ program does the same way every time, such as parsing or validating a file. Prop
 - **SHP-1** [script] The `SKILL.md` body is at most 500 lines.
 - **SHP-2** [script] Every file the body links exists, and every file under `references/` is linked from the body or
   from a file it links, except a reference default (`<name>.default.md`), which is loaded by name.
-- **SHP-3** [read] A step that a program could do the same way every time is a script, not prose.
+- **SHP-3** [read] A step that applies fixed rules to data (filtering, sorting, grouping, counting, or formatting) is a
+  script, not prose, however few its rules. Judgment, such as choosing what to say, stays prose.
 - **SHP-4** [read] Each file under `references/` is read only on some paths; text every run needs is in `SKILL.md`.
 
 **Fix.** Move the text or the step as Draft says, and update the links.
