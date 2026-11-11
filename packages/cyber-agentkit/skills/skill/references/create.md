@@ -22,7 +22,7 @@ When the author rejects a draft, redraft that aspect, and reopen every aspect af
 
 ## 3. Build the skill
 
-Write the steps of `SKILL.md` between the Intent and `## Done when`: the instructions an agent follows to do the job
+Write the approved Intent as the opening of `README.md`. Write the steps of `SKILL.md` before `## Done when`: the instructions an agent follows to do the job
 and meet each criterion. Follow the approved Shape. Then check the result against the Agent Skills rules in
 `SKILL.md`'s Rules.
 

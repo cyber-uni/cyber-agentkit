@@ -42,13 +42,15 @@ reports it as not checked and points to `test`.
 
 ### Intent
 
-Produces the skill's opening paragraph, right under its `#` title: the one job the skill does, who asks for it, the
-result it hands back, and the nearest job it does not do.
+Produces the opening paragraph of the skill's `README.md`, right under its `#` title: the one job the skill does, who
+asks for it, the result it hands back, and the nearest job it does not do. It is for the people who keep the skill.
+`SKILL.md` carries no Intent paragraph: its description, steps, and `## Done when` already tell the agent the job and
+the result.
 
 **Draft.** From the author's description (or, in `backfill`, the source), write the paragraph in four sentences or
 fewer. Ask the author when the job could be read two ways, and when the result is not named.
 
-- **INT-1** [read] The opening paragraph names one job and the result the skill hands back.
+- **INT-1** [read] The opening paragraph of `README.md` names one job and the result the skill hands back.
 - **INT-2** [read] It names the nearest job the skill does not do, where one exists.
 - **INT-3** [read] Nothing in the body works on a job the Intent does not name.
 
