@@ -275,6 +275,14 @@ function decide(check, output, dir) {
   }
 }
 
+// Each run sees an empty home, so a skill's own CLI finds no user references or plugins. Claude Code
+// keeps reading its login from the real config folder, which CLAUDE_CONFIG_DIR points at; nothing
+// is copied. A login set through ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN passes through as is.
+function isolatedHome(home) {
+  const config = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+  return { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, '.config'), CLAUDE_CONFIG_DIR: config }
+}
+
 export default class SkillRun {
   constructor(options) { this.options = options; this.config = options.config }
   id() { return this.options.id || 'skill-run' }
@@ -283,6 +291,7 @@ export default class SkillRun {
     const vars = context.vars
     if (vars.kind === 'trigger' && arm !== 'skill') return { output: '', metadata: { arm, skipped: true } }
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-run-'))
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-home-'))
     try {
       if (vars.files) fs.cpSync(vars.files, dir, { recursive: true })
       const git = (args) => execFileSync('git', args, { cwd: dir, stdio: 'pipe' })
@@ -294,7 +303,8 @@ export default class SkillRun {
       git(['commit', '-q', '-m', 'case files', '--allow-empty'])
       if (skillDir) fs.cpSync(skillDir, path.join(dir, '.claude', 'skills', skillName), { recursive: true })
       fs.appendFileSync(path.join(dir, '.git', 'info', 'exclude'), '.claude/\n')
-      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, working_dir: dir } } })
+      const env = isolatedHome(home)
+      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, env, working_dir: dir } } })
       const response = await provider.callApi(prompt, context)
       const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')
       const calls = response.metadata?.skillCalls ?? []
@@ -310,6 +320,7 @@ export default class SkillRun {
       return response
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
+      fs.rmSync(home, { recursive: true, force: true })
     }
   }
 }

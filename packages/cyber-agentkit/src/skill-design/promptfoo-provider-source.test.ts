@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { promptfooProviderSource } from './promptfoo-provider-source.js'
@@ -19,13 +19,15 @@ exports.loadApiProvider = async (_id, { options }) => ({
       status: git(dir, 'status', '--porcelain'),
       tracked: git(dir, 'ls-files'),
       skillInstalled: fs.existsSync(dir + '/.claude/skills/demo/SKILL.md'),
+      env: options.config.env,
+      homeEntries: fs.readdirSync(options.config.env.HOME),
     }
     return { output: JSON.stringify(report), metadata: {} }
   },
 })
 `
 
-function runProvider(withSkill: boolean): Record<string, unknown> {
+function runProvider(withSkill: boolean): Record<string, any> {
 	const root = mkdtempSync(join(tmpdir(), 'provider-test-'))
 	mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
 	writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
@@ -48,7 +50,7 @@ console.log(response.output)
 
 describe('promptfooProviderSource run folder (F7)', () => {
 	it('makes the folder a git repository with the case files committed and the installed skill out of git status', () => {
-		expect(runProvider(true)).toEqual({
+		expect(runProvider(true)).toMatchObject({
 			isRepo: 'true',
 			log: 'case files|skill-test|skill-test@example.invalid',
 			status: '',
@@ -59,5 +61,15 @@ describe('promptfooProviderSource run folder (F7)', () => {
 
 	it('is a repository with an empty commit when the arm has no skill', () => {
 		expect(runProvider(false)).toMatchObject({ isRepo: 'true', status: '', skillInstalled: false })
+	})
+})
+
+describe('promptfooProviderSource home (F4)', () => {
+	it('gives each run an empty HOME and XDG folder while the Claude config folder stays the real one, copying nothing', () => {
+		const { env, homeEntries } = runProvider(true)
+		expect(env.HOME).toMatch(/skill-test-home-/)
+		expect(env.XDG_CONFIG_HOME).toBe(join(env.HOME, '.config'))
+		expect(env.CLAUDE_CONFIG_DIR).toBe(process.env['CLAUDE_CONFIG_DIR'] ?? join(homedir(), '.claude'))
+		expect(homeEntries).toEqual([])
 	})
 })
