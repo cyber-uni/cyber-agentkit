@@ -301,15 +301,17 @@ export function customizeCommand(layersFor: LayersFor, path = defaultReferencePa
 				if (family !== undefined) {
 					const customized = customizeContribution(
 						layers,
-						{ ...request, name: args.name as `${string}.*`, root: layers.root ?? request.root },
+						{ ...request, root: layers.root ?? request.root },
 						{ display },
 					)
+					if (!('family' in customized)) throw new Error(`${args.name} was customized as a single name, not a family.`)
 					const shown = familyReport(customized, args, home)
 					if (format !== 'text') return result(shown)
 					for (const { result: each } of customized.interfaces) writeWarnings(each?.warnings ?? [])
 					return document(familyText(customized, shown))
 				}
 				const customized = customizeContribution(layers, { ...request, root: layers.root ?? request.root }, { display })
+				if ('family' in customized) throw new Error(`${args.name} was customized as a family, not a single name.`)
 				if (customized.action === 'base') {
 					if (format !== 'text') return result(baseReport(customized))
 					return document(baseText(customized))

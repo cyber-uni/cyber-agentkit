@@ -352,10 +352,21 @@ export function customizeFamily(
 		return { interface: id, outcome: 'written', answer: each }
 	})
 	const interfaces = planned.map(({ answer, ...entry }) =>
-		answer === undefined ? entry : { ...entry, result: customizeContribution(layers, answer, options) },
+		answer === undefined ? entry : { ...entry, result: customizeSingle(layers, answer, options) },
 	)
 	return { family: args.name, scope: (args.scope ?? 'repo') as WriteScope, dryRun: Boolean(args.dryRun), interfaces }
 }
+
+/**
+ * What customizing a name of type `Name` returns: the family's result for a `<prefix>.*` literal, a
+ * single name's for any other literal, and either for a plain `string` (a name built at runtime),
+ * which `'family' in result` tells apart.
+ */
+export type CustomizationOf<Name extends string> = string extends Name
+	? CustomizeResult | FamilyCustomizeResult
+	: Name extends FamilyName
+		? FamilyCustomizeResult
+		: CustomizeResult
 
 /**
  * Customizes a name for the `repo` or `user` tier or a folder's project section, running no model:
@@ -363,22 +374,22 @@ export function customizeFamily(
  * returns what the generator reads and writes nothing. Every check runs first, in the order
  * `validateWrite` gives; a file a contribution above hides is written all the same, with a warning.
  */
-export function customizeContribution(
+export function customizeContribution<Name extends string>(
 	layers: ReferenceLayers,
-	args: CustomizeArgs & { name: FamilyName },
+	args: CustomizeArgs & { name: Name },
 	options?: ResolveOptions,
-): FamilyCustomizeResult
-export function customizeContribution(
-	layers: ReferenceLayers,
-	args: CustomizeArgs,
-	options?: ResolveOptions,
-): CustomizeResult
+): CustomizationOf<Name>
 export function customizeContribution(
 	layers: ReferenceLayers,
 	args: CustomizeArgs,
 	options: ResolveOptions = {},
 ): CustomizeResult | FamilyCustomizeResult {
 	if (isFamilyName(args.name) || args.name.includes('*')) return customizeFamily(layers, args, options)
+	return customizeSingle(layers, args, options)
+}
+
+/** Customizes one name that is not a family. */
+function customizeSingle(layers: ReferenceLayers, args: CustomizeArgs, options: ResolveOptions): CustomizeResult {
 	const plan = validateWrite({ command: 'customize', ...args }, layers, options)
 	const result: CustomizeResult = {
 		name: plan.name.name,
@@ -417,16 +428,15 @@ export type CustomizeReferenceOptions = LoadReferenceOptions &
  * Customizes a name the way `reference customize` does and returns its record: what was written,
  * its warnings (such as `reference-hidden`), and the name resolved after; with `base`, the
  * generator's input. Given a family (`<prefix>.*`, K39) it customizes every `one` interface under the
- * prefix with the same picks and returns a {@link FamilyCustomizeResult}; a family built at runtime,
- * not written as one literal, is typed as a single name's result, so check it with `isFamilyName`.
+ * prefix with the same picks and returns a {@link FamilyCustomizeResult}; a name held in a
+ * `string` is typed as either result; tell them apart with `'family' in result`.
  * A refused customization throws `ReferenceError` with its code, marked `usage`
  * for a wrong call.
  */
-export async function customizeReference(
-	family: FamilyName,
+export async function customizeReference<Name extends string>(
+	name: Name,
 	options: CustomizeReferenceOptions,
-): Promise<FamilyCustomizeResult>
-export async function customizeReference(name: string, options: CustomizeReferenceOptions): Promise<CustomizeResult>
+): Promise<CustomizationOf<Name>>
 export async function customizeReference(
 	name: string,
 	options: CustomizeReferenceOptions,

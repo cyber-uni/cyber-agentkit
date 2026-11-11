@@ -88,6 +88,17 @@ function holders(resolved: ResolvedReference): string[] {
 type Candidate = { pin: string; name: string; resolved: ResolvedReference; tier: ReferenceTier }
 
 /**
+ * What {@link referenceImplementations} returns for a name of type `Id`: the family's result for a
+ * `<prefix>.*` literal, a single interface's for any other literal, and either for a plain `string`
+ * (a name built at runtime), which `'family' in result` tells apart.
+ */
+export type ImplementationsOf<Id extends string> = string extends Id
+	? ReferenceImplementations | FamilyImplementations
+	: Id extends FamilyName
+		? FamilyImplementations
+		: ReferenceImplementations
+
+/**
  * The implementations of interface `id` a consumer may load, each checked as `check` would on its
  * composed document, and every candidate left out with why (R35). A candidate is a name in the
  * interface's namespace (`<id>` or `<id>.<key>`) or a reference that declares `implements: <id>@<n>`:
@@ -97,16 +108,11 @@ type Candidate = { pin: string; name: string; resolved: ResolvedReference; tier:
  * a name no `extends` orders are all left out until a customizer picks one (R87). A skill's default
  * is never listed: it has no qualified name to pin. An unknown interface throws.
  */
-export function referenceImplementations(
-	family: FamilyName,
+export function referenceImplementations<Id extends string>(
+	id: Id,
 	source: Source,
 	options?: ImplementationsOptions,
-): FamilyImplementations
-export function referenceImplementations(
-	id: string,
-	source: Source,
-	options?: ImplementationsOptions,
-): ReferenceImplementations
+): ImplementationsOf<Id>
 export function referenceImplementations(
 	id: string,
 	source: Source,

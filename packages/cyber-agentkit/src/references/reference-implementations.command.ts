@@ -15,7 +15,6 @@ import {
 } from './reference-command-support.js'
 import { ReferenceFailure } from './reference-error.js'
 import { type ReferenceImplementations, referenceImplementations } from './reference-implementations.js'
-import { type FamilyName, isFamilyName } from './reference-name.js'
 
 export type ReferenceImplementationsReport = {
 	implementations: {
@@ -122,19 +121,16 @@ export function implementationsCommand(layersFor: LayersFor, path = defaultRefer
 			try {
 				const accept = parseAccept(args.accept)
 				const home = homedir()
-				if (isFamilyName(args.id) || args.id.includes('*')) {
-					const options = { accept, display: (path: string) => collapseHome(home, path) }
-					const family = referenceImplementations(args.id as FamilyName, await layersFor(args, home), options)
+				const options = { accept, display: (path: string) => collapseHome(home, path) }
+				const found = referenceImplementations(args.id, await layersFor(args, home), options)
+				if ('family' in found) {
+					const family = found
 					const shown: ReferenceFamilyImplementationsReport = {
 						family: family.family,
 						interfaces: family.interfaces.map((each) => ({ ...reportOf(each, args.trace), interface: each.interface })),
 					}
 					return result(shown)
 				}
-				const found = referenceImplementations(args.id, await layersFor(args, home), {
-					accept,
-					display: (path) => collapseHome(home, path),
-				})
 				const report = reportOf(found, args.trace)
 				if (!report.implementations.length && report.inUse === undefined && !args.trace) {
 					return empty(`0 implementations of ${args.id}`, {
