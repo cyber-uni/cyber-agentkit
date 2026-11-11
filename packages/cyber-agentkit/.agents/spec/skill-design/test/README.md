@@ -98,5 +98,6 @@ contract apply here; IDs are shared across the parent and its children.
   longest has taken, and repeats that every 30 seconds until a run ends.
 - R100 (UC6): Progress goes where the result does not: the result's shape and stream are unchanged, and asking for
   no output turns progress off.
-- R101 (UC6): `/skill test` starts the run so the author can keep working, and passes the progress on to them as it
-  comes, at least at each heartbeat and every few runs.
+- R101 (UC6): `/skill test` starts the run so the author can keep working, and passes the progress on to them at most
+  once a minute, while something has changed since the last update. Each update gives the count so far, each run with
+  the skill that failed or was not run since the last update, and the latest heartbeat when no run ended.

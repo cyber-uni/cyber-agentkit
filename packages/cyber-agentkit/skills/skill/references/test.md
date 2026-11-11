@@ -20,8 +20,10 @@ outside effect is not run, and is reported as such.
 A full test makes many runs and can take several minutes. Before starting, tell the author how many runs it makes
 and, from the plan line, about how long and how much it took last time. Start it in the background where the harness
 can, so the author can keep working, and watch its progress lines on stderr: one per finished run (`[n/total] <case>
-run <k> (<arm>): <outcome>`) and a `still running` line when none has finished for 30 seconds. Pass them on in short
-updates, at each `still running` line and every few finished runs, naming any run that failed or was not run. Never
+run <k> (<arm>): <outcome>`) and a `still running` line when none has finished for 30 seconds. Pass them on at most once
+a minute, in one short update that sums up the lines since the last one: the count so far (`n/total`), each run with
+the skill that failed or was not run, and the latest `still running` line when no run finished. Send nothing when no
+line has come since the last update. A run without the skill that fails is the baseline doing worse, not news. Never
 quote the model's replies in an update.
 
 ## 3. Save the result
