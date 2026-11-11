@@ -4,7 +4,7 @@ Repair what `check` or `test` found, and nothing else.
 
 ## 1. Get the failures
 
-Use the latest `check` or `test` result in this session, or the saved `test` result. With neither, run [check](check.md),
+Use the latest `check` or `test` result in this session, or the saved `test` result (the last one `test` saved, not the expected result). With neither, run [check](check.md),
 and run [test](test.md) only when the author asks. With no failures, say there is nothing to fix and change nothing.
 
 ## 2. Repair each one

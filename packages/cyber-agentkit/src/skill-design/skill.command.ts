@@ -11,7 +11,15 @@ import { runCheckScript } from './run-check-script.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
 import { checkSkill } from './skill-check.js'
 import { readSkill } from './skill-files.js'
-import { type PromptfooRun, resultsFolder, runPromptfoo, runTest, saveResult } from './skill-test.js'
+import {
+	acceptResult,
+	type PromptfooRun,
+	readLatest,
+	resultsFolder,
+	runPromptfoo,
+	runTest,
+	saveResult,
+} from './skill-test.js'
 import { planTest } from './test-plan.js'
 import type { TestResult } from './test-result.js'
 
@@ -86,6 +94,12 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 	})
 }
 
+/** The folder results live under: the repository root, or the home folder outside a repository. */
+function resultsBase(rootOption: string | undefined, home: string): string {
+	const root = rootOption === undefined ? findRoot(process.cwd()) : resolve(rootOption)
+	return existsSync(join(root, '.git')) ? root : home
+}
+
 function testText(result: TestResult): string {
 	const lines = [
 		`${result.skill}: ${result.runs} runs per case, threshold ${result.threshold}, baseline ${result.baseline}`,
@@ -104,8 +118,10 @@ function testText(result: TestResult): string {
 			)
 	}
 	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
-	if (result.noPrevious) lines.push('no previous result to compare with')
-	else for (const item of result.changed ?? []) lines.push(`changed: ${item.case} ${item.from} → ${item.to}`)
+	if (result.noPrevious) lines.push('no expected or previous result to compare with')
+	else
+		for (const item of result.changed ?? [])
+			lines.push(`changed since ${result.comparedWith}: ${item.case} ${item.from} → ${item.to}`)
 	return `${lines.join('\n')}\n`
 }
 
@@ -134,11 +150,29 @@ function testCommand({ plugin, runPromptfoo: run = runPromptfoo }: SkillCommandO
 				description: 'The repository root the result is saved under. Defaults to the nearest folder holding `.git`.',
 				type: t.string().optional(),
 			},
+			accept: {
+				description:
+					"After the run, also write its result to the skill's `evals/expected.json`, the expected result that later runs compare with.",
+				type: t.boolean().optional(),
+			},
 		},
-		examples: [{ command: 'cyber-agentkit skill test .agents/skills/release-notes', description: 'Test one skill' }],
+		examples: [
+			{ command: 'cyber-agentkit skill test .agents/skills/release-notes', description: 'Test one skill' },
+			{
+				command: 'cyber-agentkit skill test .agents/skills/release-notes --accept',
+				description: "Test it and keep the result as the skill's expected result",
+			},
+		],
 		async run(
 			this: { format: Format },
-			args: { folder: string; model?: string; judge?: string; baseline?: string; root?: string | undefined },
+			args: {
+				folder: string
+				model?: string
+				judge?: string
+				baseline?: string
+				root?: string | undefined
+				accept?: boolean | undefined
+			},
 		) {
 			const skill = readSkill(args.folder)
 			if (!skill) {
@@ -178,13 +212,52 @@ function testCommand({ plugin, runPromptfoo: run = runPromptfoo }: SkillCommandO
 				throw CliError.reported(exitCodes.error)
 			}
 			for (const warning of ran.warnings) process.stderr.write(`warning: ${warning}\n`)
-			const root = args.root === undefined ? findRoot(process.cwd()) : resolve(args.root)
-			const base = existsSync(join(root, '.git')) ? root : home
-			const saved = saveResult(resultsFolder(base, name), ran.result)
+			const saved = saveResult(resultsFolder(resultsBase(args.root, home), name), ran.result, skill.folder)
+			if (args.accept) acceptResult(saved, skill.folder)
 			const answer = result(saved, { render: { text: testText } })
 			const failed = [...saved.trigger, ...saved.criteria].some((item) => item.status === 'fail')
 			if (failed) answerThenFail(answer, this.format)
 			return answer
+		},
+	})
+}
+
+function acceptCommand(_options: SkillCommandOptions): cli.Command {
+	return command({
+		name: 'accept',
+		description:
+			"Write the skill's last saved test result to its `evals/expected.json` as the expected result, without running the test or spending anything. Fails when there is no saved result.",
+		arguments: [{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() }],
+		options: {
+			root: {
+				description: 'The repository root the result was saved under. Defaults to the nearest folder holding `.git`.',
+				type: t.string().optional(),
+			},
+		},
+		examples: [
+			{
+				command: 'cyber-agentkit skill accept .agents/skills/release-notes',
+				description: 'Keep the last saved result as the expected result',
+			},
+		],
+		async run(this: { format: Format }, args: { folder: string; root?: string | undefined }) {
+			const skill = readSkill(args.folder)
+			if (!skill) {
+				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			const name =
+				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+			const latest = readLatest(resultsFolder(resultsBase(args.root, homedir()), name))
+			if (!latest) {
+				process.stderr.write(`error: no-result: no saved test result for ${name}; run \`skill test\` first\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			const path = acceptResult(latest, skill.folder)
+			return result(
+				{ skill: name, accepted: latest.at, expected: path },
+				{ render: { text: () => `accepted ${latest.at} as ${path}\n` } },
+			)
 		},
 	})
 }
@@ -195,6 +268,6 @@ export function createSkillCommand(options: SkillCommandOptions = {}): cli.Comma
 		name: 'skill',
 		description:
 			'Work on agent skills as /skill does: check a skill folder without running it, or test it by running its evals.',
-		commands: [checkCommand(options), testCommand(options)],
+		commands: [checkCommand(options), testCommand(options), acceptCommand(options)],
 	})
 }

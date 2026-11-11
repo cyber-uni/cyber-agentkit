@@ -100,16 +100,43 @@ export function resultsFolder(base: string, skill: string): string {
 	return join(base, '.agents', 'skill-design', 'results', skill)
 }
 
-/** Saves the result as `latest.json`, moving the previous one beside it as `<its at>.json`, and adds the changed cases. */
-export function saveResult(folder: string, result: TestResult): TestResult {
+/** The skill's expected result, which only an author's `--accept` writes (R80). */
+export function expectedPath(skillFolder: string): string {
+	return join(skillFolder, 'evals', 'expected.json')
+}
+
+/** Saves the result as `latest.json`, moving the previous one beside it as `<its at>.json`, and adds the cases that changed since the skill's expected result, else the previous one. */
+export function saveResult(folder: string, result: TestResult, skillFolder: string): TestResult {
 	mkdirSync(folder, { recursive: true })
+	// Each run's result stays local: the results folder ignores itself.
+	const ignore = join(folder, '..', '.gitignore')
+	if (!existsSync(ignore)) writeFileSync(ignore, '*\n')
 	const latest = join(folder, 'latest.json')
 	let previous: TestResult | undefined
 	if (existsSync(latest)) {
 		previous = JSON.parse(readFileSync(latest, 'utf8')) as TestResult
 		renameSync(latest, join(folder, `${previous.at.replace(/[:]/g, '-')}.json`))
 	}
-	const compared = compareWithPrevious(result, previous)
+	const expected = existsSync(expectedPath(skillFolder))
+		? (JSON.parse(readFileSync(expectedPath(skillFolder), 'utf8')) as TestResult)
+		: undefined
+	const compared = expected
+		? compareWithPrevious(result, expected, 'expected')
+		: compareWithPrevious(result, previous, 'previous')
 	writeFileSync(latest, `${JSON.stringify(compared, null, '\t')}\n`)
 	return compared
+}
+
+/** Writes a saved result as the skill's expected result, the same shape as `latest.json`. */
+export function acceptResult(result: TestResult, skillFolder: string): string {
+	const path = expectedPath(skillFolder)
+	mkdirSync(join(skillFolder, 'evals'), { recursive: true })
+	writeFileSync(path, `${JSON.stringify(result, null, '\t')}\n`)
+	return path
+}
+
+/** The last saved result of a skill, if there is one. */
+export function readLatest(folder: string): TestResult | undefined {
+	const latest = join(folder, 'latest.json')
+	return existsSync(latest) ? (JSON.parse(readFileSync(latest, 'utf8')) as TestResult) : undefined
 }

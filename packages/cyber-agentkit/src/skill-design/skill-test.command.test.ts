@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { cli } from 'clibuilder'
@@ -43,6 +43,15 @@ function fakeRun(seen: { config?: Record<string, unknown>; provider?: string }, 
 		)
 		return { output: { results: { results } } }
 	}
+}
+
+async function sub(name: string, folder: string, root: string, run: PromptfooRun = fakeRun({})) {
+	const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
+		createSkillCommand({ runPromptfoo: run }),
+	)
+	return app
+		.parse<number | undefined>(['node', 'cyber-agentkit', 'skill', name, folder, '--root', root, '--format', 'json'])
+		.then((code) => (typeof code === 'number' ? code : 0))
 }
 
 async function test(folder: string, run: PromptfooRun, root: string, ...extra: string[]) {
@@ -126,5 +135,68 @@ describe('skill test', () => {
 		expect(stderr.mock.calls.join('')).toContain('holds no SKILL.md')
 		const providers = seen.config?.['providers'] as { config: { skillDir?: string } }[]
 		expect(providers[1]?.config.skillDir).toBeUndefined()
+	})
+
+	describe('expected result', () => {
+		const results = (root: string) => join(root, '.agents', 'skill-design', 'results')
+		const gitRepo = () => {
+			const root = repo()
+			mkdirSync(join(root, '.git'))
+			return root
+		}
+
+		it('makes the results folder ignore itself', async () => {
+			const root = gitRepo()
+			await test(goodSkill().folder, fakeRun({}), root)
+			expect(readFileSync(join(results(root), '.gitignore'), 'utf8')).toBe('*\n')
+		})
+
+		it('writes expected.json only with --accept, in the shape of latest.json', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			await test(skill.folder, fakeRun({}), root)
+			expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+			await test(skill.folder, fakeRun({}), root, '--accept')
+			const latest = readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8')
+			expect(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')).toBe(latest)
+		})
+
+		it('accepts the last saved result without running, and errors when there is none', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			const run = vi.fn(fakeRun({}))
+			expect(await sub('accept', skill.folder, root, run)).toBe(1)
+			expect(stderr.mock.calls.join('')).toContain('no-result')
+			expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+			await test(skill.folder, fakeRun({}), root)
+			expect(await sub('accept', skill.folder, root, run)).toBe(0)
+			expect(run).not.toHaveBeenCalled()
+			expect(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')).toBe(
+				readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'),
+			)
+		})
+
+		it('compares with the expected result over the previous one, and says which', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			const latest = () => JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'))
+			await test(skill.folder, fakeRun({}), root)
+			expect(latest()).toMatchObject({ noPrevious: true })
+			expect(latest()).not.toHaveProperty('comparedWith')
+			await test(skill.folder, fakeRun({}), root, '--accept') // expected: all pass
+			await test(skill.folder, fakeRun({}, false), root) // previous: all pass
+			await test(skill.folder, fakeRun({}, false), root) // previous: all fail, expected: all pass
+			expect(latest().comparedWith).toBe('expected')
+			expect(latest().changed).toContainEqual({ case: 'two-prs', from: 'pass', to: 'fail' })
+		})
+
+		it('compares with the previous result when there is no expected one', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			await test(skill.folder, fakeRun({}), root)
+			await test(skill.folder, fakeRun({}, false), root)
+			const second = JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'))
+			expect(second.comparedWith).toBe('previous')
+		})
 	})
 })

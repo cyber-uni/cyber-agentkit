@@ -36,7 +36,9 @@ export type TestResult = {
 	cases: CaseStatus[]
 	notRun: { case: string; reason: string }[]
 	changed?: { case: string; from: Status; to: Status }[]
-	/** Set when there is no previous result to compare with. */
+	/** Which result `changed` compares with: the skill's expected result, else the previous saved one. */
+	comparedWith?: 'expected' | 'previous'
+	/** Set when there is neither an expected nor a previous result to compare with. */
 	noPrevious?: true
 	cost?: number
 }
@@ -180,14 +182,18 @@ export function readPromptfooOutput(
 	}
 }
 
-/** Adds the cases that changed between pass and fail since `previous`, or marks that there is none (R26). */
-export function compareWithPrevious(result: TestResult, previous: TestResult | undefined): TestResult {
-	if (!previous) return { ...result, noPrevious: true }
-	const before = new Map(previous.cases.map((item) => [item.case, item.status]))
+/** Adds the cases that changed between pass and fail since `compared` (the expected result, else the previous one), or marks that there is none (R26). */
+export function compareWithPrevious(
+	result: TestResult,
+	compared: TestResult | undefined,
+	comparedWith: 'expected' | 'previous' = 'previous',
+): TestResult {
+	if (!compared) return { ...result, noPrevious: true }
+	const before = new Map(compared.cases.map((item) => [item.case, item.status]))
 	const changed = result.cases.flatMap((item) => {
 		const from = before.get(item.case)
 		const flipped = (from === 'pass' && item.status === 'fail') || (from === 'fail' && item.status === 'pass')
 		return flipped && from ? [{ case: item.case, from, to: item.status }] : []
 	})
-	return { ...result, changed }
+	return { ...result, comparedWith, changed }
 }

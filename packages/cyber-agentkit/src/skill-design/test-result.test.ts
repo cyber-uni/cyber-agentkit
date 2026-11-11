@@ -135,6 +135,12 @@ describe('compareWithPrevious', () => {
 		expect(now.changed).toEqual([{ case: 'a', from: 'fail', to: 'pass' }])
 	})
 
+	it('says which result it compared with', () => {
+		const a = result([{ case: 'a', status: 'pass' }])
+		expect(compareWithPrevious(a, a)).toMatchObject({ comparedWith: 'previous', changed: [] })
+		expect(compareWithPrevious(a, a, 'expected')).toMatchObject({ comparedWith: 'expected' })
+	})
+
 	it('says when there is no previous result', () => {
 		expect(compareWithPrevious(result([]), undefined)).toMatchObject({ noPrevious: true })
 	})

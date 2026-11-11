@@ -28,7 +28,7 @@ the skill already has, and any the author declined before for this skill.
 
 At `ask` (the default), offer each suggestion on its own; the answer to one decides nothing about the others. Write only
 accepted ones. With no author present, apply a suggestion only when the level allows it and `test` shows no criterion
-worse than the saved result; when `test` cannot run, apply nothing. Never edit a skill from an installed plugin from
+worse than the skill's expected result, or, with none, the last saved result; when `test` cannot run, apply nothing. Never edit a skill from an installed plugin from
 evidence of use: leave the suggestion for the author to send upstream.
 
 After writing, run `check`; it passes, or [fix](fix.md)'s rule for a check that a change broke applies.

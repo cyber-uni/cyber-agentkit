@@ -1,6 +1,7 @@
 # Test a skill
 
-Run the skill's evals, as the Verification aspect says. Change no file of the skill.
+Run the skill's evals, as the Verification aspect says. Change no file of the skill, except the expected result when
+the author asks to accept one (see Save the result).
 
 ## 1. Find it and its cases
 
@@ -19,7 +20,8 @@ outside effect is not run, and is reported as such.
 ## 3. Save the result
 
 The result goes to `.agents/skill-design/results/<skill name>/latest.json` at the repository root (or under `~/` when
-the skill is outside a repository), after the previous `latest.json` moves to `<its at>.json` beside it. The default
+the skill is outside a repository), after the previous `latest.json` moves to `<its at>.json` beside it. The results
+folder holds a `.gitignore` containing `*`, so each run's result stays local and out of version control. The default
 Verification's command saves it; another implementation writes the same shape:
 
 ```json
@@ -49,6 +51,7 @@ Verification's command saves it; another implementation writes the same shape:
     { "case": "two-prs", "status": "fail" }
   ],
   "notRun": [{ "case": "post-to-github", "reason": "outside effect" }],
+  "comparedWith": "expected",
   "changed": [{ "case": "two-prs", "from": "pass", "to": "fail" }],
   "cost": 0.06
 }
@@ -59,11 +62,20 @@ limit is in `notRun` and never counts as a pass. When the baseline cannot run, `
 criterion has a `baseline` field.
 
 `cases` holds each case's status: an outcome case passes when every criterion it tests meets the threshold in it.
-`changed` lists the cases that went between `pass` and `fail` since the previous result; with no previous result it is
-left out and `noPrevious` is `true`. `cost` is the runs' total in US dollars, when the engine reports it.
+`changed` lists the cases that went between `pass` and `fail` since the skill's expected result
+(`<skill folder>/evals/expected.json`) when it exists, else since the previous saved result; `comparedWith` says which
+(`expected` or `previous`). With neither, `changed` is left out and `noPrevious` is `true`. `cost` is the runs' total in US dollars, when the engine reports it.
+
+### Accept a result
+
+Only the author's request makes a result the skill's expected result, and nothing else writes into the skill's folder.
+`skill test <folder> --accept` runs the test as usual, then writes that result to `<skill folder>/evals/expected.json`,
+in the same shape as `latest.json`. `skill accept <folder>` writes the last saved result there without running the
+test, so it spends nothing, and fails with `no-result` when there is none saved. The expected result is kept in version
+control with the skill, so the team compares with the same result.
 
 ## Report
 
 Each trigger case beside what was expected; each criterion's pass rate, threshold, and baseline; each failure with its
-case and the output that broke it; and the cases that changed between pass and fail since the previous result. With no
-previous result, say there is none to compare. In an interactive run with failures, offer `fix`.
+case and the output that broke it; and the cases that changed between pass and fail since the expected result, or, with
+none, the previous result, saying which. With neither, say there is none to compare. In an interactive run with failures, offer `fix`.

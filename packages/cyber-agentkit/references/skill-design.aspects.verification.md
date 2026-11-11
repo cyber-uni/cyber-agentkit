@@ -78,7 +78,10 @@ A criterion counts as having a rubric (VER-3) when it has `rubrics.<ID>` or when
 Run `test <skill folder>` with the `/skill` command, as its Run the command says. It runs promptfoo at a pinned version
 through `npx`, so the first run downloads it. Add `--judge <model>` only when the author named a judge, `--baseline
 <folder>` to compare with another version instead of a run without the skill, and `--model <model>` to choose the model
-each run uses. It saves the result, prints it, and exits 1 when a case or a criterion fails. Each run makes model calls:
+each run uses. It saves the result, prints it, and exits 1 when a case or a criterion fails. Each run's result stays local (the
+results folder ignores itself). Add `--accept` to also keep the result as the skill's expected result,
+`evals/expected.json`, which `changed` compares with in later runs; `skill accept <folder>` does the same with the last
+saved result without running. `expected.json` is optional, and the checks do not require it. Each run makes model calls:
 say so before the first run in a session.
 
 - The default is `runs: 3` and `threshold: 2`. A criterion passes when it passes in at least `threshold` runs.
