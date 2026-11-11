@@ -166,8 +166,11 @@ describe('skill test', () => {
 			await test(skill.folder, fakeRun({}), root)
 			expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
 			await test(skill.folder, fakeRun({}), root, '--accept')
-			const latest = readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8')
-			expect(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')).toBe(latest)
+			const { folder, ...latest } = JSON.parse(
+				readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'),
+			)
+			expect(folder).toBeDefined()
+			expect(JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8'))).toEqual(latest)
 		})
 
 		it('accepts the last saved result without running, and errors when there is none', async () => {
@@ -180,9 +183,10 @@ describe('skill test', () => {
 			await test(skill.folder, fakeRun({}), root)
 			expect(await sub('accept', skill.folder, root, run)).toBe(0)
 			expect(run).not.toHaveBeenCalled()
-			expect(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')).toBe(
+			const { folder: _folder, ...latest } = JSON.parse(
 				readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'),
 			)
+			expect(JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8'))).toEqual(latest)
 		})
 
 		it('compares with the expected result over the previous one, and says which', async () => {

@@ -75,7 +75,7 @@ criterion has a `baseline` field.
 
 Only the author's request makes a result the skill's expected result, and nothing else writes into the skill's folder.
 `skill test <folder> --accept` runs the test as usual, then writes that result to `<skill folder>/evals/expected.json`,
-in the same shape as `latest.json`. `skill accept <folder>` writes the last saved result there without running the
+in the same shape as `latest.json` but without `folder`, since the file is committed. `skill accept <folder>` writes the last saved result there without running the
 test, so it spends nothing, and fails with `no-result` when there is none saved. The expected result is kept in version
 control with the skill, so the team compares with the same result.
 

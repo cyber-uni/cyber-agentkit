@@ -170,11 +170,12 @@ function removeVanished(resultsRoot: string, current: string): void {
 	}
 }
 
-/** Writes a saved result as the skill's expected result, the same shape as `latest.json`. */
+/** Writes a saved result as the skill's expected result, the same shape as `latest.json`. It leaves out `folder`: the file is committed, and an absolute path names the author's machine. */
 export function acceptResult(result: TestResult, skillFolder: string): string {
 	const path = expectedPath(skillFolder)
 	mkdirSync(join(skillFolder, 'evals'), { recursive: true })
-	writeFileSync(path, `${JSON.stringify(result, null, '\t')}\n`)
+	const { folder: _folder, ...shared } = result
+	writeFileSync(path, `${JSON.stringify(shared, null, '\t')}\n`)
 	return path
 }
 
