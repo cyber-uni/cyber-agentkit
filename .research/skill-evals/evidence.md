@@ -126,3 +126,16 @@ Confidence: H high, M medium, L low. Read 2026-11-10. "Unverified" means the cla
 - Source: a spike run in a scratch folder; provider options read from the installed package. Promptfoo docs:
   https://www.promptfoo.dev/docs/providers/claude-agent-sdk/
 - Confidence: H for what ran; M that it holds for later promptfoo versions.
+
+## E21. Loading a plugin from the working copy, 2026-11-11
+
+- Claim: the Agent SDK's `plugins` option takes `{ type: 'local', path }` ("Currently only 'local' is supported") and
+  passes one `--plugin-dir <path>` per plugin to Claude Code. promptfoo 0.125.1's `anthropic:claude-agent-sdk`
+  provider passes its `plugins` config through, resolving each `path`; its `extra_args` refuses `--plugin-dir` as
+  reserved, pointing to the structured option. A skill loaded this way is called as `<plugin>:<skill>`: with
+  `claude -p --plugin-dir <folder>` (Claude Code 2.1.322), the Skill call's input was `{"skill":"spikeplug:hello"}` for
+  a plugin named `spikeplug`.
+- Source: `sdk.d.ts` of `@anthropic-ai/claude-agent-sdk` (`plugins`, `SdkPluginConfig`) and promptfoo 0.125.1
+  `dist/src/claude-agent-sdk-*.js` (`plugins: config.plugins?.map(...)`, `RESERVED_POLICY_EXTRA_ARGS`), read from the
+  installed packages; a spike run on `claude-haiku-5-5` in a scratch folder.
+- Confidence: H for what ran on these versions; M that the call name keeps this form in later releases.

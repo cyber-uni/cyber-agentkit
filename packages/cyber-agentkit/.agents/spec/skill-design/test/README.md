@@ -47,6 +47,9 @@ contract apply here; IDs are shared across the parent and its children.
     through version control, while each run's own result stays local to the author's copy.
   - **UC6.12** The skill has no expected result yet, and every case and criterion passes. The result becomes the
     expected result, and the report says so. A first run with a fail saves no expected result.
+  - **UC6.13** The skill is part of a plugin the author is developing in the working copy. Each run loads that plugin
+    from the working copy, with its references and its other skills, as an install of it would; the baseline loads
+    the same plugin without the skill. A copy of the plugin installed elsewhere is not used.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -81,3 +84,6 @@ contract apply here; IDs are shared across the parent and its children.
   none, by a run in which every case and criterion passes; the report says which. An existing expected result is
   replaced only by an author's request. It is kept in the skill's folder, in the shape R28 names, and each run's own
   result is kept out of version control.
+- R91 (UC6.13): When a folder above the skill holds a plugin manifest whose skills folder holds the skill, each run
+  loads that plugin from the working copy, and the baseline loads it without the skill. Each run reads the plugin's
+  references and other skills, and none from an installed copy of it.
