@@ -1,6 +1,6 @@
 ---
 name: skill
-description: Use this skill when creating, checking, testing, fixing, or enhancing an agent skill (a SKILL.md and its folder), as in "write a skill for X", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", or "improve this skill".
+description: Use this skill when creating, checking, testing, fixing, enhancing, or customizing an agent skill (a SKILL.md and its folder), as in "write a skill for X", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", or "improve this skill".
 ---
 
 # Skill
@@ -17,6 +17,7 @@ works through the aspects below.
 | `test [skill]` | the author wants the skill's evals run: does it fire on the right requests, and does its result meet its Criteria | [references/test.md](references/test.md) |
 | `fix [skill]` | `check` or `test` found failures to repair | [references/fix.md](references/fix.md) |
 | `enhance [skill] [prompt]` | the skill passes `check`, and the author wants it better, from its use or their own request | [references/enhance.md](references/enhance.md) |
+| `customize [aspect]` | the author wants to see or change which implementation each aspect uses, or how much each command applies on its own | [references/customize.md](references/customize.md) |
 
 Take an explicit command first. Otherwise read the intent from the request; if it fits two commands, ask which. With
 no request, list the commands and ask.
