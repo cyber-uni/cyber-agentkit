@@ -1,0 +1,49 @@
+runs: 3
+threshold: 2
+trigger:
+  - { prompt: "Load our style reference and tell me what it says about tone.", expect: fire }
+  - { prompt: "Which references do we have about testing?", expect: fire }
+  - { prompt: "Make the repo's commit.message reference say we write in the present tense.", expect: fire }
+  - { prompt: "Why does the style reference come from my user folder and not the repo one?", expect: fire }
+  - { prompt: "Write a skill that drafts release notes from merged pull requests.", expect: skip }
+  - { prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
+  - { prompt: "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.", expect: skip }
+  - { prompt: "Add a References section at the end of docs/design.md linking the two papers we cite.", expect: skip }
+outcome:
+  - id: load-style
+    prompt: What does our style reference say about tone?
+    files: files/repo
+    criteria: [C6]
+    checks:
+      C6:
+        - contains: Lead with the outcome
+  - id: find-none
+    prompt: Is there a reference about deploy checklists?
+    files: files/repo
+    criteria: [C6]
+    checks:
+      C6:
+        - regex: "\\b([Nn]o|[Nn]othing|[Nn]one)\\b.{0,40}\\b(match|reference|found)"
+  - id: create-approved
+    prompt: >-
+      Create a repo reference named deploy-checklist with one section, "## Steps", saying
+      "Run the tests before you tag." I approve writing it; don't ask again.
+    files: files/repo
+    criteria: [C1, C2, C3, C4]
+  - id: implement-interface
+    prompt: >-
+      Create a repo reference that implements the review.checklist interface, saying reviewers
+      check the tests first. I approve writing it; don't ask again.
+    files: files/repo-with-interface   # adds .agents/references/review.checklist.interface.md
+    criteria: [C1, C5]
+rubrics:
+  C1:
+    - script: "test -z \"$(git status --porcelain --untracked-files=all | grep -v ' .agents/references/')\""
+  C2:
+    - file-contains: { path: .agents/references/style.md, text: Lead with the outcome }
+  C3:
+    - regex: "\\.agents/references/[a-z.-]+\\.md"
+  C4:
+    - script: "node .claude/skills/reference/scripts/reference.mjs load deploy-checklist --trace 2>&1 | grep -q used"
+  C5:
+    - script: "node .claude/skills/reference/scripts/reference.mjs check review.checklist"
