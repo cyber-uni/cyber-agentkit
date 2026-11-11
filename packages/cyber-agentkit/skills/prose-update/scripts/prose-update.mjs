@@ -346,7 +346,15 @@ export default class SkillRun {
       const marker = 'SKILL_TEST_RUN=' + randomUUID()
       const env = { ...isolatedHome(home), SKILL_TEST_RUN: marker.split('=')[1] }
       const children = []
-      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, env, working_dir: dir, spawn_claude_code_process: spawnInGroup(children) } } })
+      // A trigger case only needs to know whether the skill fired. A hook records the Skill call and ends the run there; a turn cap of three
+      // backs it up for a run that never calls it. The SDK answers a cap with an error that carries no skill calls, so the hook is the record.
+      let hookFired = false
+      const watchSkill = async (input) => {
+        if (input.tool_name !== 'Skill' || String(input.tool_input?.skill ?? '').trim() !== skillName) return {}
+        hookFired = true
+        return { continue: false, stopReason: 'the skill fired' }
+      }
+      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(vars.kind === 'trigger' ? { max_turns: 3, hooks: { PreToolUse: [{ matcher: 'Skill', hooks: [watchSkill] }] } } : {}), env, working_dir: dir, spawn_claude_code_process: spawnInGroup(children) } } })
       const controller = new AbortController()
       let limit
       const timedOut = new Promise((resolve) => {
@@ -361,9 +369,14 @@ export default class SkillRun {
       clearTimeout(limit)
       if (first === 'time limit') return { error: 'time limit', metadata: { arm, timedOut: true } }
       const response = first
+      // A trigger case only needs to know whether the skill fired, so it ends there or at the turn cap; running out of turns is its normal end.
+      if (vars.kind === 'trigger' && /maximum number of turns/.test(response.error ?? '')) {
+        delete response.error
+        response.output = ''
+      }
       const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')
       const calls = response.metadata?.skillCalls ?? []
-      const fired = calls.some((call) => call.name === skillName || call.input?.skill === skillName)
+      const fired = hookFired || calls.some((call) => call.name === skillName || call.input?.skill === skillName)
       const checks = {}
       if (!response.error)
         for (const [id, list] of Object.entries(JSON.parse(vars.rubrics || '{}'))) {

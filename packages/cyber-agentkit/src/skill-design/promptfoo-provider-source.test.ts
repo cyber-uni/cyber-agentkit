@@ -118,3 +118,57 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 		expect(alive(Number(readFileSync(pidFile, 'utf8')))).toBe(false)
 	})
 })
+
+describe('promptfooProviderSource trigger runs (F9)', () => {
+	/** A fake inner provider for a trigger run: it sees the turn cap and the Skill hook, calls the hook as Claude would, then hits the cap. */
+	const capped = String.raw`
+exports.loadApiProvider = async (_id, { options }) => ({
+  callApi: async () => {
+    const c = options.config
+    const hook = c.hooks.PreToolUse[0].hooks[0]
+    const wrong = await hook({ tool_name: 'Skill', tool_input: { skill: 'other' } })
+    const right = process.env.SKILL_CALLED === '1' ? await hook({ tool_name: 'Skill', tool_input: { skill: 'demo' } }) : {}
+    return { error: 'Error calling Claude Agent SDK: Error: Claude Code returned an error result: Reached maximum number of turns (3)', metadata: { turns: c.max_turns, matcher: c.hooks.PreToolUse[0].matcher, wrong, right } }
+  },
+})
+`
+
+	function trigger(skillCalled: boolean): Record<string, any> {
+		const root = mkdtempSync(join(tmpdir(), 'provider-trigger-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), capped)
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', inner: { max_turns: 20 } } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'trigger', rubrics: '{}' } })))
+`,
+		)
+		return JSON.parse(
+			execFileSync('node', [join(root, 'run.mjs')], {
+				encoding: 'utf8',
+				env: { ...process.env, SKILL_CALLED: skillCalled ? '1' : '0' },
+			}),
+		)
+	}
+
+	it('caps a trigger run at three turns, records the skill call from a hook, and ends the run there', () => {
+		const response = trigger(true)
+		expect(response.error).toBeUndefined()
+		expect(response.metadata).toMatchObject({
+			turns: 3,
+			matcher: 'Skill',
+			fired: true,
+			wrong: {},
+			right: { continue: false },
+		})
+	})
+
+	it('reports not fired when the run reaches the cap without calling the skill, and still counts it as run', () => {
+		const response = trigger(false)
+		expect(response.error).toBeUndefined()
+		expect(response.metadata).toMatchObject({ fired: false })
+	})
+})
