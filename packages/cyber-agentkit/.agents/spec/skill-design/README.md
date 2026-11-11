@@ -21,8 +21,8 @@ sharing it has no common bar to check it against.
 
 `skill-design` splits the work of designing a skill into **aspects**: intent, criteria, shape, trigger, verification, and others.
 Each aspect states what it receives and what it must produce. `cyber-agentkit` ships a default for every aspect and a
-front door, `/skill`, with five commands: create a skill, check it without running it, test it by running its evals,
-fix what check or test found, and enhance it beyond that. A second skill, `/skillify`, turns work already done into
+front door, `/skill`, with six commands: create a skill, check it without running it, test it by running its evals,
+fix what check or test found, enhance it beyond that, and customize which implementation each aspect uses. A second skill, `/skillify`, turns work already done into
 the description `create` needs and runs it. A team or plugin replaces one
 aspect with its own and keeps the rest.
 
@@ -52,9 +52,10 @@ aspect with its own and keeps the rest.
   aspect, core and open.
 - **K3. Family.** The aspect interfaces under `skill-design.aspects`, addressed by a wildcard. No interface is named for
   the family.
-- **K4. Front door.** The `/skill` skill with the commands create, check, test, fix, and enhance. `check`
+- **K4. Front door.** The `/skill` skill with the commands create, check, test, fix, enhance, and customize. `check`
   reads the skill against every aspect's criteria without running it, like a linter; `test` runs the Verification
-  aspect's evals, both whether the skill fires on the right requests and whether its result meets the Criteria.
+  aspect's evals, both whether the skill fires on the right requests and whether its result meets the Criteria;
+  `customize` shows the `skill-design` references and hands the author's picks to the `reference` skill.
 - **K5. Skillify.** Designing a skill from a source that already exists, such as a session, existing instructions, or
   another skill, instead of from the author's answers. The source shows what the skill does, not what it should do, so
   the author still decides.

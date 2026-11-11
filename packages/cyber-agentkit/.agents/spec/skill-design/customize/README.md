@@ -14,8 +14,8 @@ contract apply here; IDs are shared across the parent and its children. Retired 
 
 - **Trigger:** a team wants a different rule for one step of designing a skill, such as its own trigger check, and
   keeps the rest.
-- **Entry points:** skill (primary): the `reference` skill's Customize mode. Code: `reference customize
-  skill-design.aspects.<aspect>`.
+- **Entry points:** skill (primary): `/skill customize [aspect]`, which hands the pick to the `reference` skill's
+  Customize mode. Code: `reference customize skill-design.aspects.<aspect>`.
 - **Inputs:** the aspect; the pick, as in [reference UC9](../../reference/write/README.md); the tier, `repo` for the whole
   repository or `user` for the customizer alone.
 - **Success:** the next `/skill` command uses the pick for that aspect and leaves every other aspect as it was. Picking,
@@ -27,7 +27,8 @@ contract apply here; IDs are shared across the parent and its children. Retired 
 
 - **Trigger:** a team adopts `skill-design` and wants to choose an implementation for each aspect in one pass, or see
   which one each aspect uses.
-- **Entry points:** skill (primary): the `reference` skill's Customize and Find modes. Code: `reference customize` and
+- **Entry points:** skill (primary): `/skill customize`, which lists through the `reference` skill's Find mode and hands
+  the picks to its Customize mode. Code: `reference customize` and
   `reference implementations` on `skill-design.aspects.*`.
 - **Inputs:** the wildcard `skill-design.aspects.*`; for customize, a pick per aspect or one plugin for all of them;
   the tier.
@@ -41,7 +42,8 @@ contract apply here; IDs are shared across the parent and its children. Retired 
 ### UC10 — Set how much each command applies on its own (A3.3)
 
 - **Trigger:** a team or user wants commands to apply more, or less, without asking.
-- **Entry points:** skill (primary): the `reference` skill's Customize mode on `skill-design.autonomy`.
+- **Entry points:** skill (primary): `/skill customize`, which hands the levels to the `reference` skill's Customize
+  mode on `skill-design.autonomy`.
 - **Inputs:** a level (K7) per command; the tier.
 - **Success:** each command acts at its level. With no setting, `create` and `enhance` are `ask`, `fix` is
   `apply-safe`, and `check` and `test` change nothing at any level. To customize the `skill-design` references,
@@ -66,8 +68,12 @@ contract apply here; IDs are shared across the parent and its children. Retired 
 - R64 (UC10.2): A level that names no known value leaves that command at its default, and `/skill` says so.
 - R65 (UC10): The level is read from the reference `skill-design.autonomy`, which the wildcard
   `skill-design.aspects.*` does not match.
-- R66 (UC8, UC9, UC10): To customize the `skill-design` references, `/skill` lists them, and the author picks which to
+- R66 (UC8, UC9, UC10): `/skill customize` lists the `skill-design` references, and the author picks which to
   customize in one answer instead of being asked about each in turn.
+- R92 (UC8, UC9, UC10): `/skill customize` shows each swappable aspect with the implementation in use and the ones
+  available, and each command's autonomy level, before it asks.
+- R93 (UC8, UC9, UC10): `/skill customize` writes through the `reference` skill: every file it changes is one
+  `reference customize` writes for the same picks, and it writes no reference file itself.
 
 **Aspects and implementations (UC8, UC9)**
 
