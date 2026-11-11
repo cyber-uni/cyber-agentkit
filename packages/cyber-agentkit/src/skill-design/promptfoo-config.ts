@@ -30,7 +30,8 @@ function inner(model: string | undefined): Record<string, unknown> {
 		skills: 'all',
 		permission_mode: 'acceptEdits',
 		append_allowed_tools: ['Write', 'Edit', 'Bash'],
-		disallowed_tools: ['WebFetch', 'WebSearch'],
+		// No one answers a question in a run, so asking would wait until the time limit.
+		disallowed_tools: ['WebFetch', 'WebSearch', 'AskUserQuestion'],
 	}
 }
 
