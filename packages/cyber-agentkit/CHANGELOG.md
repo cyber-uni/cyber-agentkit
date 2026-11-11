@@ -1,5 +1,32 @@
 # cyber-agentkit
 
+## 2.2.0
+
+### Minor Changes
+
+- 9e72fdd: Every `asset` command carries `examples` in its help. `createAssetCommand()` takes `path`, the command line that reaches the `asset` commands in the host CLI, and every example starts with it. It defaults to `cyber-agentkit asset`.
+- f2dcd59: Requires clibuilder 12.2 and follows its AXI conventions. A bare `cyber-agentkit` shows live data (the detected harness and the commands, with next steps) instead of a `missing-command` error. Every `reference` command, `prose-update classify` and `retire`, and `asset list` carry `examples` in their help. `prose-update` failures are coded `CliError`s on stdout (`invalid-usage` with exit code 2, or the classifier's own code with exit code 1) instead of lines on stderr.
+- 2c8567f: `createReferenceCommand()` and `createReferenceCommands()` take `path`, the command line that reaches the `reference` commands in the host CLI, such as `buddy-agent-harness reference`. Every example in their help starts with it. It defaults to `cyber-agentkit reference`.
+- e20c28e: `reference customize` and `reference implementations` accept a family, `<prefix>.*`, for every interface under a
+  prefix at once. One customize writes the same picks for each interface those picks can answer and names the ones it
+  skipped. `implementations` now also reports which implementation is in use for a `one` interface (`inUse`), with or
+  without a family.
+- 976eb29: `reference search` shows the best 10 matches. When more match, its answer adds a `count`, such as `10 of 21 total`, and a hint to run it again with `--full`, which shows every match.
+- d150b2e: Add the `skill` skill (`/skill`), the `skillify` skill (`/skillify`), and the `cyber-agentkit skill` command. `/skill`
+  has seven commands: help, create, check, test, fix, enhance, and customize. Intent, Shape, and Trigger are built in.
+  Criteria, Verification, and Security ship as reference interfaces (`skill-design.aspects.<aspect>`) whose defaults
+  another plugin can replace; `/skill customize` shows which implementation each aspect uses and changes it through the
+  `reference` skill. `/skillify` turns work already done into a skill. `skill check <folder>` checks a skill without
+  running it and exits 1 on a failure, so it can run in CI. `skill test <folder>` runs the skill's `evals/evals.yaml` on
+  promptfoo through pinned `npx`, several runs per case, each in a fresh folder, beside a run without the skill, and
+  saves the result under `.agents/skill-design/results/`. It reports progress on stderr as runs finish, runs fewer than
+  half the machine's hardware threads at once, stops a runaway shell command after 30 seconds, and `--case <id>` runs
+  only the named cases.
+
+### Patch Changes
+
+- 5aa7055: `reference load` and `reference check` now report a qualified-name override, a `<plugin>/<name>.md` in a subfolder of `.agents/references/` or `~/.agents/references/` (or a project folder's), with `reference-legacy-format`. No version read these files, so the override never applied. `reference migrate` plans each one, and `--write` moves it to `<name>.md` with `extends: [<plugin>]`. It leaves the file to you when the plugin is not installed (the row says what it would extend), when the name already has a file there, or when it sits in a project folder (the row gives the `reference customize` to run at the root).
+
 ## 2.1.0
 
 ### Minor Changes

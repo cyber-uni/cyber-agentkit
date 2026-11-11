@@ -96,7 +96,7 @@ node <this skill's folder>/scripts/skill.mjs <subcommand> ...
 ```
 
 `scripts/skill.mjs` is the package's `skill` command bundled into one file. When it is missing or cannot run, use
-`pnpm exec cyber-agentkit skill` when the package is a direct dependency, else `npx -y cyber-agentkit@2.1.0 skill`,
+`pnpm exec cyber-agentkit skill` when the package is a direct dependency, else `npx -y cyber-agentkit@2.2.0 skill`,
 with the same arguments.
 
 ## Autonomy
