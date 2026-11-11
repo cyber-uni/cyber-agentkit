@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { promptfooProviderSource } from './promptfoo-provider-source.js'
 
@@ -70,6 +70,7 @@ describe('promptfooProviderSource home (F4)', () => {
 		expect(env.HOME).toMatch(/skill-test-home-/)
 		expect(env.XDG_CONFIG_HOME).toBe(join(env.HOME, '.config'))
 		expect(env.CLAUDE_CONFIG_DIR).toBe(process.env['CLAUDE_CONFIG_DIR'] ?? join(homedir(), '.claude'))
+		expect(env.PATH?.split(delimiter)[0]).toBe(dirname(process.execPath))
 		expect(homeEntries).toEqual([])
 	})
 })

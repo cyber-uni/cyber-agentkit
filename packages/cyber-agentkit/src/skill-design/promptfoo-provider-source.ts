@@ -40,9 +40,12 @@ function decide(check, output, dir) {
 // Each run sees an empty home, so a skill's own CLI finds no user references or plugins. Claude Code
 // keeps reading its login from the real config folder, which CLAUDE_CONFIG_DIR points at; nothing
 // is copied. A login set through ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN passes through as is.
+// A version manager's node shim reads its config from the home folder, so the node running this
+// provider goes first on PATH: a skill's node scripts still run.
 function isolatedHome(home) {
   const config = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
-  return { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, '.config'), CLAUDE_CONFIG_DIR: config }
+  const PATH = [path.dirname(process.execPath), process.env.PATH].filter(Boolean).join(path.delimiter)
+  return { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, '.config'), CLAUDE_CONFIG_DIR: config, PATH }
 }
 
 export default class SkillRun {

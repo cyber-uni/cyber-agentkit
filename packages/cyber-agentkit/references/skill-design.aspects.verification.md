@@ -87,7 +87,8 @@ say so before the first run in a session.
   user references, plugins, or settings. Claude Code's login still works because `CLAUDE_CONFIG_DIR` points at the real
   Claude config folder (or the one already set); no credential is copied, and `ANTHROPIC_API_KEY` or
   `CLAUDE_CODE_OAUTH_TOKEN` pass through when set. A skill that reads a file by its absolute path under the real home
-  still reaches it.
+  still reaches it. The folder of the `node` running the test goes first on `PATH`, since a version manager's shim
+  reads its config from the home folder; another tool a shim provides may not run.
 - Each case runs twice over: once with the skill and once without it, which is the baseline.
 - A run that errors or hits its time or token limit counts as not run, never as a pass.
 - A trigger case runs only with the skill. It passes when the skill fired (`expect: fire`) or did not (`expect: skip`) in at least `threshold`
