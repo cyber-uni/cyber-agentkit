@@ -50,8 +50,8 @@ Instructions only.
 Run `create`; never write the file by hand:
 
 1. Run `create <name> --dry-run`, with the flag from step 2. Add `--template <path>` with the file holding the author's text; without it, the command writes its own template. Add `--merge <operation>` when it should not patch: `combine` to add after what is below, `replace` to stand alone, `remove` to turn the name off.
-2. Show the author the path, the content it printed, and any `hint:` or `warning:` line. A warning that a contribution above hides the file still writes it.
-3. On approval, run the same command without `--dry-run`.
+2. When the request gave the text, the request is the approval: run the same command without `--dry-run`, then show the author the path, the content, and any `hint:` or `warning:` line. A warning that a contribution above hides the file still writes it.
+3. Otherwise, show the author the path, the content it printed, and any `hint:` or `warning:` line, and on approval run the same command without `--dry-run`.
 
 If `create` refuses, report its reason and write nothing. An existing file with a body means Customize mode, or Update mode for a file the user wrote by hand.
 
