@@ -64,7 +64,7 @@ outcome:
     criteria: [C6]
     checks:
       C6:
-        - regex: "(?i)(no|nothing|none)\\b.{0,40}\\b(match|reference|found)"
+        - regex: "\\b([Nn]o|[Nn]othing|[Nn]one)\\b.{0,40}\\b(match|reference|found)"
 ```
 
 A criterion counts as having a rubric (VER-3) when it has `rubrics.<ID>` or when every outcome case that tests it has
