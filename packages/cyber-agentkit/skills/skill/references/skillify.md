@@ -1,4 +1,4 @@
-# Backfill a skill
+# Skillify: turn work already done into a skill
 
 Turn work already done into a skill. The source shows what was done, not what the skill should do: the author decides.
 
@@ -6,7 +6,7 @@ Turn work already done into a skill. The source shows what was done, not what th
 
 1. The source is this session's work, unless the description names a document or another skill.
 2. If the named source cannot be read, stop and name it. If the session holds no work and no source is named, say
-   there is nothing to backfill, point to `create`, and write nothing.
+   there is nothing to skillify, point to `create`, and write nothing.
 3. If the source holds more than one job and the description names none, propose one skill per job and build none
    until the author picks.
 4. Never change the source.

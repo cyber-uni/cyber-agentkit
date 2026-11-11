@@ -5,7 +5,7 @@ interface:
   cardinality: one
   version: 1
   sections:
-    - {heading: Draft, required: true, holds: How create and backfill write the eval cases and one rubric per criterion.}
+    - {heading: Draft, required: true, holds: How create and skillify write the eval cases and one rubric per criterion.}
     - {heading: Cases, required: true, holds: Where the eval cases and rubrics live and their format.}
     - {heading: Run, required: true, holds: How test runs the cases - runs per case, threshold, sandbox, baseline - and the command that does it.}
     - {heading: Criteria, required: true, holds: The aspect's own checks on a skill's eval cases, each with an ID and how it is decided.}

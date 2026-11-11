@@ -43,7 +43,7 @@ contract apply here; IDs are shared across the parent and its children.
 - **Trigger:** a team or user wants commands to apply more, or less, without asking.
 - **Entry points:** skill (primary): the `reference` skill's Customize mode on `skill-design.autonomy`.
 - **Inputs:** a level (K7) per command; the tier.
-- **Success:** each command acts at its level. With no setting, `create` and `enhance` are `ask`, `backfill` and `fix`
+- **Success:** each command acts at its level. With no setting, `create` and `enhance` are `ask`, `skillify` and `fix`
   are `apply-safe`, and `check` and `test` change nothing at any level. To customize the `skill-design` references,
   the author picks them from one list instead of being asked about each in turn. The setting lives outside the `aspects` segment, so the aspect wildcard
   never matches it.
@@ -55,7 +55,7 @@ contract apply here; IDs are shared across the parent and its children.
 
 **Autonomy (UC10)**
 
-- R61 (UC10): With no setting, `create` and `enhance` are `ask`, and `backfill` and `fix` are `apply-safe`.
+- R61 (UC10): With no setting, `create` and `enhance` are `ask`, and `skillify` and `fix` are `apply-safe`.
 - R62 (UC10): At `apply-safe`, a command applies only the changes after which `check` and `test` pass with no
   criterion worse, and asks about the rest; with no author present, it reports the rest. At `apply`, it applies every
   change except those R74 keeps for the author, and reports each one.

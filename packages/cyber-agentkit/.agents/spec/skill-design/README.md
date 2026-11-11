@@ -5,7 +5,7 @@ status: draft
 
 # skill-design: a skill author designs a skill through aspects they can swap one at a time
 
-**Outcome:** an author, human or agent, creates, backfills, checks, tests, fixes, and enhances a skill by running `/skill`. Each
+**Outcome:** an author, human or agent, creates, skillifies, checks, tests, fixes, and enhances a skill by running `/skill`. Each
 step of that work is an aspect whose default ships with `cyber-agentkit`, and any plugin can replace a swappable aspect without
 editing the others.
 
@@ -20,7 +20,7 @@ sharing it has no common bar to check it against.
 
 `skill-design` splits the work of designing a skill into **aspects**: intent, criteria, shape, trigger, verification, and others.
 Each aspect states what it receives and what it must produce. `cyber-agentkit` ships a default for every aspect and a
-front door, `/skill`, with six commands: create a skill, backfill one from work already done, check it without running
+front door, `/skill`, with six commands: create a skill, skillify one from work already done, check it without running
 it, test it by running its evals, fix what check or test found, and enhance it beyond that. A team or plugin replaces one
 aspect with its own and keeps the rest.
 
@@ -50,10 +50,10 @@ aspect with its own and keeps the rest.
   aspect, core and open.
 - **K3. Family.** The aspect interfaces under `skill-design.aspects`, addressed by a wildcard. No interface is named for
   the family.
-- **K4. Front door.** The `/skill` skill with the commands create, backfill, check, test, fix, and enhance. `check`
+- **K4. Front door.** The `/skill` skill with the commands create, skillify, check, test, fix, and enhance. `check`
   reads the skill against every aspect's criteria without running it, like a linter; `test` runs the Verification
   aspect's evals, both whether the skill fires on the right requests and whether its result meets the Criteria.
-- **K5. Backfill.** Designing a skill from a source that already exists, such as a session, existing instructions, or
+- **K5. Skillify.** Designing a skill from a source that already exists, such as a session, existing instructions, or
   another skill, instead of from the author's answers. The source shows what the skill does, not what it should do, so
   the author still decides.
 - **K6. Rubric.** For one criterion, what a run's output is judged on, so that the run passes or fails it. The
@@ -91,7 +91,7 @@ in the design-spec skill.
 | Child | Use cases | Criteria |
 | --- | --- | --- |
 | [create](./create/README.md) | UC1 | Create |
-| [backfill](./backfill/README.md) | UC2 | Backfill |
+| [skillify](./skillify/README.md) | UC2 | Skillify |
 | [check](./check/README.md) | UC3 | Check |
 | [test](./test/README.md) | UC6 | Test |
 | [fix](./fix/README.md) | UC4 | Fix |
@@ -127,7 +127,7 @@ in the design-spec skill.
   and writes nothing.
 - R2 (UC1.3, UC3.3, UC4.6, UC5.6, UC6.6): When an aspect's selected implementation cannot be found, the command uses
   that aspect's default and says which aspect fell back and which implementation was missing.
-- R3 (UC1, UC2, UC4, UC5): A skill that `create` or `backfill` writes meets the Agent Skills specification.
+- R3 (UC1, UC2, UC4, UC5): A skill that `create` or `skillify` writes meets the Agent Skills specification.
 - R78 (UC3, UC4, UC6): No judge runs unless the author names one.
 - R4 (UC3, UC6): In an interactive run that found failures, `check` and `test` end by offering `fix`. Nothing changes
   unless the author accepts. With no author present, no offer is made.
