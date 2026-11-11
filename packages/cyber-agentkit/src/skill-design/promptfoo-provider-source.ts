@@ -1,12 +1,12 @@
 /**
  * The promptfoo provider `skill test` writes beside its config. promptfoo's Claude Agent SDK provider
  * (0.125.1) runs in a temp folder it deletes and has no `copy_working_dir` (research E20), so this
- * wrapper makes each run's folder: a fresh copy of the case's files, plus the skill under
- * `.claude/skills/<name>/` in the arm that has it. After the run it decides the rubric checks that
+ * wrapper makes each run's folder: a fresh copy of the case's files committed in a new git repository, plus the
+ * skill under `.claude/skills/<name>/` in the arm that has it (excluded from git status). After the run it decides the rubric checks that
  * need no judge in that folder, records whether the skill fired, and removes the folder.
  * It resolves promptfoo from the npx install running it.
  */
-export const promptfooProviderSource = String.raw`import { execSync } from 'node:child_process'
+export const promptfooProviderSource = String.raw`import { execFileSync, execSync } from 'node:child_process'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
@@ -47,7 +47,15 @@ export default class SkillRun {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-run-'))
     try {
       if (vars.files) fs.cpSync(vars.files, dir, { recursive: true })
+      const git = (args) => execFileSync('git', args, { cwd: dir, stdio: 'pipe' })
+      git(['init', '-q'])
+      git(['config', 'user.name', 'skill-test'])
+      git(['config', 'user.email', 'skill-test@example.invalid'])
+      git(['config', 'commit.gpgsign', 'false'])
+      git(['add', '-A'])
+      git(['commit', '-q', '-m', 'case files', '--allow-empty'])
       if (skillDir) fs.cpSync(skillDir, path.join(dir, '.claude', 'skills', skillName), { recursive: true })
+      fs.appendFileSync(path.join(dir, '.git', 'info', 'exclude'), '.claude/\n')
       const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, working_dir: dir } } })
       const response = await provider.callApi(prompt, context)
       const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')

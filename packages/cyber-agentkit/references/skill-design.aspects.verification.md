@@ -79,7 +79,8 @@ each run uses. It saves the result, prints it, and exits 1 when a case or a crit
 say so before the first run in a session.
 
 - The default is `runs: 3` and `threshold: 2`. A criterion passes when it passes in at least `threshold` runs.
-- Each run starts in a fresh copy of the case's files, with no user configuration, memory, or user-level skills, and
+- Each run starts in a fresh copy of the case's files, which is a git repository with those files committed (a local
+  throwaway identity; the installed skill is excluded from `git status`), so a skill or a `script` check can use git. It has no user configuration, memory, or user-level skills, and
   only the skill under test installed, through promptfoo's Claude Agent SDK provider and Claude Code's own login. Web
   tools are off, and each run stops at 20 turns or $0.50.
 - Each case runs twice over: once with the skill and once without it, which is the baseline.
