@@ -87,6 +87,15 @@ describe('readPromptfooOutput', () => {
 		expect(result.cost).toBe(0.024)
 	})
 
+	it('saves the reply as the failure output when the failed check gives no detail', () => {
+		const silent = row({ case: 'two-prs', run: 0, checks: { C1: true, C2: false } })
+		silent.response.metadata.checks.C2 = { pass: false, detail: '' }
+		const result = readPromptfooOutput({ results: { results: [silent] } }, plan, meta)
+		expect(result.criteria.find((item) => item.id === 'C2')?.failures).toEqual([
+			{ case: 'two-prs', run: 1, output: 'out' },
+		])
+	})
+
 	it('fails a trigger case that fires on a near miss or misses its request', () => {
 		const result = readPromptfooOutput(output(triggerRows([false, true, true, true, false, false])), plan, meta)
 		expect(result.trigger.map((item) => item.status)).toEqual(['fail', 'pass', 'pass', 'fail', 'pass', 'pass'])

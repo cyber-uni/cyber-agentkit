@@ -73,10 +73,9 @@ function criterionPassed(row: Row, id: string): { pass: boolean; output: string 
 	const parts = row.gradingResult?.componentResults?.filter((part) => part.assertion?.metric === id) ?? []
 	const check = row.response?.metadata?.checks?.[id]
 	const pass = parts.length > 0 && parts.every((part) => part.pass) && (check === undefined || check.pass)
-	const output =
-		check && !check.pass
-			? (check.detail ?? '')
-			: (parts.find((part) => !part.pass)?.reason ?? String(row.response?.output ?? '').slice(0, 2000))
+	// A check with no detail, such as a script that only exits 1, falls back to the model's reply.
+	const reply = String(row.response?.output ?? '').slice(0, 2000)
+	const output = check && !check.pass ? check.detail || reply : (parts.find((part) => !part.pass)?.reason ?? reply)
 	return { pass, output }
 }
 
