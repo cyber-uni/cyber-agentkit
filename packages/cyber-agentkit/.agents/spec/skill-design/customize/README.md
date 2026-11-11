@@ -32,8 +32,8 @@ contract apply here; IDs are shared across the parent and its children. Retired 
 - **Inputs:** the wildcard `skill-design.aspects.*`; for customize, a pick per aspect or one plugin for all of them;
   the tier.
 - **Success:** one command writes a pick for each aspect the wildcard matches, and one command lists each aspect with
-  the implementation it uses and the ones available. The wildcard is a change to the `reference` spec, which owns its
-  behavior; this spec states only the goal (N5).
+  the implementation it uses and the ones available. The wildcard is the `reference` spec's family ([reference UC24](../../reference/interfaces/README.md)),
+  which owns its behavior; this spec states only the goal (N5).
 - **Extensions:**
   - **UC9.1** One plugin is picked for all aspects and does not implement some of them. Those aspects keep their
     current pick, and the result names them.

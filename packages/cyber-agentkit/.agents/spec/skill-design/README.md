@@ -162,7 +162,7 @@ None.
 - Interface, default, implementation, extend, selection, picks, and the `interface` and `default` name endings (K1,
   UC8, UC11.1): [reference](../reference/README.md), its [write](../reference/write/README.md) (UC9, UC18) and
   [interfaces](../reference/interfaces/README.md) (UC6, UC15) specs. The wildcard on `skill-design.aspects.*` (UC9,
-  R69) is a change to that spec, which owns its behavior.
+  R69) is that spec's family (K39, UC24), which owns its behavior.
 - The validity floor (N1, R3, R20): the [Agent Skills specification](https://agentskills.io/specification).
 - Criterion, and how criteria are written: the `design-spec` skill and `.research/design-spec-criteria`.
 - The eval system the default Verification builds on, rubrics as pass or fail per run, pass rates, isolation, and

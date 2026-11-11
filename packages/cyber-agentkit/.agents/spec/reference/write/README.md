@@ -124,6 +124,7 @@ IDs are shared across the parent and its children.
     selection counts as not written and the stack falls through; a name left ambiguous is asked again (UC4.2).
   - UC9.3 The `repo` and `user` tiers pick differently: the `repo` one builds the stack and the `user` one's `extends`
     is `not used` (R8, UC7.6).
+  - UC9.8 The name is a family (K39), to pick for each of its interfaces at once: UC24.
   - UC9.7 A plugin installed after the picks holds the name: load warns (UC1.21). The customizer adds it to the
     picks, or writes the same picks again, which records it as declined; either stops the warning (R114).
 
