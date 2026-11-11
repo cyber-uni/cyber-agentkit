@@ -86,12 +86,16 @@ say so before the first run in a session.
   throwaway identity; the installed skill is excluded from `git status`), so a skill or a `script` check can use git. It has no user configuration, memory, or user-level skills, and
   only the skill under test installed, through promptfoo's Claude Agent SDK provider and Claude Code's own login. Web
   tools are off, and each run stops at 20 turns or $0.50.
-- Each run's `HOME` and `XDG_CONFIG_HOME` point at a fresh empty folder, so a skill's own CLI run through Bash finds no
-  user references, plugins, or settings. Claude Code's login still works because `CLAUDE_CONFIG_DIR` points at the real
-  Claude config folder (or the one already set); no credential is copied, and `ANTHROPIC_API_KEY` or
-  `CLAUDE_CODE_OAUTH_TOKEN` pass through when set. A skill that reads a file by its absolute path under the real home
-  still reaches it. The folder of the `node` running the test goes first on `PATH`, since a version manager's shim
-  reads its config from the home folder; another tool a shim provides may not run.
+- Each run's `HOME`, `XDG_CONFIG_HOME`, and `CLAUDE_CONFIG_DIR` point at fresh empty folders, so a skill's own CLI run
+  through Bash finds no user references or plugins, no installed Claude Code plugin is loaded, and the Bash tool sources
+  no user shell snapshot. Claude Code's login still works because `CLAUDE_SECURESTORAGE_CONFIG_DIR` points at the real
+  Claude config folder (or the one already set), where Claude Code reads and refreshes its own credentials; no credential
+  is copied or linked, and `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` pass through when set. If a Claude Code
+  version ignores that variable, each run fails with "Not logged in" and counts as not run. On macOS the real config
+  folder is kept instead, since the keychain entry is named after it, so plugins and the shell snapshot still leak
+  there. A skill that reads a file by its absolute path under the real home still reaches it. The folder of the `node`
+  running the test goes first on `PATH`, since a version manager's shim reads its config from the home folder; another
+  tool a shim provides may not run.
 - Each case runs twice over: once with the skill and once without it, which is the baseline.
 - A run stops after `timeout` seconds (300 by default, set in `evals.yaml`); its Claude process and the shells and commands it started are killed, and it counts as not run with the reason `time limit`. A process stuck in uninterruptible disk sleep cannot be killed; the test stops waiting for it and goes on.
 - A run that errors or hits its time or token limit counts as not run, never as a pass.

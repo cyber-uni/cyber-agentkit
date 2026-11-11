@@ -38,15 +38,25 @@ function decide(check, output, dir) {
   }
 }
 
-// Each run sees an empty home, so a skill's own CLI finds no user references or plugins. Claude Code
-// keeps reading its login from the real config folder, which CLAUDE_CONFIG_DIR points at; nothing
-// is copied. A login set through ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN passes through as is.
-// A version manager's node shim reads its config from the home folder, so the node running this
-// provider goes first on PATH: a skill's node scripts still run.
+// Each run sees an empty home and an empty Claude config folder, so a skill's own CLI finds no user
+// references or plugins, and the Bash tool sources no user shell snapshot. The login stays the real one:
+// CLAUDE_SECURESTORAGE_CONFIG_DIR names the folder Claude Code reads and writes its credentials in (found in
+// the claude binary 2.1.322, not in the vendor docs; CLAUDE_CONFIG_DIR is E-CC-D7), so Claude Code
+// refreshes a token in the real file itself and nothing is copied or linked. If a Claude Code version
+// ignores the variable, the run reports "Not logged in" and counts as not run. macOS keeps the real config
+// folder, because its keychain entry is named after the folder and that name cannot be set from here. A login
+// set through ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN passes through as is. A version manager's node
+// shim reads its config from the home folder, so the node running this provider goes first on PATH: a
+// skill's node scripts still run.
 function isolatedHome(home) {
-  const config = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+  const real = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
   const PATH = [path.dirname(process.execPath), process.env.PATH].filter(Boolean).join(path.delimiter)
-  return { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, '.config'), CLAUDE_CONFIG_DIR: config, PATH }
+  const env = { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, '.config'), CLAUDE_CONFIG_DIR: real, PATH }
+  if (process.platform !== 'darwin') {
+    env.CLAUDE_CONFIG_DIR = path.join(home, '.claude')
+    env.CLAUDE_SECURESTORAGE_CONFIG_DIR = process.env.CLAUDE_SECURESTORAGE_CONFIG_DIR || real
+  }
+  return env
 }
 
 // A run that hits its time limit is killed with everything it started (a model's find / can crawl for an

@@ -64,12 +64,17 @@ describe('promptfooProviderSource run folder (F7)', () => {
 	})
 })
 
-describe('promptfooProviderSource home (F4)', () => {
-	it('gives each run an empty HOME and XDG folder while the Claude config folder stays the real one, copying nothing', () => {
+describe('promptfooProviderSource home (F4, F10)', () => {
+	it('gives each run an empty HOME, XDG folder and Claude config folder while the login stays in the real one, copying nothing', () => {
 		const { env, homeEntries } = runProvider(true)
+		const real = process.env['CLAUDE_CONFIG_DIR'] ?? join(homedir(), '.claude')
 		expect(env.HOME).toMatch(/skill-test-home-/)
 		expect(env.XDG_CONFIG_HOME).toBe(join(env.HOME, '.config'))
-		expect(env.CLAUDE_CONFIG_DIR).toBe(process.env['CLAUDE_CONFIG_DIR'] ?? join(homedir(), '.claude'))
+		if (process.platform === 'darwin') expect(env.CLAUDE_CONFIG_DIR).toBe(real)
+		else {
+			expect(env.CLAUDE_CONFIG_DIR).toBe(join(env.HOME, '.claude'))
+			expect(env.CLAUDE_SECURESTORAGE_CONFIG_DIR).toBe(process.env['CLAUDE_SECURESTORAGE_CONFIG_DIR'] ?? real)
+		}
 		expect(env.PATH?.split(delimiter)[0]).toBe(dirname(process.execPath))
 		expect(homeEntries).toEqual([])
 	})
