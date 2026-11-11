@@ -1,0 +1,6 @@
+[
+	{ "number": 12, "title": "Add dark mode", "labels": ["feature"] },
+	{ "number": 14, "title": "Fix the crash on an empty config", "labels": ["fix"] },
+	{ "number": 15, "title": "Move the CI cache", "labels": ["internal"] },
+	{ "number": 16, "title": "Merge pull request #14 from fix/empty-config", "labels": [] }
+]

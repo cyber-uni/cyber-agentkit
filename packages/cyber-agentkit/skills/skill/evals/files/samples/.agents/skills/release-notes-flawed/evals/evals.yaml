@@ -1,0 +1,24 @@
+runs: 3
+threshold: 2
+trigger:
+  - { prompt: Write the release notes for this release., expect: fire }
+  - { prompt: Draft the changelog for 2.0 from the merged PRs., expect: fire }
+  - { prompt: What shipped this release? Put it in the release notes., expect: fire }
+  - { prompt: Summarize pull request 14 for a reviewer., expect: skip }
+  - { prompt: Write a commit message for my staged changes., expect: skip }
+  - { prompt: Review my diff before I push., expect: skip }
+outcome:
+  - id: two-prs
+    prompt: Write the release notes.
+    files: files/two-prs   # a feature, a fix, an internal change, and a merge commit
+rubrics:
+  C5:
+    - judge: Pass when the notes are clear.
+  C1:
+    - script: "head -n 1 RELEASE_NOTES.md | grep -q '^## Release notes'"
+  C2:
+    - script: "test $(grep -c 'Add dark mode (#12)' RELEASE_NOTES.md) = 1 && test $(grep -c 'Fix the crash on an empty config (#14)' RELEASE_NOTES.md) = 1"
+  C3:
+    - script: "! grep -qE 'Merge (pull request|branch)|#15|#16' RELEASE_NOTES.md"
+  C4:
+    - script: "awk '/^### Features/{s=\"f\"} /^### Fixes/{s=\"x\"} /#12/{a=s} /#14/{b=s} END{exit !(a==\"f\" && b==\"x\")}' RELEASE_NOTES.md"
