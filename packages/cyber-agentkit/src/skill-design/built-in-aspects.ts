@@ -52,7 +52,6 @@ export const builtInAspects: { aspect: string; checks: AspectCheck[] }[] = [
 				how: 'read',
 				statement: 'The description says when to use the skill, in words a user would type.',
 			},
-			{ id: 'TRG-2', how: 'read', statement: 'It says when not to use it, naming the nearest other job.' },
 			{ id: 'TRG-3', how: 'read', statement: 'It describes when to use the skill, not how the skill works.' },
 			{ id: 'TRG-4', how: 'run', statement: 'The skill fires on the requests it should and not on near misses.' },
 		],

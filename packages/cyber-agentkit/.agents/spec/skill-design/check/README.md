@@ -29,7 +29,7 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC3.4** A criterion can only be decided by running the skill. It is reported as not checked and pointed to
     `test`, never as a pass.
 - **Example:** `/skill check release-notes` passes Intent, Criteria, Shape, and Security, and fails Trigger because the
-  description does not say when not to use the skill.
+  description says how the skill works instead of when to use it.
 
 ## Criteria
 

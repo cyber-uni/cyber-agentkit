@@ -1,6 +1,6 @@
 ---
 name: skill
-description: Use this skill when creating, backfilling, checking, testing, fixing, or enhancing an agent skill (a SKILL.md and its folder), as in "write a skill for X", "turn what we just did into a skill", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", or "improve this skill". Not for agents, slash commands, plugins, or references, and not for installing or publishing skills.
+description: Use this skill when creating, backfilling, checking, testing, fixing, or enhancing an agent skill (a SKILL.md and its folder), as in "write a skill for X", "turn what we just did into a skill", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", or "improve this skill".
 ---
 
 # Skill
@@ -75,11 +75,10 @@ program does the same way every time, such as parsing or validating a file. Prop
 Produces the `description` in the skill's front matter, and the near misses Verification turns into `skip` cases.
 
 **Draft.** Start with "Use this skill when", then name the job in the words users type, with two or three phrasings.
-End with when not to use it, naming the nearest other job. List three or more near misses: requests a user could
-plausibly make that belong to that other job.
+Say nothing about when not to use it. List three or more near misses: requests a user could plausibly make that
+belong to the nearest other jobs. They go to Verification as `skip` cases, not into the description.
 
 - **TRG-1** [read] The description says when to use the skill, in words a user would type.
-- **TRG-2** [read] It says when not to use it, naming the nearest other job.
 - **TRG-3** [read] It describes when to use the skill, not how the skill works.
 - **TRG-4** [run] The skill fires on the requests it should and not on near misses.
 
