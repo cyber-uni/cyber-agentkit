@@ -267,7 +267,7 @@ export function createSkillCommand(options: SkillCommandOptions = {}): cli.Comma
 	return command({
 		name: 'skill',
 		description:
-			'Work on agent skills as /skill does: check a skill folder without running it, or test it by running its evals.',
+			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, or accept a test result as its expected result.',
 		commands: [checkCommand(options), testCommand(options), acceptCommand(options)],
 	})
 }
