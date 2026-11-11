@@ -74,6 +74,9 @@ contract apply here; IDs are shared across the parent and its children.
 - R47 (UC5): Only accepted suggestions are written, and the answer to one decides nothing about the others.
 - R48 (UC5): A written change to a core aspect reopens every core aspect after it, as in R8.
 - R49 (UC5): After `enhance` writes, `check` passes, or R42 applies.
+- R82 (UC5): When a written change touches the skill's steps, its Criteria, or its evals, `enhance` offers to run
+  `test`, saying it makes model calls, and to keep the result as the skill's expected result (R80) once it shows no
+  criterion worse than before.
 - R50 (UC5.3): When the skill fails `check`, `enhance` points to `fix` and goes on only if the author says so. With no
   author present, it stops.
 - R51 (UC5.5): With nothing to suggest, `enhance` says so and leaves the skill unchanged.
@@ -82,6 +85,9 @@ contract apply here; IDs are shared across the parent and its children.
 - R53 (UC5.9): When the prompt names evidence that cannot be read, `enhance` stops and names it.
 - R54 (UC7): A lesson from evidence of use is offered only once it occurs at least twice across all the evidence
   read, whether in one session or several.
+- R81 (UC5, UC7): A saved `test` result counts as one occurrence of each pattern it shows, such as a criterion that
+  passes in the baseline too. A rubric that failed a result meeting its criterion, or passed one that does not, is a
+  fault in the evals, not a lesson: it is offered from a single occurrence, as a change to that rubric.
 - R55 (UC7): A trigger miss adds a trigger eval case, and a wrong result adds an outcome case.
 - R56 (UC7): A suggestion is applied without the author only when the autonomy level allows it and `test` shows no
   criterion worse than the skill's expected result, or, with none, the last saved result. Every other suggestion is left for the author, citing its evidence.

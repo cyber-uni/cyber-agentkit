@@ -12,7 +12,10 @@ Suggest what would make a skill that passes `check` better, one suggestion at a 
 
 The evidence is this session by default, or what the prompt points to: past transcripts, the harness's memory, a
 saved `test` result. Read only what the harness already records. Note where each lesson appears: a lesson from use is
-offered only once it has happened at least twice across everything read. Evidence that points at another skill, or at
+offered only once it has happened at least twice across everything read. A saved `test` result counts as one
+occurrence of each pattern it shows, such as a criterion that passes in the baseline too. A rubric that failed a result
+meeting its criterion, or passed one that does not, is a fault in the evals, not a lesson: offer the rubric change from
+a single occurrence. Evidence that points at another skill, or at
 no skill, changes nothing; say where it points.
 
 ## 3. Suggest
@@ -32,6 +35,9 @@ worse than the skill's expected result, or, with none, the last saved result; wh
 evidence of use: leave the suggestion for the author to send upstream.
 
 After writing, run `check`; it passes, or [fix](fix.md)'s rule for a check that a change broke applies.
+When a written change touches the skill's steps, its Criteria, or its evals, offer to run `test`, saying it makes
+model calls and what the last run cost. When the result shows no criterion worse than before, offer to keep it as the
+skill's expected result with `skill accept <folder>`.
 
 ## Report
 
