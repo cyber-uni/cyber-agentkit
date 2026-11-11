@@ -21,6 +21,12 @@ describe('checkVerification', () => {
 		expect(bad[0]).toMatchObject({ id: 'VER-1', status: 'fail', message: expect.stringContaining('not valid YAML') })
 	})
 
+	it('accepts a positive timeout and rejects others (F8)', () => {
+		expect(evalsProblems({ timeout: 30.5 })).toEqual([])
+		for (const timeout of [0, -1, '60', null])
+			expect(evalsProblems({ timeout })).toEqual(['`timeout` is not a positive number of seconds'])
+	})
+
 	it('names each format problem', () => {
 		expect(
 			evalsProblems({

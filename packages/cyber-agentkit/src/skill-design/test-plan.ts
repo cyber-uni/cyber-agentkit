@@ -6,6 +6,8 @@ import { type EvalsFile, evalsProblems } from './verification-checks.js'
 
 export const defaultRuns = 3
 export const defaultThreshold = 2
+/** Seconds one run may take before it is stopped. */
+export const defaultTimeout = 300
 
 /** One case `skill test` hands to promptfoo. */
 export type PlannedCase = {
@@ -24,6 +26,8 @@ export type PlannedCase = {
 export type TestPlan = {
 	runs: number
 	threshold: number
+	/** Seconds one run may take. */
+	timeout: number
 	cases: PlannedCase[]
 	/** Every criterion ID the skill lists, in order. */
 	criteria: string[]
@@ -108,6 +112,7 @@ export function planTest(skill: SkillFiles, { judge }: { judge?: string | undefi
 		plan: {
 			runs: evals.runs ?? defaultRuns,
 			threshold: evals.threshold ?? defaultThreshold,
+			timeout: evals.timeout ?? defaultTimeout,
 			cases,
 			criteria,
 			notTested,

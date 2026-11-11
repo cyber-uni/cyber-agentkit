@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -72,5 +72,49 @@ describe('promptfooProviderSource home (F4)', () => {
 		expect(env.CLAUDE_CONFIG_DIR).toBe(process.env['CLAUDE_CONFIG_DIR'] ?? join(homedir(), '.claude'))
 		expect(env.PATH?.split(delimiter)[0]).toBe(dirname(process.execPath))
 		expect(homeEntries).toEqual([])
+	})
+})
+
+describe('promptfooProviderSource time limit (F8)', () => {
+	/** A fake inner provider that starts a shell with a long sleep through the spawner it is given, and never answers. */
+	const hanging = String.raw`
+exports.loadApiProvider = async (_id, { options }) => ({
+  callApi: async () => {
+    const child = options.config.spawn_claude_code_process({ command: 'sh', args: ['-c', 'setsid sleep 300 & echo $! > ' + process.env.PID_FILE + '; wait'], cwd: options.config.working_dir, env: { ...process.env, ...options.config.env } })
+    require('node:fs').writeFileSync(process.env.PID_FILE + '.shell', String(child.pid))
+    return new Promise(() => {})
+  },
+})
+`
+
+	it('stops a run at its time limit, kills the shell and what it started, even in a session of its own, and answers the error time limit', async () => {
+		const root = mkdtempSync(join(tmpdir(), 'provider-limit-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), hanging)
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', inner: {}, timeout: 1 } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
+`,
+		)
+		const pidFile = join(root, 'pid')
+		const started = Date.now()
+		const out = execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8', env: { ...process.env, PID_FILE: pidFile } })
+		expect(Date.now() - started).toBeLessThan(15000)
+		expect(JSON.parse(out)).toMatchObject({ error: 'time limit' })
+		const alive = (pid: number) => {
+			try {
+				process.kill(pid, 0)
+				return true
+			} catch {
+				return false
+			}
+		}
+		await new Promise((done) => setTimeout(done, 300))
+		expect(alive(Number(readFileSync(`${pidFile}.shell`, 'utf8')))).toBe(false)
+		expect(alive(Number(readFileSync(pidFile, 'utf8')))).toBe(false)
 	})
 })

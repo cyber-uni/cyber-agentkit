@@ -14,6 +14,16 @@ describe('planTest', () => {
 		expect(planned.plan.cases.at(-1)?.files).toMatch(/evals\/files\/two-prs$/)
 	})
 
+	it('plans a five-minute time limit, or the evals timeout (F8)', () => {
+		const planned = (evals: string) => {
+			const result = planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': evals }))
+			if (!('plan' in result)) throw new Error(result.problem)
+			return result.plan
+		}
+		expect(planned(goodEvals).timeout).toBe(300)
+		expect(planned(`timeout: 90\n${goodEvals}`).timeout).toBe(90)
+	})
+
 	it("uses a case's checks in place of the rubric for that criterion (F6)", () => {
 		const evals = goodEvals.replace(
 			'  - { id: two-prs, prompt: write the notes, files: files/two-prs }',

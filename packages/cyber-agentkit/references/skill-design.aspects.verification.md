@@ -27,6 +27,7 @@ The skill's `evals/evals.yaml`:
 ```yaml
 runs: 3            # runs per case; optional
 threshold: 2       # runs a criterion must pass out of `runs`; optional
+timeout: 300       # seconds one run may take; optional, 300 by default
 trigger:
   - prompt: write release notes for the last release
     expect: fire
@@ -92,6 +93,7 @@ say so before the first run in a session.
   still reaches it. The folder of the `node` running the test goes first on `PATH`, since a version manager's shim
   reads its config from the home folder; another tool a shim provides may not run.
 - Each case runs twice over: once with the skill and once without it, which is the baseline.
+- A run stops after `timeout` seconds (300 by default, set in `evals.yaml`); its Claude process and the shells and commands it started are killed, and it counts as not run with the reason `time limit`. A process stuck in uninterruptible disk sleep cannot be killed; the test stops waiting for it and goes on.
 - A run that errors or hits its time or token limit counts as not run, never as a pass.
 - A trigger case runs only with the skill. It passes when the skill fired (`expect: fire`) or did not (`expect: skip`) in at least `threshold`
   runs.

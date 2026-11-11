@@ -19,6 +19,8 @@ export const rubricChecks = [
 export type EvalsFile = {
 	runs?: number
 	threshold?: number
+	/** Seconds one run may take; optional. */
+	timeout?: number
 	trigger?: { prompt: string; expect: 'fire' | 'skip' }[]
 	outcome?: {
 		id: string
@@ -56,6 +58,9 @@ export function evalsProblems(value: unknown): string[] {
 		if (n !== undefined && (!Number.isInteger(n) || (n as number) < 1))
 			problems.push(`\`${key}\` is not a positive whole number`)
 	}
+	const timeout = value['timeout']
+	if (timeout !== undefined && (typeof timeout !== 'number' || !(timeout > 0)))
+		problems.push('`timeout` is not a positive number of seconds')
 	const trigger = value['trigger']
 	if (trigger !== undefined) {
 		if (!Array.isArray(trigger)) problems.push('`trigger` is not a list')

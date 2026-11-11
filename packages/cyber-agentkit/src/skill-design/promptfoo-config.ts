@@ -34,7 +34,7 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 	const provider = (label: string, arm: string, skillDir: string | undefined) => ({
 		id: `file://${options.provider}`,
 		label,
-		config: { arm, skillName: options.skillName, ...(skillDir ? { skillDir } : {}), inner: inner(options.model) },
+		config: { arm, skillName: options.skillName, timeout: plan.timeout, ...(skillDir ? { skillDir } : {}), inner: inner(options.model) },
 	})
 	const tests = plan.cases.map((item) => {
 		const assert: Record<string, unknown>[] = []

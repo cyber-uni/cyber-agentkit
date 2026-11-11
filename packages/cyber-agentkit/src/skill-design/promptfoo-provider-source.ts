@@ -2,11 +2,12 @@
  * The promptfoo provider `skill test` writes beside its config. promptfoo's Claude Agent SDK provider
  * (0.125.1) runs in a temp folder it deletes and has no `copy_working_dir` (research E20), so this
  * wrapper makes each run's folder: a fresh copy of the case's files committed in a new git repository, plus the
- * skill under `.claude/skills/<name>/` in the arm that has it (excluded from git status). After the run it decides the rubric checks that
+ * skill under `.claude/skills/<name>/` in the arm that has it (excluded from git status). A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. After the run it decides the rubric checks that
  * need no judge in that folder, records whether the skill fired, and removes the folder. Each run also gets an empty home folder.
  * It resolves promptfoo from the npx install running it.
  */
-export const promptfooProviderSource = String.raw`import { execFileSync, execSync } from 'node:child_process'
+export const promptfooProviderSource = String.raw`import { execFileSync, execSync, spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
@@ -48,11 +49,47 @@ function isolatedHome(home) {
   return { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, '.config'), CLAUDE_CONFIG_DIR: config, PATH }
 }
 
+// A run that hits its time limit is killed with everything it started (a model's find / can crawl for an
+// hour). Claude Code runs each shell command in a session of its own, so a process group is not enough:
+// every process of the run carries the run's marker in its environment, and the kill finds them by it
+// (Linux reads /proc, macOS asks ps; Windows kills the process tree). A process stuck in uninterruptible
+// disk sleep survives the kill; callApi stops waiting for it.
+function markedPids(marker) {
+  try {
+    if (process.platform === 'linux')
+      return fs.readdirSync('/proc').filter((name) => /^\d+$/.test(name) && Number(name) !== process.pid).filter((name) => {
+        try { return fs.readFileSync('/proc/' + name + '/environ', 'utf8').split('\0').includes(marker) } catch { return false }
+      }).map(Number)
+    if (process.platform === 'darwin')
+      return execFileSync('ps', ['-axEww', '-o', 'pid=,command='], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
+        .split('\n').filter((line) => line.includes(marker)).map((line) => Number(line.trim().split(/\s+/)[0])).filter((pid) => pid && pid !== process.pid)
+  } catch {}
+  return []
+}
+
+function killRun(marker, children) {
+  for (const child of children) {
+    try {
+      if (process.platform === 'win32') execFileSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+      else process.kill(-child.pid, 'SIGKILL')
+    } catch {}
+  }
+  for (const pid of markedPids(marker)) try { process.kill(pid, 'SIGKILL') } catch {}
+}
+
+function spawnInGroup(children) {
+  return (o) => {
+    const child = spawn(o.command, o.args, { cwd: o.cwd, env: o.env, stdio: ['pipe', 'pipe', 'ignore'], detached: process.platform !== 'win32', windowsHide: true, signal: o.signal })
+    children.push(child)
+    return child
+  }
+}
+
 export default class SkillRun {
   constructor(options) { this.options = options; this.config = options.config }
   id() { return this.options.id || 'skill-run' }
   async callApi(prompt, context) {
-    const { arm, skillDir, skillName, inner } = this.config
+    const { arm, skillDir, skillName, inner, timeout = 300 } = this.config
     const vars = context.vars
     if (vars.kind === 'trigger' && arm !== 'skill') return { output: '', metadata: { arm, skipped: true } }
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-run-'))
@@ -68,9 +105,24 @@ export default class SkillRun {
       git(['commit', '-q', '-m', 'case files', '--allow-empty'])
       if (skillDir) fs.cpSync(skillDir, path.join(dir, '.claude', 'skills', skillName), { recursive: true })
       fs.appendFileSync(path.join(dir, '.git', 'info', 'exclude'), '.claude/\n')
-      const env = isolatedHome(home)
-      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, env, working_dir: dir } } })
-      const response = await provider.callApi(prompt, context)
+      const marker = 'SKILL_TEST_RUN=' + randomUUID()
+      const env = { ...isolatedHome(home), SKILL_TEST_RUN: marker.split('=')[1] }
+      const children = []
+      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, env, working_dir: dir, spawn_claude_code_process: spawnInGroup(children) } } })
+      const controller = new AbortController()
+      let limit
+      const timedOut = new Promise((resolve) => {
+        limit = setTimeout(() => {
+          controller.abort()
+          killRun(marker, children)
+          resolve('time limit')
+        }, timeout * 1000)
+      })
+      const answer = provider.callApi(prompt, context, { abortSignal: controller.signal }).catch((error) => ({ error: String(error?.message ?? error) }))
+      const first = await Promise.race([answer, timedOut])
+      clearTimeout(limit)
+      if (first === 'time limit') return { error: 'time limit', metadata: { arm, timedOut: true } }
+      const response = first
       const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')
       const calls = response.metadata?.skillCalls ?? []
       const fired = calls.some((call) => call.name === skillName || call.input?.skill === skillName)
@@ -84,8 +136,7 @@ export default class SkillRun {
       response.metadata = { ...response.metadata, arm, fired, checks }
       return response
     } finally {
-      fs.rmSync(dir, { recursive: true, force: true })
-      fs.rmSync(home, { recursive: true, force: true })
+      for (const folder of [dir, home]) try { fs.rmSync(folder, { recursive: true, force: true }) } catch {}
     }
   }
 }
