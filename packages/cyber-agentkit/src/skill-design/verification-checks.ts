@@ -21,6 +21,8 @@ export type EvalsFile = {
 	threshold?: number
 	/** Seconds one run may take; optional. */
 	timeout?: number
+	/** Runs at once, never above the bound `skill test` sets from the hardware threads; optional. */
+	concurrency?: number
 	trigger?: { prompt: string; expect: 'fire' | 'skip' }[]
 	outcome?: {
 		id: string
@@ -53,7 +55,7 @@ function checkListProblems(list: unknown, what: string): string[] {
 export function evalsProblems(value: unknown): string[] {
 	if (!isRecord(value)) return ['it is not a mapping']
 	const problems: string[] = []
-	for (const key of ['runs', 'threshold'] as const) {
+	for (const key of ['runs', 'threshold', 'concurrency'] as const) {
 		const n = value[key]
 		if (n !== undefined && (!Number.isInteger(n) || (n as number) < 1))
 			problems.push(`\`${key}\` is not a positive whole number`)

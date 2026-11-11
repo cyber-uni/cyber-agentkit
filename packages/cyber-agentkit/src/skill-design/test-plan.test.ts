@@ -80,3 +80,41 @@ describe('planTest', () => {
 		expect(planned.plan.cases.some((item) => item.id === 'two-prs')).toBe(false)
 	})
 })
+
+describe('planTest --case and concurrency (R102, R103)', () => {
+	const planned = (options: Parameters<typeof planTest>[1], evals = goodEvals) => {
+		const result = planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': evals }), options)
+		if (!('plan' in result)) throw new Error(result.problem)
+		return result
+	}
+
+	it('keeps only the named cases, and marks the plan', () => {
+		const { plan } = planned({ cases: ['trigger-3', 'two-prs'] })
+		expect(plan.cases.map((item) => item.id)).toEqual(['trigger-3', 'two-prs'])
+		expect(plan.only).toEqual(['trigger-3', 'two-prs'])
+		expect(planned({}).plan.only).toBeUndefined()
+	})
+
+	it('answers unknown-case for an ID the eval set does not hold', () => {
+		const result = planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': goodEvals }), {
+			cases: ['two-prs', 'trigger-7'],
+		})
+		expect(result).toMatchObject({ code: 'unknown-case' })
+	})
+
+	it('bounds concurrency below half the threads, at least 1', () => {
+		const at = (threads: number, evals?: string) => planned({ threads }, evals).plan.concurrency
+		expect([1, 2, 3, 4, 5, 8, 16].map((n) => at(n))).toEqual([1, 1, 1, 1, 2, 3, 7])
+		expect(at(16, `concurrency: 3\n${goodEvals}`)).toBe(3)
+		expect(at(16, `concurrency: 9\n${goodEvals}`)).toBe(7)
+		expect(planned({ threads: 16 }, `concurrency: 9\n${goodEvals}`).warnings).toHaveLength(1)
+		expect(planned({ threads: 16 }, `concurrency: 3\n${goodEvals}`).warnings).toEqual([])
+	})
+
+	it('rejects a concurrency that is not a positive whole number', () => {
+		for (const bad of ['0', '1.5', 'many'])
+			expect(
+				planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': `concurrency: ${bad}\n${goodEvals}` })),
+			).toMatchObject({ code: 'evals-invalid' })
+	})
+})

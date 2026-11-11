@@ -32,6 +32,8 @@ export type SkillCommandOptions = {
 	runPromptfoo?: PromptfooRun | undefined
 	/** How `skill test` polls the progress file and spaces its "still running" lines; tests shorten them. */
 	progress?: { heartbeatMs?: number | undefined; pollMs?: number | undefined } | undefined
+	/** The machine's hardware threads, which bound how many runs go at once (R103); tests set it. */
+	threads?: number | undefined
 }
 
 function answerThenFail(answer: Answer<any>, format: Format): never {
@@ -123,6 +125,8 @@ function testText(result: TestResult): string {
 			)
 	}
 	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
+	if (result.partial)
+		lines.push(`partial: only ${result.partial.cases.join(', ')} ran; not saved as the expected result`)
 	if (result.savedAsExpected) lines.push('no expected result yet: saved this passing result as evals/expected.json')
 	if (result.noPrevious) lines.push('no expected or previous result to compare with')
 	else
@@ -131,7 +135,12 @@ function testText(result: TestResult): string {
 	return `${lines.join('\n')}\n`
 }
 
-function testCommand({ plugin, runPromptfoo: run = runPromptfoo, progress }: SkillCommandOptions): cli.Command {
+function testCommand({
+	plugin,
+	runPromptfoo: run = runPromptfoo,
+	progress,
+	threads,
+}: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'test',
 		description:
@@ -156,6 +165,11 @@ function testCommand({ plugin, runPromptfoo: run = runPromptfoo, progress }: Ski
 				description: 'The repository root the result is saved under. Defaults to the nearest folder holding `.git`.',
 				type: t.string().optional(),
 			},
+			case: {
+				description:
+					'Run only the case with this ID, an outcome case ID or `trigger-<n>`; repeat it for more. The result is marked partial, is compared for those cases only, and is never saved as the expected result.',
+				type: t.array(t.string()).optional(),
+			},
 			accept: {
 				description:
 					"After the run, also write its result to the skill's `evals/expected.json`, the expected result that later runs compare with.",
@@ -164,6 +178,10 @@ function testCommand({ plugin, runPromptfoo: run = runPromptfoo, progress }: Ski
 		},
 		examples: [
 			{ command: 'cyber-agentkit skill test .agents/skills/release-notes', description: 'Test one skill' },
+			{
+				command: 'cyber-agentkit skill test .agents/skills/release-notes --case two-prs --case trigger-1',
+				description: 'Try a change on two cases only',
+			},
 			{
 				command: 'cyber-agentkit skill test .agents/skills/release-notes --accept',
 				description: "Test it and keep the result as the skill's expected result",
@@ -178,6 +196,7 @@ function testCommand({ plugin, runPromptfoo: run = runPromptfoo, progress }: Ski
 				baseline?: string
 				root?: string | undefined
 				accept?: boolean | undefined
+				case?: string[] | undefined
 			},
 		) {
 			const skill = readSkill(args.folder)
@@ -185,11 +204,18 @@ function testCommand({ plugin, runPromptfoo: run = runPromptfoo, progress }: Ski
 				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
 				throw CliError.reported(exitCodes.error)
 			}
-			const planned = planTest(skill, { judge: args.judge })
+			if (args.accept && args.case?.length) {
+				process.stderr.write(
+					'error: partial-accept: --accept cannot be used with --case; a partial result is never the expected result\n',
+				)
+				throw CliError.reported(exitCodes.usage)
+			}
+			const planned = planTest(skill, { judge: args.judge, cases: args.case, threads })
 			if ('problem' in planned) {
 				process.stderr.write(`error: ${planned.code}: ${planned.problem}\n`)
-				throw CliError.reported(exitCodes.error)
+				throw CliError.reported(planned.code === 'unknown-case' ? exitCodes.usage : exitCodes.error)
 			}
+			for (const warning of planned.warnings) process.stderr.write(`warning: ${warning}\n`)
 			const home = homedir()
 			const layers = await referenceLayers({
 				root: args.root,
@@ -227,7 +253,7 @@ function testCommand({ plugin, runPromptfoo: run = runPromptfoo, progress }: Ski
 			const saved = saveResult(resultFolder, ran.result, skill.folder)
 			const failed = [...saved.trigger, ...saved.criteria].some((item) => item.status === 'fail')
 			// The first run that passes becomes the expected result when there is none (R80).
-			const firstPass = !failed && !existsSync(expectedPath(skill.folder))
+			const firstPass = !failed && !saved.partial && !existsSync(expectedPath(skill.folder))
 			if (args.accept || firstPass) acceptResult(saved, skill.folder)
 			const reported: TestResult = !args.accept && firstPass ? { ...saved, savedAsExpected: true } : saved
 			const answer = result(reported, { render: { text: testText } })
@@ -266,6 +292,12 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 			const latest = readLatest(resultsFolder(resultsBase(args.root, homedir()), name))
 			if (!latest) {
 				process.stderr.write(`error: no-result: no saved test result for ${name}; run \`skill test\` first\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			if (latest.partial) {
+				process.stderr.write(
+					`error: partial-result: the last test of ${name} ran only ${latest.partial.cases.join(', ')}; run the whole test to accept it\n`,
+				)
 				throw CliError.reported(exitCodes.error)
 			}
 			const path = acceptResult(latest, skill.folder)

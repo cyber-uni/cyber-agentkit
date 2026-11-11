@@ -41,7 +41,7 @@ export function planLine(plan: TestPlan, last?: Pick<TestResult, 'durationMs' | 
 			: triggers === plan.cases.length
 				? 'with the skill'
 				: 'outcome cases with and without the skill, trigger cases with it'
-	let line = `skill test: ${plannedRuns(plan)} runs (${plan.cases.length} cases × ${plan.runs}, ${arms})`
+	let line = `skill test: ${plannedRuns(plan)} runs (${plan.cases.length} cases × ${plan.runs}, ${arms}); ${plan.concurrency} at once`
 	const before: string[] = []
 	if (last?.durationMs) {
 		const minutes = last.durationMs / 60_000

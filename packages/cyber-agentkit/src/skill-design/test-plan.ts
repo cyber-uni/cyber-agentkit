@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { availableParallelism } from 'node:os'
 import { join, resolve } from 'node:path'
 import { parse } from 'yaml'
 import { criteriaItems, type SkillFiles } from './skill-files.js'
@@ -28,6 +29,10 @@ export type TestPlan = {
 	threshold: number
 	/** Seconds one run may take. */
 	timeout: number
+	/** Runs at once (R103). */
+	concurrency: number
+	/** Set when only the named cases run (R102): their IDs, in plan order. */
+	only?: string[]
 	cases: PlannedCase[]
 	/** Every criterion ID the skill lists, in order. */
 	criteria: string[]
@@ -37,10 +42,30 @@ export type TestPlan = {
 	notRun: { case: string; reason: string }[]
 }
 
-export type PlanResult = { plan: TestPlan } | { problem: string; code: 'no-cases' | 'evals-invalid' }
+export type PlanResult =
+	| { plan: TestPlan; warnings: string[] }
+	| { problem: string; code: 'no-cases' | 'evals-invalid' | 'unknown-case' }
+
+/** The most runs that go at once (R103): the largest whole number strictly below half the hardware threads, and at least 1. */
+export function concurrencyBound(threads: number): number {
+	return Math.max(1, Math.ceil(threads / 2) - 1)
+}
 
 /** Reads `evals/evals.yaml` and decides what runs: which cases, which checks, and what is reported without a run. */
-export function planTest(skill: SkillFiles, { judge }: { judge?: string | undefined } = {}): PlanResult {
+export function planTest(
+	skill: SkillFiles,
+	{
+		judge,
+		cases: only,
+		threads = availableParallelism(),
+	}: {
+		judge?: string | undefined
+		/** Run only the cases with these IDs (R102). */
+		cases?: string[] | undefined
+		/** The machine's hardware threads; tests set it. */
+		threads?: number | undefined
+	} = {},
+): PlanResult {
 	const path = join(skill.folder, 'evals', 'evals.yaml')
 	if (!existsSync(path)) return { code: 'no-cases', problem: 'the skill has no evals/evals.yaml' }
 	let value: unknown
@@ -108,15 +133,41 @@ export function planTest(skill: SkillFiles, { judge }: { judge?: string | undefi
 		}
 		cases.push(planned)
 	}
+	const warnings: string[] = []
+	const bound = concurrencyBound(threads)
+	let concurrency = bound
+	if (evals.concurrency !== undefined) {
+		if (evals.concurrency > bound)
+			warnings.push(
+				`evals.yaml asks for ${evals.concurrency} runs at once; running ${bound}, fewer than half of the ${threads} hardware threads`,
+			)
+		else concurrency = evals.concurrency
+	}
+	let chosen = cases
+	let skipped = notRun
+	if (only?.length) {
+		const known = new Set([...cases.map((item) => item.id), ...notRun.map((item) => item.case)])
+		const unknown = [...new Set(only)].filter((id) => !known.has(id))
+		if (unknown.length)
+			return {
+				code: 'unknown-case',
+				problem: `no case ${unknown.join(', ')} in evals/evals.yaml; the cases are ${[...known].join(', ')}`,
+			}
+		chosen = cases.filter((item) => only.includes(item.id))
+		skipped = notRun.filter((item) => only.includes(item.case))
+	}
 	return {
 		plan: {
 			runs: evals.runs ?? defaultRuns,
 			threshold: evals.threshold ?? defaultThreshold,
 			timeout: evals.timeout ?? defaultTimeout,
-			cases,
+			concurrency,
+			...(only?.length ? { only: [...chosen.map((item) => item.id), ...skipped.map((item) => item.case)] } : {}),
+			cases: chosen,
 			criteria,
 			notTested,
-			notRun,
+			notRun: skipped,
 		},
+		warnings,
 	}
 }

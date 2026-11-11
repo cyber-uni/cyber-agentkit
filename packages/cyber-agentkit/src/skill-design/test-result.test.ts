@@ -154,3 +154,35 @@ describe('compareWithPrevious', () => {
 		expect(compareWithPrevious(result([]), undefined)).toMatchObject({ noPrevious: true })
 	})
 })
+
+describe('a partial result (R102)', () => {
+	const partialPlan: TestPlan = {
+		...plan,
+		only: ['two-prs'],
+		cases: plan.cases.filter((item) => item.id === 'two-prs'),
+	}
+	const rows: RowSpec[] = [0, 1, 2].map((run) => ({ case: 'two-prs', run, checks: { C1: true, C2: true } }))
+
+	it('names the cases it covers and holds only them', () => {
+		const result = readPromptfooOutput(output(rows), partialPlan, meta)
+		expect(result.partial).toEqual({ cases: ['two-prs'] })
+		expect(result.cases.map((item) => item.case)).toEqual(['two-prs'])
+		expect(result.trigger).toEqual([])
+		expect(readPromptfooOutput(output(rows), plan, meta).partial).toBeUndefined()
+	})
+
+	it('shows no case it did not run as changed', () => {
+		const result = readPromptfooOutput(output(rows), partialPlan, meta)
+		const before: TestResult = {
+			...result,
+			partial: undefined as never,
+			cases: [
+				{ case: 'trigger-1', status: 'pass' },
+				{ case: 'two-prs', status: 'fail' },
+			],
+		}
+		expect(compareWithPrevious(result, before, 'expected').changed).toEqual([
+			{ case: 'two-prs', from: 'fail', to: 'pass' },
+		])
+	})
+})

@@ -100,7 +100,7 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 		description: `skill test: ${options.skillName}`,
 		prompts: ['{{prompt}}'],
 		...(options.progress ? { extensions: [`file://${options.progress.hook}:afterEach`] } : {}),
-		evaluateOptions: { maxConcurrency: 3, repeat: plan.runs },
+		evaluateOptions: { maxConcurrency: plan.concurrency, repeat: plan.runs },
 		providers: [
 			provider('with-skill', 'skill', options.skillFolder),
 			options.baselineFolder

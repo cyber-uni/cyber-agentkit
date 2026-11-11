@@ -339,7 +339,7 @@ describe('skill test progress (UC6)', () => {
 
 	async function testWith(folder: string, run: PromptfooRun, root: string, ...extra: string[]) {
 		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
-			createSkillCommand({ runPromptfoo: run, progress: { heartbeatMs: 60, pollMs: 10 } }),
+			createSkillCommand({ runPromptfoo: run, progress: { heartbeatMs: 60, pollMs: 10 }, threads: 16 }),
 		)
 		return app.parse<number | undefined>([
 			'node',
@@ -392,7 +392,7 @@ describe('skill test progress (UC6)', () => {
 			await testWith(goodSkill().folder, fakeRun({}), gitRepo())
 			expect(first).toEqual([])
 			expect(errors()[0]).toBe(
-				'skill test: 24 runs (7 cases × 3, outcome cases with and without the skill, trigger cases with it)\n',
+				'skill test: 24 runs (7 cases × 3, outcome cases with and without the skill, trigger cases with it); 7 at once\n',
 			)
 		})
 
@@ -529,5 +529,125 @@ describe('skill test progress (UC6)', () => {
 			await testWith(goodSkill().folder, run, gitRepo(), '--silent')
 			expect(errors().filter((line) => /skill test:|\[\d+\/|still running/.test(line))).toEqual([])
 		})
+	})
+})
+
+describe('skill test --case (R102)', () => {
+	const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+	const gitRepo = () => {
+		const root = repo()
+		mkdirSync(join(root, '.git'))
+		return root
+	}
+	const latestOf = (root: string) =>
+		JSON.parse(readFileSync(join(root, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'), 'utf8'))
+
+	it('runs only the named cases, outcome IDs or trigger-<n>, and says so in the plan and the result', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		const seen: { config?: Record<string, unknown> } = {}
+		expect(await test(skill.folder, fakeRun(seen), root, '--case', 'two-prs', '--case', 'trigger-2')).toBe(0)
+		const tests = seen.config?.['tests'] as { description: string }[]
+		expect(tests.map((item) => item.description)).toEqual(['trigger-2', 'two-prs'])
+		expect(errors()).toContain('skill test: 9 runs (2 cases × 3,')
+		const latest = latestOf(root)
+		expect(latest.partial).toEqual({ cases: ['trigger-2', 'two-prs'] })
+		expect(latest.cases.map((item: { case: string }) => item.case)).toEqual(['trigger-2', 'two-prs'])
+		expect(printed()).toContain('"partial":{"cases":["trigger-2","two-prs"]}')
+	})
+
+	it('never saves a partial result as the expected result, even a first passing one', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}), root, '--case', 'two-prs')
+		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+		expect(printed()).not.toContain('savedAsExpected')
+		expect(latestOf(root).partial).toBeDefined() // still saved as latest.json
+	})
+
+	it('compares with the expected result for the named cases only', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}), root) // the full pass becomes expected
+		stdout.mockClear()
+		await test(skill.folder, fakeRun({}, false), root, '--case', 'two-prs')
+		const latest = latestOf(root)
+		expect(latest.comparedWith).toBe('expected')
+		expect(latest.changed).toEqual([{ case: 'two-prs', from: 'pass', to: 'fail' }])
+	})
+
+	it('is a usage error for an unknown case ID, and nothing runs', async () => {
+		const skill = goodSkill()
+		const run = vi.fn(fakeRun({}))
+		expect(await test(skill.folder, run, gitRepo(), '--case', 'two-prs', '--case', 'nope', '--case', 'trigger-9')).toBe(
+			2,
+		)
+		expect(run).not.toHaveBeenCalled()
+		expect(errors()).toMatch(/unknown-case: no case nope, trigger-9/)
+	})
+
+	it('refuses --accept with --case as a usage error, and nothing runs', async () => {
+		const skill = goodSkill()
+		const run = vi.fn(fakeRun({}))
+		expect(await test(skill.folder, run, gitRepo(), '--case', 'two-prs', '--accept')).toBe(2)
+		expect(run).not.toHaveBeenCalled()
+		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+	})
+
+	it('has skill accept refuse a partial latest result, naming why', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}), root, '--case', 'two-prs')
+		stderr.mockClear()
+		expect(await sub('accept', skill.folder, root)).toBe(1)
+		expect(errors()).toMatch(/partial-result: .*ran only two-prs/)
+		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+	})
+})
+
+describe('skill test concurrency (R103)', () => {
+	const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+	async function withThreads(threads: number, evals: string | undefined) {
+		const skill = goodSkill()
+		if (evals !== undefined) writeFileSync(join(skill.folder, 'evals', 'evals.yaml'), evals)
+		const seen: { config?: Record<string, unknown> } = {}
+		const root = repo()
+		mkdirSync(join(root, '.git'))
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
+			createSkillCommand({ runPromptfoo: fakeRun(seen), threads }),
+		)
+		await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root, '--format', 'json'])
+		return seen.config?.['evaluateOptions'] as { maxConcurrency: number }
+	}
+	const base = readFileSync(join(goodSkill().folder, 'evals', 'evals.yaml'), 'utf8')
+
+	it('runs fewer than half the hardware threads at once, and at least one, and says so in the plan line', async () => {
+		expect(await withThreads(16, undefined)).toMatchObject({ maxConcurrency: 7 })
+		expect(errors()).toContain('; 7 at once\n')
+		for (const [threads, bound] of [
+			[2, 1],
+			[3, 1],
+			[4, 1],
+			[5, 2],
+			[1, 1],
+		] as const)
+			expect(await withThreads(threads, undefined)).toMatchObject({ maxConcurrency: bound })
+	})
+
+	it('lowers to the evals concurrency, and caps a larger one with a warning', async () => {
+		expect(await withThreads(16, `concurrency: 2\n${base}`)).toMatchObject({ maxConcurrency: 2 })
+		expect(errors()).toContain('; 2 at once\n')
+		expect(errors()).not.toContain('warning')
+		expect(await withThreads(16, `concurrency: 12\n${base}`)).toMatchObject({ maxConcurrency: 7 })
+		expect(errors()).toMatch(/warning: .*asks for 12 runs at once; running 7/)
+	})
+
+	it('is an eval-set error when concurrency is not a positive whole number', async () => {
+		const skill = goodSkill()
+		writeFileSync(join(skill.folder, 'evals', 'evals.yaml'), `concurrency: 0\n${base}`)
+		const run = vi.fn(fakeRun({}))
+		expect(await test(skill.folder, run, repo())).toBe(1)
+		expect(run).not.toHaveBeenCalled()
+		expect(errors()).toMatch(/evals-invalid: .*`concurrency` is not a positive whole number/)
 	})
 })

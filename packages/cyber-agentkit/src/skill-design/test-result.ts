@@ -36,6 +36,8 @@ export type TestResult = {
 	trigger: TriggerResult[]
 	criteria: CriterionResult[]
 	cases: CaseStatus[]
+	/** Set when only the named cases ran (R102): the result covers them alone, is compared for them alone, and is never the expected result. */
+	partial?: { cases: string[] }
 	notRun: { case: string; reason: string }[]
 	changed?: { case: string; from: Status; to: Status }[]
 	/** Which result `changed` compares with: the skill's expected result, else the previous saved one. */
@@ -126,7 +128,12 @@ export function readPromptfooOutput(
 		const skipped = plan.notTested.find((entry) => entry.id === id || entry.id === '*')
 		if (skipped) return { id, status: 'not-tested', reason: skipped.reason }
 		const covering = outcomes.filter((item) => id in item.rubrics || id in item.judged)
-		if (!covering.length) return { id, status: 'not-tested', reason: 'no outcome case that runs tests it' }
+		if (!covering.length)
+			return {
+				id,
+				status: 'not-tested',
+				reason: plan.only ? 'none of the cases named tests it' : 'no outcome case that runs tests it',
+			}
 		let passed = 0
 		let ran = 0
 		const failures: Failure[] = []
@@ -182,6 +189,7 @@ export function readPromptfooOutput(
 		trigger,
 		criteria,
 		cases,
+		...(plan.only ? { partial: { cases: plan.only } } : {}),
 		notRun,
 		...(cost ? { cost: Math.round(cost * 10000) / 10000 } : {}),
 	}
@@ -196,6 +204,7 @@ export function compareWithPrevious(
 	if (!compared) return { ...result, noPrevious: true }
 	const before = new Map(compared.cases.map((item) => [item.case, item.status]))
 	const changed = result.cases.flatMap((item) => {
+		if (result.partial && !result.partial.cases.includes(item.case)) return []
 		const from = before.get(item.case)
 		const flipped = (from === 'pass' && item.status === 'fail') || (from === 'fail' && item.status === 'pass')
 		return flipped && from ? [{ case: item.case, from, to: item.status }] : []
