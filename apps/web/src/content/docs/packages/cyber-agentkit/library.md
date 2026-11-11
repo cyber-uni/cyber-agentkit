@@ -36,7 +36,10 @@ if (harness !== 'unknown') skillsDirectories(harness)
 `loadReference()` composes a named document from its contributions in the managed, repo, user, plugin, and default tiers.
 `createReference()`, `customizeReference()`, and `deleteReference()` write and delete a contribution, as the
 `create`, `customize`, and `delete` subcommands do; `customizeReference()` runs no model. `migrateReferences()`
-returns the plan `reference migrate` prints, and applies it with `write: true`. A function that cannot
+returns the plan `reference migrate` prints, and applies it with `write: true`. `referenceImplementations()` lists the implementations
+of an interface and, for a `one` interface, the one in use (`inUse`). Given a family `<prefix>.*`, it lists every
+interface under the prefix, and `customizeReference()` writes the same picks for each; `isFamilyName()` tells a family
+from a single name. A function that cannot
 complete throws `ReferenceError`, which carries a stable `code`. `createReferenceCommand()` and
 `createReferenceCommands()` build the [`reference` command](/cyber-agentkit/packages/cyber-agentkit/cli/)
 for a host CLI. Pass `path`, the command line that reaches them in that CLI, such as
