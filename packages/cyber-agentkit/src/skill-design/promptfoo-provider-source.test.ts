@@ -107,7 +107,10 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 		)
 		const pidFile = join(root, 'pid')
 		const started = Date.now()
-		const out = execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8', env: { ...process.env, PID_FILE: pidFile } })
+		const out = execFileSync('node', [join(root, 'run.mjs')], {
+			encoding: 'utf8',
+			env: { ...process.env, PID_FILE: pidFile },
+		})
 		expect(Date.now() - started).toBeLessThan(15000)
 		expect(JSON.parse(out)).toMatchObject({ error: 'time limit' })
 		const alive = (pid: number) => {

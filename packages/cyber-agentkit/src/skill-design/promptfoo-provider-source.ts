@@ -40,8 +40,8 @@ function decide(check, output, dir) {
 
 // Each run sees an empty home and an empty Claude config folder, so a skill's own CLI finds no user
 // references or plugins, and the Bash tool sources no user shell snapshot. The login stays the real one:
-// CLAUDE_SECURESTORAGE_CONFIG_DIR names the folder Claude Code reads and writes its credentials in (found in
-// the claude binary 2.1.322, not in the vendor docs; CLAUDE_CONFIG_DIR is E-CC-D7), so Claude Code
+// CLAUDE_SECURESTORAGE_CONFIG_DIR names the folder Claude Code reads and writes its credentials in (E-CC-D11, found
+// in the claude binary 2.1.322, not in the vendor docs; CLAUDE_CONFIG_DIR is E-CC-D7), so Claude Code
 // refreshes a token in the real file itself and nothing is copied or linked. If a Claude Code version
 // ignores the variable, the run reports "Not logged in" and counts as not run. macOS keeps the real config
 // folder, because its keychain entry is named after the folder and that name cannot be set from here. A login
