@@ -1,0 +1,47 @@
+runs: 3
+threshold: 2
+trigger:
+  - { prompt: "Turn what we just did into a skill.", expect: fire }
+  - { prompt: "Make a skill from the steps in docs/release.md.", expect: fire }
+  - { prompt: "Skillify how we cut the release this morning.", expect: fire }
+  - { prompt: "Take the steps from our old deploy skill and make a skill of them for this repo.", expect: fire }
+  - { prompt: "Write a skill that drafts release notes from merged pull requests.", expect: skip }
+  - { prompt: "Is my release-notes skill any good? Check it.", expect: skip }
+  - { prompt: "Summarize what we did in this session.", expect: skip }
+  - { prompt: "Turn these notes into a section of the README.", expect: skip }
+outcome:
+  - id: from-notes
+    prompt: Skillify notes/build.md.
+    files: files/build-notes   # notes name three bundles; the repo has two, and a stand-in /skill records its input
+    criteria: [C1, C2, C3, C4, C5, C6]
+  - id: unreadable-source
+    prompt: Skillify notes/deploy.md.
+    files: files/build-notes
+    criteria: [C1, C7]
+    checks:
+      C7:
+        - regex: "deploy\\.md"
+        - script: "test ! -e .create-input.md"
+  - id: nothing-to-skillify
+    prompt: Skillify this session.
+    files: files/build-notes
+    criteria: [C1, C7]
+    checks:
+      C7:
+        - regex: "/skill create"
+        - script: "test ! -e .create-input.md"
+rubrics:
+  C1:
+    - script: "git diff --quiet HEAD -- notes"
+  C2:
+    - file-exists: .create-input.md
+  C3:
+    - script: "grep -qi 'format' .create-input.md && grep -qi 'rebuild the bundles' .create-input.md"
+  C4:
+    - script: "grep -q 'notes/build.md' .create-input.md"
+  C5:
+    - script: "grep -qiE 'input|generali[sz]|varies|vary|differ' .create-input.md"
+  C6:
+    - script: "grep -qiE 'no longer|not exist|n.t exist|missing|stale|only two|two bundles' .create-input.md"
+  C7:
+    - script: "test ! -e .create-input.md"
