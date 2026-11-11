@@ -40,7 +40,8 @@ contract apply here; IDs are shared across the parent and its children.
 - **Inputs:** the source, which is the current session's context unless the description names another (a document or
   another skill); the description, which can also say which job in the source to capture; the selected implementation
   for each aspect; where the skill goes.
-- **Success:** the same as UC1, except that each aspect's draft starts from the source. The skill generalizes the
+- **Success:** the same as UC1, except that `/skill` answers each question `create` would ask the author from the
+  source, and asks the author only what the source leaves open or where it differs from what the skill should do. The skill generalizes the
   source so it can be reused: the agent proposes what it generalizes over (what would differ on the next run, such as
   the repo, the version, or the target) and the author confirms it. The author decides every point where the source is
   silent, or where what it did differs from what the skill should do. The source is left unchanged.
@@ -75,3 +76,5 @@ contract apply here; IDs are shared across the parent and its children.
   per job and builds none until the author picks.
 - R16 (UC2.5): When the session holds no work and no other source is named, `backfill` says there is nothing to
   backfill, points to `create`, and writes nothing.
+- R83 (UC2): Each question `create` asks the author is answered from the source when the source answers it, and the
+  answer names where in the source it came from.
