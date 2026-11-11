@@ -1,7 +1,6 @@
 # Skill
 
-Designs an agent skill through aspects a team can swap one at a time. `/skill` creates a skill from a described job,
-skillifies one from work already done, checks it without running it, tests it by running its evals, fixes what check
+Designs an agent skill through aspects a team can swap one at a time. `/skill` creates a skill from a described job, checks it without running it, tests it by running its evals, fixes what check
 or test found, and enhances it beyond that. Intent, Shape, and Trigger are built in. Criteria, Verification, and every
 open aspect, such as Security, are references (`skill-design.aspects.<aspect>`) that another plugin can replace through
 the `reference` skill's Customize mode. The default Verification runs each case several times in a sandbox, on
@@ -11,7 +10,6 @@ promptfoo, beside a run without the skill. Type `/skill` to run it yourself. Ins
 | Command | Does |
 | --- | --- |
 | `create` | drafts Intent, Criteria, Shape, and Trigger for approval, builds the skill, then checks and tests it |
-| `skillify` | the same, starting from this session, a document, or another skill |
 | `check` | reads the skill against every aspect; changes nothing |
 | `test` | runs the evals and saves the result; changes nothing |
 | `fix` | repairs what check or test found |

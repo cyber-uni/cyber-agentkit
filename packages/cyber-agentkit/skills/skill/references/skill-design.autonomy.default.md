@@ -7,10 +7,6 @@ tags: [skill-design, autonomy]
 
 ask
 
-## skillify
-
-apply-safe
-
 ## fix
 
 apply-safe

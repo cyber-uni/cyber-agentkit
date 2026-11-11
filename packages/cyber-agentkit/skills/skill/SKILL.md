@@ -1,6 +1,6 @@
 ---
 name: skill
-description: Use this skill when creating, skillifying, checking, testing, fixing, or enhancing an agent skill (a SKILL.md and its folder), as in "write a skill for X", "turn what we just did into a skill", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", or "improve this skill".
+description: Use this skill when creating, checking, testing, fixing, or enhancing an agent skill (a SKILL.md and its folder), as in "write a skill for X", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", or "improve this skill".
 ---
 
 # Skill
@@ -13,7 +13,6 @@ works through the aspects below.
 | Command | Use it when | Instructions |
 | --- | --- | --- |
 | `create [description]` | the author wants a new skill for a job they describe | [references/create.md](references/create.md) |
-| `skillify [description]` | the job was already done some other way (this session, a document, another skill) and should become a skill | [references/skillify.md](references/skillify.md) |
 | `check [skill]` | the author wants to know whether a skill as written meets each aspect, without running it | [references/check.md](references/check.md) |
 | `test [skill]` | the author wants the skill's evals run: does it fire on the right requests, and does its result meet its Criteria | [references/test.md](references/test.md) |
 | `fix [skill]` | `check` or `test` found failures to repair | [references/fix.md](references/fix.md) |
@@ -48,8 +47,9 @@ likely to confuse the two. It is for the people who keep the skill.
 `SKILL.md` carries no Intent paragraph: its description, steps, and `## Done when` already tell the agent the job and
 the result.
 
-**Draft.** From the author's description (or, in `skillify`, the source), write the paragraph in four sentences or
-fewer. Ask the author when the job could be read two ways, and when the result is not named.
+**Draft.** From the author's description (which `/skillify` may have written from work already done), write the
+paragraph in four sentences or fewer. Ask the author when the job could be read two ways, and when the result is
+not named.
 
 - **INT-1** [read] The opening paragraph of `README.md` names one job and the result the skill hands back.
 - **INT-3** [read] Nothing in the body works on a job the Intent does not name.
@@ -105,14 +105,14 @@ Load `skill-design.autonomy` with the `reference` skill of `cyber-agentkit`. It 
   the rest, or report them when no author is present.
 - `apply`: apply every change, and report each one.
 
-A decision only the author can make (changing the Intent, what `skillify` generalizes over, an aspect the source says
+A decision only the author can make (changing the Intent, what a skill generalizes over, an aspect the description says
 nothing about) is asked at every level; with no author present, report it as not applied. A level set for `check` or
 `test` has no effect: say so. A level that names no known value leaves the command at its default: say so.
 
 ## Rules
 
 - When the skill named cannot be found, stop, say where you looked, and write nothing.
-- A skill that `create` or `skillify` writes meets the Agent Skills specification: `name` is 1 to 64 lowercase letters,
+- A skill that `create` writes meets the Agent Skills specification: `name` is 1 to 64 lowercase letters,
   digits, and hyphens and matches the folder; `description` is 1 to 1024 characters.
 - Run no judge unless the author names one.
 - In an interactive run that found failures, end `check` and `test` by offering `fix`. Change nothing unless the author

@@ -5,7 +5,7 @@ interface:
   cardinality: one
   version: 1
   sections:
-    - {heading: Draft, required: true, holds: How create and skillify write a skill's Criteria from its approved Intent.}
+    - {heading: Draft, required: true, holds: How create writes a skill's Criteria from its approved Intent.}
     - {heading: Criteria, required: true, holds: The aspect's own checks on a skill's Criteria, each with an ID and how it is decided.}
     - {heading: Fix, holds: How to repair each failed check.}
     - {heading: Enhance, holds: What to look for when suggesting a better set of Criteria.}
@@ -13,7 +13,7 @@ interface:
 
 ## Receives
 
-The skill's approved Intent, and in `skillify` the source it is drawn from.
+The skill's approved Intent, and the sources it cites when `/skillify` wrote the description.
 
 ## Produces
 
