@@ -4,7 +4,7 @@ import type { ReferenceWarning } from './reference-codes.js'
 import { ReferenceFailure } from './reference-error.js'
 import { type InterfaceCardinality, interfaceIdOf, interfaceSuffix, readImplements } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers, ReferenceTier } from './reference-layers.js'
-import { parseReferenceName } from './reference-name.js'
+import { type FamilyName, isFamilyName, parseFamily, parseReferenceName } from './reference-name.js'
 import { type ResolvedReference, type ResolveOptions, referenceNames, resolveReference } from './resolve-reference.js'
 
 export type ReferenceImplementation = {
@@ -30,8 +30,19 @@ export type ReferenceImplementations = {
 	/** The versions an implementation must declare to be listed. */
 	accept: number[]
 	implementations: ReferenceImplementation[]
+	/**
+	 * A `one` interface's implementation in use (R129): the pin of the listed candidate, or `default`, that a
+	 * load of the name builds on. Absent when the name is not `found`, and for a `many` interface.
+	 */
+	inUse?: string
 	excluded: ExcludedImplementation[]
 	warnings: ReferenceWarning[]
+}
+
+/** What `implementations <prefix>.*` lists (R134): each matched interface in name order, as its own call lists it. */
+export type FamilyImplementations = {
+	family: string
+	interfaces: ReferenceImplementations[]
 }
 
 export type ImplementationsOptions = ResolveOptions & {
@@ -87,9 +98,64 @@ type Candidate = { pin: string; name: string; resolved: ResolvedReference; tier:
  * is never listed: it has no qualified name to pin. An unknown interface throws.
  */
 export function referenceImplementations(
+	family: FamilyName,
+	source: Source,
+	options?: ImplementationsOptions,
+): FamilyImplementations
+export function referenceImplementations(
+	id: string,
+	source: Source,
+	options?: ImplementationsOptions,
+): ReferenceImplementations
+export function referenceImplementations(
 	id: string,
 	source: Source,
 	options: ImplementationsOptions = {},
+): ReferenceImplementations | FamilyImplementations {
+	return isFamilyName(id) || id.includes('*')
+		? familyImplementations(id, source, options)
+		: interfaceImplementations(id, source, options)
+}
+
+/**
+ * The interfaces a family names (K39): each interface document whose id starts with the prefix and a
+ * dot, at any depth, never a plain document or an implementation (R130). Sorted by id. Throws
+ * `name-invalid` for a malformed family (R136), and `interface-unknown` when none match (R135).
+ */
+export function familyInterfaces(family: string, source: Source, options: ResolveOptions = {}): string[] {
+	const parsed = parseFamily(family)
+	if (parsed.invalid !== undefined) throw new ReferenceFailure('name-invalid', parsed.invalid)
+	const lookup = interfaceLookup(source, options)
+	const aliases = aliasIndex(source)
+	const ids = new Set<string>()
+	for (const name of referenceNames(source)) {
+		const id = interfaceIdOf(shownName(name, aliases))
+		if (id === undefined || !id.startsWith(`${parsed.prefix}.`)) continue
+		const value = lookup(id).value
+		if (value) ids.add(value.id)
+	}
+	if (!ids.size) {
+		throw new ReferenceFailure('interface-unknown', `no interface document matches ${family}.`, {
+			help: 'Run `reference list` for the names found.',
+		})
+	}
+	return [...ids].sort((a, b) => a.localeCompare(b))
+}
+
+/** `implementations <prefix>.*`: each matched interface, in name order, as `implementations <id>` lists it (R134). */
+export function familyImplementations(
+	family: string,
+	source: Source,
+	options: ImplementationsOptions = {},
+): FamilyImplementations {
+	const ids = familyInterfaces(family, source, options)
+	return { family, interfaces: ids.map((id) => interfaceImplementations(id, source, options)) }
+}
+
+function interfaceImplementations(
+	id: string,
+	source: Source,
+	options: ImplementationsOptions,
 ): ReferenceImplementations {
 	const { accept: acceptOption, ...rest } = options
 	const resolveOptions: ResolveOptions = { ...rest, projectSections: false }
@@ -198,7 +264,30 @@ export function referenceImplementations(
 			})
 		}
 	}
+	if (value.cardinality === 'one') {
+		const inUse = implementationInUse(value.id, source, resolveOptions, report.implementations)
+		if (inUse !== undefined) report.inUse = inUse
+	}
 	return report
+}
+
+/**
+ * The implementation a load of a `one` interface's name builds on (R129), read from the stack the
+ * load composes: the pin of the listed candidate for the plugin it builds on, or `default` when only
+ * the skill's default is in the stack. None when the name is not `found`, or the plugin it builds on
+ * is not listed.
+ */
+function implementationInUse(
+	id: string,
+	source: Source,
+	options: ResolveOptions,
+	listed: readonly ReferenceImplementation[],
+): string | undefined {
+	const resolved = resolveReference(parseReferenceName(id), source, options)
+	if (resolved.status !== 'found') return undefined
+	const pick = resolved.trace.stack.filter((target) => target !== 'default').at(-1)
+	if (pick === undefined) return resolved.trace.stack.includes('default') ? 'default' : undefined
+	return listed.find(({ pin }) => pin === `${pick}/${id}`)?.pin
 }
 
 /** Whether a name fits the interface's cardinality under its id or one of its older ids. */

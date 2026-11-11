@@ -14,7 +14,8 @@ import {
 	traceOption,
 } from './reference-command-support.js'
 import { ReferenceFailure } from './reference-error.js'
-import { referenceImplementations } from './reference-implementations.js'
+import { type ReferenceImplementations, referenceImplementations } from './reference-implementations.js'
+import { type FamilyName, isFamilyName } from './reference-name.js'
 
 export type ReferenceImplementationsReport = {
 	implementations: {
@@ -25,6 +26,8 @@ export type ReferenceImplementationsReport = {
 		tier?: string
 		version?: number
 	}[]
+	/** A `one` interface's implementation in use (R129): a pin, or `default`; absent when the name is not found. */
+	inUse?: string
 	interface?: string
 	cardinality?: string
 	accept?: number[]
@@ -45,6 +48,40 @@ function parseAccept(value: string | undefined): number[] | undefined {
 	return versions.map(Number)
 }
 
+/** `implementations <prefix>.*`: each matched interface in name order, as `implementations <id>` reports it (R134). */
+export type ReferenceFamilyImplementationsReport = {
+	family: string
+	interfaces: (ReferenceImplementationsReport & { interface: string })[]
+}
+
+function rowsOf(found: ReferenceImplementations, trace: boolean | undefined) {
+	return found.implementations.map(({ pin, description, unsupported, name, tier, version }) =>
+		compact(
+			trace
+				? { pin, description, unsupported, name, tier, version }
+				: { pin, ...(tier === 'plugin' ? {} : { tier }), description, unsupported },
+		),
+	)
+}
+
+function reportOf(found: ReferenceImplementations, trace: boolean | undefined): ReferenceImplementationsReport {
+	const report: ReferenceImplementationsReport = { implementations: rowsOf(found, trace) }
+	if (found.inUse !== undefined) report.inUse = found.inUse
+	if (trace) {
+		Object.assign(
+			report,
+			compact({
+				interface: found.interface,
+				cardinality: found.cardinality,
+				accept: found.accept,
+				excluded: found.excluded,
+				warnings: found.warnings,
+			}),
+		)
+	}
+	return report
+}
+
 export function implementationsCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'implementations',
@@ -53,7 +90,8 @@ export function implementationsCommand(layersFor: LayersFor, path = defaultRefer
 		arguments: [
 			{
 				name: 'id',
-				description: 'Interface id, the name of its `<id>.interface` document without the suffix.',
+				description:
+					'Interface id, the name of its `<id>.interface` document without the suffix; or a family, `<prefix>.*`, for every interface under the prefix.',
 				type: t.string(),
 			},
 		],
@@ -75,39 +113,33 @@ export function implementationsCommand(layersFor: LayersFor, path = defaultRefer
 				command: `${path} implementations my-interface`,
 				description: 'List what implements an interface',
 			},
+			{
+				command: `${path} implementations my-skill.aspects.*`,
+				description: 'List, for every interface under a prefix, what implements it and which one is in use',
+			},
 		],
 		async run(args: CommonArgs & { id: string; accept: string | undefined; trace: boolean | undefined }) {
 			try {
 				const accept = parseAccept(args.accept)
 				const home = homedir()
+				if (isFamilyName(args.id) || args.id.includes('*')) {
+					const options = { accept, display: (path: string) => collapseHome(home, path) }
+					const family = referenceImplementations(args.id as FamilyName, await layersFor(args, home), options)
+					const shown: ReferenceFamilyImplementationsReport = {
+						family: family.family,
+						interfaces: family.interfaces.map((each) => ({ ...reportOf(each, args.trace), interface: each.interface })),
+					}
+					return result(shown)
+				}
 				const found = referenceImplementations(args.id, await layersFor(args, home), {
 					accept,
 					display: (path) => collapseHome(home, path),
 				})
-				const rows = found.implementations.map(({ pin, description, unsupported, name, tier, version }) =>
-					compact(
-						args.trace
-							? { pin, description, unsupported, name, tier, version }
-							: { pin, ...(tier === 'plugin' ? {} : { tier }), description, unsupported },
-					),
-				)
-				if (!rows.length && !args.trace) {
+				const report = reportOf(found, args.trace)
+				if (!report.implementations.length && report.inUse === undefined && !args.trace) {
 					return empty(`0 implementations of ${args.id}`, {
 						help: `Run \`reference implementations ${args.id} --trace\` for the ones left out, with why.`,
 					})
-				}
-				const report: ReferenceImplementationsReport = { implementations: rows }
-				if (args.trace) {
-					Object.assign(
-						report,
-						compact({
-							interface: found.interface,
-							cardinality: found.cardinality,
-							accept: found.accept,
-							excluded: found.excluded,
-							warnings: found.warnings,
-						}),
-					)
 				}
 				return result(report)
 			} catch (error) {

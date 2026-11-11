@@ -105,7 +105,10 @@ export const referenceCodes = {
 		when: 'a `--plugin` or `--default` file extending a plugin with `replace` (R103)',
 	},
 	'interface-invalid': { kind: 'refused', when: '`--implements` with an unknown interface (R28, R111)' },
-	'interface-unknown': { kind: 'refused', when: '`implementations` of an unknown interface (R35)' },
+	'interface-unknown': {
+		kind: 'refused',
+		when: '`implementations` of an unknown interface (R35), or of a family matching none; `customize` of a family matching none (R135)',
+	},
 	'template-title': { kind: 'refused', when: 'a title template (R32)' },
 	'template-invalid': {
 		kind: 'refused',
@@ -141,7 +144,10 @@ export const referenceCodes = {
 	},
 	'no-file': { kind: 'notice', when: '`delete` with no file there: a no-op (R30)' },
 	'name-missing': { kind: 'usage', when: 'a command that needs a name, given none (UC1.7)' },
-	'name-invalid': { kind: 'usage', when: 'a write given a string that is not a name, such as `../x` (J1, R1)' },
+	'name-invalid': {
+		kind: 'usage',
+		when: 'a write given a string that is not a name, such as `../x` (J1, R1); `*` anywhere but the last segment of a family (R136)',
+	},
 	'reference-qualified': { kind: 'usage', when: 'a qualified name given to a write (R25)' },
 	'query-missing': { kind: 'usage', when: '`search` with an empty query (UC3.2)' },
 	'change-missing': { kind: 'usage', when: '`customize` with neither `--extends` nor `--request` (R82)' },

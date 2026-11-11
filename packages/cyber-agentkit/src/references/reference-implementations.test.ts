@@ -2,8 +2,10 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { referenceImplementations } from './reference-implementations.js'
+import { familyInterfaces, referenceImplementations } from './reference-implementations.js'
 import {
+	aspectImplementation,
+	aspectInterface,
 	capabilitiesInterface,
 	githubCapabilities,
 	recipeInterface,
@@ -236,5 +238,113 @@ describe('referenceImplementations', () => {
 
 		expect(report.warnings.map(({ code }) => code)).toEqual(['merge-unknown'])
 		expect(report.excluded[0]?.reasons).toEqual([expect.stringMatching(/^compose: /)])
+	})
+
+	describe('the implementation in use (R129)', () => {
+		const id = 'skill-design.aspects.tone'
+		const owner = () => layer('plugin', { [`${id}.interface`]: aspectInterface() }, 'owner')
+
+		it('is the default when a load of the name builds on the skill default only', () => {
+			const layers = [owner(), layer('default', { [id]: '## Aspect\n\nown rule\n' }, 'skill-design')]
+
+			const report = referenceImplementations(id, layers)
+
+			expect(report.implementations).toEqual([])
+			expect(report.inUse).toBe('default')
+		})
+
+		it('is the pin of the plugin a selection picks, and of the only plugin answering', () => {
+			const plugins = [
+				owner(),
+				layer('plugin', { [id]: aspectImplementation(id, 'a') }, 'a'),
+				layer('plugin', { [id]: aspectImplementation(id, 'b') }, 'b'),
+			]
+
+			const picked = referenceImplementations(id, [layer('repo', { [id]: '---\nextends: [b]\n---\n' }), ...plugins])
+			expect(picked.inUse).toBe(`b/${id}`)
+			expect(picked.implementations.map(({ pin }) => pin)).toEqual([`b/${id}`])
+
+			expect(referenceImplementations(id, [owner(), plugins[1] as ReferenceLayer]).inUse).toBe(`a/${id}`)
+		})
+
+		it('is the default when a selection picks default over a plugin that also holds the name', () => {
+			const layers = [
+				layer('repo', { [id]: '---\nextends: [default]\n---\n' }),
+				owner(),
+				layer('plugin', { [id]: aspectImplementation(id, 'a') }, 'a'),
+				layer('default', { [id]: '## Aspect\n\nown rule\n' }, 'skill-design'),
+			]
+
+			expect(referenceImplementations(id, layers).inUse).toBe('default')
+		})
+
+		it('is absent when the name is not found, and for a many interface', () => {
+			expect(referenceImplementations(id, [owner()]).inUse).toBeUndefined()
+			const many = [layer('plugin', { [`${id}.interface`]: aspectInterface('many') }, 'owner')]
+			expect(referenceImplementations(id, many).inUse).toBeUndefined()
+		})
+	})
+
+	describe('a family (R130, R134, R135, R136)', () => {
+		const tone = 'skill-design.aspects.tone'
+		const depth = 'skill-design.aspects.deep.length'
+		const family = () => [
+			layer(
+				'plugin',
+				{
+					[`${tone}.interface`]: aspectInterface(),
+					[`${depth}.interface`]: aspectInterface('many'),
+					'skill-design.other.interface': aspectInterface(),
+					'skill-design.aspects.interface': aspectInterface(),
+					'skill-design.aspects.plain': '## Plain\n',
+					[`${tone}.formal`]: aspectImplementation(tone, 'formal'),
+					[tone]: aspectImplementation(tone, 'owner tone'),
+				},
+				'owner',
+			),
+			layer(
+				'plugin',
+				{ [`${depth}.short`]: '---\nimplements: skill-design.aspects.deep.length@1\n---\n\n## Aspect\n' },
+				'a',
+			),
+		]
+
+		it('matches every interface under the prefix at any depth, and no plain document or implementation (R130)', () => {
+			expect(familyInterfaces('skill-design.aspects.*', family())).toEqual([depth, tone])
+			expect(familyInterfaces('skill-design.*', family())).toEqual([
+				'skill-design.aspects',
+				depth,
+				tone,
+				'skill-design.other',
+			])
+			expect(() =>
+				familyInterfaces('skill-design.aspects.tone.*', [
+					layer(
+						'plugin',
+						{ [`${tone}.interface`]: aspectInterface(), [`${tone}.formal`]: aspectImplementation(tone) },
+						'o',
+					),
+				]),
+			).toThrow(/no interface document matches/)
+		})
+
+		it('lists each matched interface in name order, as the single call lists it (R134)', () => {
+			const layers = family()
+
+			const report = referenceImplementations('skill-design.aspects.*', layers)
+
+			expect(report.family).toBe('skill-design.aspects.*')
+			expect(report.interfaces.map(({ interface: name }) => name)).toEqual([depth, tone])
+			expect(report.interfaces[0]).toEqual(referenceImplementations(depth, layers))
+			expect(report.interfaces[1]).toEqual(referenceImplementations(tone, layers))
+			expect(report.interfaces[0]?.cardinality).toBe('many')
+		})
+
+		it('throws when no interface matches, and is invalid with * anywhere but the last segment (R135, R136)', () => {
+			expect(() => referenceImplementations('nothing.*', family())).toThrow(/no interface document matches nothing\.\*/)
+			for (const bad of ['a.*.b', '*', '.*', 'a*.*', 'p/a.*', 'a..*']) {
+				expect(() => referenceImplementations(bad, family()), bad).toThrow(/not a family|not an interface id/)
+			}
+		})
 	})
 })
