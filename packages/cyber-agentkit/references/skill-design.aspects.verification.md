@@ -12,6 +12,8 @@ check-script: ../skills/skill/scripts/check-verification.mjs
    from the near misses Trigger listed. Keep each to what a user would type.
 2. **Outcome cases.** Write at least one case per criterion: a request and the files it works on. Put the files under
    `evals/files/<case id>/`. Use small, made-up inputs; never copy private data into a case.
+   A run has no user to answer a question, so a case whose skill asks before it writes states the approval in its
+   prompt, such as "I approve writing it; don't ask again".
 3. **Rubrics.** For each Criteria ID, write the checks that decide it from a run's output. Prefer a deterministic
    check. Use `judge` only when no deterministic check decides the criterion, and say so to the author.
 4. Mark a case `effects: outside` when running it would reach past the sandbox, such as posting to GitHub. It is not
