@@ -160,17 +160,36 @@ describe('skill test', () => {
 			expect(readFileSync(join(results(root), '.gitignore'), 'utf8')).toBe('*\n')
 		})
 
-		it('writes expected.json only with --accept, in the shape of latest.json', async () => {
+		it('writes expected.json with --accept, in the shape of latest.json', async () => {
 			const skill = goodSkill()
 			const root = gitRepo()
-			await test(skill.folder, fakeRun({}), root)
+			await test(skill.folder, fakeRun({}, false), root)
 			expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
-			await test(skill.folder, fakeRun({}), root, '--accept')
+			await test(skill.folder, fakeRun({}, false), root, '--accept')
 			const { folder, ...latest } = JSON.parse(
 				readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'),
 			)
 			expect(folder).toBeDefined()
 			expect(JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8'))).toEqual(latest)
+		})
+
+		it('saves the first passing run as expected.json when there is none, and says so (R80)', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			const expected = join(skill.folder, 'evals', 'expected.json')
+			expect(await test(skill.folder, fakeRun({}, false), root)).toBe(1)
+			expect(existsSync(expected)).toBe(false) // a failing first run saves none
+			expect(await test(skill.folder, fakeRun({}), root)).toBe(0)
+			expect(printed()).toContain('"savedAsExpected":true')
+			const { folder: _folder, ...latest } = JSON.parse(
+				readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'),
+			)
+			expect(latest).not.toHaveProperty('savedAsExpected')
+			expect(JSON.parse(readFileSync(expected, 'utf8'))).toEqual(latest)
+
+			const first = readFileSync(expected, 'utf8')
+			await test(skill.folder, fakeRun({}), root) // a later pass does not replace it
+			expect(readFileSync(expected, 'utf8')).toBe(first)
 		})
 
 		it('accepts the last saved result without running, and errors when there is none', async () => {
@@ -180,7 +199,7 @@ describe('skill test', () => {
 			expect(await sub('accept', skill.folder, root, run)).toBe(1)
 			expect(stderr.mock.calls.join('')).toContain('no-result')
 			expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
-			await test(skill.folder, fakeRun({}), root)
+			await test(skill.folder, fakeRun({}, false), root)
 			expect(await sub('accept', skill.folder, root, run)).toBe(0)
 			expect(run).not.toHaveBeenCalled()
 			const { folder: _folder, ...latest } = JSON.parse(
@@ -206,7 +225,7 @@ describe('skill test', () => {
 		it('compares with the previous result when there is no expected one', async () => {
 			const skill = goodSkill()
 			const root = gitRepo()
-			await test(skill.folder, fakeRun({}), root)
+			await test(skill.folder, fakeRun({}, false), root)
 			await test(skill.folder, fakeRun({}, false), root)
 			const second = JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'))
 			expect(second.comparedWith).toBe('previous')

@@ -109,7 +109,7 @@ export function resultsFolder(base: string, skill: string): string {
 	return join(base, '.agents', 'skill-design', 'results', skill)
 }
 
-/** The skill's expected result, which only an author's `--accept` writes (R80). */
+/** The skill's expected result, written by an author's `--accept`, or by the first run that passes when there is none (R80). */
 export function expectedPath(skillFolder: string): string {
 	return join(skillFolder, 'evals', 'expected.json')
 }

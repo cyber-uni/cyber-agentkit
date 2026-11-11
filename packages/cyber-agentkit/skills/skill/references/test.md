@@ -1,7 +1,7 @@
 # Test a skill
 
 Run the skill's evals, as the Verification aspect says. Change no file of the skill, except the expected result when
-the author asks to accept one (see Save the result).
+the author asks to accept one, or when the first passing run saves one (see Save the result).
 
 ## 1. Find it and its cases
 
@@ -73,8 +73,10 @@ criterion has a `baseline` field.
 
 ### Accept a result
 
-Only the author's request makes a result the skill's expected result, and nothing else writes into the skill's folder.
-`skill test <folder> --accept` runs the test as usual, then writes that result to `<skill folder>/evals/expected.json`,
+When the skill has no expected result yet and every case and criterion passes, `skill test` saves that result as the
+expected one and its report carries `savedAsExpected: true`: tell the author it was saved. A first run with a fail saves
+none. Otherwise only the author's request makes a result the expected result, and nothing else writes into the skill's
+folder. `skill test <folder> --accept` runs the test as usual, then writes that result to `<skill folder>/evals/expected.json`,
 in the same shape as `latest.json` but without `folder`, since the file is committed. `skill accept <folder>` writes the last saved result there without running the
 test, so it spends nothing, and fails with `no-result` when there is none saved. The expected result is kept in version
 control with the skill, so the team compares with the same result.
@@ -83,4 +85,5 @@ control with the skill, so the team compares with the same result.
 
 Each trigger case beside what was expected; each criterion's pass rate, threshold, and baseline; each failure with its
 case and the output that broke it; and the cases that changed between pass and fail since the expected result, or, with
-none, the previous result, saying which. With neither, say there is none to compare. In an interactive run with failures, offer `fix`.
+none, the previous result, saying which. With neither, say there is none to compare. Say when the result was saved as the
+expected result. In an interactive run with failures, offer `fix`.

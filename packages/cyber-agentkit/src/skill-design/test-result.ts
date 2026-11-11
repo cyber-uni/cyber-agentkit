@@ -42,6 +42,8 @@ export type TestResult = {
 	comparedWith?: 'expected' | 'previous'
 	/** Set when there is neither an expected nor a previous result to compare with. */
 	noPrevious?: true
+	/** In a `test` report only: this run passed with no expected result, and was saved as it (R80). */
+	savedAsExpected?: true
 	cost?: number
 }
 

@@ -45,6 +45,8 @@ contract apply here; IDs are shared across the parent and its children.
     reported without it, and the report says so.
   - **UC6.11** The author accepts a result. It becomes the skill's expected result, kept with the skill and shared
     through version control, while each run's own result stays local to the author's copy.
+  - **UC6.12** The skill has no expected result yet, and every case and criterion passes. The result becomes the
+    expected result, and the report says so. A first run with a fail saves no expected result.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -65,7 +67,8 @@ contract apply here; IDs are shared across the parent and its children.
 - R27 (UC6): Each fail names the case and the output that broke it.
 - R28 (UC6): The result is saved in one shape that every Verification implementation writes, and `fix`, `enhance`,
   and the next `test` read it.
-- R29 (UC6): `test` changes no file of the skill, except its expected result when the author accepts one (UC6.11).
+- R29 (UC6): `test` changes no file of the skill, except its expected result when the author accepts one (UC6.11) or
+  the first passing run saves one (UC6.12).
 - R30 (UC6.2): A skill with no Criteria gets its outcomes reported as not tested, pointing to `check` and `fix`, and
   its trigger cases still run.
 - R31 (UC6.3): A skill with no eval cases gets cases proposed from its Intent and Criteria, and none runs before the
@@ -74,5 +77,7 @@ contract apply here; IDs are shared across the parent and its children.
 - R33 (UC6.7): A criterion with no rubric is reported as not tested, pointing to `fix`.
 - R34 (UC6.8): A case that would cause an outside effect the run cannot contain is not run, and is reported as such.
 - R35 (UC6.10): When the baseline cannot be run, results are reported without it, and the report says so.
-- R80 (UC6.11): Only an author's request makes a result the expected result. It is kept in the skill's folder, in the
-  shape R28 names, and each run's own result is kept out of version control.
+- R80 (UC6.11, UC6.12): A result becomes the expected result only by an author's request, or, when the skill has
+  none, by a run in which every case and criterion passes; the report says which. An existing expected result is
+  replaced only by an author's request. It is kept in the skill's folder, in the shape R28 names, and each run's own
+  result is kept out of version control.

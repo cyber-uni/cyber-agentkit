@@ -13,6 +13,7 @@ import { checkSkill } from './skill-check.js'
 import { readSkill } from './skill-files.js'
 import {
 	acceptResult,
+	expectedPath,
 	type PromptfooRun,
 	readLatest,
 	resultsFolder,
@@ -118,6 +119,7 @@ function testText(result: TestResult): string {
 			)
 	}
 	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
+	if (result.savedAsExpected) lines.push('no expected result yet: saved this passing result as evals/expected.json')
 	if (result.noPrevious) lines.push('no expected or previous result to compare with')
 	else
 		for (const item of result.changed ?? [])
@@ -213,9 +215,12 @@ function testCommand({ plugin, runPromptfoo: run = runPromptfoo }: SkillCommandO
 			}
 			for (const warning of ran.warnings) process.stderr.write(`warning: ${warning}\n`)
 			const saved = saveResult(resultsFolder(resultsBase(args.root, home), name), ran.result, skill.folder)
-			if (args.accept) acceptResult(saved, skill.folder)
-			const answer = result(saved, { render: { text: testText } })
 			const failed = [...saved.trigger, ...saved.criteria].some((item) => item.status === 'fail')
+			// The first run that passes becomes the expected result when there is none (R80).
+			const firstPass = !failed && !existsSync(expectedPath(skill.folder))
+			if (args.accept || firstPass) acceptResult(saved, skill.folder)
+			const reported: TestResult = !args.accept && firstPass ? { ...saved, savedAsExpected: true } : saved
+			const answer = result(reported, { render: { text: testText } })
 			if (failed) answerThenFail(answer, this.format)
 			return answer
 		},
