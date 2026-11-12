@@ -258,3 +258,93 @@ await afterEach({ result: { response: { error: ${JSON.stringify(error)} }, vars:
 		expect(line).toMatchObject({ outcome: 'not run', reason: 'Not logged in · Please run /login' })
 	})
 })
+
+describe('promptfooProviderSource CLI driver (Codex, E-CODEX-H7)', () => {
+	/** A fake `codex` that reports what it sees, reads the skill when it is there, writes a file, and replies. */
+	const fakeCodex = String.raw`#!/usr/bin/env node
+const fs = require('node:fs')
+const out = (event) => process.stdout.write(JSON.stringify(event) + '\n')
+const seen = { args: process.argv.slice(2), cwd: process.cwd(), HOME: process.env.HOME, CODEX_HOME: process.env.CODEX_HOME, skill: fs.existsSync('.agents/skills/demo/SKILL.md'), other: fs.existsSync('.agents/skills/other/SKILL.md') }
+fs.writeFileSync(process.env.SEEN_FILE, JSON.stringify(seen))
+out({ type: 'thread.started', thread_id: 't' })
+out({ type: 'item.completed', item: { id: 'w', type: 'error', message: 'a warning, not an error' } })
+if (seen.skill) out({ type: 'item.started', item: { id: 'c', type: 'command_execution', command: "/bin/sh -lc \"sed -n '1,200p' " + process.cwd() + "/.agents/skills/demo/SKILL.md\"" } })
+fs.writeFileSync('NOTES.md', '## Notes\n')
+out({ type: 'item.completed', item: { id: 'm', type: 'agent_message', text: 'Wrote the notes.' } })
+out({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 5 } })
+`
+
+	function codex(
+		kind: 'trigger' | 'outcome',
+		withSkill = true,
+		pluginDir?: string,
+	): { response: Record<string, any>; seen: Record<string, any> } {
+		const root = mkdtempSync(join(tmpdir(), 'provider-codex-'))
+		mkdirSync(join(root, 'bin'))
+		writeFileSync(join(root, 'bin', 'codex'), fakeCodex, { mode: 0o755 })
+		mkdirSync(join(root, 'skill'))
+		writeFileSync(join(root, 'skill', 'SKILL.md'), '---\nname: demo\n---\n')
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(
+			join(root, 'node_modules', 'promptfoo', 'index.js'),
+			'exports.loadApiProvider = async () => { throw new Error("not for codex") }',
+		)
+		const codexIsolation = JSON.stringify((headlessInvocation('codex') as { isolation: unknown }).isolation)
+		const config = {
+			arm: 'skill',
+			skillName: 'demo',
+			harness: 'codex',
+			command: { executable: join(root, 'bin', 'codex'), args: ['exec', '--json', '--ignore-user-config'] },
+			...(withSkill ? { skillDir: join(root, 'skill') } : {}),
+			...(pluginDir ? { pluginDir, pluginName: 'kit' } : {}),
+		}
+		const rubrics = JSON.stringify({
+			C1: [{ 'file-contains': { path: 'NOTES.md', text: '## Notes' } }],
+			C2: [{ contains: 'Ahoy' }],
+		})
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { ...${JSON.stringify(config)}, isolation: ${codexIsolation} } })
+console.log(JSON.stringify(await provider.callApi('write the notes', { vars: { kind: '${kind}', rubrics: ${JSON.stringify(rubrics)} } })))
+`,
+		)
+		const seenFile = join(root, 'seen.json')
+		const response = JSON.parse(
+			execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8', env: { ...process.env, SEEN_FILE: seenFile } }),
+		)
+		return { response, seen: JSON.parse(readFileSync(seenFile, 'utf8')) }
+	}
+
+	it('runs the command with the prompt last in the run folder, the skill under .agents/skills, an empty home, and the real CODEX_HOME', () => {
+		const { response, seen } = codex('outcome')
+		expect(seen.args).toEqual(['exec', '--json', '--ignore-user-config', 'write the notes'])
+		expect(seen.cwd).toMatch(/skill-test-run-/)
+		expect(seen.HOME).toMatch(/skill-test-home-/)
+		expect(seen.CODEX_HOME).toBe(process.env['CODEX_HOME'] || join(homedir(), '.codex'))
+		expect(seen.skill).toBe(true)
+		expect(response).toMatchObject({
+			output: 'Wrote the notes.',
+			tokenUsage: { prompt: 10, completion: 5, total: 15 },
+			metadata: { arm: 'skill', fired: true, checks: { C1: { pass: true }, C2: { pass: false } } },
+		})
+		expect(response.error).toBeUndefined()
+	})
+
+	it('ends a trigger run at the first read of a SKILL.md, and counts it fired only for the skill under test', () => {
+		expect(codex('trigger').response).toMatchObject({ output: '', metadata: { fired: true } })
+		expect(codex('trigger', false).response).toMatchObject({ metadata: { fired: false } })
+	})
+
+	it('gives a plugin skill project skills copied from the plugin, as Codex has no flag to load one', () => {
+		const plugin = mkdtempSync(join(tmpdir(), 'provider-codex-plugin-'))
+		for (const name of ['demo', 'other']) {
+			mkdirSync(join(plugin, 'skills', name), { recursive: true })
+			writeFileSync(join(plugin, 'skills', name, 'SKILL.md'), `---\nname: ${name}\n---\n`)
+		}
+		const { seen } = codex('outcome', false, plugin)
+		expect(seen).toMatchObject({ skill: true, other: true })
+	})
+})

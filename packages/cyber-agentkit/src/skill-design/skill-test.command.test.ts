@@ -695,3 +695,64 @@ describe('skill test concurrency (R103)', () => {
 		expect(errors()).toMatch(/evals-invalid: .*`concurrency` is not a positive whole number/)
 	})
 })
+
+describe('skill test --harness (#163)', () => {
+	async function run(folder: string, root: string, options: { runPromptfoo?: PromptfooRun }, ...extra: string[]) {
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
+			createSkillCommand(options),
+		)
+		return app
+			.parse<number | undefined>([
+				'node',
+				'cyber-agentkit',
+				'skill',
+				'test',
+				folder,
+				'--root',
+				root,
+				'--format',
+				'json',
+				...extra,
+			])
+			.then((code) => (typeof code === 'number' ? code : 0))
+	}
+	const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+
+	it('drives Codex through its CLI with the isolation its harness definition declares, and warns what still reaches a run', async () => {
+		const seen: { config?: Record<string, unknown> } = {}
+		expect(
+			await run(goodSkill().folder, repo(), { runPromptfoo: fakeRun(seen) }, '--harness', 'codex', '--model', 'm'),
+		).toBe(0)
+		const providers = seen.config?.['providers'] as { config: Record<string, any> }[]
+		expect(providers[0]?.config).toMatchObject({
+			harness: 'codex',
+			isolation: { projectSkills: '.agents/skills', login: { store: 'config-dir' } },
+			command: { executable: 'codex', args: expect.arrayContaining(['exec', '--model', 'm', '--ignore-user-config']) },
+		})
+		expect(errors()).toContain('warning: each codex run still reads the global AGENTS.md')
+	})
+
+	it('passes Claude Code its isolation by default, with no command', async () => {
+		const seen: { config?: Record<string, unknown> } = {}
+		await run(goodSkill().folder, repo(), { runPromptfoo: fakeRun(seen) })
+		const providers = seen.config?.['providers'] as { config: Record<string, any> }[]
+		expect(providers[0]?.config).toMatchObject({
+			harness: 'claude-code',
+			isolation: { projectSkills: '.claude/skills' },
+		})
+		expect(providers[0]?.config['command']).toBeUndefined()
+	})
+
+	it('is a usage error for a harness it cannot drive or does not know, and nothing runs', async () => {
+		let ran = false
+		const never: PromptfooRun = async () => {
+			ran = true
+			return { problem: 'x' }
+		}
+		expect(await run(goodSkill().folder, repo(), { runPromptfoo: never }, '--harness', 'gemini-cli')).toBe(2)
+		expect(errors()).toContain('error: unsupported-harness: skill test cannot drive gemini-cli')
+		expect(await run(goodSkill().folder, repo(), { runPromptfoo: never }, '--harness', 'nope')).toBe(2)
+		expect(errors()).toContain('error: unknown-harness: no harness nope')
+		expect(ran).toBe(false)
+	})
+})

@@ -94,6 +94,10 @@ export async function runTest(
 		}
 		const harness = options.harness ?? (skillTestHarness('claude-code') as SkillTestHarness)
 		if (harness.leaks) warnings.push(`each ${harness.id} run still reads ${harness.leaks}`)
+		if (found && !harness.isolation.pluginFlag)
+			warnings.push(
+				`${harness.id} has no flag to load a local plugin, so each run gets the skills of ${found.name} as project skills, without its references`,
+			)
 		const config = promptfooConfig(options.plan, {
 			harness,
 			plugin,

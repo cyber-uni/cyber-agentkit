@@ -5,6 +5,7 @@ import type { cli } from 'clibuilder'
 import { command, exitCodes, t } from 'clibuilder'
 import { type Answer, CliError, type Format, printAnswer, result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
+import { type HarnessId, harnessIds } from '../harness/harness-id.js'
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
 import type { SkillCheckReport } from './check-skill.js'
 import { runCheckScript } from './run-check-script.js'
@@ -22,6 +23,7 @@ import {
 	runTest,
 	saveResult,
 } from './skill-test.js'
+import { skillTestHarness, skillTestHarnesses } from './skill-test-harness.js'
 import { planTest } from './test-plan.js'
 import { planLine } from './test-progress.js'
 import type { TestResult } from './test-result.js'
@@ -151,8 +153,12 @@ function testCommand({
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
 		],
 		options: {
+			harness: {
+				description: `The harness each run drives: ${skillTestHarnesses.join(' or ')}. Defaults to claude-code.`,
+				type: t.string().optional(),
+			},
 			model: {
-				description: 'The model each run uses. Defaults to the Agent SDK default.',
+				description: "The model each run uses. Defaults to the harness's default.",
 				type: t.string().optional(),
 			},
 			judge: {
@@ -185,6 +191,10 @@ function testCommand({
 				description: 'Try a change on two cases only',
 			},
 			{
+				command: 'cyber-agentkit skill test .agents/skills/release-notes --harness codex --model gpt-5.6-luna',
+				description: 'Test it on Codex',
+			},
+			{
 				command: 'cyber-agentkit skill test .agents/skills/release-notes --accept',
 				description: "Test it and keep the result as the skill's expected result",
 			},
@@ -193,6 +203,7 @@ function testCommand({
 			this: { format: Format; ui?: { displayLevel?: string } },
 			args: {
 				folder: string
+				harness?: string | undefined
 				model?: string
 				judge?: string
 				baseline?: string
@@ -210,6 +221,18 @@ function testCommand({
 				process.stderr.write(
 					'error: partial-accept: --accept cannot be used with --case; a partial result is never the expected result\n',
 				)
+				throw CliError.reported(exitCodes.usage)
+			}
+			const harnessId = args.harness ?? 'claude-code'
+			if (!(harnessIds as readonly string[]).includes(harnessId)) {
+				process.stderr.write(
+					`error: unknown-harness: no harness ${harnessId}; skill test drives ${skillTestHarnesses.join(', ')}\n`,
+				)
+				throw CliError.reported(exitCodes.usage)
+			}
+			const harness = skillTestHarness(harnessId as HarnessId, args.model)
+			if ('problem' in harness) {
+				process.stderr.write(`error: unsupported-harness: ${harness.problem}\n`)
 				throw CliError.reported(exitCodes.usage)
 			}
 			const planned = planTest(skill, { judge: args.judge, cases: args.case, threads })
@@ -235,7 +258,7 @@ function testCommand({
 				this.ui?.displayLevel === 'none' ? undefined : (line: string) => void process.stderr.write(`${line}\n`)
 			const resultFolder = resultsFolder(resultsBase(args.root, home), name)
 			report?.(planLine(planned.plan, lastResult(resultFolder, skill.folder)))
-			const ran = await runTest({
+			const common = {
 				plan: planned.plan,
 				skill,
 				skillName: name,
@@ -244,6 +267,10 @@ function testCommand({
 				judge: args.judge,
 				verification: `${verification.name} from ${verification.implementation}`,
 				at: new Date().toISOString(),
+			}
+			const ran = await runTest({
+				...common,
+				harness,
 				run,
 				progress: report ? { ...progress, write: report } : undefined,
 			})

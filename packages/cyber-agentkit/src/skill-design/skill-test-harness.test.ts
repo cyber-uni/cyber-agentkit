@@ -12,9 +12,32 @@ describe('skillTestHarness', () => {
 		})
 	})
 
+	it('drives Codex through its CLI: one run writing only in its folder, no transcript, without the user config', () => {
+		const codex = skillTestHarness('codex', 'gpt-5.6-luna')
+		expect(codex).toMatchObject({
+			id: 'codex',
+			command: {
+				executable: 'codex',
+				args: [
+					'exec',
+					'--model',
+					'gpt-5.6-luna',
+					'--sandbox',
+					'workspace-write',
+					'--json',
+					'--ephemeral',
+					'--ignore-user-config',
+					'--ignore-rules',
+				],
+			},
+			isolation: { projectSkills: '.agents/skills', configDir: { env: 'CODEX_HOME', default: '~/.codex' } },
+		})
+		expect('leaks' in codex && codex.leaks).toMatch(/AGENTS\.md/)
+	})
+
 	it('answers a problem for a harness it has no driver for', () => {
 		expect(skillTestHarness('gemini-cli')).toEqual({
-			problem: 'skill test cannot drive gemini-cli; it drives claude-code',
+			problem: 'skill test cannot drive gemini-cli; it drives claude-code, codex',
 		})
 		expect(skillTestHarness('vscode-copilot')).toHaveProperty('problem')
 	})
