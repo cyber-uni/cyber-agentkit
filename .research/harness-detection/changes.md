@@ -203,3 +203,11 @@ config folder while the login stays in the real one.
 ## 2026-11-11 (Bash timeouts)
 
 - Added E-CC-D12: the Bash timeout variables and `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS`, from the vendor docs, used to limit one shell command in skill test runs.
+
+## 2026-11-12 — skill test on other harnesses
+
+For [#163](https://github.com/cyber-uni/cyber-agentkit/issues/163). Added E-CC-H7 (`--plugin-dir`), E-CC-H8 and
+E-CC-H9 (`claude plugin eval`'s case format and JSON result), E-CODEX-H6 (Codex keeps its login in `CODEX_HOME`, and
+`--ignore-user-config` keeps it there), and E-CODEX-H7 (how a `codex exec --json` run shows a skill's use, and that the
+global `AGENTS.md` still loads). `headlessInvocation()` now declares, for Claude Code and Codex, where a run's config,
+skills, plugins, and login live, and `skill test` builds each run's environment from that.
