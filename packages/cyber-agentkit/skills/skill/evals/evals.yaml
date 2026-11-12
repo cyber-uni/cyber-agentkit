@@ -14,24 +14,37 @@ trigger:
 # script check but fails TRG-3 (its description says how it works), CRI-3 ("The notes are clear"), and SHP-3 (its
 # grouping step is prose a script could do).
 outcome:
+  # check-passing and check-flawed ask for two closing lines, so a check reads the verdict, not the prose around it.
   - id: check-passing
-    prompt: Check the skill in .agents/skills/release-notes.
+    prompt: >-
+      Check the skill in .agents/skills/release-notes. End your reply with two lines: "Failed:" then the IDs of the
+      checks it fails, or "none"; and "Not checked:" then the IDs of the checks you could not decide, or "none".
     files: files/samples
     criteria: [C2, C3]
     checks:
+      C2:
+        - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+        - regex: "Not checked:[^\\n]*TRG-4"
       C3:
-        - not-regex: "\\b[Ff][Aa][Ii][Ll](s|ed|ures?)?\\b[:* ]{1,4}\\b(INT|SHP|TRG|CRI|VER|SEC)-[0-9]|\\b(INT|SHP|TRG|CRI|VER|SEC)-[0-9]+\\b[^\\n.]{0,30}\\b[Ff][Aa][Ii][Ll]"
+        - regex: "Failed:\\W{0,4}[Nn]one\\b"
   - id: check-flawed
-    prompt: Check the skill in .agents/skills/release-notes-flawed.
+    prompt: >-
+      Check the skill in .agents/skills/release-notes-flawed. End your reply with two lines: "Failed:" then the IDs of
+      the checks it fails, or "none"; and "Not checked:" then the IDs of the checks you could not decide, or "none".
     files: files/samples
     criteria: [C2, C3]
     checks:
+      C2:
+        - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+        - regex: "Not checked:[^\\n]*TRG-4"
       C3:
-        - contains: TRG-3
-        - contains: CRI-3
-        - contains: SHP-3
+        - regex: "Failed:[^\\n]*TRG-3"
+        - regex: "Failed:[^\\n]*CRI-3"
+        - regex: "Failed:[^\\n]*SHP-3"
+  # A name, not a path: /skill looks it up in the repository's and the user's skills folders, and says so. Without
+  # "with /skill" the request does not call the skill.
   - id: check-missing
-    prompt: Check the skill in .agents/skills/deploy-notes.
+    prompt: Check the deploy-notes skill with /skill.
     files: files/samples
     criteria: [C1, C2]
   - id: create-existing
@@ -59,6 +72,7 @@ outcome:
 rubrics:
   C1:
     - regex: "deploy-notes"
+    - regex: "~/\\.[a-z]+/skills|\\$HOME/\\.[a-z]+/skills|[Uu]ser'?s? (own )?skills"
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
   C2:
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
@@ -76,6 +90,9 @@ rubrics:
         && ! awk 'NR>1 && /^---$/{exit} NR>1' $f | grep -qE 'prs\.json|RELEASE_NOTES'
         && grep -qE 'scripts/[A-Za-z0-9_-]+\.(mjs|js|cjs|sh|py)' $f
   C7:
+    - contains: TRG-3
+    - contains: CRI-3
+    - contains: SHP-3
     - script: >-
         test -z "$(git status --porcelain --untracked-files=all | grep -v ' .agents/skills/release-notes-flawed/')"
         && git diff --quiet HEAD -- .agents/skills/release-notes-flawed/README.md
