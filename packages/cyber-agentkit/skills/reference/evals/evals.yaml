@@ -35,7 +35,7 @@ outcome:
       Our release-notes skill loads the release-notes.tone reference. For everyone in this repo,
       change it to the present tense ("Adds", "Fixes"). I approve writing it; don't ask again.
     files: files/repo-with-skill-default   # a repo skill whose references/release-notes.tone.default.md is the only contribution
-    criteria: [C1]
+    criteria: [C1, C2]
   - id: implement-interface
     prompt: >-
       Create a repo reference that implements the review.checklist interface, saying reviewers
@@ -45,11 +45,12 @@ outcome:
 rubrics:
   C1:
     - script: "test -z \"$(git status --porcelain --untracked-files=all | grep -v ' .agents/references/')\""
+  # Each run loads a copy of the plugin of its own, at $SKILL_TEST_PLUGIN, committed in git: C2 fails when the run changed it.
   C2:
-    - file-contains: { path: .agents/references/style.md, text: Lead with the outcome }
+    - script: "test -z \"$(git -C \"$SKILL_TEST_PLUGIN\" status --porcelain --untracked-files=all)\""
   C3:
     - regex: "\\.agents/references/[a-z.-]+\\.md"
   C4:
-    - script: "node .claude/skills/reference/scripts/reference.mjs load deploy-checklist --trace 2>&1 | grep -q used"
+    - script: "node \"$SKILL_TEST_PLUGIN/skills/reference/scripts/reference.mjs\" load deploy-checklist --trace 2>&1 | grep -q used"
   C5:
-    - script: "node .claude/skills/reference/scripts/reference.mjs check review.checklist"
+    - script: "node \"$SKILL_TEST_PLUGIN/skills/reference/scripts/reference.mjs\" check review.checklist"
