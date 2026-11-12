@@ -238,4 +238,19 @@ await afterEach({ result: { response, vars: { kind: ${JSON.stringify(kind)} }, t
 	it('ends a failed run as fail', () => {
 		expect(progress('outcome', 'baseline', true).lines.at(-1)).toMatchObject({ outcome: 'fail', arm: 'baseline' })
 	})
+	it('ends an errored run as not run, with the reason in one short line (R137)', () => {
+		const root = mkdtempSync(join(tmpdir(), 'provider-hook-'))
+		writeFileSync(join(root, 'hook.mjs'), promptfooHookSource)
+		const error =
+			'Error calling Claude Agent SDK: Error: Claude Code returned an error result: Not logged in · Please run /login\n    at x'
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import { afterEach } from './hook.mjs'
+await afterEach({ result: { response: { error: ${JSON.stringify(error)} }, vars: { kind: 'outcome' }, testCase: { description: 'case-a' }, provider: { label: 'with-skill' }, repeatIndex: 0 } })
+`,
+		)
+		execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' })
+		const line = JSON.parse(readFileSync(join(root, 'progress.jsonl'), 'utf8').trim())
+		expect(line).toMatchObject({ outcome: 'not run', reason: 'Not logged in · Please run /login' })
+	})
 })

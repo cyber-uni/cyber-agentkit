@@ -18,7 +18,8 @@ Run the cases as Verification's Run says. Pass a judge only when the author name
 outside effect is not run, and is reported as such.
 
 A full test makes many runs and can take several minutes. Before starting, tell the author how many runs it makes
-and, from the plan line, about how long and how much it took last time. Start it in the background where the harness
+and, from the plan line, about how long and how much it took last time. When the plan line says an unknown number of
+runs, the last result was saved before the run count was recorded and may have covered only some cases: say so. Start it in the background where the harness
 can, so the author can keep working, and watch its progress lines on stderr: one per finished run (`[n/total] <case>
 run <k> (<arm>): <outcome>`) and a `still running` line when none has finished for 30 seconds. Pass them on at most once
 a minute, in one short update that sums up the lines since the last one: the count so far (`n/total`), each run with
@@ -68,18 +69,31 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
   "comparedWith": "expected",
   "changed": [{ "case": "two-prs", "from": "pass", "to": "fail" }],
   "cost": 0.06,
-  "durationMs": 252000
+  "durationMs": 252000,
+  "totalRuns": 18,
+  "replies": "2026-11-10T21-00-00Z.replies.json",
+  "evalId": "eval-R14-2026-11-10T21:00:00"
 }
 ```
 
 `status` is `pass`, `fail`, `not-tested` (with a `reason`), or `not-run` (with a `reason`). A run that errors or hits a
-limit is in `notRun` and never counts as a pass. When the baseline cannot run, `baseline` holds the reason and no
+limit is in `notRun` and never counts as a pass; its `reason` is one short line, the error without the Agent SDK's
+`Error calling Claude Agent SDK: Error: Claude Code returned an error result:` wrapping (for example `Not logged in`). When the baseline cannot run, `baseline` holds the reason and no
 criterion has a `baseline` field.
 
 `cases` holds each case's status: an outcome case passes when every criterion it tests meets the threshold in it.
 `changed` lists the cases that went between `pass` and `fail` since the skill's expected result
 (`<skill folder>/evals/expected.json`) when it exists, else since the previous saved result; `comparedWith` says which
 (`expected` or `previous`). With neither, `changed` is left out and `noPrevious` is `true`. `cost` is the runs' total in US dollars, when the engine reports it.
+`totalRuns` is how many runs the test planned; a result saved before it was recorded lacks it, and its count is unknown.
+
+`replies` names a file beside the result, in the same results folder, that holds the reply of every run, passed,
+failed, or not run, with the skill and without it. Each entry has `case`, `arm` (`with-skill` or `baseline`), `run`
+(from 1), `outcome` (`pass`, `fail`, `fired`, `not fired`, or `not run`), the whole `reply`, each criterion the run
+decided under `criteria` with the `detail` of a failure, and, for a run that did not run, its short `reason` and full
+`error`. Read it to see why a run passed or failed; `failures` keeps only the start of a failed reply. The file goes
+when its result is pruned. `evalId` is promptfoo's own ID for the run, for `promptfoo view` when its database is kept.
+Results saved before these fields were added lack them.
 
 ### Accept a result
 
@@ -87,7 +101,8 @@ When the skill has no expected result yet and every case and criterion passes, `
 expected one and its report carries `savedAsExpected: true`: tell the author it was saved. A first run with a fail saves
 none. Otherwise only the author's request makes a result the expected result, and nothing else writes into the skill's
 folder. `skill test <folder> --accept` runs the test as usual, then writes that result to `<skill folder>/evals/expected.json`,
-in the same shape as `latest.json` but without `folder`, since the file is committed. `skill accept <folder>` writes the last saved result there without running the
+in the same shape as `latest.json` but without `folder`, `replies`, or `evalId`, since the file is committed and those name
+this machine's files. `skill accept <folder>` writes the last saved result there without running the
 test, so it spends nothing, and fails with `no-result` when there is none saved. The expected result is kept in version
 control with the skill, so the team compares with the same result.
 

@@ -49,15 +49,36 @@ export type TestResult = {
 	cost?: number
 	/** How long the run took, in milliseconds; results saved before it was recorded lack it. */
 	durationMs?: number
-	/** How many runs it planned; results saved before it was recorded lack it. */
+	/** How many runs it planned; results saved before it was recorded lack it, and their count is unknown. */
 	totalRuns?: number
+	/** The file beside this result, in the same folder, holding the reply of every run (R138); older results lack it. */
+	replies?: string
+	/** promptfoo's own ID for the run, for `promptfoo view` and `promptfoo show eval <id>`. */
+	evalId?: string
+}
+
+/** One run's record in the replies file beside a saved result (R138). */
+export type Reply = {
+	case: string
+	arm: 'with-skill' | 'baseline'
+	/** 1-based. */
+	run: number
+	outcome: 'pass' | 'fail' | 'fired' | 'not fired' | 'not run'
+	/** For a run that did not run: its short reason, and the full error promptfoo gave. */
+	reason?: string
+	error?: string
+	/** The model's whole reply. */
+	reply: string
+	/** Each criterion the run decided, with why it failed when it did. */
+	criteria?: Record<string, { pass: boolean; detail?: string }>
 }
 
 /** The fields of one promptfoo `results.results[]` entry that `skill test` reads. */
 type Row = {
 	provider?: { label?: string }
-	testCase?: { description?: string }
+	testCase?: { description?: string; vars?: { kind?: string } }
 	repeatIndex?: number
+	success?: boolean
 	error?: string | null
 	cost?: number
 	response?: {
@@ -68,6 +89,32 @@ type Row = {
 	gradingResult?: {
 		componentResults?: { pass: boolean; reason?: string; assertion?: { metric?: string; type?: string } }[]
 	}
+}
+
+/** Wrappers the Agent SDK provider puts around the reason a run failed. */
+const errorWrappers = [
+	/^Error calling Claude Agent SDK:\s*/i,
+	/^Error:\s*/,
+	/^Claude Code returned an error result:\s*/i,
+]
+
+/**
+ * The reason a run errored, in one short line (R137): the first line, without the wrappers promptfoo's Agent SDK
+ * provider adds, cut at 160 characters. `Error calling Claude Agent SDK: Error: Claude Code returned an error
+ * result: Not logged in` becomes `Not logged in`.
+ */
+export function shortReason(error: string): string {
+	let line = (error.split('\n').find((text) => text.trim() !== '') ?? '').trim()
+	for (let again = true; again; ) {
+		again = false
+		for (const wrapper of errorWrappers)
+			if (wrapper.test(line)) {
+				line = line.replace(wrapper, '')
+				again = true
+			}
+	}
+	if (!line) return 'no reason given'
+	return line.length > 160 ? `${line.slice(0, 159)}…` : line
 }
 
 /** A run that errored or hit a limit: never a pass (R32). Assertion failures are not errors. */
@@ -102,7 +149,7 @@ export function readPromptfooOutput(
 		if (error && !(row.response?.metadata?.skipped ?? false))
 			notRun.push({
 				case: `${row.testCase?.description ?? '?'} (${row.provider?.label ?? '?'}, run ${(row.repeatIndex ?? 0) + 1})`,
-				reason: error.split('\n')[0] as string,
+				reason: shortReason(error),
 			})
 	}
 	const ok = (row: Row) => runError(row) === undefined
@@ -195,6 +242,49 @@ export function readPromptfooOutput(
 		notRun,
 		...(cost ? { cost: Math.round(cost * 10000) / 10000 } : {}),
 	}
+}
+
+/** The reply of every run, passed or failed, with the skill and without it, for the file beside a saved result (R138). */
+export function readReplies(output: unknown): Reply[] {
+	const rows: Row[] = ((output as { results?: { results?: Row[] } })?.results?.results ?? []) as Row[]
+	const replies: Reply[] = []
+	for (const row of rows) {
+		const meta = row.response?.metadata
+		if (meta?.skipped) continue
+		const arm = row.provider?.label === 'baseline' ? 'baseline' : 'with-skill'
+		const entry: Reply = {
+			case: row.testCase?.description ?? '?',
+			arm,
+			run: (row.repeatIndex ?? 0) + 1,
+			outcome: 'pass',
+			reply: String(row.response?.output ?? ''),
+		}
+		const error = runError(row)
+		const ids = [
+			...new Set(
+				(row.gradingResult?.componentResults ?? [])
+					.map((part) => part.assertion?.metric)
+					.filter((id): id is string => !!id && id !== 'fired'),
+			),
+		]
+		if (error) {
+			entry.outcome = 'not run'
+			entry.reason = shortReason(error)
+			entry.error = error
+		} else if (row.testCase?.vars?.kind === 'trigger') {
+			entry.outcome = meta?.fired ? 'fired' : 'not fired'
+		} else if (ids.length) {
+			entry.criteria = Object.fromEntries(
+				ids.map((id) => {
+					const decided = criterionPassed(row, id)
+					return [id, decided.pass ? { pass: true } : { pass: false, detail: decided.output }]
+				}),
+			)
+			entry.outcome = Object.values(entry.criteria).every((item) => item.pass) ? 'pass' : 'fail'
+		} else if (row.success === false) entry.outcome = 'fail'
+		replies.push(entry)
+	}
+	return replies
 }
 
 /** Adds the cases that changed between pass and fail since `compared` (the expected result, else the previous one), or marks that there is none (R26). */

@@ -93,7 +93,8 @@ contract apply here; IDs are shared across the parent and its children.
   loads that plugin from the working copy, and the baseline loads it without the skill. Each run reads the plugin's
   references and other skills, and none from an installed copy of it.
 - R97 (UC6): Before the first run, `test` reports how many runs it will make, and, when the skill has a saved result,
-  about how long and how much they took last time.
+  about how long and how much they took last time. When that result does not record how many runs it made, the report
+  says the count is unknown rather than guess it.
 - R98 (UC6): When a run ends, `test` reports its case, its arm (with or without the skill), its run number, its count
   out of the total, and its outcome (pass or fail for a result case, fired or not for a trigger case, or not run with
   the reason), never the model's reply.
@@ -111,3 +112,8 @@ contract apply here; IDs are shared across the parent and its children.
 - R101 (UC6): `/skill test` starts the run so the author can keep working, and passes the progress on to them at most
   once a minute, while something has changed since the last update. Each update gives the count so far, each run with
   the skill that failed or was not run since the last update, and the latest heartbeat when no run ended.
+- R137 (UC6.4): The reason a run did not run is one short line that names what went wrong, without the wrapping the
+  engine puts around it.
+- R138 (UC6): From a saved result, the author can reach the whole reply of every run, passed, failed, or not run, in
+  both arms, without opening the engine's own store. The reply stays local: an expected result never carries it, nor
+  anything that names the author's machine.
