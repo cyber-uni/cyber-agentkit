@@ -8,6 +8,7 @@ import { collapseHome } from '../command-output/collapse-home.js'
 import { type HarnessId, harnessIds } from '../harness/harness-id.js'
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
 import type { SkillCheckReport } from './check-skill.js'
+import { type PluginEvalRun, runPluginEval, runPluginEvalTest } from './plugin-eval-backend.js'
 import { runCheckScript } from './run-check-script.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
 import { checkSkill } from './skill-check.js'
@@ -32,6 +33,8 @@ export type SkillCommandOptions = {
 	plugin?: ReferencePlugin | undefined
 	/** How promptfoo runs; tests pass a fake. */
 	runPromptfoo?: PromptfooRun | undefined
+	/** How `claude plugin eval` runs; tests pass a fake. */
+	runPluginEval?: PluginEvalRun | undefined
 	/** How `skill test` polls the progress file and spaces its "still running" lines; tests shorten them. */
 	progress?: { heartbeatMs?: number | undefined; pollMs?: number | undefined } | undefined
 	/** The machine's hardware threads, which bound how many runs go at once (R103); tests set it. */
@@ -142,19 +145,25 @@ function testText(result: TestResult, folder?: string): string {
 function testCommand({
 	plugin,
 	runPromptfoo: run = runPromptfoo,
+	runPluginEval: pluginEval = runPluginEval,
 	progress,
 	threads,
 }: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'test',
 		description:
-			"Run a skill's evals (evals/evals.yaml) on promptfoo, several runs per case, each in a fresh folder, beside a run without the skill, and save the result. Makes model calls. Exits 1 when a case or criterion fails.",
+			"Run a skill's evals (evals/evals.yaml) on promptfoo or `claude plugin eval`, several runs per case, each in a fresh folder, beside a run without the skill, and save the result. Makes model calls. Exits 1 when a case or criterion fails.",
 		arguments: [
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
 		],
 		options: {
 			harness: {
 				description: `The harness each run drives: ${skillTestHarnesses.join(' or ')}. Defaults to claude-code.`,
+				type: t.string().optional(),
+			},
+			backend: {
+				description:
+					"What runs the cases: `promptfoo` (the default), or `plugin-eval` for Claude Code's own `claude plugin eval`, which drives claude-code only and cannot run `script` checks.",
 				type: t.string().optional(),
 			},
 			model: {
@@ -195,6 +204,10 @@ function testCommand({
 				description: 'Test it on Codex',
 			},
 			{
+				command: 'cyber-agentkit skill test .agents/skills/release-notes --backend plugin-eval',
+				description: 'Test it on `claude plugin eval`',
+			},
+			{
 				command: 'cyber-agentkit skill test .agents/skills/release-notes --accept',
 				description: "Test it and keep the result as the skill's expected result",
 			},
@@ -204,6 +217,7 @@ function testCommand({
 			args: {
 				folder: string
 				harness?: string | undefined
+				backend?: string | undefined
 				model?: string
 				judge?: string
 				baseline?: string
@@ -233,6 +247,17 @@ function testCommand({
 			const harness = skillTestHarness(harnessId as HarnessId, args.model)
 			if ('problem' in harness) {
 				process.stderr.write(`error: unsupported-harness: ${harness.problem}\n`)
+				throw CliError.reported(exitCodes.usage)
+			}
+			const backend = args.backend ?? 'promptfoo'
+			if (backend !== 'promptfoo' && backend !== 'plugin-eval') {
+				process.stderr.write(`error: unknown-backend: no backend ${backend}; use promptfoo or plugin-eval\n`)
+				throw CliError.reported(exitCodes.usage)
+			}
+			if (backend === 'plugin-eval' && harness.id !== 'claude-code') {
+				process.stderr.write(
+					`error: unsupported-harness: the plugin-eval backend drives claude-code only, not ${harness.id}\n`,
+				)
 				throw CliError.reported(exitCodes.usage)
 			}
 			const planned = planTest(skill, { judge: args.judge, cases: args.case, threads })
@@ -268,14 +293,17 @@ function testCommand({
 				verification: `${verification.name} from ${verification.implementation}`,
 				at: new Date().toISOString(),
 			}
-			const ran = await runTest({
-				...common,
-				harness,
-				run,
-				progress: report ? { ...progress, write: report } : undefined,
-			})
+			const ran =
+				backend === 'plugin-eval'
+					? await runPluginEvalTest({ ...common, run: pluginEval, progress: report })
+					: await runTest({
+							...common,
+							harness,
+							run,
+							progress: report ? { ...progress, write: report } : undefined,
+						})
 			if ('problem' in ran) {
-				process.stderr.write(`error: promptfoo-failed: ${ran.problem}\n`)
+				process.stderr.write(`error: ${backend}-failed: ${ran.problem}\n`)
 				throw CliError.reported(exitCodes.error)
 			}
 			for (const warning of ran.warnings) process.stderr.write(`warning: ${warning}\n`)
