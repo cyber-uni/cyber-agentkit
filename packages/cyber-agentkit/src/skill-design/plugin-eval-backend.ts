@@ -7,7 +7,7 @@ import { readSkill, type SkillFiles } from './skill-files.js'
 import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
 import type { TestPlan } from './test-plan.js'
 import { plannedRuns } from './test-progress.js'
-import { readPromptfooOutput, type TestResult } from './test-result.js'
+import { type Reply, readPromptfooOutput, readReplies, type TestResult } from './test-result.js'
 
 /**
  * `skill test` on Claude Code's own `claude plugin eval` (E-CC-H8). The plan becomes an eval suite in a copy of the
@@ -204,7 +204,7 @@ export function pluginEvalRows(output: unknown, plan: TestPlan, arms: { with?: s
 					}))
 				rows.push({
 					provider: { label },
-					testCase: { description: item.name },
+					testCase: { description: item.name, vars: { kind } },
 					repeatIndex: index,
 					cost: (run.costUsd ?? 0) + (run.judgeCostUsd ?? 0),
 					response: {
@@ -250,7 +250,7 @@ function makePlugin(target: string, skillName: string, skillFolder: string): voi
  */
 export async function runPluginEvalTest(
 	options: PluginEvalTestOptions,
-): Promise<{ result: TestResult; warnings: string[] } | { problem: string }> {
+): Promise<{ result: TestResult; replies: Reply[]; warnings: string[] } | { problem: string }> {
 	const warnings: string[] = []
 	let baselineFolder = options.baselineFolder
 	if (baselineFolder !== undefined && !readSkill(baselineFolder)) {
@@ -339,7 +339,8 @@ export async function runPluginEvalTest(
 		}
 		const problem = problems.find((item) => item !== undefined)
 		if (problem) return { problem: `claude plugin eval did not run: ${problem}` }
-		const result = readPromptfooOutput({ results: { results: rows } }, plan, {
+		const output = { results: { results: rows } }
+		const result = readPromptfooOutput(output, plan, {
 			skill: options.skillName,
 			at: options.at,
 			verification: options.verification,
@@ -356,6 +357,8 @@ export async function runPluginEvalTest(
 				durationMs: Date.now() - started,
 				totalRuns: plannedRuns(plan),
 			},
+			// `claude plugin eval` keeps no reply in its result, so each entry carries the graders' explanations alone.
+			replies: readReplies(output),
 			warnings,
 		}
 	} finally {
