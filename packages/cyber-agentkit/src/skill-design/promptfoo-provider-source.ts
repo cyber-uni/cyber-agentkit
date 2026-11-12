@@ -46,23 +46,130 @@ function decide(check, output, dir, env) {
 // isolation declaration (headlessInvocation(harness).isolation). The login stays the real one and nothing is
 // copied or linked: with a 'separate' login, a variable names the folder the credentials are read and written in
 // (Claude Code: CLAUDE_SECURESTORAGE_CONFIG_DIR, E-CC-D11), so the harness refreshes a token in the real file
-// itself, and on a platform that ties the credentials to the config folder's path (macOS for Claude Code) the
-// config folder stays. With a 'config-dir' login (Codex, E-CODEX-H6) the config folder stays, and the declared
+// itself. On a platform where that variable names a keychain entry instead (keychainOn; macOS for Claude Code,
+// E-CC-D13), it is empty for the default entry, or the real config folder when CLAUDE_CONFIG_DIR is set, and the
+// config folder still moves. On a platform that ties the credentials to the config folder's path (keepConfigDirOn)
+// the config folder stays. With a 'config-dir' login (Codex, E-CODEX-H6) the config folder stays, and the declared
 // arguments keep the user's config in it from loading. A login set through an API key variable passes through as
 // is. A version manager's node shim reads its config from the home folder, so the node running this provider goes
 // first on PATH: a skill's node scripts still run. The declaration's own variables follow, such as Claude Code's
-// limits on one shell command (E-CC-D12), so a runaway find / costs seconds, not the whole run.
+// limits on one shell command (E-CC-D12), so a runaway find / costs seconds, not the whole run. Temporary files go
+// to the home's tmp folder, since a contained run cannot reach the system one (see containment).
 function isolatedEnv(isolation, home) {
   const expand = (p, base) => (p === '~' || p.startsWith('~/') ? path.join(base, p.slice(2)) : p)
   const { configDir, login } = isolation
   const real = process.env[configDir.env] || expand(configDir.default, os.homedir())
   const PATH = [path.dirname(process.execPath), process.env.PATH].filter(Boolean).join(path.delimiter)
-  const env = { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, '.config'), PATH, ...isolation.env }
-  if (login.store === 'separate' && !(login.keepConfigDirOn ?? []).includes(process.platform)) {
+  const tmp = path.join(home, 'tmp')
+  fs.mkdirSync(tmp, { recursive: true })
+  const env = { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, '.config'), TMPDIR: tmp, TMP: tmp, TEMP: tmp, CLAUDE_TMPDIR: tmp, PATH, ...isolation.env }
+  if (login.store === 'separate' && (login.keychainOn ?? []).includes(process.platform)) {
+    env[configDir.env] = expand(configDir.default, home)
+    env[login.env] = process.env[login.env] ?? process.env[configDir.env] ?? ''
+  } else if (login.store === 'separate' && !(login.keepConfigDirOn ?? []).includes(process.platform)) {
     env[configDir.env] = expand(configDir.default, home)
     env[login.env] = process.env[login.env] || real
   } else env[configDir.env] = real
   return env
+}
+
+// What a contained run may touch, apart from where its config and login live (isolatedEnv), for a harness whose
+// declaration has containment (Claude Code, E-CC-D15). The file tools reach only the run's folder, its home, and
+// its own plugin copy, which the run may change and a script check reads at SKILL_TEST_PLUGIN; the copy is added
+// as a working folder (blockReadsOutsideWorkingDirectories, blockWritesOutsideWorkingDirectories). A PreToolUse
+// hook refuses the same first, so the result can name what was refused.
+// Shell commands run in the OS sandbox, which fails the run rather than run a command outside it. It hides the
+// home folders and the system temp folder and lets back only the run's folders and the node install; system
+// folders that hold programs stay readable. Writes go only to the run's own folders. The network is closed but for
+// the hosts the case lists (allowedDomains with strictAllowlist), and the sandbox notes each host it denied in the
+// command's output (<sandbox_violations>).
+function containment({ dir, home, plugin, network }) {
+  const real = (p) => { try { return fs.realpathSync(p) } catch { return p } }
+  const nodeInstall = path.dirname(path.dirname(real(process.execPath)))
+  const own = [...new Set([dir, home, plugin].filter(Boolean).flatMap((p) => [p, real(p)]))]
+  return {
+    readable: own,
+    writable: own,
+    settings: { permissions: { blockReadsOutsideWorkingDirectories: true, blockWritesOutsideWorkingDirectories: true } },
+    sandbox: {
+      enabled: true, failIfUnavailable: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
+      network: { allowedDomains: network ?? [], strictAllowlist: true },
+      filesystem: { denyRead: [...new Set([os.tmpdir(), real(os.tmpdir()), os.homedir()])], allowRead: [...own, nodeInstall], allowWrite: own },
+    },
+  }
+}
+
+const inside = (roots, p) => roots.some((root) => p === root || p.startsWith(root.endsWith(path.sep) ? root : root + path.sep))
+
+// Records what the containment refused, as { what: 'read' | 'write' | 'network', target }. A file tool (the
+// declaration's fileTools) given a path outside the run is refused here. For a shell command it reads the sandbox's
+// own notes, and counts a path the command names that exists outside the run but that the command could not find,
+// read or write as refused: the sandbox hides it. A path the command builds as it runs is still refused, but may go
+// unrecorded.
+function watchContainment({ dir, readable, writable, fileTools }, blocked) {
+  const note = (what, target) => { if (!blocked.some((b) => b.what === what && b.target === target) && blocked.length < 50) blocked.push({ what, target }) }
+  const before = async (input) => {
+    const what = fileTools[input.tool_name]
+    if (!what) return {}
+    const given = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? input.tool_input?.path
+    const pattern = input.tool_name === 'Glob' && path.isAbsolute(String(input.tool_input?.pattern ?? '')) ? String(input.tool_input.pattern).split(/[*?[{]/)[0] : undefined
+    const target = path.resolve(dir, String(given ?? pattern ?? '.'))
+    if (inside(what === 'read' ? readable : writable, target)) return {}
+    note(what, target)
+    return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: 'skill test: this run may only ' + what + ' files in its own folder' } }
+  }
+  const after = async (input) => {
+    if (input.tool_name !== 'Bash') return {}
+    const text = typeof input.tool_response === 'string' ? input.tool_response : JSON.stringify(input.tool_response ?? input.error ?? '')
+    const said = text.replace(/\\n/g, '\n')
+    for (const block of said.matchAll(/<sandbox_violations>([\s\S]*?)<\/sandbox_violations>/g))
+      for (const line of block[1].split('\n').map((l) => l.trim()).filter(Boolean)) {
+        const network = /network-outbound\s+(\S+)/.exec(line)
+        if (network) note('network', network[1].replace(/:\d+$/, ''))
+        else note(/write/.test(line) ? 'write' : 'read', line.replace(/^deny\s+\S+\s+/, ''))
+      }
+    const command = String(input.tool_input?.command ?? '')
+    for (const match of command.matchAll(/(?:^|[\s'"=:(<>])(\/[^\s'"|;&<>()$*?]+)/g)) {
+      const target = match[1].replace(/\/+$/, '') || '/'
+      if (target === '/' || inside(readable, target) || !fs.existsSync(target)) continue
+      const failed = new RegExp(target.replace(/[.*+?^$(){}|[\]\\]/g, '\\$&') + '[^\n]*(No such file|Permission denied|Operation not permitted|Read-only file system)').exec(said)
+      if (failed) note(/Read-only/.test(failed[1]) ? 'write' : 'read', target)
+    }
+    return {}
+  }
+  return { PreToolUse: [{ hooks: [before] }], PostToolUse: [{ hooks: [after] }], PostToolUseFailure: [{ hooks: [after] }] }
+}
+
+// Before the first run, asks the Claude Code the Agent SDK runs whether a run is logged in, with the declaration's
+// status arguments (claude auth status, which spends nothing, E-CC-D16). When a run is not but Claude Code is with
+// the real environment, the login setting stopped working, and every run would fail as "Not logged in": each run
+// answers this in plain words instead. Answers undefined when the run is logged in, or when the check cannot run.
+let loginChecked
+function loginProblem(isolation) {
+  const { login } = isolation
+  if (!login.status) return undefined
+  loginChecked ??= (async () => {
+    let claude
+    try {
+      const sdk = createRequire(req.resolve('@anthropic-ai/claude-agent-sdk'))
+      const native = '@anthropic-ai/claude-agent-sdk-' + process.platform + '-' + process.arch
+      claude = path.join(path.dirname(sdk.resolve(native + '/package.json')), process.platform === 'win32' ? 'claude.exe' : 'claude')
+    } catch { return undefined }
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-home-'))
+    const status = (env) => {
+      try { return JSON.parse(execFileSync(claude, login.status, { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 30000 })) }
+      catch (error) { try { return JSON.parse(String(error.stdout)) } catch { return undefined } }
+    }
+    try {
+      const run = status({ ...process.env, ...isolatedEnv(isolation, home) })
+      if (!run || run.loggedIn) return undefined
+      const own = status(process.env)
+      const keys = login.passEnv.join(' or ')
+      if (own && !own.loggedIn) return 'login: Claude Code is not logged in. Run claude auth login, or set ' + keys + ', and run the test again.'
+      return 'login: Claude Code is logged in, but a test run is not: this Claude Code version no longer takes the login through ' + login.env + ', the setting skill test uses to share it with each run. Set ' + keys + ' (CLAUDE_CODE_OAUTH_TOKEN comes from claude setup-token), and run the test again.'
+    } finally { try { fs.rmSync(home, { recursive: true, force: true }) } catch {} }
+  })()
+  return loginChecked
 }
 
 // A run that hits its time limit is killed with everything it started (a model's find / can crawl for an
@@ -103,7 +210,7 @@ function spawnInGroup(children) {
 
 // Decides the rubric checks that need no judge in the run's folder, and records whether the skill fired.
 // A script check finds the run's own plugin copy at SKILL_TEST_PLUGIN.
-function finish(response, { arm, vars, dir, plugin, fired }) {
+function finish(response, { arm, vars, dir, plugin, fired, blocked }) {
   const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')
   const checks = {}
   const env = { ...process.env, ...(plugin ? { SKILL_TEST_PLUGIN: plugin } : {}) }
@@ -113,7 +220,7 @@ function finish(response, { arm, vars, dir, plugin, fired }) {
       const failed = results.find((result) => !result.pass)
       checks[id] = failed ? { pass: false, detail: failed.detail } : { pass: true }
     }
-  response.metadata = { ...response.metadata, arm, fired, checks }
+  response.metadata = { ...response.metadata, arm, fired, checks, ...(blocked ? { blocked } : {}) }
   return response
 }
 
@@ -185,11 +292,16 @@ export default class SkillRun {
     if (vars.kind === 'trigger' && arm !== 'skill') return { output: '', metadata: { arm, skipped: true } }
     if (this.config.progressFile)
       try { fs.appendFileSync(this.config.progressFile, JSON.stringify({ event: 'start', case: context.test?.description ?? '', arm, run: (context.repeatIndex ?? vars.__repeatIndex ?? 0) + 1, kind: vars.kind, t: Date.now() }) + '\n') } catch {}
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-run-'))
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-home-'))
+    if (harness === 'claude-code') {
+      const login = await loginProblem(isolation)
+      if (login) return { error: login, metadata: { arm } }
+    }
+    // Real paths: Claude Code takes a working folder as written, and on macOS the temp folder runs through a link.
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-run-')))
+    const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-home-')))
     // A run loads a copy of its arm's plugin of its own, committed in a git repository, so a script check can tell
     // whether the run changed it: SKILL_TEST_PLUGIN names that copy.
-    const plugin = pluginDir ? fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-plugin-')) : undefined
+    const plugin = pluginDir ? fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-plugin-'))) : undefined
     try {
       if (vars.files) fs.cpSync(vars.files, dir, { recursive: true })
       const commit = (cwd, message) => {
@@ -234,8 +346,16 @@ export default class SkillRun {
         if (names.includes(name)) hookFired = true
         return { continue: false, stopReason: names.includes(name) ? 'the skill fired' : 'another skill fired' }
       }
-      const hooks = { PreToolUse: [{ matcher: 'Skill', hooks: [watchSkill] }] }
-      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(plugin ? { plugins: [{ type: 'local', path: plugin }] } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3 } : {}), hooks, env, working_dir: dir, spawn_claude_code_process: spawnInGroup(children) } } })
+      const skillHook = { matcher: 'Skill', hooks: [watchSkill] }
+      let hooks = { PreToolUse: [skillHook] }
+      let contained
+      const blocked = []
+      if (isolation.containment) {
+        contained = containment({ dir, home, plugin, network: vars.network ? JSON.parse(vars.network) : undefined })
+        const watch = watchContainment({ dir, ...contained, fileTools: isolation.containment.fileTools }, blocked)
+        hooks = { ...watch, PreToolUse: [skillHook, ...watch.PreToolUse] }
+      }
+      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(plugin ? { plugins: [{ type: 'local', path: plugin }] } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3 } : {}), hooks, env, working_dir: dir, ...(contained ? { sandbox: contained.sandbox, settings: contained.settings, ...(plugin ? { additional_directories: [plugin] } : {}) } : {}), spawn_claude_code_process: spawnInGroup(children) } } })
       const controller = new AbortController()
       let limit
       const timedOut = new Promise((resolve) => {
@@ -248,7 +368,7 @@ export default class SkillRun {
       const answer = provider.callApi(prompt, context, { abortSignal: controller.signal }).catch((error) => ({ error: String(error?.message ?? error) }))
       const first = await Promise.race([answer, timedOut])
       clearTimeout(limit)
-      if (first === 'time limit') return { error: 'time limit', metadata: { arm, timedOut: true } }
+      if (first === 'time limit') return { error: 'time limit', metadata: { arm, timedOut: true, ...(contained ? { blocked } : {}) } }
       const response = first
       // A trigger case only needs to know whether the skill fired, so it ends there or at the turn cap; running out of turns is its normal end.
       if (vars.kind === 'trigger' && /maximum number of turns/.test(response.error ?? '')) {
@@ -257,7 +377,7 @@ export default class SkillRun {
       }
       const calls = response.metadata?.skillCalls ?? []
       const fired = hookFired || calls.some((call) => names.includes(call.name) || names.includes(call.input?.skill))
-      return finish(response, { arm, vars, dir, plugin, fired })
+      return finish(response, { arm, vars, dir, plugin, fired, blocked: contained ? blocked : undefined })
     } finally {
       for (const folder of [dir, home, plugin].filter(Boolean)) try { fs.rmSync(folder, { recursive: true, force: true }) } catch {}
     }

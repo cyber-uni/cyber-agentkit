@@ -96,7 +96,26 @@ export interface HeadlessIsolation {
 	readonly env?: Readonly<Record<string, string>>
 	/** What still reaches an isolated run from the user's setup, in words; absent when nothing does. */
 	readonly leaks?: string
+	/** How a run is held to its own folder and to the hosts its case lists; absent when the harness cannot be. */
+	readonly containment?: HeadlessContainment
 	/** The claim IDs in `.research/harness-detection/evidence.md` that back these facts. */
+	readonly research: readonly string[]
+}
+
+/**
+ * How a harness holds a run to its folder: its own sandbox runs the shell commands, and its file tools refuse a path
+ * outside the run's folders.
+ */
+export interface HeadlessContainment {
+	/**
+	 * The settings that turn it on. `claude-code`: the Agent SDK's `sandbox` option, which runs shell commands in the
+	 * OS sandbox (bubblewrap and socat on Linux and WSL, Seatbelt on macOS) and notes each host it denies in the
+	 * command's output as `<sandbox_violations>`, plus the `blockReadsOutsideWorkingDirectories` and
+	 * `blockWritesOutsideWorkingDirectories` permissions.
+	 */
+	readonly settings: 'claude-code'
+	/** The file tools, each with whether it reads or writes the path it is given. */
+	readonly fileTools: Readonly<Record<string, 'read' | 'write'>>
 	readonly research: readonly string[]
 }
 
@@ -114,6 +133,13 @@ export type HeadlessLogin =
 			readonly store: 'separate'
 			readonly env: string
 			readonly keepConfigDirOn?: readonly string[]
+			/**
+			 * Platforms where `env` names the keychain entry the credentials are in, not a folder: empty for the entry of
+			 * the default config folder, else the entry of the folder it names. The config folder still moves there.
+			 */
+			readonly keychainOn?: readonly string[]
+			/** Arguments that print the login state as JSON with a `loggedIn` field, making no model call. */
+			readonly status?: readonly string[]
 			/** Environment variables that carry a login themselves and pass through. */
 			readonly passEnv: readonly string[]
 	  }
@@ -181,20 +207,38 @@ export function headlessInvocation(harness: HarnessId): HeadlessInvocation {
 					projectSkills: '.claude/skills',
 					pluginFlag: '--plugin-dir',
 					// The credentials folder is set apart from the config folder by an undocumented variable (E-CC-D11).
-					// macOS names its keychain entry after the config folder, so the config folder stays there.
+					// On macOS the same variable names the keychain entry instead (E-CC-D13). `auth status` answers
+					// whether a run is logged in without a model call (E-CC-D16).
 					login: {
 						store: 'separate',
 						env: 'CLAUDE_SECURESTORAGE_CONFIG_DIR',
-						keepConfigDirOn: ['darwin'],
+						keychainOn: ['darwin'],
 						passEnv: ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'],
+						status: ['auth', 'status'],
 					},
 					// One shell command stops at 30 s by default and 2 min at most, instead of moving to the background (E-CC-D12).
 					env: {
 						BASH_DEFAULT_TIMEOUT_MS: '30000',
 						BASH_MAX_TIMEOUT_MS: '120000',
 						CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1',
+						// claude.ai connectors are the account's, not the run's (E-CC-D14).
+						ENABLE_CLAUDEAI_MCP_SERVERS: 'false',
 					},
-					research: ['E-CC-D7', 'E-CC-D11', 'E-CC-D12', 'E-CC-L1', 'E-CC-H7'],
+					// The OS sandbox and the working-folder permissions (E-CC-D15).
+					containment: {
+						settings: 'claude-code',
+						fileTools: {
+							Read: 'read',
+							Glob: 'read',
+							Grep: 'read',
+							Write: 'write',
+							Edit: 'write',
+							MultiEdit: 'write',
+							NotebookEdit: 'write',
+						},
+						research: ['E-CC-D15'],
+					},
+					research: ['E-CC-D7', 'E-CC-D11', 'E-CC-D12', 'E-CC-D13', 'E-CC-D14', 'E-CC-D16', 'E-CC-L1', 'E-CC-H7'],
 				},
 				research: ['E-CC-H1', 'E-CC-H2', 'E-CC-H3', 'E-CC-H4', 'E-CC-H5', 'E-CC-H6'],
 			}

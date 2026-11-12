@@ -21,6 +21,14 @@ export type CriterionResult = {
 	failures?: Failure[]
 }
 export type CaseStatus = { case: string; status: Status }
+/** One thing a run tried that its containment refused, with the run that tried it. */
+export type Blocked = {
+	case: string
+	arm: 'skill' | 'baseline'
+	run: number
+	what: 'read' | 'write' | 'network'
+	target: string
+}
 
 /** The saved result of `skill test`, the shape every Verification implementation writes (`test.md`). */
 export type TestResult = {
@@ -39,6 +47,8 @@ export type TestResult = {
 	/** Set when only the named cases ran (R102): the result covers them alone, is compared for them alone, and is never the expected result. */
 	partial?: { cases: string[] }
 	notRun: { case: string; reason: string }[]
+	/** What the runs' containment refused (R107): a read or write outside the run's folder, or a host the case does not list. */
+	blocked?: Blocked[]
 	changed?: { case: string; from: Status; to: Status }[]
 	/** Which result `changed` compares with: the skill's expected result, else the previous saved one. */
 	comparedWith?: 'expected' | 'previous'
@@ -84,7 +94,12 @@ type Row = {
 	response?: {
 		output?: unknown
 		error?: string
-		metadata?: { skipped?: boolean; fired?: boolean; checks?: Record<string, { pass: boolean; detail?: string }> }
+		metadata?: {
+			skipped?: boolean
+			fired?: boolean
+			checks?: Record<string, { pass: boolean; detail?: string }>
+			blocked?: { what: Blocked['what']; target: string }[]
+		}
 	}
 	gradingResult?: {
 		componentResults?: { pass: boolean; reason?: string; assertion?: { metric?: string; type?: string } }[]
@@ -227,6 +242,15 @@ export function readPromptfooOutput(
 		...plan.notRun.map((item) => ({ case: item.case, status: 'not-run' as Status })),
 	]
 	const cost = rows.reduce((sum, row) => sum + (row.cost ?? 0), 0)
+	const blocked: Blocked[] = rows.flatMap((row) =>
+		(row.response?.metadata?.blocked ?? []).map((item) => ({
+			case: row.testCase?.description ?? '?',
+			arm: row.provider?.label === 'with-skill' ? ('skill' as const) : ('baseline' as const),
+			run: (row.repeatIndex ?? 0) + 1,
+			what: item.what,
+			target: item.target,
+		})),
+	)
 	return {
 		version: 1,
 		skill: meta.skill,
@@ -240,6 +264,7 @@ export function readPromptfooOutput(
 		cases,
 		...(plan.only ? { partial: { cases: plan.only } } : {}),
 		notRun,
+		...(blocked.length ? { blocked } : {}),
 		...(cost ? { cost: Math.round(cost * 10000) / 10000 } : {}),
 	}
 }

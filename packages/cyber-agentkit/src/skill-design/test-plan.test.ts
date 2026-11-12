@@ -14,6 +14,19 @@ describe('planTest', () => {
 		expect(planned.plan.cases.at(-1)?.files).toMatch(/evals\/files\/two-prs$/)
 	})
 
+	it('lets a case reach only the hosts it lists (R107)', () => {
+		const evals = goodEvals.replace(
+			'  - { id: two-prs, prompt: write the notes, files: files/two-prs }',
+			'  - { id: two-prs, prompt: write the notes, files: files/two-prs, network: [registry.npmjs.org] }',
+		)
+		const planned = planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': evals }))
+		if (!('plan' in planned)) throw new Error(planned.problem)
+		expect(planned.plan.cases.at(-1)?.network).toEqual(['registry.npmjs.org'])
+		const none = planTest(goodSkill())
+		if (!('plan' in none)) throw new Error(none.problem)
+		expect(none.plan.cases.at(-1)?.network).toBeUndefined()
+	})
+
 	it('plans a five-minute time limit, or the evals timeout (F8)', () => {
 		const planned = (evals: string) => {
 			const result = planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': evals }))

@@ -72,7 +72,9 @@ export type TestOptions = {
 /** Runs a plan and reads the result; the baseline falls back to a run without the skill when its folder holds no skill (R35). */
 export async function runTest(
 	options: TestOptions,
-): Promise<{ result: TestResult; replies: Reply[]; warnings: string[] } | { problem: string }> {
+): Promise<
+	{ result: TestResult; replies: Reply[]; warnings: string[] } | { problem: string; code?: 'login' | 'sandbox' }
+> {
 	const warnings: string[] = []
 	let baselineFolder = options.baselineFolder
 	if (baselineFolder !== undefined && !readSkill(baselineFolder)) {
@@ -94,6 +96,11 @@ export async function runTest(
 		}
 		const harness = options.harness ?? (skillTestHarness('claude-code') as SkillTestHarness)
 		if (harness.leaks) warnings.push(`each ${harness.id} run still reads ${harness.leaks}`)
+		// Only a harness whose definition declares containment is held to the run's folder (R107).
+		if (!harness.isolation.containment)
+			warnings.push(
+				`skill test does not contain ${harness.id} runs: a run may read outside its folder, a case's \`network\` list does not apply, and the result lists nothing as blocked`,
+			)
 		if (found && !harness.isolation.pluginFlag)
 			warnings.push(
 				`${harness.id} has no flag to load a local plugin, so each run gets the skills of ${found.name} as project skills, without its references`,
@@ -122,6 +129,8 @@ export async function runTest(
 		}
 		const durationMs = Date.now() - started
 		if ('problem' in ran) return { problem: `promptfoo did not run: ${ran.problem}` }
+		const setup = setupProblem(ran.output)
+		if (setup) return setup
 		const dropped = options.baselineFolder !== undefined && baselineFolder === undefined
 		const result = readPromptfooOutput(ran.output, options.plan, {
 			skill: options.skillName,
@@ -148,6 +157,28 @@ export async function runTest(
 	} finally {
 		rmSync(folder, { recursive: true, force: true })
 	}
+}
+
+/**
+ * A cause every run shares, said in plain words instead of one "not run" per run: the provider found the runs are not
+ * logged in (its reason starts with `login: `), or Claude Code's sandbox could not start, so no command could be
+ * contained (R107, R108).
+ */
+function setupProblem(output: unknown): { problem: string; code: 'login' | 'sandbox' } | undefined {
+	const rows = ((output as { results?: { results?: { response?: { error?: string } }[] } })?.results?.results ??
+		[]) as { response?: { error?: string } }[]
+	const errors = rows.map((row) => row.response?.error).filter((error): error is string => !!error)
+	const login = errors.find((error) => error.startsWith('login: '))
+	if (login) return { code: 'login', problem: login.slice('login: '.length) }
+	const sandbox = errors.find(
+		(error) => /sandbox/i.test(error) && /unavailable|cannot|missing|not supported|bubblewrap|bwrap/i.test(error),
+	)
+	if (sandbox)
+		return {
+			code: 'sandbox',
+			problem: `Claude Code's sandbox could not start, so no run can be contained: ${sandbox.split('\n')[0]}. On Linux and WSL it needs bubblewrap and socat installed.`,
+		}
+	return undefined
 }
 
 /** Where a skill's results live: `.agents/skill-design/results/<skill>/` under the repository root, or the home folder. */

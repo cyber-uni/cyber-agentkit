@@ -15,7 +15,9 @@ the author asks to accept one, or when the first passing run saves one (see Save
 ## 2. Run
 
 Run the cases as Verification's Run says. Pass a judge only when the author named one. A case marked as having an
-outside effect is not run, and is reported as such.
+outside effect is not run, and is reported as such. Each run is contained to its own folder, and reaches the network
+only for the hosts its case lists. When the test stops with `error: login:` or `error: sandbox:`, pass the reason on
+as it is said; no run was made.
 
 A full test makes many runs and can take several minutes. Before starting, tell the author how many runs it makes
 and, from the plan line, about how long and how much it took last time. When the plan line says an unknown number of
@@ -66,6 +68,7 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
     { "case": "two-prs", "status": "fail" }
   ],
   "notRun": [{ "case": "post-to-github", "reason": "outside effect" }],
+  "blocked": [{ "case": "two-prs", "arm": "skill", "run": 1, "what": "network", "target": "api.github.com" }],
   "comparedWith": "expected",
   "changed": [{ "case": "two-prs", "from": "pass", "to": "fail" }],
   "cost": 0.06,
@@ -80,6 +83,9 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
 limit is in `notRun` and never counts as a pass; its `reason` is one short line, the error without the Agent SDK's
 `Error calling Claude Agent SDK: Error: Claude Code returned an error result:` wrapping (for example `Not logged in`). When the baseline cannot run, `baseline` holds the reason and no
 criterion has a `baseline` field.
+
+`blocked`, left out when nothing was, lists what a run tried that its containment refused: `what` is `read`, `write`,
+or `network`, and `target` the path or host. A refused attempt does not by itself fail a criterion.
 
 `cases` holds each case's status: an outcome case passes when every criterion it tests meets the threshold in it.
 `changed` lists the cases that went between `pass` and `fail` since the skill's expected result
@@ -109,6 +115,6 @@ control with the skill, so the team compares with the same result.
 ## Report
 
 Each trigger case beside what was expected; each criterion's pass rate, threshold, and baseline; each failure with its
-case and the output that broke it; and the cases that changed between pass and fail since the expected result, or, with
+case and the output that broke it; what the runs with the skill tried and were refused, if anything; and the cases that changed between pass and fail since the expected result, or, with
 none, the previous result, saying which. With neither, say there is none to compare. Say when the result was saved as the
 expected result. In an interactive run with failures, offer `fix`.

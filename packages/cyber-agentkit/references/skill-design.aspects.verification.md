@@ -17,7 +17,8 @@ check-script: ../skills/skill/scripts/check-verification.mjs
 3. **Rubrics.** For each Criteria ID, write the checks that decide it from a run's output. Prefer a deterministic
    check. Use `judge` only when no deterministic check decides the criterion, and say so to the author.
 4. Mark a case `effects: outside` when running it would reach past the sandbox, such as posting to GitHub. It is not
-   run.
+   run. A case that needs the network, such as one that installs a package, lists the hosts it may reach in
+   `network`; every other host stays closed.
 5. Show the cases and rubrics to the author before writing them.
 
 ## Cases
@@ -40,6 +41,7 @@ outcome:
     files: files/two-prs      # copied into the run's folder; optional
     criteria: [C1, C2]        # optional; every criterion by default
     effects: outside          # optional; the case is not run
+    network: [registry.npmjs.org]  # optional; the hosts its runs may reach (`*.example.com` for subdomains), none by default
     checks:                   # optional; per-case checks that replace rubrics.<ID> for this case
       C2:
         - contains: "no merge commits"
@@ -102,16 +104,24 @@ say so before the first run in a session.
 - Each run records every skill it calls in `.skill-test/skill-calls.jsonl`, one JSON line `{"skill", "args"}` per call,
   excluded from `git status`. A `script` check reads it to decide what a skill handed to another, such as the
   description a skill passed to `/skill create`.
-- Each run's `HOME`, `XDG_CONFIG_HOME`, and `CLAUDE_CONFIG_DIR` point at fresh empty folders, so a skill's own CLI run
-  through Bash finds no user references or plugins, no installed Claude Code plugin is loaded, and the Bash tool sources
-  no user shell snapshot. Claude Code's login still works because `CLAUDE_SECURESTORAGE_CONFIG_DIR` points at the real
-  Claude config folder (or the one already set), where Claude Code reads and refreshes its own credentials; no credential
-  is copied or linked, and `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` pass through when set. If a Claude Code
-  version ignores that variable, each run fails with "Not logged in" and counts as not run. On macOS the real config
-  folder is kept instead, since the keychain entry is named after it, so plugins and the shell snapshot still leak
-  there. A skill that reads a file by its absolute path under the real home still reaches it. The folder of the `node`
-  running the test goes first on `PATH`, since a version manager's shim reads its config from the home folder; another
-  tool a shim provides may not run.
+- Each run's `HOME`, `XDG_CONFIG_HOME`, and `CLAUDE_CONFIG_DIR` point at fresh empty folders, on every platform, so
+  a skill's own CLI run through Bash finds no user references or plugins, no installed Claude Code plugin or claude.ai
+  connector is loaded, and the Bash tool sources no user shell snapshot. Claude Code's login still works because
+  `CLAUDE_SECURESTORAGE_CONFIG_DIR` tells it where its credentials are: the real Claude config folder on Linux and
+  Windows, and on macOS the keychain entry of the real config folder. No credential is copied or linked, and
+  `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` pass through when set. Before the first run, `test` asks Claude
+  Code whether a run is logged in, which spends nothing. When it is not, `test` stops with `error: login:` and says
+  why: Claude Code is not logged in at all, or it is but no longer takes the login through that variable, with what
+  to set instead. The folder of the `node` running the test goes first on `PATH`, since a version manager's shim
+  reads its config from the home folder; another tool a shim provides may not run.
+- Each Claude Code run is contained to its folder, as its harness definition declares (`containment`). The file tools read and write only the run's folder, its home, and its own
+  plugin copy (`$SKILL_TEST_PLUGIN`). Shell commands run in Claude Code's sandbox (bubblewrap and socat on Linux and WSL, Seatbelt on
+  macOS), which hides the home folders and the system temp folder; system folders that hold programs stay readable.
+  The network is closed but for the hosts the case lists in `network`. When the sandbox cannot start, `test` stops
+  with `error: sandbox:` rather than run a command outside it. The result's `blocked` lists what a run tried and was
+  refused (`read`, `write`, or `network`, with the path or host), naming the case, arm, and run. A file tool's refusal
+  and a host the sandbox denies are always listed; a shell read is listed when the command names the path, so a path
+  a command builds as it runs is still refused but may go unlisted.
 - Each case runs twice over: once with the skill and once without it, which is the baseline.
 - At most `concurrency` runs go at once: by default the largest number below half the machine's hardware threads (7 of
   16), and at least 1. A larger `concurrency` is lowered to that.
@@ -138,7 +148,9 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   no flag to load a plugin folder, so a skill developed in a plugin gets that plugin's skills as project skills,
   without its references. Those skills are copies, so a check on `$SKILL_TEST_PLUGIN` does not see a change the run
   made to them. Name the model with `--model`, as Codex's own default may not be on the account. Codex
-  reports no cost.
+  reports no cost. Its definition declares no containment, so skill test does not contain a Codex run: only Codex's
+  own `workspace-write` sandbox applies, a run may read outside its folder, `network` does not apply, and the
+  result lists nothing as blocked. The test warns about it.
 - `--backend plugin-eval` runs the cases on Claude Code's own `claude plugin eval` instead of promptfoo. The cases
   become an eval suite (`skill-test-evals/<case>/case.yaml`) in a copy of the skill's plugin, or in a plugin made for
   the skill, and its JSON result is read into the same result. Each run starts in a git repository holding the case's
@@ -146,7 +158,9 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   check is reported as not tested; the other checks become `regex` graders, and `judge` an `llm` grader. Trigger
   cases run with the plugin only, and stop at three turns. The baseline is the run's own no-plugin arm, or, for a
   skill in a plugin or with `--baseline`, a second run on a copy of the plugin without the skill or with that
-  version. It drives Claude Code only.
+  version. It drives Claude Code only. `claude plugin eval` runs each case itself, so skill test's containment does
+  not reach it: a run may read outside its folder, `network` does not apply, and the result lists nothing as
+  blocked. The test warns about it.
 
 ## Criteria
 
