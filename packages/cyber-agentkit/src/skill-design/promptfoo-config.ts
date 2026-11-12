@@ -1,3 +1,4 @@
+import type { SkillTestHarness } from './skill-test-harness.js'
 import type { TestPlan } from './test-plan.js'
 
 /** The promptfoo and Agent SDK versions `skill test` runs through npx (research E20). */
@@ -19,6 +20,8 @@ export type ConfigOptions = {
 	 * `baseline` holding the baseline's version or none. The skill is then not copied into the run folder.
 	 */
 	plugin?: { name: string; withSkill: string; baseline: string } | undefined
+	/** The harness each run drives, with where it keeps its config, skills, plugins, and login. */
+	harness: SkillTestHarness
 }
 
 /** The Agent SDK options for every run: only the run folder's own skills and settings, no web, a turn and cost cap. */
@@ -47,6 +50,9 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 			arm,
 			skillName: options.skillName,
 			timeout: plan.timeout,
+			harness: options.harness.id,
+			isolation: options.harness.isolation,
+			...(options.harness.command ? { command: options.harness.command } : {}),
 			...(options.progress ? { progressFile: options.progress.file } : {}),
 			...(plugin
 				? { pluginName: plugin.name, pluginDir: arm === 'skill' ? plugin.withSkill : plugin.baseline }

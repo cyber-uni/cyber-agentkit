@@ -23,6 +23,8 @@ export interface HeadlessMode {
 	readonly transcript?: HeadlessTranscript
 	/** The exit codes the vendor documents. A code the list does not name means failure. */
 	readonly exitCodes: readonly HeadlessExitCode[]
+	/** Where a run keeps its config, skills, plugins, and login, when that is verified. */
+	readonly isolation?: HeadlessIsolation
 	/** The claim IDs in `.research/harness-detection/evidence.md` that back these facts. */
 	readonly research: readonly string[]
 }
@@ -72,6 +74,50 @@ export interface HeadlessTranscript {
 	/** The arguments that keep a run from writing a transcript at all. */
 	readonly disable?: readonly string[]
 }
+
+/**
+ * Where a harness keeps what a run reads, so a run can be cut off from the user's own setup: an empty home
+ * folder, the harness's config folder moved where it can be, and the login kept working.
+ */
+export interface HeadlessIsolation {
+	/** The harness's user config folder. */
+	readonly configDir: {
+		/** The environment variable that moves it. */
+		readonly env: string
+		/** Where it is without the variable, with `~` for the home folder. */
+		readonly default: string
+	}
+	/** The folder a project's skills load from, relative to the working directory: `<folder>/<skill>/SKILL.md`. */
+	readonly projectSkills: string
+	/** The flag that loads a plugin from a local folder for one run, when the harness has one. */
+	readonly pluginFlag?: string
+	readonly login: HeadlessLogin
+	/** Environment variables every isolated run sets, such as limits on one shell command. */
+	readonly env?: Readonly<Record<string, string>>
+	/** What still reaches an isolated run from the user's setup, in words; absent when nothing does. */
+	readonly leaks?: string
+	/** The claim IDs in `.research/harness-detection/evidence.md` that back these facts. */
+	readonly research: readonly string[]
+}
+
+/**
+ * Where the login lives.
+ *
+ * - `separate`: an environment variable names the folder the credentials are read and written in, so the config
+ *   folder can move to an empty one while the login stays where it is. On the listed platforms it cannot: the
+ *   credentials are tied to the config folder's path there, and the config folder stays.
+ * - `config-dir`: the credentials live in the config folder, so the config folder stays and `args` keep the
+ *   user's config in it from loading.
+ */
+export type HeadlessLogin =
+	| {
+			readonly store: 'separate'
+			readonly env: string
+			readonly keepConfigDirOn?: readonly string[]
+			/** Environment variables that carry a login themselves and pass through. */
+			readonly passEnv: readonly string[]
+	  }
+	| { readonly store: 'config-dir'; readonly args: readonly string[]; readonly passEnv: readonly string[] }
 
 export interface HeadlessExitCode {
 	readonly code: number
@@ -130,6 +176,26 @@ export function headlessInvocation(harness: HarnessId): HeadlessInvocation {
 					{ code: 0, meaning: 'success' },
 					{ code: 143, meaning: 'terminated by SIGTERM' },
 				],
+				isolation: {
+					configDir: { env: 'CLAUDE_CONFIG_DIR', default: '~/.claude' },
+					projectSkills: '.claude/skills',
+					pluginFlag: '--plugin-dir',
+					// The credentials folder is set apart from the config folder by an undocumented variable (E-CC-D11).
+					// macOS names its keychain entry after the config folder, so the config folder stays there.
+					login: {
+						store: 'separate',
+						env: 'CLAUDE_SECURESTORAGE_CONFIG_DIR',
+						keepConfigDirOn: ['darwin'],
+						passEnv: ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'],
+					},
+					// One shell command stops at 30 s by default and 2 min at most, instead of moving to the background (E-CC-D12).
+					env: {
+						BASH_DEFAULT_TIMEOUT_MS: '30000',
+						BASH_MAX_TIMEOUT_MS: '120000',
+						CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1',
+					},
+					research: ['E-CC-D7', 'E-CC-D11', 'E-CC-D12', 'E-CC-L1', 'E-CC-H7'],
+				},
 				research: ['E-CC-H1', 'E-CC-H2', 'E-CC-H3', 'E-CC-H4', 'E-CC-H5', 'E-CC-H6'],
 			}
 		case 'codex':
@@ -161,6 +227,18 @@ export function headlessInvocation(harness: HarnessId): HeadlessInvocation {
 					{ code: 0, meaning: 'success' },
 					{ code: 1, meaning: 'the run reported a fatal error, or the prompt or options were invalid' },
 				],
+				isolation: {
+					configDir: { env: 'CODEX_HOME', default: '~/.codex' },
+					projectSkills: '.agents/skills',
+					// The login lives in CODEX_HOME, and --ignore-user-config keeps it there (E-CODEX-H6).
+					login: {
+						store: 'config-dir',
+						args: ['--ignore-user-config', '--ignore-rules'],
+						passEnv: ['OPENAI_API_KEY', 'CODEX_API_KEY'],
+					},
+					leaks: 'the global AGENTS.md in the Codex config folder (`$CODEX_HOME/AGENTS.md`)',
+					research: ['E-CODEX-D8', 'E-CODEX-L1', 'E-CODEX-H6', 'E-CODEX-H7'],
+				},
 				research: ['E-CODEX-H1', 'E-CODEX-H2', 'E-CODEX-H3', 'E-CODEX-H4', 'E-CODEX-H5'],
 			}
 		case 'copilot-cli':

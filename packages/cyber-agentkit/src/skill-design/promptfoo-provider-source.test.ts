@@ -3,7 +3,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { headlessInvocation } from '../headless/headless-invocation.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
+
+const claude = headlessInvocation('claude-code')
+const isolation = JSON.stringify(claude.supported === true ? claude.isolation : undefined)
 
 /** A fake `promptfoo` whose inner provider reports what the run folder looks like when the model would start. */
 const fakePromptfoo = String.raw`
@@ -40,7 +44,7 @@ function runProvider(withSkill: boolean): Record<string, any> {
 	writeFileSync(
 		join(root, 'run.mjs'),
 		`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', inner: {}, ${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''} } })
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, ${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''} } })
 const response = await provider.callApi('hi', { vars: { kind: 'outcome', files: ${JSON.stringify(join(root, 'files'))}, rubrics: '{}' } })
 console.log(response.output)
 `,
@@ -108,7 +112,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', inner: {}, timeout: 1 } })
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, timeout: 1 } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
 `,
 		)
@@ -157,7 +161,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', inner: { max_turns: 20 } } })
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: { max_turns: 20 } } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'trigger', rubrics: '{}' } })))
 `,
 		)
@@ -205,7 +209,7 @@ describe('promptfooProviderSource progress (R98, R99)', () => {
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
 import { afterEach } from './hook.mjs'
-const provider = new Provider({ config: { arm: ${JSON.stringify(arm)}, skillName: 'demo', inner: {}, progressFile: ${JSON.stringify(file)} } })
+const provider = new Provider({ config: { arm: ${JSON.stringify(arm)}, skillName: 'demo', isolation: ${isolation}, inner: {}, progressFile: ${JSON.stringify(file)} } })
 const response = await provider.callApi('hi', { test: { description: 'case-a' }, repeatIndex: 1, vars: { kind: ${JSON.stringify(kind)}, rubrics: '{}' } })
 await afterEach({ result: { response, vars: { kind: ${JSON.stringify(kind)} }, testCase: { description: 'case-a' }, provider: { label: ${JSON.stringify(arm === 'skill' ? 'with-skill' : 'baseline')} }, repeatIndex: 1, latencyMs: 1234, success: ${!skipped} } })
 `,

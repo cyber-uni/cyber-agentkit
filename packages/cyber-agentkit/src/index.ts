@@ -29,6 +29,8 @@ export type {
 	HeadlessCommandOptions,
 	HeadlessExitCode,
 	HeadlessInvocation,
+	HeadlessIsolation,
+	HeadlessLogin,
 	HeadlessMode,
 	HeadlessOutputFormat,
 	HeadlessPermission,
