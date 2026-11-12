@@ -1,7 +1,7 @@
 {
 	"version": 1,
 	"skill": "skillify",
-	"at": "2026-11-11T06:39:19.541Z",
+	"at": "2026-11-12T09:57:37.601Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 			"case": "trigger-5",
 			"prompt": "Write a skill that drafts release notes from merged pull requests.",
 			"expect": "skip",
-			"fired": 1,
+			"fired": 0,
 			"ran": 3,
 			"status": "pass"
 		},
@@ -52,7 +52,7 @@
 			"prompt": "Is my release-notes skill any good? Check it.",
 			"expect": "skip",
 			"fired": 0,
-			"ran": 2,
+			"ran": 3,
 			"status": "pass"
 		},
 		{
@@ -89,7 +89,7 @@
 			"passed": 3,
 			"ran": 3,
 			"baseline": {
-				"passed": 3,
+				"passed": 0,
 				"ran": 3
 			}
 		},
@@ -109,7 +109,7 @@
 			"passed": 3,
 			"ran": 3,
 			"baseline": {
-				"passed": 3,
+				"passed": 0,
 				"ran": 3
 			}
 		},
@@ -139,7 +139,7 @@
 			"passed": 6,
 			"ran": 6,
 			"baseline": {
-				"passed": 2,
+				"passed": 0,
 				"ran": 6
 			}
 		}
@@ -190,12 +190,10 @@
 			"status": "pass"
 		}
 	],
-	"notRun": [
-		{
-			"case": "trigger-6 (with-skill, run 3)",
-			"reason": "time limit"
-		}
-	],
-	"cost": 2.3759,
-	"noPrevious": true
+	"notRun": [],
+	"cost": 3.1418,
+	"durationMs": 99788,
+	"totalRuns": 42,
+	"comparedWith": "expected",
+	"changed": []
 }
