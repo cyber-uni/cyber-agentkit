@@ -160,7 +160,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
     await post({ tool_name: 'Bash', tool_input: { command: 'cat /etc/hostname' }, tool_response: { stdout: 'box', stderr: '' } })
     await post({ tool_name: 'Bash', tool_input: { command: 'cat /no/such/file' }, tool_response: { stdout: '', stderr: 'cat: /no/such/file: No such file or directory' } })
     await fail({ tool_name: 'Bash', tool_input: { command: 'curl https://example.com' }, error: 'Exit code 7\ncurl: (7) CONNECT tunnel failed, response 403\n<sandbox_violations>\ndeny network-outbound example.com:443 (host is not on the allow list)\n</sandbox_violations>' })
-    return { output: 'done', metadata: { answers } }
+    return { output: 'done', metadata: { answers, toolCalls: [{ name: 'Bash', input: { command: 'curl https://wider.example', allowed_domains: ['wider.example'] }, is_error: true }] } }
   },
 })
 `
@@ -195,13 +195,14 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 		expect(metadata.answers.readInside).toEqual([{}, {}])
 	})
 
-	it('records a read the sandbox hid and a host it denied, and nothing for a read it allowed or a file that does not exist', () => {
+	it('records a read the sandbox hid, a host it denied, and a host a command asked for beyond the case list, and nothing for a read it allowed or a file that does not exist', () => {
 		const { metadata, outside } = probe()
 		expect(metadata.blocked).toEqual([
 			{ what: 'read', target: outside },
 			{ what: 'write', target: '/etc/skill-test-probe' },
 			{ what: 'read', target: '/etc' },
 			{ what: 'network', target: 'example.com' },
+			{ what: 'network', target: 'wider.example' },
 		])
 	})
 })

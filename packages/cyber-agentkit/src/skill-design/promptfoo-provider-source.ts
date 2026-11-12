@@ -105,12 +105,21 @@ const inside = (roots, p) => roots.some((root) => p === root || p.startsWith(roo
 
 // Records what the containment refused, as { what: 'read' | 'write' | 'network', target }. A file tool (the
 // declaration's fileTools) given a path outside the run is refused here. For a shell command it reads the sandbox's
-// own notes, and counts a path the command names that exists outside the run but that the command could not find,
+// own notes and a host a command asked to reach beyond the case's list, and counts a path the command names that exists outside the run but that the command could not find,
 // read or write as refused: the sandbox hides it. A path the command builds as it runs is still refused, but may go
 // unrecorded.
-function watchContainment({ dir, readable, writable, fileTools }, blocked) {
+function watchContainment({ dir, readable, writable, fileTools, network = [] }, blocked) {
   const note = (what, target) => { if (!blocked.some((b) => b.what === what && b.target === target) && blocked.length < 50) blocked.push({ what, target }) }
+  // A shell command may ask for more hosts than the case lists (Bash's allowed_domains). Claude Code refuses that
+  // before the command runs, since the sandbox's allowlist is the whole list, and no hook sees it; the refusal names
+  // no host, so the run's tool calls are read for it afterwards (review).
+  const wider = (call) => {
+    if (call?.name === 'Bash' || call?.tool_name === 'Bash')
+      for (const host of [].concat((call.input ?? call.tool_input)?.allowed_domains ?? [])) if (!network.includes(String(host))) note('network', String(host))
+  }
+  const review = (calls) => { for (const call of calls ?? []) wider(call) }
   const before = async (input) => {
+    wider(input)
     const what = fileTools[input.tool_name]
     if (!what) return {}
     const given = input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? input.tool_input?.path
@@ -139,7 +148,7 @@ function watchContainment({ dir, readable, writable, fileTools }, blocked) {
     }
     return {}
   }
-  return { PreToolUse: [{ hooks: [before] }], PostToolUse: [{ hooks: [after] }], PostToolUseFailure: [{ hooks: [after] }] }
+  return { hooks: { PreToolUse: [{ hooks: [before] }], PostToolUse: [{ hooks: [after] }], PostToolUseFailure: [{ hooks: [after] }] }, review }
 }
 
 // Before the first run, asks the Claude Code the Agent SDK runs whether a run is logged in, with the declaration's
@@ -351,11 +360,12 @@ export default class SkillRun {
       const skillHook = { matcher: 'Skill', hooks: [watchSkill] }
       let hooks = { PreToolUse: [skillHook] }
       let contained
+      let watch
       const blocked = []
       if (isolation.containment) {
         contained = containment({ dir, home, plugin, network: vars.network ? JSON.parse(vars.network) : undefined })
-        const watch = watchContainment({ dir, ...contained, fileTools: isolation.containment.fileTools }, blocked)
-        hooks = { ...watch, PreToolUse: [skillHook, ...watch.PreToolUse] }
+        watch = watchContainment({ dir, ...contained, fileTools: isolation.containment.fileTools, network: contained.sandbox.network.allowedDomains }, blocked)
+        hooks = { ...watch.hooks, PreToolUse: [skillHook, ...watch.hooks.PreToolUse] }
       }
       const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(plugin ? { plugins: [{ type: 'local', path: plugin }] } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3 } : {}), hooks, env, working_dir: dir, ...(contained ? { sandbox: contained.sandbox, settings: contained.settings, ...(plugin ? { additional_directories: [plugin] } : {}) } : {}), spawn_claude_code_process: spawnInGroup(children) } } })
       const controller = new AbortController()
@@ -377,6 +387,7 @@ export default class SkillRun {
         delete response.error
         response.output = ''
       }
+      watch?.review(response.metadata?.toolCalls)
       const calls = response.metadata?.skillCalls ?? []
       const fired = hookFired || calls.some((call) => names.includes(call.name) || names.includes(call.input?.skill))
       return finish(response, { arm, vars, dir, plugin, fired, blocked: contained ? blocked : undefined })
