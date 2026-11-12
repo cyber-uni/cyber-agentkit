@@ -202,7 +202,8 @@ export async function afterEach({ result }) {
     const kind = result.vars?.kind ?? result.testCase?.vars?.kind
     const error = response?.error ?? (response === undefined ? result.error ?? 'no response' : undefined)
     const line = { event: 'end', case: result.testCase?.description ?? '', arm: result.provider?.label === 'with-skill' ? 'skill' : 'baseline', run: (result.repeatIndex ?? 0) + 1, kind, durationMs: result.latencyMs, t: Date.now() }
-    if (error) { line.outcome = 'not run'; line.reason = String(error).split('\n')[0].slice(0, 200) }
+    // The same short reason the saved result gives (R137): the first line, without the Agent SDK provider's wrappers.
+    if (error) { line.outcome = 'not run'; line.reason = String(error).trim().split('\n')[0].replace(/^(?:\s*(?:Error calling Claude Agent SDK|Error|Claude Code returned an error result):)+\s*/i, '').slice(0, 160) || 'no reason given' }
     else if (kind === 'trigger') line.outcome = response?.metadata?.fired ? 'fired' : 'not fired'
     else line.outcome = result.success ? 'pass' : 'fail'
     fs.appendFileSync(file, JSON.stringify(line) + '\n')

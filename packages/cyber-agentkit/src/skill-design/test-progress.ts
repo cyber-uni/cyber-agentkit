@@ -34,7 +34,8 @@ function clock(ms: number): string {
 
 /**
  * The line written before the first run: the count, and about how long and how much the last saved result took (R97).
- * When the last result made a different number of runs, such as a full run before a partial one, it says how many.
+ * When the last result made a different number of runs, such as a full run before a partial one, it says how many;
+ * when the last result does not record how many, it says the number is unknown.
  */
 export function planLine(
 	plan: TestPlan,
@@ -55,10 +56,11 @@ export function planLine(
 	}
 	if (last?.cost) before.push(`$${last.cost.toFixed(2)}`)
 	if (before.length) {
-		const other = last?.totalRuns !== undefined && last.totalRuns !== plannedRuns(plan)
-		line += other
-			? `; last time ${last.totalRuns} runs took about ${before.join(', ')}`
-			: `; last time about ${before.join(', ')}`
+		// A result saved before the run count was recorded may have covered only some cases: say so, never guess (R97).
+		if (last?.totalRuns === undefined) line += `; last time an unknown number of runs took about ${before.join(', ')}`
+		else if (last.totalRuns !== plannedRuns(plan))
+			line += `; last time ${last.totalRuns} runs took about ${before.join(', ')}`
+		else line += `; last time about ${before.join(', ')}`
 	}
 	return line
 }

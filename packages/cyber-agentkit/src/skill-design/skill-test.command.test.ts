@@ -126,7 +126,38 @@ describe('skill test', () => {
 		expect(await test(skill.folder, fakeRun({}, false), root)).toBe(1)
 		const second = JSON.parse(readFileSync(join(folder, 'latest.json'), 'utf8'))
 		expect(second.changed).toContainEqual({ case: 'two-prs', from: 'pass', to: 'fail' })
-		expect(readdirSync(folder)).toHaveLength(2)
+		expect(readdirSync(folder).filter((name) => !name.endsWith('.replies.json'))).toHaveLength(2)
+	})
+
+	it('saves the reply of every run, passed or failed, beside the result, and names it (R138)', async () => {
+		const root = repo()
+		mkdirSync(join(root, '.git'))
+		const pass = fakeRun({})
+		const run: PromptfooRun = async (...args) => {
+			const answer = (await pass(...args)) as { output: { results: { results: Record<string, unknown>[] } } }
+			return { output: { evalId: 'eval-abc', ...answer.output } }
+		}
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
+			createSkillCommand({ runPromptfoo: run }),
+		)
+		const skill = goodSkill()
+		await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root])
+		const folder = join(root, '.agents', 'skill-design', 'results', 'release-notes')
+		const saved = JSON.parse(readFileSync(join(folder, 'latest.json'), 'utf8'))
+		expect(saved.evalId).toBe('eval-abc')
+		expect(saved.replies).toBe(`${saved.at.replace(/:/g, '-')}.replies.json`)
+		const replies = JSON.parse(readFileSync(join(folder, saved.replies), 'utf8'))
+		expect(replies.length).toBeGreaterThan(0)
+		expect(replies).toContainEqual(
+			expect.objectContaining({ case: 'two-prs', arm: 'with-skill', run: 1, outcome: 'pass', reply: 'x' }),
+		)
+		expect(replies).toContainEqual(expect.objectContaining({ case: 'two-prs', arm: 'baseline', run: 3 }))
+		expect(printed()).toContain(`replies of every run: ${join(folder, saved.replies)}`)
+		// the expected result stays as it was: no path or database ID of this machine goes into it
+		await sub('accept', skill.folder, root)
+		const accepted = JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8'))
+		expect(accepted).not.toHaveProperty('replies')
+		expect(accepted).not.toHaveProperty('evalId')
 	})
 
 	it('loads the plugin a skill is developed in, and the baseline without the skill (R91)', async () => {
@@ -198,10 +229,11 @@ describe('skill test', () => {
 			await test(skill.folder, fakeRun({}, false), root)
 			expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
 			await test(skill.folder, fakeRun({}, false), root, '--accept')
-			const { folder, ...latest } = JSON.parse(
+			const { folder, replies, ...latest } = JSON.parse(
 				readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'),
 			)
 			expect(folder).toBeDefined()
+			expect(replies).toBeDefined() // the replies stay on this machine, like the folder
 			expect(JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8'))).toEqual(latest)
 		})
 
@@ -213,9 +245,11 @@ describe('skill test', () => {
 			expect(existsSync(expected)).toBe(false) // a failing first run saves none
 			expect(await test(skill.folder, fakeRun({}), root)).toBe(0)
 			expect(printed()).toContain('"savedAsExpected":true')
-			const { folder: _folder, ...latest } = JSON.parse(
-				readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'),
-			)
+			const {
+				folder: _folder,
+				replies: _replies,
+				...latest
+			} = JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'))
 			expect(latest).not.toHaveProperty('savedAsExpected')
 			expect(JSON.parse(readFileSync(expected, 'utf8'))).toEqual(latest)
 
@@ -234,9 +268,11 @@ describe('skill test', () => {
 			await test(skill.folder, fakeRun({}, false), root)
 			expect(await sub('accept', skill.folder, root, run)).toBe(0)
 			expect(run).not.toHaveBeenCalled()
-			const { folder: _folder, ...latest } = JSON.parse(
-				readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'),
-			)
+			const {
+				folder: _folder,
+				replies: _replies,
+				...latest
+			} = JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'))
 			expect(JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8'))).toEqual(latest)
 		})
 
@@ -290,6 +326,7 @@ describe('skill test', () => {
 				'2026-01-06T00-00-00.000Z.json',
 				'2026-01-07T00-00-00.000Z.json',
 				'2026-01-08T00-00-00.000Z.json',
+				expect.stringMatching(/\.replies\.json$/),
 				'latest.json',
 			])
 		})
@@ -427,7 +464,8 @@ describe('skill test progress (UC6)', () => {
 				JSON.stringify({ cases: [], cost: 2, durationMs: 90_000 }),
 			)
 			await testWith(skill.folder, fakeRun({}), root)
-			expect(errors()[0]).toContain('; last time about 2 min, $2.00\n')
+			// an expected result saved before the run count was recorded: the count is unknown, never guessed
+			expect(errors()[0]).toContain('; last time an unknown number of runs took about 2 min, $2.00\n')
 			const saved = JSON.parse(
 				readFileSync(join(root, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'), 'utf8'),
 			)

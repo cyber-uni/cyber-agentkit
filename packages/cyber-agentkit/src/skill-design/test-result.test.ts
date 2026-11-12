@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { goodSkill } from './skill-design.fixtures.js'
 import { planTest, type TestPlan } from './test-plan.js'
-import { compareWithPrevious, readPromptfooOutput, type TestResult } from './test-result.js'
+import { compareWithPrevious, readPromptfooOutput, readReplies, shortReason, type TestResult } from './test-result.js'
 
 const plan = (() => {
 	const planned = planTest(goodSkill())
@@ -16,17 +16,18 @@ type RowSpec = {
 	fired?: boolean
 	checks?: Record<string, boolean>
 	error?: string
+	reply?: string
 }
 
-function row({ case: id, label = 'with-skill', run, fired = false, checks = {}, error }: RowSpec) {
+function row({ case: id, label = 'with-skill', run, fired = false, checks = {}, error, reply = 'out' }: RowSpec) {
 	const skipped = id.startsWith('trigger') && label === 'baseline'
 	return {
 		provider: { label },
-		testCase: { description: id },
+		testCase: { description: id, vars: { kind: id.startsWith('trigger') ? 'trigger' : 'outcome' } },
 		repeatIndex: run,
 		cost: 0.001,
 		response: {
-			output: 'out',
+			output: reply,
 			...(error ? { error } : {}),
 			metadata: {
 				...(skipped ? { skipped: true } : {}),
@@ -119,6 +120,91 @@ describe('readPromptfooOutput', () => {
 			baselineRan: false,
 		})
 		expect(result.criteria[0]).not.toHaveProperty('baseline')
+	})
+})
+
+describe('shortReason (R137)', () => {
+	it('drops the Agent SDK wrappers and keeps the first line', () => {
+		expect(
+			shortReason(
+				'Error calling Claude Agent SDK: Error: Claude Code returned an error result: Reached maximum number of turns (2)\n    at stack',
+			),
+		).toBe('Reached maximum number of turns (2)')
+	})
+
+	it('keeps a reason with no wrapper, and cuts a long one', () => {
+		expect(shortReason('time limit')).toBe('time limit')
+		const long = shortReason(`Error: ${'x'.repeat(400)}`)
+		expect(long).toHaveLength(160)
+		expect(long.endsWith('…')).toBe(true)
+		expect(shortReason('\n')).toBe('no reason given')
+	})
+
+	it('is the reason a saved result gives for an errored run', () => {
+		const result = readPromptfooOutput(
+			output([
+				{
+					case: 'two-prs',
+					run: 0,
+					error: 'Error calling Claude Agent SDK: Error: Claude Code returned an error result: Not logged in',
+				},
+			]),
+			plan,
+			meta,
+		)
+		expect(result.notRun).toContainEqual({ case: 'two-prs (with-skill, run 1)', reason: 'Not logged in' })
+	})
+})
+
+describe('readReplies (R138)', () => {
+	it('keeps the whole reply of every run, passed, failed, or errored, in both arms', () => {
+		const long = 'y'.repeat(5000)
+		const replies = readReplies(
+			output([
+				{ case: 'two-prs', run: 0, checks: { C1: true, C2: true }, reply: 'all good' },
+				{ case: 'two-prs', run: 1, checks: { C1: true, C2: false }, reply: long },
+				{ case: 'two-prs', run: 2, error: 'Error: time limit' },
+				{ case: 'two-prs', label: 'baseline', run: 0, checks: { C1: false }, reply: 'no skill' },
+				{ case: 'trigger-1', run: 0, fired: true, reply: 'fired' },
+				{ case: 'trigger-1', label: 'baseline', run: 0 },
+			]),
+		)
+		expect(replies).toEqual([
+			{
+				case: 'two-prs',
+				arm: 'with-skill',
+				run: 1,
+				outcome: 'pass',
+				reply: 'all good',
+				criteria: { C1: { pass: true }, C2: { pass: true } },
+			},
+			{
+				case: 'two-prs',
+				arm: 'with-skill',
+				run: 2,
+				outcome: 'fail',
+				reply: long,
+				criteria: { C1: { pass: true }, C2: { pass: false, detail: 'C2 broke' } },
+			},
+			{
+				case: 'two-prs',
+				arm: 'with-skill',
+				run: 3,
+				outcome: 'not run',
+				reason: 'time limit',
+				error: 'Error: time limit',
+				reply: 'out',
+			},
+			{
+				case: 'two-prs',
+				arm: 'baseline',
+				run: 1,
+				outcome: 'fail',
+				reply: 'no skill',
+				criteria: { C1: { pass: false, detail: 'C1 broke' } },
+			},
+			{ case: 'trigger-1', arm: 'with-skill', run: 1, outcome: 'fired', reply: 'fired' },
+		])
 	})
 })
 

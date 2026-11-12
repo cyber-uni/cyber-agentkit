@@ -18,7 +18,7 @@ import { readSkill, type SkillFiles } from './skill-files.js'
 import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
 import type { TestPlan } from './test-plan.js'
 import { type ProgressWatch, plannedRuns, watchProgress } from './test-progress.js'
-import { compareWithPrevious, readPromptfooOutput, type TestResult } from './test-result.js'
+import { compareWithPrevious, type Reply, readPromptfooOutput, readReplies, type TestResult } from './test-result.js'
 
 /** Runs promptfoo on a config in a folder and answers its output JSON, or why it could not. */
 export type PromptfooRun = (
@@ -69,7 +69,7 @@ export type TestOptions = {
 /** Runs a plan and reads the result; the baseline falls back to a run without the skill when its folder holds no skill (R35). */
 export async function runTest(
 	options: TestOptions,
-): Promise<{ result: TestResult; warnings: string[] } | { problem: string }> {
+): Promise<{ result: TestResult; replies: Reply[]; warnings: string[] } | { problem: string }> {
 	const warnings: string[] = []
 	let baselineFolder = options.baselineFolder
 	if (baselineFolder !== undefined && !readSkill(baselineFolder)) {
@@ -124,7 +124,17 @@ export async function runTest(
 					: 'without the skill',
 			baselineRan: !dropped,
 		})
-		return { result: { ...result, durationMs, totalRuns: plannedRuns(options.plan) }, warnings }
+		const evalId = (ran.output as { evalId?: unknown } | undefined)?.evalId
+		return {
+			result: {
+				...result,
+				durationMs,
+				totalRuns: plannedRuns(options.plan),
+				...(typeof evalId === 'string' && evalId ? { evalId } : {}),
+			},
+			replies: readReplies(ran.output),
+			warnings,
+		}
 	} finally {
 		rmSync(folder, { recursive: true, force: true })
 	}
@@ -140,8 +150,17 @@ export function expectedPath(skillFolder: string): string {
 	return join(skillFolder, 'evals', 'expected.json')
 }
 
-/** Saves the result as `latest.json`, moving the previous one beside it as `<its at>.json`, and adds the cases that changed since the skill's expected result, else the previous one. */
-export function saveResult(folder: string, result: TestResult, skillFolder: string): TestResult {
+/** The file name a result saved at `at` is kept under once a newer one replaces it. */
+function stem(at: string): string {
+	return at.replace(/[:]/g, '-')
+}
+
+/**
+ * Saves the result as `latest.json`, moving the previous one beside it as `<its at>.json`, and adds the cases that
+ * changed since the skill's expected result, else the previous one. Every run's reply goes beside it in
+ * `<its at>.replies.json`, which the result names (R138).
+ */
+export function saveResult(folder: string, result: TestResult, skillFolder: string, replies?: Reply[]): TestResult {
 	mkdirSync(folder, { recursive: true })
 	// Each run's result stays local: the results folder ignores itself.
 	const ignore = join(folder, '..', '.gitignore')
@@ -150,7 +169,7 @@ export function saveResult(folder: string, result: TestResult, skillFolder: stri
 	let previous: TestResult | undefined
 	if (existsSync(latest)) {
 		previous = JSON.parse(readFileSync(latest, 'utf8')) as TestResult
-		renameSync(latest, join(folder, `${previous.at.replace(/[:]/g, '-')}.json`))
+		renameSync(latest, join(folder, `${stem(previous.at)}.json`))
 	}
 	const expected = existsSync(expectedPath(skillFolder))
 		? (JSON.parse(readFileSync(expectedPath(skillFolder), 'utf8')) as TestResult)
@@ -159,6 +178,10 @@ export function saveResult(folder: string, result: TestResult, skillFolder: stri
 		? compareWithPrevious(result, expected, 'expected')
 		: compareWithPrevious(result, previous, 'previous')
 	const saved: TestResult = { ...compared, folder: skillFolder }
+	if (replies) {
+		saved.replies = `${stem(result.at)}.replies.json`
+		writeFileSync(join(folder, saved.replies), `${JSON.stringify(replies, null, '\t')}\n`)
+	}
 	writeFileSync(latest, `${JSON.stringify(saved, null, '\t')}\n`)
 	pruneHistory(folder)
 	removeVanished(join(folder, '..'), basename(folder))
@@ -168,13 +191,20 @@ export function saveResult(folder: string, result: TestResult, skillFolder: stri
 /** How many past results (`<at>.json`) a skill keeps beside `latest.json`. */
 export const keptPastResults = 5
 
-/** Deletes all but the most recent past results of one skill. */
+/** Deletes all but the most recent past results of one skill, and the replies of every result it no longer keeps. */
 function pruneHistory(folder: string): void {
-	const past = readdirSync(folder)
-		.filter((name) => name.endsWith('.json') && name !== 'latest.json')
+	const names = readdirSync(folder)
+	const past = names
+		.filter((name) => name.endsWith('.json') && !name.endsWith('.replies.json') && name !== 'latest.json')
 		.sort()
-	for (const name of past.slice(0, Math.max(0, past.length - keptPastResults)))
-		rmSync(join(folder, name), { force: true })
+	const dropped = past.slice(0, Math.max(0, past.length - keptPastResults))
+	for (const name of dropped) rmSync(join(folder, name), { force: true })
+	const kept = new Set(past.slice(dropped.length).map((name) => name.slice(0, -'.json'.length)))
+	const latest = readLatest(folder)
+	if (latest?.at) kept.add(stem(latest.at))
+	for (const name of names)
+		if (name.endsWith('.replies.json') && !kept.has(name.slice(0, -'.replies.json'.length)))
+			rmSync(join(folder, name), { force: true })
 }
 
 /**
@@ -196,11 +226,15 @@ function removeVanished(resultsRoot: string, current: string): void {
 	}
 }
 
-/** Writes a saved result as the skill's expected result, the same shape as `latest.json`. It leaves out `folder`: the file is committed, and an absolute path names the author's machine. */
+/**
+ * Writes a saved result as the skill's expected result, the same shape as `latest.json`. It leaves out `folder`: the
+ * file is committed, and an absolute path names the author's machine. It leaves out `replies` and `evalId` too: they
+ * point at files and a database on that machine alone.
+ */
 export function acceptResult(result: TestResult, skillFolder: string): string {
 	const path = expectedPath(skillFolder)
 	mkdirSync(join(skillFolder, 'evals'), { recursive: true })
-	const { folder: _folder, ...shared } = result
+	const { folder: _folder, replies: _replies, evalId: _evalId, ...shared } = result
 	writeFileSync(path, `${JSON.stringify(shared, null, '\t')}\n`)
 	return path
 }

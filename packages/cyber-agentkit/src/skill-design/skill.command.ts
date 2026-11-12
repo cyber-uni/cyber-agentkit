@@ -107,7 +107,8 @@ function resultsBase(rootOption: string | undefined, home: string): string {
 	return existsSync(join(root, '.git')) ? root : home
 }
 
-function testText(result: TestResult): string {
+/** The text report; `folder` is where the result was saved, so the replies file is named in full. */
+function testText(result: TestResult, folder?: string): string {
 	const lines = [
 		`${result.skill}: ${result.runs} runs per case, threshold ${result.threshold}, baseline ${result.baseline}`,
 	]
@@ -125,6 +126,7 @@ function testText(result: TestResult): string {
 			)
 	}
 	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
+	if (result.replies) lines.push(`replies of every run: ${folder ? join(folder, result.replies) : result.replies}`)
 	if (result.partial)
 		lines.push(`partial: only ${result.partial.cases.join(', ')} ran; not saved as the expected result`)
 	if (result.savedAsExpected) lines.push('no expected result yet: saved this passing result as evals/expected.json')
@@ -250,13 +252,13 @@ function testCommand({
 				throw CliError.reported(exitCodes.error)
 			}
 			for (const warning of ran.warnings) process.stderr.write(`warning: ${warning}\n`)
-			const saved = saveResult(resultFolder, ran.result, skill.folder)
+			const saved = saveResult(resultFolder, ran.result, skill.folder, ran.replies)
 			const failed = [...saved.trigger, ...saved.criteria].some((item) => item.status === 'fail')
 			// The first run that passes becomes the expected result when there is none (R80).
 			const firstPass = !failed && !saved.partial && !existsSync(expectedPath(skill.folder))
 			if (args.accept || firstPass) acceptResult(saved, skill.folder)
 			const reported: TestResult = !args.accept && firstPass ? { ...saved, savedAsExpected: true } : saved
-			const answer = result(reported, { render: { text: testText } })
+			const answer = result(reported, { render: { text: () => testText(reported, resultFolder) } })
 			if (failed) answerThenFail(answer, this.format)
 			return answer
 		},
