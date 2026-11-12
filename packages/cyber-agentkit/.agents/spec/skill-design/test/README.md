@@ -55,6 +55,11 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC6.14** The author names some cases, to try a change without paying for every case. Only those cases run, and
     the result says it covers only them. It is compared with the expected result for those cases only, and it never
     becomes the expected result.
+  - **UC6.15** The author names a harness other than Claude Code. Each run drives that harness, isolated the same way,
+    and the result has the same shape. A harness the test cannot drive is an error, and nothing runs. What still
+    reaches a run from the author's setup on that harness is reported.
+  - **UC6.16** The author names another engine to run the cases, such as Claude Code's own plugin evals. The result
+    has the same shape. A check that engine cannot run is reported as not tested.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -109,6 +114,13 @@ contract apply here; IDs are shared across the parent and its children.
   for fewer, never more.
 - R104 (UC6): In a run, one shell command stops after 30 seconds unless the model asks for longer, and after 2 minutes
   at most, so a runaway command fails fast and the run goes on.
+- R105 (UC6.15): `test` drives each harness whose definition declares where a run keeps its config, skills,
+  plugins, and login, and builds each run's isolation from that declaration. It drives at least one harness besides
+  Claude Code. A harness with no such declaration is an error before any run. What the declaration says still reaches
+  a run is reported as a warning.
+- R106 (UC6.16): `test` can run its cases on `claude plugin eval`, and the result has the shape R28 names, with the
+  same baseline rules as R25 and R91. A criterion whose rubric that engine cannot decide is reported as not tested,
+  with the reason.
 - R101 (UC6): `/skill test` starts the run so the author can keep working, and passes the progress on to them at most
   once a minute, while something has changed since the last update. Each update gives the count so far, each run with
   the skill that failed or was not run since the last update, and the latest heartbeat when no run ended.

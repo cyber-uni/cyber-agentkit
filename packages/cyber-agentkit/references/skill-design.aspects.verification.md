@@ -123,6 +123,28 @@ say so before the first run in a session.
 - A trigger case runs only with the skill. It passes when the skill fired (`expect: fire`) or did not (`expect: skip`) in at least `threshold`
   runs. A trigger run is cut short: it ends at the first skill the model calls, counting as fired only when that is the skill under test, or after three turns, so it does not go on to do the whole job. Running out of those turns is not an error.
 
+### Other harnesses and backends
+
+Runs drive Claude Code by default. Where a run keeps its config, skills, plugins, and login comes from the harness's
+own definition (`headlessInvocation(<harness>).isolation` in the library), not from code written for one harness.
+
+- `--harness codex` runs each case through `codex exec --json`, writing only inside the run's folder
+  (`--sandbox workspace-write`) and keeping no transcript. The skill goes under `.agents/skills/<skill>/`. Codex keeps
+  its login inside its config folder (`CODEX_HOME`), so that folder stays the real one, and `--ignore-user-config
+  --ignore-rules` keep its `config.toml`, plugins, and rules out. The global `$CODEX_HOME/AGENTS.md` still loads; the
+  test warns about it. A skill counts as used when a command reads its `SKILL.md`; a trigger run ends there. Codex has
+  no flag to load a plugin folder, so a skill developed in a plugin gets that plugin's skills as project skills,
+  without its references. Name the model with `--model`, as Codex's own default may not be on the account. Codex
+  reports no cost.
+- `--backend plugin-eval` runs the cases on Claude Code's own `claude plugin eval` instead of promptfoo. The cases
+  become an eval suite (`skill-test-evals/<case>/case.yaml`) in a copy of the skill's plugin, or in a plugin made for
+  the skill, and its JSON result is read into the same result. Each run starts in a git repository holding the case's
+  files, made by a scaffold script. `claude plugin eval` has no custom-code graders, so a criterion with a `script`
+  check is reported as not tested; the other checks become `regex` graders, and `judge` an `llm` grader. Trigger
+  cases run with the plugin only, and stop at three turns. The baseline is the run's own no-plugin arm, or, for a
+  skill in a plugin or with `--baseline`, a second run on a copy of the plugin without the skill or with that
+  version. It drives Claude Code only.
+
 ## Criteria
 
 - **VER-1** [script] `evals/evals.yaml` exists and follows the format in Cases.
