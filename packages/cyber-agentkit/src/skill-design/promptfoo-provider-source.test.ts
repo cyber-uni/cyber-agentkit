@@ -348,3 +348,55 @@ console.log(JSON.stringify(await provider.callApi('write the notes', { vars: { k
 		expect(seen).toMatchObject({ skill: true, other: true })
 	})
 })
+
+describe('promptfooProviderSource plugin copy (R91)', () => {
+	/** A fake inner provider that edits the plugin it was handed when EDIT_PLUGIN is set. */
+	const editing = String.raw`
+const fs = require('node:fs')
+exports.loadApiProvider = async (_id, { options }) => ({
+  callApi: async () => {
+    const plugin = options.config.plugins[0].path
+    if (process.env.EDIT_PLUGIN === '1') fs.appendFileSync(plugin + '/skills/demo/SKILL.md', 'changed\n')
+    return { output: plugin, metadata: {} }
+  },
+})
+`
+
+	function pluginRun(edit: boolean): { response: Record<string, any>; source: string } {
+		const root = mkdtempSync(join(tmpdir(), 'provider-plugin-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), editing)
+		const source = join(root, 'plugin')
+		mkdirSync(join(source, 'skills', 'demo'), { recursive: true })
+		writeFileSync(join(source, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\n---\n')
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		const rubrics = JSON.stringify({
+			C2: [{ script: 'test -z "$(git -C "$SKILL_TEST_PLUGIN" status --porcelain --untracked-files=all)"' }],
+		})
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', pluginName: 'kit', pluginDir: ${JSON.stringify(source)}, isolation: ${isolation}, inner: {} } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: ${JSON.stringify(rubrics)} } })))
+`,
+		)
+		const out = execFileSync('node', [join(root, 'run.mjs')], {
+			encoding: 'utf8',
+			env: { ...process.env, EDIT_PLUGIN: edit ? '1' : '0' },
+		})
+		return { response: JSON.parse(out), source }
+	}
+
+	it('loads a copy of the arm plugin of its own, so a check on SKILL_TEST_PLUGIN fails when the run changed it', () => {
+		const changed = pluginRun(true)
+		expect(changed.response.output).not.toBe(changed.source)
+		expect(changed.response.metadata.checks.C2).toMatchObject({ pass: false })
+		expect(readFileSync(join(changed.source, 'skills', 'demo', 'SKILL.md'), 'utf8')).not.toContain('changed')
+		expect(existsSync(changed.response.output)).toBe(false)
+	})
+
+	it('passes that check when the run left the plugin alone', () => {
+		expect(pluginRun(false).response.metadata.checks.C2).toEqual({ pass: true })
+	})
+})
