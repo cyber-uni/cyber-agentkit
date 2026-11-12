@@ -24,6 +24,10 @@ exports.loadApiProvider = async (_id, { options }) => ({
       tracked: git(dir, 'ls-files'),
       skillInstalled: fs.existsSync(dir + '/.claude/skills/demo/SKILL.md'),
       env: options.config.env,
+      sandbox: options.config.sandbox,
+      settings: options.config.settings,
+      additionalDirectories: options.config.additional_directories,
+      plugins: options.config.plugins,
       homeEntries: fs.readdirSync(options.config.env.HOME),
     }
     return { output: JSON.stringify(report), metadata: {} }
@@ -31,7 +35,10 @@ exports.loadApiProvider = async (_id, { options }) => ({
 })
 `
 
-function runProvider(withSkill: boolean): Record<string, any> {
+function runProvider(
+	withSkill: boolean,
+	{ platform, network, plugin }: { platform?: string; network?: string[]; plugin?: boolean } = {},
+): Record<string, any> {
 	const root = mkdtempSync(join(tmpdir(), 'provider-test-'))
 	mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
 	writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
@@ -43,9 +50,9 @@ function runProvider(withSkill: boolean): Record<string, any> {
 	writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
 	writeFileSync(
 		join(root, 'run.mjs'),
-		`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, ${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''} } })
-const response = await provider.callApi('hi', { vars: { kind: 'outcome', files: ${JSON.stringify(join(root, 'files'))}, rubrics: '{}' } })
+		`${platform ? `Object.defineProperty(process, 'platform', { value: ${JSON.stringify(platform)} })\n` : ''}const { default: Provider } = await import('./provider.mjs')
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, ${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${plugin ? ` pluginName: 'kit', pluginDir: ${JSON.stringify(join(root, 'skill'))},` : ''} } })
+const response = await provider.callApi('hi', { vars: { kind: 'outcome', files: ${JSON.stringify(join(root, 'files'))}, rubrics: '{}'${network ? `, network: ${JSON.stringify(JSON.stringify(network))}` : ''} } })
 console.log(response.output)
 `,
 	)
@@ -74,13 +81,21 @@ describe('promptfooProviderSource home (F4, F10)', () => {
 		const real = process.env['CLAUDE_CONFIG_DIR'] ?? join(homedir(), '.claude')
 		expect(env.HOME).toMatch(/skill-test-home-/)
 		expect(env.XDG_CONFIG_HOME).toBe(join(env.HOME, '.config'))
-		if (process.platform === 'darwin') expect(env.CLAUDE_CONFIG_DIR).toBe(real)
-		else {
-			expect(env.CLAUDE_CONFIG_DIR).toBe(join(env.HOME, '.claude'))
+		expect(env.CLAUDE_CONFIG_DIR).toBe(join(env.HOME, '.claude'))
+		if (process.platform !== 'darwin')
 			expect(env.CLAUDE_SECURESTORAGE_CONFIG_DIR).toBe(process.env['CLAUDE_SECURESTORAGE_CONFIG_DIR'] ?? real)
-		}
 		expect(env.PATH?.split(delimiter)[0]).toBe(dirname(process.execPath))
-		expect(homeEntries).toEqual([])
+		expect(env.TMPDIR).toBe(join(env.HOME, 'tmp'))
+		expect(env.ENABLE_CLAUDEAI_MCP_SERVERS).toBe('false')
+		expect(homeEntries).toEqual(['tmp'])
+	})
+
+	it('on macOS also gives each run an empty Claude config folder, and names the default keychain entry for the login (E-CC-D13)', () => {
+		const { env } = runProvider(true, { platform: 'darwin' })
+		expect(env.CLAUDE_CONFIG_DIR).toBe(join(env.HOME, '.claude'))
+		expect(env.CLAUDE_SECURESTORAGE_CONFIG_DIR).toBe(
+			process.env['CLAUDE_SECURESTORAGE_CONFIG_DIR'] ?? process.env['CLAUDE_CONFIG_DIR'] ?? '',
+		)
 	})
 
 	it('limits one shell command to 30 s by default and 2 min at most, stopping it at the limit (R104)', () => {
@@ -91,13 +106,179 @@ describe('promptfooProviderSource home (F4, F10)', () => {
 	})
 })
 
+describe('promptfooProviderSource containment (R107)', () => {
+	it('runs shell commands in a sandbox that cannot be left, closes the network, and keeps the file tools in the run folder', () => {
+		const { sandbox, settings, env } = runProvider(true)
+		expect(sandbox).toMatchObject({
+			enabled: true,
+			failIfUnavailable: true,
+			allowUnsandboxedCommands: false,
+			network: { allowedDomains: [], strictAllowlist: true },
+		})
+		expect(sandbox.filesystem.denyRead).toEqual(expect.arrayContaining([tmpdir(), homedir()]))
+		expect(sandbox.filesystem.allowRead).toEqual(expect.arrayContaining([env.HOME]))
+		expect(sandbox.filesystem.allowWrite).toEqual(expect.arrayContaining([env.HOME]))
+		expect(settings.permissions).toMatchObject({
+			blockReadsOutsideWorkingDirectories: true,
+			blockWritesOutsideWorkingDirectories: true,
+		})
+	})
+
+	it('lets a run read and write its own plugin copy, as a working folder', () => {
+		const { sandbox, settings, additionalDirectories, plugins } = runProvider(false, { plugin: true })
+		const copy = plugins[0].path
+		expect(copy).toMatch(/skill-test-plugin-/)
+		expect(additionalDirectories).toEqual([copy])
+		expect(sandbox.filesystem.allowRead).toContain(copy)
+		expect(sandbox.filesystem.allowWrite).toContain(copy)
+		expect(settings.permissions.blockReadsExemptPaths).toBeUndefined()
+	})
+
+	it('opens the network only to the hosts the case lists', () => {
+		expect(runProvider(true, { network: ['registry.npmjs.org'] }).sandbox.network).toEqual({
+			allowedDomains: ['registry.npmjs.org'],
+			strictAllowlist: true,
+		})
+	})
+
+	/** A fake inner provider that plays the tool calls Claude would make through the hooks it is given, and reports what the hooks answered. */
+	const probing = String.raw`
+exports.loadApiProvider = async (_id, { options }) => ({
+  callApi: async () => {
+    const c = options.config
+    const pre = (input) => Promise.all(c.hooks.PreToolUse.flatMap((entry) => entry.hooks.map((hook) => hook(input))))
+    const post = (input) => c.hooks.PostToolUse[0].hooks[0](input)
+    const fail = (input) => c.hooks.PostToolUseFailure[0].hooks[0](input)
+    const outside = process.env.OUTSIDE
+    const answers = {
+      readOutside: await pre({ tool_name: 'Read', tool_input: { file_path: outside } }),
+      readInside: await pre({ tool_name: 'Read', tool_input: { file_path: 'notes.txt' } }),
+      writeOutside: await pre({ tool_name: 'Write', tool_input: { file_path: '/etc/skill-test-probe', content: 'x' } }),
+      globOutside: await pre({ tool_name: 'Glob', tool_input: { pattern: '/etc/**' } }),
+    }
+    await fail({ tool_name: 'Bash', tool_input: { command: 'cat ' + outside }, error: 'Exit code 1\ncat: ' + outside + ': No such file or directory' })
+    await post({ tool_name: 'Bash', tool_input: { command: 'cat /etc/hostname' }, tool_response: { stdout: 'box', stderr: '' } })
+    await post({ tool_name: 'Bash', tool_input: { command: 'cat /no/such/file' }, tool_response: { stdout: '', stderr: 'cat: /no/such/file: No such file or directory' } })
+    await fail({ tool_name: 'Bash', tool_input: { command: 'curl https://example.com' }, error: 'Exit code 7\ncurl: (7) CONNECT tunnel failed, response 403\n<sandbox_violations>\ndeny network-outbound example.com:443 (host is not on the allow list)\n</sandbox_violations>' })
+    return { output: 'done', metadata: { answers, toolCalls: [{ name: 'Bash', input: { command: 'curl https://wider.example', allowed_domains: ['wider.example'] }, is_error: true }] } }
+  },
+})
+`
+
+	function probe(): Record<string, any> {
+		const root = mkdtempSync(join(tmpdir(), 'provider-contain-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), probing)
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		const outside = join(root, 'secret.txt')
+		writeFileSync(outside, 'secret')
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {} } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
+`,
+		)
+		const response = JSON.parse(
+			execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8', env: { ...process.env, OUTSIDE: outside } }),
+		)
+		return { ...response, outside }
+	}
+
+	it('refuses a file tool outside the run folder, lets one inside through, and records each refusal', () => {
+		const { metadata } = probe()
+		const denied = { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny' } }
+		expect(metadata.answers.readOutside[1]).toMatchObject(denied)
+		expect(metadata.answers.writeOutside[1]).toMatchObject(denied)
+		expect(metadata.answers.globOutside[1]).toMatchObject(denied)
+		expect(metadata.answers.readInside).toEqual([{}, {}])
+	})
+
+	it('records a read the sandbox hid, a host it denied, and a host a command asked for beyond the case list, and nothing for a read it allowed or a file that does not exist', () => {
+		const { metadata, outside } = probe()
+		expect(metadata.blocked).toEqual([
+			{ what: 'read', target: outside },
+			{ what: 'write', target: '/etc/skill-test-probe' },
+			{ what: 'read', target: '/etc' },
+			{ what: 'network', target: 'example.com' },
+			{ what: 'network', target: 'wider.example' },
+		])
+	})
+})
+
+describe('promptfooProviderSource login check (R108)', () => {
+	/** A fake Claude Code that answers `auth status` as logged in only when its config folder is the real one, or always when LOGIN_SHARED=1. */
+	const claude = String.raw`#!/usr/bin/env node
+const env = process.env
+const loggedIn = env.LOGIN_SHARED === '1' || !/skill-test-home-/.test(env.CLAUDE_CONFIG_DIR || '')
+process.stdout.write(JSON.stringify({ loggedIn: env.LOGIN_NONE === '1' ? false : loggedIn }))
+process.exit(loggedIn ? 0 : 1)
+`
+
+	function login(env: Record<string, string>): Record<string, any> {
+		const root = mkdtempSync(join(tmpdir(), 'provider-login-'))
+		const modules = join(root, 'node_modules')
+		mkdirSync(join(modules, 'promptfoo'), { recursive: true })
+		writeFileSync(join(modules, 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(
+			join(modules, 'promptfoo', 'index.js'),
+			"exports.loadApiProvider = async () => ({ callApi: async () => ({ output: 'ran', metadata: {} }) })",
+		)
+		const sdk = join(modules, '@anthropic-ai', 'claude-agent-sdk')
+		mkdirSync(sdk, { recursive: true })
+		writeFileSync(join(sdk, 'package.json'), '{"name":"@anthropic-ai/claude-agent-sdk","main":"index.js"}')
+		writeFileSync(join(sdk, 'index.js'), '')
+		const native = join(modules, '@anthropic-ai', `claude-agent-sdk-${process.platform}-${process.arch}`)
+		mkdirSync(native, { recursive: true })
+		writeFileSync(join(native, 'package.json'), '{"name":"native"}')
+		writeFileSync(join(native, 'claude'), claude, { mode: 0o755 })
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {} } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
+`,
+		)
+		return JSON.parse(
+			execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8', env: { ...process.env, ...env } }),
+		)
+	}
+
+	it.skipIf(process.platform === 'win32')('runs when a run is logged in', () => {
+		expect(login({ LOGIN_SHARED: '1' })).toMatchObject({ output: 'ran' })
+	})
+
+	it.skipIf(process.platform === 'win32')(
+		'says in plain words when the login setting stopped working, before any run',
+		() => {
+			const response = login({ LOGIN_SHARED: '0' })
+			expect(response.output).toBeUndefined()
+			expect(response.error).toMatch(
+				/^login: Claude Code is logged in, but a test run is not: .*CLAUDE_SECURESTORAGE_CONFIG_DIR/,
+			)
+		},
+	)
+
+	it.skipIf(process.platform === 'win32')('says so when Claude Code is not logged in at all', () => {
+		expect(login({ LOGIN_SHARED: '0', LOGIN_NONE: '1' }).error).toMatch(/^login: Claude Code is not logged in/)
+	})
+})
+
 describe('promptfooProviderSource time limit (F8)', () => {
-	/** A fake inner provider that starts a shell with a long sleep through the spawner it is given, and never answers. */
+	/**
+	 * A fake inner provider that starts a process through the spawner it is given, as Claude Code would start, and never
+	 * answers. That process starts a long-lived one of its own in a session of its own (detached), as Claude Code does
+	 * with each shell command, and both write their process IDs. It runs on Linux, macOS, and Windows.
+	 */
 	const hanging = String.raw`
 exports.loadApiProvider = async (_id, { options }) => ({
   callApi: async () => {
-    const child = options.config.spawn_claude_code_process({ command: 'sh', args: ['-c', 'setsid sleep 300 & echo $! > ' + process.env.PID_FILE + '; wait'], cwd: options.config.working_dir, env: { ...process.env, ...options.config.env } })
-    require('node:fs').writeFileSync(process.env.PID_FILE + '.shell', String(child.pid))
+    const grandchild = "require('node:fs').writeFileSync(process.env.PID_FILE, String(process.pid)); setInterval(() => {}, 1000)"
+    const child = "const c = require('node:child_process').spawn(process.execPath, ['-e', process.env.GRANDCHILD], { detached: true, stdio: 'ignore' }); c.unref(); setInterval(() => {}, 1000)"
+    const shell = options.config.spawn_claude_code_process({ command: process.execPath, args: ['-e', child], cwd: options.config.working_dir, env: { ...process.env, ...options.config.env, GRANDCHILD: grandchild } })
+    require('node:fs').writeFileSync(process.env.PID_FILE + '.shell', String(shell.pid))
     return new Promise(() => {})
   },
 })
@@ -112,7 +293,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, timeout: 1 } })
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, timeout: 2 } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
 `,
 		)

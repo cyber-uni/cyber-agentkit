@@ -30,6 +30,8 @@ export type EvalsFile = {
 		files?: string
 		criteria?: string[]
 		effects?: 'outside'
+		/** Hosts the case's runs may reach, such as `registry.npmjs.org` or `*.github.com`; none by default. */
+		network?: string[]
 		checks?: Record<string, Record<string, unknown>[]>
 	}[]
 	rubrics?: Record<string, Record<string, unknown>[]>
@@ -93,6 +95,14 @@ export function evalsProblems(value: unknown): string[] {
 					problems.push(`${where}: \`criteria\` is not a list of IDs`)
 				if (item['effects'] !== undefined && item['effects'] !== 'outside')
 					problems.push(`${where}: \`effects\` is not \`outside\``)
+				if (
+					item['network'] !== undefined &&
+					!(
+						Array.isArray(item['network']) &&
+						item['network'].every((host) => typeof host === 'string' && /^(\*\.)?[A-Za-z0-9.-]+$/.test(host))
+					)
+				)
+					problems.push(`${where}: \`network\` is not a list of host names`)
 				const checks = item['checks']
 				if (checks !== undefined) {
 					if (!isRecord(checks)) problems.push(`${where}: \`checks\` is not a mapping of criterion IDs`)

@@ -113,6 +113,29 @@ describe('skill test', () => {
 		expect(existsSync(join(fakeHome, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'))).toBe(true)
 	})
 
+	it('says in plain words why no run could log in, and saves no result (R108)', async () => {
+		const skill = goodSkill()
+		const root = repo()
+		const reason =
+			'login: Claude Code is logged in, but a test run is not: this Claude Code version no longer takes the login through CLAUDE_SECURESTORAGE_CONFIG_DIR'
+		const run: PromptfooRun = async () => ({
+			output: {
+				results: {
+					results: [0, 1].map((repeatIndex) => ({
+						provider: { label: 'with-skill' },
+						testCase: { description: 'two-prs' },
+						repeatIndex,
+						response: { error: reason, metadata: {} },
+					})),
+				},
+			},
+		})
+		expect(await test(skill.folder, run, root)).toBe(1)
+		const said = stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+		expect(said).toContain(`error: login: ${reason.slice('login: '.length)}`)
+		expect(existsSync(join(fakeHome, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'))).toBe(false)
+	})
+
 	it('saves under the repository root, moves the previous result aside, and exits 1 on a failure', async () => {
 		const skill = goodSkill()
 		const root = repo()
@@ -736,6 +759,7 @@ describe('skill test --harness and --backend (#163)', () => {
 			command: { executable: 'codex', args: expect.arrayContaining(['exec', '--model', 'm', '--ignore-user-config']) },
 		})
 		expect(errors()).toContain('warning: each codex run still reads the global AGENTS.md')
+		expect(errors()).toContain('warning: skill test does not contain codex runs')
 	})
 
 	it('passes Claude Code its isolation by default, with no command', async () => {
@@ -747,6 +771,7 @@ describe('skill test --harness and --backend (#163)', () => {
 			isolation: { projectSkills: '.claude/skills' },
 		})
 		expect(providers[0]?.config['command']).toBeUndefined()
+		expect(errors()).not.toContain('does not contain')
 	})
 
 	it('is a usage error for a harness it cannot drive or does not know, and nothing runs', async () => {
@@ -774,6 +799,7 @@ describe('skill test --harness and --backend (#163)', () => {
 		const saved = JSON.parse(printed())
 		expect(saved).toMatchObject({ version: 1, skill: 'release-notes', baseline: 'without the skill' })
 		expect(saved.cases.map((c: { status: string }) => c.status)).toContain('not-run')
+		expect(errors()).toContain('warning: claude plugin eval runs each case itself, so skill test does not contain it')
 	})
 
 	it('refuses the plugin-eval backend with another harness, and an unknown backend', async () => {

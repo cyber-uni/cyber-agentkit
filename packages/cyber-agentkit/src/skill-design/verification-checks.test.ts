@@ -27,6 +27,13 @@ describe('checkVerification', () => {
 			expect(evalsProblems({ timeout })).toEqual(['`timeout` is not a positive number of seconds'])
 	})
 
+	it('accepts a list of host names as a case network, and rejects others (R107)', () => {
+		const one = (network: unknown) => evalsProblems({ outcome: [{ id: 'a', prompt: 'p', network }] })
+		expect(one(['registry.npmjs.org', '*.github.com'])).toEqual([])
+		for (const network of ['example.com', [1], ['https://example.com'], ['a b']])
+			expect(one(network)).toEqual(['outcome case 1: `network` is not a list of host names'])
+	})
+
 	it('names each format problem', () => {
 		expect(
 			evalsProblems({

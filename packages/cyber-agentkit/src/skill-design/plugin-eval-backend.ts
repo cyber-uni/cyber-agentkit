@@ -257,6 +257,10 @@ export async function runPluginEvalTest(
 		warnings.push(`the baseline ${baselineFolder} holds no SKILL.md; results are reported without it`)
 		baselineFolder = undefined
 	}
+	// claude plugin eval runs each case itself, so skill test's containment (R107) does not reach it.
+	warnings.push(
+		"claude plugin eval runs each case itself, so skill test does not contain it: a run may read outside its folder, a case's `network` list does not apply, and the result lists nothing as blocked",
+	)
 	const plan = pluginEvalPlan(options.plan)
 	const folder = mkdtempSync(join(tmpdir(), 'skill-test-'))
 	try {

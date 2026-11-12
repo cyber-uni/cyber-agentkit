@@ -97,6 +97,7 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 				prompt: item.prompt,
 				kind: item.kind,
 				...(item.files ? { files: item.files } : {}),
+				...(item.network?.length ? { network: JSON.stringify(item.network) } : {}),
 				rubrics: JSON.stringify(item.rubrics),
 			},
 			assert,

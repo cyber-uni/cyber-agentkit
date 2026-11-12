@@ -114,6 +114,21 @@ describe('readPromptfooOutput', () => {
 		expect(result.trigger[0]).toMatchObject({ status: 'not-run', ran: 0 })
 	})
 
+	it('lists what each run tried that its containment refused, naming the run (R107)', () => {
+		const rows = output([{ case: 'two-prs', run: 1, checks: { C1: true, C2: true } }])
+		const first = rows.results.results[0] as { response: { metadata: Record<string, unknown> } }
+		first.response.metadata['blocked'] = [
+			{ what: 'read', target: '/home/me/.ssh/id_rsa' },
+			{ what: 'network', target: 'example.com' },
+		]
+		const result = readPromptfooOutput(rows, plan, meta)
+		expect(result.blocked).toEqual([
+			{ case: 'two-prs', arm: 'skill', run: 2, what: 'read', target: '/home/me/.ssh/id_rsa' },
+			{ case: 'two-prs', arm: 'skill', run: 2, what: 'network', target: 'example.com' },
+		])
+		expect(readPromptfooOutput(output([{ case: 'two-prs', run: 0 }]), plan, meta).blocked).toBeUndefined()
+	})
+
 	it('leaves the baseline out when it did not run (R35)', () => {
 		const result = readPromptfooOutput(output([{ case: 'two-prs', run: 0, checks: { C1: true, C2: true } }]), plan, {
 			...meta,

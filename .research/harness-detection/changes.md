@@ -211,3 +211,7 @@ E-CC-H9 (`claude plugin eval`'s case format and JSON result), E-CODEX-H6 (Codex 
 `--ignore-user-config` keeps it there), and E-CODEX-H7 (how a `codex exec --json` run shows a skill's use, and that the
 global `AGENTS.md` still loads). `headlessInvocation()` now declares, for Claude Code and Codex, where a run's config,
 skills, plugins, and login live, and `skill test` builds each run's environment from that.
+
+## 2026-11-12 (skill test containment)
+
+- Added E-CC-D13 to E-CC-D16: the macOS keychain naming of `CLAUDE_SECURESTORAGE_CONFIG_DIR`, the claude.ai connectors switch, the Bash sandbox and working-folder settings with live runs, and `claude auth status`, used to contain skill test runs and check their login.

@@ -27,6 +27,7 @@ export type { Platform } from './harness/platform.js'
 export type {
 	HeadlessCommand,
 	HeadlessCommandOptions,
+	HeadlessContainment,
 	HeadlessExitCode,
 	HeadlessInvocation,
 	HeadlessIsolation,

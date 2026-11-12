@@ -122,6 +122,11 @@ contract apply here; IDs are shared across the parent and its children.
 - R106 (UC6.16): `test` can run its cases on `claude plugin eval`, and the result has the shape R28 names, with the
   same baseline rules as R25 and R91. A criterion whose rubric that engine cannot decide is reported as not tested,
   with the reason.
+- R107 (UC6): A Claude Code run reads and writes only its own folder, apart from the programs it runs, and reaches the network
+  only for the hosts its case lists. What a run tried and was refused is listed in the result, naming the run, so a
+  skill that reaches past its folder shows it.
+- R108 (UC6): When the Claude Code runs cannot log in, `test` says why in plain words before any run spends anything, and saves no
+  result, instead of reporting each run as not run.
 - R101 (UC6): `/skill test` starts the run so the author can keep working, and passes the progress on to them at most
   once a minute, while something has changed since the last update. Each update gives the count so far, each run with
   the skill that failed or was not run since the last update, and the latest heartbeat when no run ended.

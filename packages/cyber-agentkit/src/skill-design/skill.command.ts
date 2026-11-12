@@ -131,6 +131,10 @@ function testText(result: TestResult, folder?: string): string {
 			)
 	}
 	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
+	for (const item of result.blocked ?? [])
+		lines.push(
+			`blocked: ${item.case} run ${item.run} (${item.arm}) tried to ${item.what === 'network' ? 'reach' : item.what} ${item.target}`,
+		)
 	if (result.replies) lines.push(`replies of every run: ${folder ? join(folder, result.replies) : result.replies}`)
 	if (result.partial)
 		lines.push(`partial: only ${result.partial.cases.join(', ')} ran; not saved as the expected result`)
@@ -303,7 +307,7 @@ function testCommand({
 							progress: report ? { ...progress, write: report } : undefined,
 						})
 			if ('problem' in ran) {
-				process.stderr.write(`error: ${backend}-failed: ${ran.problem}\n`)
+				process.stderr.write(`error: ${('code' in ran && ran.code) || `${backend}-failed`}: ${ran.problem}\n`)
 				throw CliError.reported(exitCodes.error)
 			}
 			for (const warning of ran.warnings) process.stderr.write(`warning: ${warning}\n`)

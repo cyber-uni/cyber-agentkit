@@ -54,7 +54,13 @@ describe('headlessInvocation', () => {
 			configDir: { env: 'CLAUDE_CONFIG_DIR', default: '~/.claude' },
 			projectSkills: '.claude/skills',
 			pluginFlag: '--plugin-dir',
-			login: { store: 'separate', env: 'CLAUDE_SECURESTORAGE_CONFIG_DIR', keepConfigDirOn: ['darwin'] },
+			login: {
+				store: 'separate',
+				env: 'CLAUDE_SECURESTORAGE_CONFIG_DIR',
+				keychainOn: ['darwin'],
+				status: ['auth', 'status'],
+			},
+			containment: { settings: 'claude-code', fileTools: { Read: 'read', Write: 'write' } },
 		})
 	})
 
@@ -66,6 +72,7 @@ describe('headlessInvocation', () => {
 			login: { store: 'config-dir', args: ['--ignore-user-config', '--ignore-rules'] },
 		})
 		expect(mode.supported === true && mode.isolation?.pluginFlag).toBeUndefined()
+		expect(mode.supported === true && mode.isolation?.containment).toBeUndefined()
 	})
 
 	it('declares no isolation for a harness whose run layout is not verified', () => {
