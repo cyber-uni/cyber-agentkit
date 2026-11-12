@@ -135,6 +135,15 @@
 				}
 			]
 		},
+		"reference audit": {
+			"examples": [
+				{
+					"title": "Audit a skill for concerns a reference could hold.",
+					"args": ["audit", "skills/file-bug"],
+					"explain": "The answer gives the skill's files, the references it loads and whether each ships a default, and the lines that look hard-coded. A lead is a candidate, never a verdict: the agent running the command judges each, and the user decides. Nothing is written."
+				}
+			]
+		},
 		"reference check": {
 			"examples": [
 				{

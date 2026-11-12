@@ -19,6 +19,10 @@ checks yourself by reading the files. The same command runs in CI.
 For each aspect, core and open, decide each `read` check by reading the skill. Report each `run` check as not checked,
 pointing to `test`, never as a pass. A skill that fails the Agent Skills specification still gets every aspect checked.
 
+To decide SHP-5 and SHP-6, run the `reference` skill's `audit <skill folder>` (its Audit mode, steps 1 to 3). It lists
+pattern leads with their lines and the references the skill loads with no default. A lead is a candidate, not a failure:
+SHP-5 fails only for a choice you judge another team would make differently. Changes nothing.
+
 ## Report
 
 One line per aspect: pass, fail, or not checked. Under each fail, the check's ID, its statement, and the part of the

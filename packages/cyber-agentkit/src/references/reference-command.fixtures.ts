@@ -105,6 +105,7 @@ export const check = (names: string[] | undefined, args: Args = {}) =>
 	exec(commands.check, { format: 'json', names, ...args })
 export const implementations = (id: string, args: Args = {}) =>
 	exec(commands.implementations, { format: 'json', id, ...args })
+export const audit = (skill: string, args: Args = {}) => exec(commands.audit, { format: 'json', skill, ...args })
 export const create = (name: string, args: Args = {}) => exec(commands.create, { format: 'text', name, ...args })
 export const customize = (name: string, args: Args = {}) => exec(commands.customize, { format: 'text', name, ...args })
 export const remove = (name: string, args: Args = {}) => exec(commands.delete, { format: 'text', name, ...args })

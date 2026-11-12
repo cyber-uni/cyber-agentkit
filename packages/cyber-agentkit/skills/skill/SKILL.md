@@ -72,8 +72,15 @@ program does the same way every time, such as parsing or validating a file. Prop
 - **SHP-3** [read] A step that applies fixed rules to data (filtering, sorting, grouping, counting, or formatting) is a
   script, not prose, however few its rules. Judgment, such as choosing what to say, stays prose.
 - **SHP-4** [read] Each file under `references/` is read only on some paths; text every run needs is in `SKILL.md`.
+- **SHP-5** [read] A choice only one team would make (a host, tool, workflow, template, policy, or path) is a reference
+  the skill loads, not text in the skill, unless the skill cannot work without it.
+- **SHP-6** [read] Each reference the skill loads ships a default, or the skill names the plugin that supplies it and
+  says what it does when the name is missing.
 
-**Fix.** Move the text or the step as Draft says, and update the links.
+**Fix.** Move the text or the step as Draft says, and update the links. For SHP-5, propose the reference and the
+interface the skill should depend on (a new host, tracker, or workflow is then an implementation, not an edit to the
+skill), and the author decides each move. Apply an approved one with the `reference` skill: Create the default, then
+Wire a skill. For SHP-6, ship the default.
 
 ### Trigger
 

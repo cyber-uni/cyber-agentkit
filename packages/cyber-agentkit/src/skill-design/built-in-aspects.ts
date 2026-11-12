@@ -42,6 +42,18 @@ export const builtInAspects: { aspect: string; checks: AspectCheck[] }[] = [
 				how: 'read',
 				statement: 'Each file under `references/` is read only on some paths; text every run needs is in `SKILL.md`.',
 			},
+			{
+				id: 'SHP-5',
+				how: 'read',
+				statement:
+					'A choice only one team would make (a host, tool, workflow, template, policy, or path) is a reference the skill loads, not text in the skill, unless the skill cannot work without it.',
+			},
+			{
+				id: 'SHP-6',
+				how: 'read',
+				statement:
+					'Each reference the skill loads ships a default, or the skill names the plugin that supplies it and says what it does when the name is missing.',
+			},
 		],
 	},
 	{
