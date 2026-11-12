@@ -15,9 +15,11 @@ import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const req = createRequire(fs.realpathSync(process.argv[1]))
-const { loadApiProvider } = await import(req.resolve('promptfoo'))
+// A file URL, since import() takes no Windows drive path.
+const { loadApiProvider } = await import(pathToFileURL(req.resolve('promptfoo')).href)
 const cap = (text) => (text.length > 2000 ? text.slice(0, 2000) + '…' : text)
 
 function decide(check, output, dir, env) {

@@ -10,3 +10,5 @@ checks that a run can log in, and stops with `error: login:` saying why when it 
 as "Not logged in". It stops with `error: sandbox:` when the sandbox cannot start. Codex runs and `--backend
 plugin-eval` runs are not contained by skill test, and the test warns about it. The Claude Code login declaration
 gains `keychainOn` and `status`, in place of `keepConfigDirOn` for macOS.
+
+`skill test` also runs on Windows now: its run wrapper loaded promptfoo by a drive path, which Node refuses there.
