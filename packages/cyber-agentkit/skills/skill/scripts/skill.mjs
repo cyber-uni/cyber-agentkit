@@ -261,7 +261,7 @@ const req = createRequire(fs.realpathSync(process.argv[1]))
 const { loadApiProvider } = await import(req.resolve('promptfoo'))
 const cap = (text) => (text.length > 2000 ? text.slice(0, 2000) + '…' : text)
 
-function decide(check, output, dir) {
+function decide(check, output, dir, env) {
   const [kind, value] = Object.entries(check)[0]
   const file = (p) => path.join(dir, p)
   const read = (p) => (fs.existsSync(file(p)) ? fs.readFileSync(file(p), 'utf8') : undefined)
@@ -276,7 +276,7 @@ function decide(check, output, dir) {
       return { pass: text !== undefined && text.includes(value.text), detail: text === undefined ? value.path + ' does not exist' : cap(text) }
     }
     case 'script':
-      try { execSync(value, { cwd: dir, stdio: 'pipe', timeout: 60000 }); return { pass: true, detail: '' } }
+      try { execSync(value, { cwd: dir, env, stdio: 'pipe', timeout: 60000 }); return { pass: true, detail: '' } }
       catch (error) { return { pass: false, detail: cap(String(error.stderr || error.stdout || error.message)) } }
     default: return { pass: false, detail: 'unknown check ' + kind }
   }
@@ -343,12 +343,14 @@ function spawnInGroup(children) {
 }
 
 // Decides the rubric checks that need no judge in the run's folder, and records whether the skill fired.
-function finish(response, { arm, vars, dir, fired }) {
+// A script check finds the run's own plugin copy at SKILL_TEST_PLUGIN.
+function finish(response, { arm, vars, dir, plugin, fired }) {
   const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')
   const checks = {}
+  const env = { ...process.env, ...(plugin ? { SKILL_TEST_PLUGIN: plugin } : {}) }
   if (!response.error)
     for (const [id, list] of Object.entries(JSON.parse(vars.rubrics || '{}'))) {
-      const results = list.map((check) => decide(check, output, dir))
+      const results = list.map((check) => decide(check, output, dir, env))
       const failed = results.find((result) => !result.pass)
       checks[id] = failed ? { pass: false, detail: failed.detail } : { pass: true }
     }
@@ -426,20 +428,30 @@ export default class SkillRun {
       try { fs.appendFileSync(this.config.progressFile, JSON.stringify({ event: 'start', case: context.test?.description ?? '', arm, run: (context.repeatIndex ?? vars.__repeatIndex ?? 0) + 1, kind: vars.kind, t: Date.now() }) + '\n') } catch {}
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-run-'))
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-home-'))
+    // A run loads a copy of its arm's plugin of its own, committed in a git repository, so a script check can tell
+    // whether the run changed it: SKILL_TEST_PLUGIN names that copy.
+    const plugin = pluginDir ? fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-plugin-')) : undefined
     try {
       if (vars.files) fs.cpSync(vars.files, dir, { recursive: true })
-      const git = (args) => execFileSync('git', args, { cwd: dir, stdio: 'pipe' })
-      git(['init', '-q'])
-      git(['config', 'user.name', 'skill-test'])
-      git(['config', 'user.email', 'skill-test@example.invalid'])
-      git(['config', 'commit.gpgsign', 'false'])
-      git(['add', '-A'])
-      git(['commit', '-q', '-m', 'case files', '--allow-empty'])
+      const commit = (cwd, message) => {
+        const git = (args) => execFileSync('git', args, { cwd, stdio: 'pipe' })
+        git(['init', '-q'])
+        git(['config', 'user.name', 'skill-test'])
+        git(['config', 'user.email', 'skill-test@example.invalid'])
+        git(['config', 'commit.gpgsign', 'false'])
+        git(['add', '-A'])
+        git(['commit', '-q', '-m', message, '--allow-empty'])
+      }
+      commit(dir, 'case files')
+      if (plugin) {
+        fs.cpSync(pluginDir, plugin, { recursive: true })
+        commit(plugin, 'plugin')
+      }
       const skills = path.join(dir, isolation.projectSkills)
       if (skillDir) fs.cpSync(skillDir, path.join(skills, skillName), { recursive: true })
       // A harness with no flag to load a local plugin gets the plugin's skills as project skills.
-      if (pluginDir && !isolation.pluginFlag && fs.existsSync(path.join(pluginDir, 'skills')))
-        fs.cpSync(path.join(pluginDir, 'skills'), skills, { recursive: true })
+      if (plugin && !isolation.pluginFlag && fs.existsSync(path.join(plugin, 'skills')))
+        fs.cpSync(path.join(plugin, 'skills'), skills, { recursive: true })
       fs.appendFileSync(path.join(dir, '.git', 'info', 'exclude'), '/' + isolation.projectSkills + '/\n.skill-test/\n')
       // Every Skill call the run makes, one JSON line each ({ skill, args }), so a rubric can check what one skill passed to another.
       const callLog = path.join(dir, '.skill-test', 'skill-calls.jsonl')
@@ -449,7 +461,7 @@ export default class SkillRun {
       const children = []
       if (harness !== 'claude-code') {
         const response = await runCli({ command, isolation, prompt, names, vars, dir, env, timeout, marker, callLog })
-        return finish(response, { arm, vars, dir, fired: response.metadata?.fired ?? false })
+        return finish(response, { arm, vars, dir, plugin, fired: response.metadata?.fired ?? false })
       }
       // A trigger case only needs to know which skill the request chose. A hook records each Skill call and ends a trigger run at the first
       // one, counting it as fired when it is the skill under test; a turn cap of three backs it up for a run that calls none. The SDK
@@ -464,7 +476,7 @@ export default class SkillRun {
         return { continue: false, stopReason: names.includes(name) ? 'the skill fired' : 'another skill fired' }
       }
       const hooks = { PreToolUse: [{ matcher: 'Skill', hooks: [watchSkill] }] }
-      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(pluginDir ? { plugins: [{ type: 'local', path: pluginDir }] } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3 } : {}), hooks, env, working_dir: dir, spawn_claude_code_process: spawnInGroup(children) } } })
+      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(plugin ? { plugins: [{ type: 'local', path: plugin }] } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3 } : {}), hooks, env, working_dir: dir, spawn_claude_code_process: spawnInGroup(children) } } })
       const controller = new AbortController()
       let limit
       const timedOut = new Promise((resolve) => {
@@ -486,9 +498,9 @@ export default class SkillRun {
       }
       const calls = response.metadata?.skillCalls ?? []
       const fired = hookFired || calls.some((call) => names.includes(call.name) || names.includes(call.input?.skill))
-      return finish(response, { arm, vars, dir, fired })
+      return finish(response, { arm, vars, dir, plugin, fired })
     } finally {
-      for (const folder of [dir, home]) try { fs.rmSync(folder, { recursive: true, force: true }) } catch {}
+      for (const folder of [dir, home, plugin].filter(Boolean)) try { fs.rmSync(folder, { recursive: true, force: true }) } catch {}
     }
   }
 }

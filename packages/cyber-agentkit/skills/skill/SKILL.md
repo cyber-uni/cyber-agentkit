@@ -135,11 +135,12 @@ nothing about) is asked at every level; with no author present, report it as not
 Before reporting done, check each of these against the result. Report any that fails.
 
 - **C1.** When the skill named cannot be found, the reply says where it looked, and no file changed.
-- **C2.** `check` changed no file.
+- **C2.** `check` changed no file, and reported each check only a run can decide as not checked.
 - **C3.** `check` reports no failure on a skill that meets every aspect, and names each check a skill fails, by its ID.
 - **C4.** `create` on a name that already exists left that skill unchanged and pointed to `check`, `fix`, and `enhance`.
 - **C5.** At `ask`, `create` wrote nothing the author had not approved.
 - **C6.** After `fix`, the checks it repaired pass a fresh `check`.
-- **C7.** `fix` changed no part of the skill that no failure named, and no file outside it.
+- **C7.** `fix` reported each failure by its ID, and changed no part of the skill that no failure named, and no file
+  outside it.
 - **C8.** `help` named every command and `/skillify`, and changed no file.
 - **C9.** `customize` showed each aspect with the implementation in use, and changed no file the author had not picked.

@@ -96,7 +96,9 @@ say so before the first run in a session.
   plugin's skills folder) runs inside a copy of that plugin from the working copy, loaded through the provider's
   `plugins` option, so it reads the plugin's references and other skills as an install would. It is then called
   `<plugin>:<skill>`. The baseline loads the same copy without the skill, or with the `--baseline` version in its place.
-  The copy leaves out `node_modules` and `.git`.
+  The copy leaves out `node_modules` and `.git`. Each run gets a copy of its own, committed in a git repository, and a
+  `script` check finds it at `$SKILL_TEST_PLUGIN`: `git -C "$SKILL_TEST_PLUGIN" status --porcelain` tells whether the
+  run changed the installed plugin, and `node "$SKILL_TEST_PLUGIN/skills/<skill>/scripts/<script>"` runs its scripts.
 - Each run records every skill it calls in `.skill-test/skill-calls.jsonl`, one JSON line `{"skill", "args"}` per call,
   excluded from `git status`. A `script` check reads it to decide what a skill handed to another, such as the
   description a skill passed to `/skill create`.
@@ -134,7 +136,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   --ignore-rules` keep its `config.toml`, plugins, and rules out. The global `$CODEX_HOME/AGENTS.md` still loads; the
   test warns about it. A skill counts as used when a command reads its `SKILL.md`; a trigger run ends there. Codex has
   no flag to load a plugin folder, so a skill developed in a plugin gets that plugin's skills as project skills,
-  without its references. Name the model with `--model`, as Codex's own default may not be on the account. Codex
+  without its references. Those skills are copies, so a check on `$SKILL_TEST_PLUGIN` does not see a change the run
+  made to them. Name the model with `--model`, as Codex's own default may not be on the account. Codex
   reports no cost.
 - `--backend plugin-eval` runs the cases on Claude Code's own `claude plugin eval` instead of promptfoo. The cases
   become an eval suite (`skill-test-evals/<case>/case.yaml`) in a copy of the skill's plugin, or in a plugin made for

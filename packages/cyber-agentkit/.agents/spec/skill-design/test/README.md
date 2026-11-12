@@ -96,7 +96,8 @@ contract apply here; IDs are shared across the parent and its children.
   result is kept out of version control.
 - R91 (UC6.13): When a folder above the skill holds a plugin manifest whose skills folder holds the skill, each run
   loads that plugin from the working copy, and the baseline loads it without the skill. Each run reads the plugin's
-  references and other skills, and none from an installed copy of it.
+  references and other skills, and none from an installed copy of it. Each run's copy is its own, so a check can
+  tell whether that run changed the plugin.
 - R97 (UC6): Before the first run, `test` reports how many runs it will make, and, when the skill has a saved result,
   about how long and how much they took last time. When that result does not record how many runs it made, the report
   says the count is unknown rather than guess it.
