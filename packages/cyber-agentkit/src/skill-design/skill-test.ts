@@ -16,6 +16,7 @@ import { promptfooConfig, promptfooPackages } from './promptfoo-config.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
 import { readSkill, type SkillFiles } from './skill-files.js'
 import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
+import { type SkillTestHarness, skillTestHarness } from './skill-test-harness.js'
 import type { TestPlan } from './test-plan.js'
 import { type ProgressWatch, plannedRuns, watchProgress } from './test-progress.js'
 import { compareWithPrevious, type Reply, readPromptfooOutput, readReplies, type TestResult } from './test-result.js'
@@ -62,6 +63,8 @@ export type TestOptions = {
 	verification: string
 	at: string
 	run: PromptfooRun
+	/** The harness each run drives; Claude Code when absent. */
+	harness?: SkillTestHarness | undefined
 	/** Where progress lines go while promptfoo runs (R98, R99); without it the run reports none. */
 	progress?: Pick<ProgressWatch, 'write' | 'heartbeatMs' | 'pollMs' | 'now'> | undefined
 }
@@ -89,7 +92,14 @@ export async function runTest(
 			copyPlugin(found.root, plugin.withSkill)
 			copyPlugin(found.root, plugin.baseline, options.skill.folder, baselineFolder)
 		}
+		const harness = options.harness ?? (skillTestHarness('claude-code') as SkillTestHarness)
+		if (harness.leaks) warnings.push(`each ${harness.id} run still reads ${harness.leaks}`)
+		if (found && !harness.isolation.pluginFlag)
+			warnings.push(
+				`${harness.id} has no flag to load a local plugin, so each run gets the skills of ${found.name} as project skills, without its references`,
+			)
 		const config = promptfooConfig(options.plan, {
+			harness,
 			plugin,
 			skillName: options.skillName,
 			skillFolder: options.skill.folder,

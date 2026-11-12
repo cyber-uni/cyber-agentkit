@@ -2,7 +2,7 @@
  * The promptfoo provider `skill test` writes beside its config. promptfoo's Claude Agent SDK provider
  * (0.125.1) runs in a temp folder it deletes and has no `copy_working_dir` (research E20), so this
  * wrapper makes each run's folder: a fresh copy of the case's files committed in a new git repository, plus the
- * skill under `.claude/skills/<name>/` in the arm that has it (excluded from git status), or, for a skill developed in a plugin, that arm's copy of the plugin loaded as a local plugin (R91). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. After the run it decides the rubric checks that
+ * skill under the harness's project skills folder (`.claude/skills/<name>/` for Claude Code) in the arm that has it (excluded from git status), or, for a skill developed in a plugin, that arm's copy of the plugin loaded as a local plugin (R91), or its skills copied into the project skills folder for a harness with no local-plugin flag. Claude Code runs through promptfoo's Agent SDK provider; another harness (`config.harness`) runs through its own CLI (`config.command`). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. After the run it decides the rubric checks that
  * need no judge in that folder, records whether the skill fired, and removes the folder. Each run also gets an empty home folder.
  * It resolves promptfoo from the npx install running it.
  *
@@ -41,26 +41,27 @@ function decide(check, output, dir) {
   }
 }
 
-// Each run sees an empty home and an empty Claude config folder, so a skill's own CLI finds no user
-// references or plugins, and the Bash tool sources no user shell snapshot. The login stays the real one:
-// CLAUDE_SECURESTORAGE_CONFIG_DIR names the folder Claude Code reads and writes its credentials in (E-CC-D11, found
-// in the claude binary 2.1.322, not in the vendor docs; CLAUDE_CONFIG_DIR is E-CC-D7), so Claude Code
-// refreshes a token in the real file itself and nothing is copied or linked. If a Claude Code version
-// ignores the variable, the run reports "Not logged in" and counts as not run. macOS keeps the real config
-// folder, because its keychain entry is named after the folder and that name cannot be set from here. A login
-// set through ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN passes through as is. A version manager's node
-// shim reads its config from the home folder, so the node running this provider goes first on PATH: a
-// skill's node scripts still run. One shell command may take 30 s by default and 2 min at most, and one that
-// reaches its limit stops instead of moving to the background (E-CC-D12), so a runaway find / costs seconds,
-// not the whole run.
-function isolatedHome(home) {
-  const real = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+// Each run sees an empty home and, where the harness allows, an empty config folder, so a skill's own CLI finds no
+// user references or plugins, and the shell sources no user snapshot. Where things live comes from the harness's
+// isolation declaration (headlessInvocation(harness).isolation). The login stays the real one and nothing is
+// copied or linked: with a 'separate' login, a variable names the folder the credentials are read and written in
+// (Claude Code: CLAUDE_SECURESTORAGE_CONFIG_DIR, E-CC-D11), so the harness refreshes a token in the real file
+// itself, and on a platform that ties the credentials to the config folder's path (macOS for Claude Code) the
+// config folder stays. With a 'config-dir' login (Codex, E-CODEX-H6) the config folder stays, and the declared
+// arguments keep the user's config in it from loading. A login set through an API key variable passes through as
+// is. A version manager's node shim reads its config from the home folder, so the node running this provider goes
+// first on PATH: a skill's node scripts still run. The declaration's own variables follow, such as Claude Code's
+// limits on one shell command (E-CC-D12), so a runaway find / costs seconds, not the whole run.
+function isolatedEnv(isolation, home) {
+  const expand = (p, base) => (p === '~' || p.startsWith('~/') ? path.join(base, p.slice(2)) : p)
+  const { configDir, login } = isolation
+  const real = process.env[configDir.env] || expand(configDir.default, os.homedir())
   const PATH = [path.dirname(process.execPath), process.env.PATH].filter(Boolean).join(path.delimiter)
-  const env = { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, '.config'), CLAUDE_CONFIG_DIR: real, PATH, BASH_DEFAULT_TIMEOUT_MS: '30000', BASH_MAX_TIMEOUT_MS: '120000', CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1' }
-  if (process.platform !== 'darwin') {
-    env.CLAUDE_CONFIG_DIR = path.join(home, '.claude')
-    env.CLAUDE_SECURESTORAGE_CONFIG_DIR = process.env.CLAUDE_SECURESTORAGE_CONFIG_DIR || real
-  }
+  const env = { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: path.join(home, '.config'), PATH, ...isolation.env }
+  if (login.store === 'separate' && !(login.keepConfigDirOn ?? []).includes(process.platform)) {
+    env[configDir.env] = expand(configDir.default, home)
+    env[login.env] = process.env[login.env] || real
+  } else env[configDir.env] = real
   return env
 }
 
@@ -100,11 +101,82 @@ function spawnInGroup(children) {
   }
 }
 
+// Decides the rubric checks that need no judge in the run's folder, and records whether the skill fired.
+function finish(response, { arm, vars, dir, fired }) {
+  const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')
+  const checks = {}
+  if (!response.error)
+    for (const [id, list] of Object.entries(JSON.parse(vars.rubrics || '{}'))) {
+      const results = list.map((check) => decide(check, output, dir))
+      const failed = results.find((result) => !result.pass)
+      checks[id] = failed ? { pass: false, detail: failed.detail } : { pass: true }
+    }
+  response.metadata = { ...response.metadata, arm, fired, checks }
+  return response
+}
+
+// A harness driven through its own CLI: the command from headlessCommand(), with the prompt last, its JSON lines
+// read as they come. Only Codex's events are read (E-CODEX-H7): the reply is the last agent_message, usage comes
+// from turn.completed, a turn.failed or top-level error is the run's error, and a skill is used when a command
+// reads <projectSkills>/<skill>/SKILL.md, the only sign of it. A trigger run ends at the first such read.
+function runCli({ command, isolation, prompt, names, vars, dir, env, timeout, marker, callLog }) {
+  return new Promise((resolve) => {
+    const children = []
+    const child = spawnInGroup(children)({ command: command.executable, args: [...command.args, prompt], cwd: dir, env: { ...process.env, ...env } })
+    child.stdin.end()
+    const skillRead = new RegExp(isolation.projectSkills.split('.').join('\\.') + '/([\\w.-]+)/SKILL\\.md')
+    let reply = ''
+    let error
+    let fired = false
+    let ended = false
+    const usage = { prompt: 0, completion: 0, total: 0 }
+    const end = (response) => {
+      if (ended) return
+      ended = true
+      clearTimeout(limit)
+      killRun(marker, children)
+      resolve(response)
+    }
+    const limit = setTimeout(() => end({ error: 'time limit', metadata: { timedOut: true } }), timeout * 1000)
+    let buffer = ''
+    child.stdout.on('data', (chunk) => {
+      buffer += chunk
+      const lines = buffer.split('\n')
+      buffer = lines.pop()
+      for (const line of lines) {
+        let event
+        try { event = JSON.parse(line) } catch { continue }
+        const item = event.item
+        if (event.type === 'item.completed' && item?.type === 'agent_message') reply = String(item.text ?? '')
+        else if (event.type === 'item.started' && item?.type === 'command_execution') {
+          const match = skillRead.exec(String(item.command ?? ''))
+          if (match) {
+            fs.appendFileSync(callLog, JSON.stringify({ skill: match[1], args: '' }) + '\n')
+            if (names.includes(match[1])) fired = true
+            if (vars.kind === 'trigger') return end({ output: '', metadata: { fired } })
+          }
+        } else if (event.type === 'turn.completed' && event.usage) {
+          usage.prompt += event.usage.input_tokens ?? 0
+          usage.completion += event.usage.output_tokens ?? 0
+          usage.total = usage.prompt + usage.completion
+        } else if (event.type === 'turn.failed') error = String(event.error?.message ?? 'the turn failed')
+        else if (event.type === 'error') error = String(event.message ?? 'error')
+      }
+    })
+    child.on('error', (failure) => end({ error: String(failure.message ?? failure) }))
+    child.on('close', (code) => {
+      if (error) return end({ error, metadata: { fired } })
+      if (code !== 0 && !reply) return end({ error: command.executable + ' exited ' + code, metadata: { fired } })
+      end({ output: vars.kind === 'trigger' ? '' : reply, tokenUsage: usage, metadata: { fired } })
+    })
+  })
+}
+
 export default class SkillRun {
   constructor(options) { this.options = options; this.config = options.config }
   id() { return this.options.id || 'skill-run' }
   async callApi(prompt, context) {
-    const { arm, skillDir, skillName, pluginDir, pluginName, inner, timeout = 300 } = this.config
+    const { arm, skillDir, skillName, pluginDir, pluginName, inner, timeout = 300, harness = 'claude-code', isolation, command } = this.config
     // A skill loaded from a plugin is called <plugin>:<skill> (research E21).
     const names = pluginName ? [skillName, pluginName + ':' + skillName] : [skillName]
     const vars = context.vars
@@ -122,14 +194,22 @@ export default class SkillRun {
       git(['config', 'commit.gpgsign', 'false'])
       git(['add', '-A'])
       git(['commit', '-q', '-m', 'case files', '--allow-empty'])
-      if (skillDir) fs.cpSync(skillDir, path.join(dir, '.claude', 'skills', skillName), { recursive: true })
-      fs.appendFileSync(path.join(dir, '.git', 'info', 'exclude'), '.claude/\n.skill-test/\n')
+      const skills = path.join(dir, isolation.projectSkills)
+      if (skillDir) fs.cpSync(skillDir, path.join(skills, skillName), { recursive: true })
+      // A harness with no flag to load a local plugin gets the plugin's skills as project skills.
+      if (pluginDir && !isolation.pluginFlag && fs.existsSync(path.join(pluginDir, 'skills')))
+        fs.cpSync(path.join(pluginDir, 'skills'), skills, { recursive: true })
+      fs.appendFileSync(path.join(dir, '.git', 'info', 'exclude'), '/' + isolation.projectSkills + '/\n.skill-test/\n')
       // Every Skill call the run makes, one JSON line each ({ skill, args }), so a rubric can check what one skill passed to another.
       const callLog = path.join(dir, '.skill-test', 'skill-calls.jsonl')
       fs.mkdirSync(path.dirname(callLog), { recursive: true })
       const marker = 'SKILL_TEST_RUN=' + randomUUID()
-      const env = { ...isolatedHome(home), SKILL_TEST_RUN: marker.split('=')[1] }
+      const env = { ...isolatedEnv(isolation, home), SKILL_TEST_RUN: marker.split('=')[1] }
       const children = []
+      if (harness !== 'claude-code') {
+        const response = await runCli({ command, isolation, prompt, names, vars, dir, env, timeout, marker, callLog })
+        return finish(response, { arm, vars, dir, fired: response.metadata?.fired ?? false })
+      }
       // A trigger case only needs to know which skill the request chose. A hook records each Skill call and ends a trigger run at the first
       // one, counting it as fired when it is the skill under test; a turn cap of three backs it up for a run that calls none. The SDK
       // answers a cap with an error that carries no skill calls, so the hook is the record.
@@ -163,18 +243,9 @@ export default class SkillRun {
         delete response.error
         response.output = ''
       }
-      const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')
       const calls = response.metadata?.skillCalls ?? []
       const fired = hookFired || calls.some((call) => names.includes(call.name) || names.includes(call.input?.skill))
-      const checks = {}
-      if (!response.error)
-        for (const [id, list] of Object.entries(JSON.parse(vars.rubrics || '{}'))) {
-          const results = list.map((check) => decide(check, output, dir))
-          const failed = results.find((result) => !result.pass)
-          checks[id] = failed ? { pass: false, detail: failed.detail } : { pass: true }
-        }
-      response.metadata = { ...response.metadata, arm, fired, checks }
-      return response
+      return finish(response, { arm, vars, dir, fired })
     } finally {
       for (const folder of [dir, home]) try { fs.rmSync(folder, { recursive: true, force: true }) } catch {}
     }

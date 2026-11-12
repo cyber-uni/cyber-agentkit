@@ -255,6 +255,17 @@ Claude Code, Codex, Copilot CLI, Cursor, Gemini CLI, and Qwen Code are covered. 
 throwaway checkout. Exit codes are a weak signal: Claude Code documents only zero and non-zero, and
 a run stopped by a turn or budget cap is told apart by the `result` message's `subtype`.
 
+For Claude Code and Codex, `isolation` also says where a run keeps its config, skills, plugins, and
+login, so a run can be cut off from the user's own setup:
+
+```ts
+const { isolation } = headlessInvocation('codex') as HeadlessMode
+// { configDir: { env: 'CODEX_HOME', default: '~/.codex' }, projectSkills: '.agents/skills',
+//   login: { store: 'config-dir', args: ['--ignore-user-config', '--ignore-rules'] }, leaks: '…AGENTS.md…' }
+```
+
+`skill test` builds each run's environment from it.
+
 ## Reference documents
 
 A reference is a named Markdown document an agent reads on demand, such as a checklist or a set of

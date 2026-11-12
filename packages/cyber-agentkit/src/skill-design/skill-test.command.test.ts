@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { cli } from 'clibuilder'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
+import type { PluginEvalRun } from './plugin-eval-backend.js'
 import { createSkillCommand } from './skill.command.js'
 import { goodSkill } from './skill-design.fixtures.js'
 import type { PromptfooRun } from './skill-test.js'
@@ -693,5 +694,92 @@ describe('skill test concurrency (R103)', () => {
 		expect(await test(skill.folder, run, repo())).toBe(1)
 		expect(run).not.toHaveBeenCalled()
 		expect(errors()).toMatch(/evals-invalid: .*`concurrency` is not a positive whole number/)
+	})
+})
+
+describe('skill test --harness and --backend (#163)', () => {
+	async function run(
+		folder: string,
+		root: string,
+		options: { runPromptfoo?: PromptfooRun; runPluginEval?: PluginEvalRun },
+		...extra: string[]
+	) {
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
+			createSkillCommand(options),
+		)
+		return app
+			.parse<number | undefined>([
+				'node',
+				'cyber-agentkit',
+				'skill',
+				'test',
+				folder,
+				'--root',
+				root,
+				'--format',
+				'json',
+				...extra,
+			])
+			.then((code) => (typeof code === 'number' ? code : 0))
+	}
+	const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+
+	it('drives Codex through its CLI with the isolation its harness definition declares, and warns what still reaches a run', async () => {
+		const seen: { config?: Record<string, unknown> } = {}
+		expect(
+			await run(goodSkill().folder, repo(), { runPromptfoo: fakeRun(seen) }, '--harness', 'codex', '--model', 'm'),
+		).toBe(0)
+		const providers = seen.config?.['providers'] as { config: Record<string, any> }[]
+		expect(providers[0]?.config).toMatchObject({
+			harness: 'codex',
+			isolation: { projectSkills: '.agents/skills', login: { store: 'config-dir' } },
+			command: { executable: 'codex', args: expect.arrayContaining(['exec', '--model', 'm', '--ignore-user-config']) },
+		})
+		expect(errors()).toContain('warning: each codex run still reads the global AGENTS.md')
+	})
+
+	it('passes Claude Code its isolation by default, with no command', async () => {
+		const seen: { config?: Record<string, unknown> } = {}
+		await run(goodSkill().folder, repo(), { runPromptfoo: fakeRun(seen) })
+		const providers = seen.config?.['providers'] as { config: Record<string, any> }[]
+		expect(providers[0]?.config).toMatchObject({
+			harness: 'claude-code',
+			isolation: { projectSkills: '.claude/skills' },
+		})
+		expect(providers[0]?.config['command']).toBeUndefined()
+	})
+
+	it('is a usage error for a harness it cannot drive or does not know, and nothing runs', async () => {
+		let ran = false
+		const never: PromptfooRun = async () => {
+			ran = true
+			return { problem: 'x' }
+		}
+		expect(await run(goodSkill().folder, repo(), { runPromptfoo: never }, '--harness', 'gemini-cli')).toBe(2)
+		expect(errors()).toContain('error: unsupported-harness: skill test cannot drive gemini-cli')
+		expect(await run(goodSkill().folder, repo(), { runPromptfoo: never }, '--harness', 'nope')).toBe(2)
+		expect(errors()).toContain('error: unknown-harness: no harness nope')
+		expect(ran).toBe(false)
+	})
+
+	it('runs on claude plugin eval with --backend plugin-eval and saves the same result shape', async () => {
+		const calls: string[][] = []
+		const pluginEval: PluginEvalRun = async (args) => {
+			calls.push(args)
+			return { output: { schemaVersion: 1, cases: [] } }
+		}
+		const root = repo()
+		expect(await run(goodSkill().folder, root, { runPluginEval: pluginEval }, '--backend', 'plugin-eval')).toBe(0)
+		expect(calls.length).toBe(2)
+		const saved = JSON.parse(printed())
+		expect(saved).toMatchObject({ version: 1, skill: 'release-notes', baseline: 'without the skill' })
+		expect(saved.cases.map((c: { status: string }) => c.status)).toContain('not-run')
+	})
+
+	it('refuses the plugin-eval backend with another harness, and an unknown backend', async () => {
+		expect(await run(goodSkill().folder, repo(), {}, '--backend', 'plugin-eval', '--harness', 'codex')).toBe(2)
+		expect(errors()).toContain('error: unsupported-harness: the plugin-eval backend drives claude-code only, not codex')
+		expect(await run(goodSkill().folder, repo(), {}, '--backend', 'inspect')).toBe(2)
+		expect(errors()).toContain('error: unknown-backend: no backend inspect')
 	})
 })

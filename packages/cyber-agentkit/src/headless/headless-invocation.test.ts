@@ -48,6 +48,33 @@ describe('headlessInvocation', () => {
 		},
 	)
 
+	it('declares where a Claude Code run keeps its config, skills, plugins, and login', () => {
+		const mode = headlessInvocation('claude-code')
+		expect(mode.supported === true && mode.isolation).toMatchObject({
+			configDir: { env: 'CLAUDE_CONFIG_DIR', default: '~/.claude' },
+			projectSkills: '.claude/skills',
+			pluginFlag: '--plugin-dir',
+			login: { store: 'separate', env: 'CLAUDE_SECURESTORAGE_CONFIG_DIR', keepConfigDirOn: ['darwin'] },
+		})
+	})
+
+	it('declares that a Codex run keeps its login in the config folder, and what still reaches it', () => {
+		const mode = headlessInvocation('codex')
+		expect(mode.supported === true && mode.isolation).toMatchObject({
+			configDir: { env: 'CODEX_HOME', default: '~/.codex' },
+			projectSkills: '.agents/skills',
+			login: { store: 'config-dir', args: ['--ignore-user-config', '--ignore-rules'] },
+		})
+		expect(mode.supported === true && mode.isolation?.pluginFlag).toBeUndefined()
+	})
+
+	it('declares no isolation for a harness whose run layout is not verified', () => {
+		for (const id of ['copilot-cli', 'cursor', 'gemini-cli', 'qwen-code'] as const) {
+			const mode = headlessInvocation(id)
+			expect(mode.supported === true && mode.isolation).toBeUndefined()
+		}
+	})
+
 	it('cites research for every harness', () => {
 		for (const harness of harnessIds) expect(headlessInvocation(harness).research.length).toBeGreaterThan(0)
 	})
