@@ -17,6 +17,11 @@ promptfoo, beside a run without the skill. Type `/skill` to run it yourself. Ins
 | `enhance` | suggests improvements one at a time, from use or a request |
 | `customize` | shows which implementation each aspect uses and each command's autonomy, and changes them through the `reference` skill |
 
+Every skill needs a `## Done when` section, the last section of its `SKILL.md`, listing the checkable outcomes
+`- **C1.** <statement>` the agent checks before it reports done. This holds for a skill that only another skill loads
+too. `check` fails a skill without one (CRI-1, critical), so a repository adopting `/skill check` adds the section to
+each of its skills. The failure shows the section to add.
+
 It ships in the `cyber-agentkit` plugin:
 
 ```text
