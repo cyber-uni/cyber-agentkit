@@ -33,6 +33,15 @@ outcome:
       Recommend the updated prose.
     files: files/no-history
     criteria: [C1, C2]
+  - id: retire
+    prompt: >-
+      We ship a new Testing wording today, so retire the one in current.md into history.md, dated 2026-11-13, with
+      the reason "ship a new wording". I approve saving history.md; don't ask again.
+    files: files/retire   # history.md holds one older entry
+    criteria: [C1, C8]
+    checks:
+      C1:
+        - script: "test -z \"$(git status --porcelain --untracked-files=all | grep -v ' history.md$')\""
 rubrics:
   C1:
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
@@ -55,3 +64,7 @@ rubrics:
         whether it was kept, taken from the offered wording, or decided.
   C7:
     - not-regex: "\\?(\\s|$)"
+  C8:
+    - script: "grep -m1 '^## Superseded' history.md | grep -q '2026-11-13'"
+    - script: "grep -q '^## Superseded 2026-10-01' history.md"
+    - file-contains: { path: history.md, text: Fix a flaky test before you add a new one. }

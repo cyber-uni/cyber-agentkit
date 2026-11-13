@@ -71,3 +71,5 @@ Before reporting done, check each of these against the result. Report any that f
   wording, or decided.
 - **C7.** The answer asks the owner a question only about a part that is a `conflict` or `undetermined`, or whose
   recommendation carries a `decided` sentence.
+- **C8.** After an approved `retire`, the history file starts the retired wording under a new
+  `## Superseded <date> — <reason>` entry, above every older entry, and keeps every older entry.
