@@ -104,6 +104,13 @@ describe('skill check', () => {
 				needs: 'check',
 			},
 			{ id: 'TRG-7', status: 'skipped', severity: 'warning', message: 'the skill is name-only' },
+			{
+				id: 'TRG-8',
+				status: 'not-checked',
+				severity: 'warning',
+				message: 'an agent decides it by reading the skill',
+				needs: 'check',
+			},
 		])
 		expect(report.skipped).toBe(3)
 	})
@@ -115,6 +122,13 @@ describe('skill check', () => {
 			{ id: 'TRG-5', status: 'skipped', severity: 'critical', message: 'the skill is not name-only' },
 			{ id: 'TRG-6', status: 'skipped', severity: 'warning', message: 'the skill is not name-only' },
 			{ id: 'TRG-7', status: 'pass', severity: 'warning' },
+			{
+				id: 'TRG-8',
+				status: 'not-checked',
+				severity: 'warning',
+				message: 'an agent decides it by reading the skill',
+				needs: 'check',
+			},
 		])
 	})
 

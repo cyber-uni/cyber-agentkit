@@ -55,9 +55,12 @@ paragraph in four sentences or fewer. Ask the author when the job could be read 
 not named.
 
 - **INT-1** [read, warning] The opening paragraph of `README.md` names one job and the result the skill hands back.
-- **INT-3** [read, warning] Nothing in the body works on a job the Intent does not name.
+- **INT-3** [read, warning] Nothing in the body works on a job the Intent does not name, says again what another part
+  of the skill already says, or composes a skill, reference, or command that no longer exists or no longer does what
+  the body expects.
 
-**Fix.** Changing the Intent is the author's decision: propose the change and ask, at every autonomy level.
+**Fix.** Changing the Intent is the author's decision: propose the change and ask, at every autonomy level. Removing a
+repeat or a stale reference under INT-3 is not a change to the Intent.
 
 ### Shape
 
@@ -65,17 +68,20 @@ Produces the skill's folder layout: what stays in `SKILL.md`, and what moves to 
 
 **Draft.** Keep everything in `SKILL.md` while its body stays under 500 lines. Move to `references/` text read only on
 some paths, such as one command's steps, and link each file from the step that needs it. Move to `scripts/` any step a
-program does the same way every time, such as parsing or validating a file. Propose the layout to the author.
+program does the same way every time, such as parsing or validating a file. Write only what the agent would not do
+on its own, and give each step one way to do it. Propose the layout to the author.
 
-- **SHP-1** [script, warning] The `SKILL.md` body is at most 500 lines.
+- **SHP-1** [script, warning] The `SKILL.md` body is at most 500 lines and about 5,000 tokens, at four characters a
+  token.
 - **SHP-2** [script] Every file the body links, or names as a plain-text path under `scripts/`, `references/`, or
   another of its folders, exists; every `#anchor` it links matches a heading; and every file under `references/` is
   linked from the body or from a file it links, except a reference default (`<name>.default.md`), which is loaded by
   name.
 - **SHP-3** [read, warning] A step that applies fixed rules to data (filtering, sorting, grouping, counting, or
   formatting) is a script, not prose, however few its rules. Judgment, such as choosing what to say, stays prose.
-- **SHP-4** [read, warning] Each file under `references/` is read only on some paths; text every run needs is in
-  `SKILL.md`.
+- **SHP-4** [read, warning] Each file under `references/` is read only on some paths, and the step that loads it says
+  when; text every run needs is in `SKILL.md`, and large reference material (long tables, examples, or catalogs) is
+  under `references/`.
 - **SHP-5** [read, warning] A choice only one team would make (a host, tool, workflow, template, policy, or path) is a
   reference the skill loads, not text in the skill, unless the skill cannot work without it.
 - **SHP-6** [read, warning] Each reference the skill loads ships a default, or the skill names the plugin that supplies
@@ -95,13 +101,22 @@ program does the same way every time, such as parsing or validating a file. Prop
   output; a script prints what the agent needs, or JSON.
 - **SHP-14** [script, warning] A script that prompts the user takes a `--yes` flag, and the skill's Markdown documents
   it.
+- **SHP-15** [read, warning] The body gives no instruction the model would follow without it, such as "be thorough" or
+  "write clean code", and does not open with a paragraph that repeats the description.
+- **SHP-16** [read, warning] The body has no `## Why`, `## Rationale`, or `## Next Steps` section.
+- **SHP-17** [read, warning] Where a step could be done more than one way, it names one default and when to leave it,
+  not a menu of options to choose from.
+- **SHP-18** [read, warning] Each script or command the body runs writes machine output to stdout, in the format the
+  body asks for, and prints prose only behind `--verbose`.
 
 **Fix.** Move the text or the step as Draft says, and update the links. For SHP-5, propose the reference and the
 interface the skill should depend on (a new host, tracker, or workflow is then an implementation, not an edit to the
 skill), and the author decides each move. Apply an approved one with the `reference` skill: Create the default, then
 Wire a skill. For SHP-6, ship the default. For SHP-7 to SHP-11, move the file or folder the check names, and update
 what links or names it. For SHP-12, write the body as steps or sections. For SHP-13, make the script print what the
-step needs, and point the step at that. For SHP-14, add the flag so an unattended run never waits.
+step needs, and point the step at that. For SHP-14, add the flag so an unattended run never waits. For SHP-15 and SHP-16, delete the text. For SHP-17, keep
+as the default the option most runs need, and name the condition under which the step does otherwise. For SHP-18, move
+the prose to stderr or behind `--verbose`.
 
 ### Trigger
 
@@ -127,10 +142,11 @@ apply as skipped.
   it works) and no trigger language.
 - **TRG-7** [script, warning] The description is at least 12 words, and uses no phrase that fits any skill, such as
   "helps with" or "various tasks".
+- **TRG-8** [read, warning] It matches the body: each command, file, or skill it names exists and does what it says.
 
 **Fix.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result. For TRG-5 and
 TRG-6, set the description to exactly `By name only` and move what it said to the body or `README.md`. For TRG-7, name
-the job and the words users type for it.
+the job and the words users type for it. For TRG-8, change whichever of the description and the body is out of date.
 
 ## Run the command
 
