@@ -68,8 +68,10 @@ some paths, such as one command's steps, and link each file from the step that n
 program does the same way every time, such as parsing or validating a file. Propose the layout to the author.
 
 - **SHP-1** [script, warning] The `SKILL.md` body is at most 500 lines.
-- **SHP-2** [script] Every file the body links exists, and every file under `references/` is linked from the body or
-  from a file it links, except a reference default (`<name>.default.md`), which is loaded by name.
+- **SHP-2** [script] Every file the body links, or names as a plain-text path under `scripts/`, `references/`, or
+  another of its folders, exists; every `#anchor` it links matches a heading; and every file under `references/` is
+  linked from the body or from a file it links, except a reference default (`<name>.default.md`), which is loaded by
+  name.
 - **SHP-3** [read, warning] A step that applies fixed rules to data (filtering, sorting, grouping, counting, or
   formatting) is a script, not prose, however few its rules. Judgment, such as choosing what to say, stays prose.
 - **SHP-4** [read, warning] Each file under `references/` is read only on some paths; text every run needs is in
@@ -78,11 +80,22 @@ program does the same way every time, such as parsing or validating a file. Prop
   reference the skill loads, not text in the skill, unless the skill cannot work without it.
 - **SHP-6** [read, warning] Each reference the skill loads ships a default, or the skill names the plugin that supplies
   it and says what it does when the name is missing.
+- **SHP-7** [script] `SKILL.md` sits in its own folder, directly under a skill root: a folder named `skills`.
+- **SHP-8** [script] A skill that ships to others (its `skills` root is not inside a dot-folder such as `.agents/`)
+  links and names no file outside its folder: no `../` path that leaves it, and no repository path such as `docs/` or
+  `src/`.
+- **SHP-9** [script] `skill.json`, when present, is a JSON object, and its `distribution`, when present, sets
+  `install_via` to `package_manager` with a `package.name`.
+- **SHP-10** [script, warning] The skill folder holds no folder but `scripts/`, `references/`, `assets/`, `evals/`, and
+  `agents/`, and `agents/` holds YAML files only.
+- **SHP-11** [script, warning] Static resources (images, data files, templates) are in `assets/`, and the root of the
+  skill folder holds no Markdown file but `SKILL.md` and `README.md`.
 
 **Fix.** Move the text or the step as Draft says, and update the links. For SHP-5, propose the reference and the
 interface the skill should depend on (a new host, tracker, or workflow is then an implementation, not an edit to the
 skill), and the author decides each move. Apply an approved one with the `reference` skill: Create the default, then
-Wire a skill. For SHP-6, ship the default.
+Wire a skill. For SHP-6, ship the default. For SHP-7 to SHP-11, move the file or folder the check names, and update
+what links or names it.
 
 ### Trigger
 
