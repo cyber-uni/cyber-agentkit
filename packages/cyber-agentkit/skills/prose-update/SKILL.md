@@ -1,6 +1,6 @@
 ---
 name: prose-update
-description: Recommend updated prose for a section a tool wrote earlier, when its owner may have edited it and a newer wording is available, keeping the owner's sentences, or retire a wording into its history when a new one ships. Takes the offered prose, the found prose, and the historic prose.
+description: Recommend what a section a tool wrote earlier should say now, given the newer wording offered, the text found in the file, and the retired wordings, keeping the owner's edits. Also retire a wording into its history when a new one ships.
 ---
 
 # Update prose
