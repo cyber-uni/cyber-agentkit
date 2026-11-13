@@ -36,7 +36,7 @@ export const builtInAspects: { aspect: string; checks: AspectCheck[] }[] = [
 				how: 'script',
 				severity: 'critical',
 				statement:
-					'Every file the body links exists, and every file under `references/` is linked from the body or from a file it links, except a reference default (`<name>.default.md`), which is loaded by name.',
+					'Every file the body links, or names as a plain-text path under `scripts/`, `references/`, or another of its folders, exists; every `#anchor` it links matches a heading; and every file under `references/` is linked from the body or from a file it links, except a reference default (`<name>.default.md`), which is loaded by name.',
 			},
 			{
 				id: 'SHP-3',
@@ -64,6 +64,40 @@ export const builtInAspects: { aspect: string; checks: AspectCheck[] }[] = [
 				severity: 'warning',
 				statement:
 					'Each reference the skill loads ships a default, or the skill names the plugin that supplies it and says what it does when the name is missing.',
+			},
+			{
+				id: 'SHP-7',
+				how: 'script',
+				severity: 'critical',
+				statement: '`SKILL.md` sits in its own folder, directly under a skill root: a folder named `skills`.',
+			},
+			{
+				id: 'SHP-8',
+				how: 'script',
+				severity: 'critical',
+				statement:
+					'A skill that ships to others (its `skills` root is not inside a dot-folder such as `.agents/`) links and names no file outside its folder: no `../` path that leaves it, and no repository path such as `docs/` or `src/`.',
+			},
+			{
+				id: 'SHP-9',
+				how: 'script',
+				severity: 'critical',
+				statement:
+					'`skill.json`, when present, is a JSON object, and its `distribution`, when present, sets `install_via` to `package_manager` with a `package.name`.',
+			},
+			{
+				id: 'SHP-10',
+				how: 'script',
+				severity: 'warning',
+				statement:
+					'The skill folder holds no folder but `scripts/`, `references/`, `assets/`, `evals/`, and `agents/`, and `agents/` holds YAML files only.',
+			},
+			{
+				id: 'SHP-11',
+				how: 'script',
+				severity: 'warning',
+				statement:
+					'Static resources (images, data files, templates) are in `assets/`, and the root of the skill folder holds no Markdown file but `SKILL.md` and `README.md`.',
 			},
 		],
 	},

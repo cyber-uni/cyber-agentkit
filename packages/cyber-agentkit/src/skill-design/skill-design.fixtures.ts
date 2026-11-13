@@ -40,9 +40,9 @@ rubrics:
     - not-regex: "Merge (pull request|branch)"
 `
 
-/** Writes a skill folder named after the `name` it holds, with the given files, and reads it. */
+/** Writes a skill folder named after the `name` it holds, in a `skills` root, with the given files, and reads it. */
 export function makeSkill(files: Record<string, string>, folderName = 'release-notes'): SkillFiles {
-	const folder = join(mkdtempSync(join(tmpdir(), 'skill-design-')), folderName)
+	const folder = join(mkdtempSync(join(tmpdir(), 'skill-design-')), 'skills', folderName)
 	for (const [path, text] of Object.entries(files)) {
 		mkdirSync(dirname(join(folder, path)), { recursive: true })
 		writeFileSync(join(folder, path), text)

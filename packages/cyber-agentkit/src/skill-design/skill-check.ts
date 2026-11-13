@@ -1,5 +1,6 @@
 import { builtInAspects } from './built-in-aspects.js'
 import { type AspectToCheck, mergeChecks, type SkillCheckReport } from './check-skill.js'
+import { checkLayout } from './layout-checks.js'
 import type { ScriptRun } from './run-check-script.js'
 import { checkShape } from './shape-checks.js'
 import type { LoadedAspect } from './skill-aspects.js'
@@ -8,7 +9,7 @@ import { checkSpec } from './spec-checks.js'
 
 const builtInCode: Record<string, (skill: SkillFiles) => AspectToCheck['reported']> = {
 	specification: checkSpec,
-	shape: checkShape,
+	shape: (skill) => [...checkShape(skill), ...checkLayout(skill)],
 }
 
 /** Checks a skill against the built-in aspects and every swappable one, running each one's check script. */
