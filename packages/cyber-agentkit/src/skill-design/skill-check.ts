@@ -3,7 +3,7 @@ import { type AspectToCheck, mergeChecks, type SkillCheckReport } from './check-
 import { checkLayout } from './layout-checks.js'
 import { isNameOnly } from './name-only-skills.js'
 import type { ScriptRun } from './run-check-script.js'
-import { checkShape } from './shape-checks.js'
+import { checkShape, checkShapeBody } from './shape-checks.js'
 import type { LoadedAspect } from './skill-aspects.js'
 import type { SkillFiles } from './skill-files.js'
 import { checkSpec } from './spec-checks.js'
@@ -11,7 +11,7 @@ import { checkTrigger } from './trigger-checks.js'
 
 const builtInCode: Record<string, (skill: SkillFiles) => AspectToCheck['reported']> = {
 	specification: checkSpec,
-	shape: (skill) => [...checkShape(skill), ...checkLayout(skill)],
+	shape: (skill) => [...checkShape(skill), ...checkLayout(skill), ...checkShapeBody(skill)],
 	trigger: checkTrigger,
 }
 

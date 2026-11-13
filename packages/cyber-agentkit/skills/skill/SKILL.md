@@ -90,12 +90,18 @@ program does the same way every time, such as parsing or validating a file. Prop
   `agents/`, and `agents/` holds YAML files only.
 - **SHP-11** [script, warning] Static resources (images, data files, templates) are in `assets/`, and the root of the
   skill folder holds no Markdown file but `SKILL.md` and `README.md`.
+- **SHP-12** [script, warning] The body gives the agent steps to follow: numbered steps or `##` sections.
+- **SHP-13** [script, warning] When the skill bundles scripts, no Markdown the agent reads tells it to parse a script's
+  output; a script prints what the agent needs, or JSON.
+- **SHP-14** [script, warning] A script that prompts the user takes a `--yes` flag, and the skill's Markdown documents
+  it.
 
 **Fix.** Move the text or the step as Draft says, and update the links. For SHP-5, propose the reference and the
 interface the skill should depend on (a new host, tracker, or workflow is then an implementation, not an edit to the
 skill), and the author decides each move. Apply an approved one with the `reference` skill: Create the default, then
 Wire a skill. For SHP-6, ship the default. For SHP-7 to SHP-11, move the file or folder the check names, and update
-what links or names it.
+what links or names it. For SHP-12, write the body as steps or sections. For SHP-13, make the script print what the
+step needs, and point the step at that. For SHP-14, add the flag so an unattended run never waits.
 
 ### Trigger
 
@@ -109,8 +115,8 @@ belong to the nearest other jobs. They go to Verification as `skip` cases, not i
 description declares it: exactly `By name only`, or `Partial Skill: ` followed by text. The description is the only text
 the model matches against, so for a name-only skill write exactly `By name only`, and put what the skill is, who calls
 it, and what it returns in the body and `README.md`. Its near misses still go to Verification as `skip` cases. TRG-1 and
-TRG-4 do not apply to a name-only skill, and TRG-5 and TRG-6 apply only to one: report a check that does not apply as
-skipped.
+TRG-4 and TRG-7 do not apply to a name-only skill, and TRG-5 and TRG-6 apply only to one: report a check that does not
+apply as skipped.
 
 - **TRG-1** [read] The description says when to use the skill, in words a user would type.
 - **TRG-3** [read, warning] It describes when to use the skill, not how the skill works.
@@ -119,9 +125,12 @@ skipped.
   with no trigger phrase, such as "use when" or "when to use".
 - **TRG-6** [read, warning] A name-only skill's description carries no operational detail (what it does, who calls it, or how
   it works) and no trigger language.
+- **TRG-7** [script, warning] The description is at least 12 words, and uses no phrase that fits any skill, such as
+  "helps with" or "various tasks".
 
 **Fix.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result. For TRG-5 and
-TRG-6, set the description to exactly `By name only` and move what it said to the body or `README.md`.
+TRG-6, set the description to exactly `By name only` and move what it said to the body or `README.md`. For TRG-7, name
+the job and the words users type for it.
 
 ## Run the command
 

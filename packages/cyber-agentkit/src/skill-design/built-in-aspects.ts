@@ -102,6 +102,25 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				statement:
 					'Static resources (images, data files, templates) are in `assets/`, and the root of the skill folder holds no Markdown file but `SKILL.md` and `README.md`.',
 			},
+			{
+				id: 'SHP-12',
+				how: 'script',
+				severity: 'warning',
+				statement: 'The body gives the agent steps to follow: numbered steps or `##` sections.',
+			},
+			{
+				id: 'SHP-13',
+				how: 'script',
+				severity: 'warning',
+				statement:
+					"When the skill bundles scripts, no Markdown the agent reads tells it to parse a script's output; a script prints what the agent needs, or JSON.",
+			},
+			{
+				id: 'SHP-14',
+				how: 'script',
+				severity: 'warning',
+				statement: "A script that prompts the user takes a `--yes` flag, and the skill's Markdown documents it.",
+			},
 		],
 	},
 	{
@@ -142,6 +161,14 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				statement:
 					"A name-only skill's description carries no operational detail (what it does, who calls it, or how it works) and no trigger language.",
 				appliesTo: 'name-only',
+			},
+			{
+				id: 'TRG-7',
+				how: 'script',
+				severity: 'warning',
+				statement:
+					'The description is at least 12 words, and uses no phrase that fits any skill, such as "helps with" or "various tasks".',
+				appliesTo: 'matched',
 			},
 		],
 	},
