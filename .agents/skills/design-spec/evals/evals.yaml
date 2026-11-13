@@ -1,0 +1,56 @@
+runs: 3
+threshold: 2
+trigger:
+  - { prompt: "Spec this feature before we build it: users can export a report as CSV.", expect: fire }
+  - { prompt: "Write the design spec for the slugify function in src/slugify.js.", expect: fire }
+  - { prompt: "Is this spec good? specs/export/README.md", expect: fire }
+  - { prompt: "Derive tests from the criteria in specs/slugify/README.md.", expect: fire }
+  - { prompt: "Write an ADR for choosing Postgres over SQLite.", expect: skip }
+  - { prompt: "Break the export feature into implementation tasks for the sprint.", expect: skip }
+  - { prompt: "Write unit tests for src/slugify.js.", expect: skip }
+  - { prompt: "Review this pull request for bugs.", expect: skip }
+outcome:
+  - id: backfill
+    prompt: >-
+      Backfill a design spec for the slugify capability in src/slugify.js, at specs/slugify/README.md. No one will
+      answer questions in this run: put each one under Open questions. I approve writing it; don't ask again.
+    files: files/slugify   # a one-function library with two error paths
+    criteria: [C1, C2, C3, C4, C5, C6]
+  - id: review-only
+    prompt: Judge specs/export/README.md against the bar for a design spec. Only judge it; do not edit anything.
+    files: files/flawed-spec   # no outcome, an internal class in the criteria, unmeasured words, a TBD
+    criteria: [C7, C8]
+  - id: derive-tests
+    prompt: >-
+      Derive tests from the criteria in specs/slugify/README.md, using the project's own test runner. I approve
+      writing them; don't ask again.
+    files: files/ready-spec   # a ready spec with criteria R1 to R4; package.json runs node --test
+    criteria: [C9]
+# C1 to C6 read the spec the backfill case wrote.
+rubrics:
+  C1:
+    - script: >-
+        awk '/^## /{print substr($0,4)}' specs/slugify/README.md | grep -iE '^(What|Non-goals|Key terms|Actors|Use cases|Criteria|Open questions|References)' | cut -c1-6 | tr '\n' ' ' | grep -qi '^What Non-go Key te Actors Use ca Criter Open q Refere $'
+  C2:
+    - script: "test -z \"$(grep -oE '\\*\\*(N|K|A|UC|R|E|Q)[0-9]+(\\.[0-9]+)?\\b' specs/slugify/README.md | sort | uniq -d)\""
+    - script: "grep -qE '^- \\*\\*R1\\b' specs/slugify/README.md"
+  C3:
+    - script: "for b in Trigger 'Entry points' Inputs Success Extensions; do grep -q \"\\*\\*$b\" specs/slugify/README.md || exit 1; done"
+  C4:
+    - script: "test -z \"$(sed -n '/^## Criteria/,/^## /p' specs/slugify/README.md | grep -E '^- \\*\\*R[0-9]+' | grep -vE 'UC[0-9]+')\""
+  C5:
+    - script: "! grep -qiE '^## .*(implementation|tasks|stack|alternatives|status)' specs/slugify/README.md"
+    - script: "! grep -qE '\\b(TODO|TBD)\\b|- \\[[ x]\\]' specs/slugify/README.md"
+  C6:
+    - script: "grep -q '^## Open questions' specs/slugify/README.md"
+    - not-regex: "\\bspec is ready\\b"
+  C7:
+    - regex: "C1\\b[\\s\\S]*C9\\b"
+    - regex: "\\b(fail|FAIL|Fail)"
+    - contains: TBD
+  C8:
+    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+  C9:
+    - script: "test -z \"$(git ls-files --others --modified --exclude-standard | grep -E '\\.feature$')\""
+    - script: "grep -rlE '\\bR[1-4]\\b' --include='*.js' --include='*.mjs' . | grep -v '^./src/slugify.js$' | grep -q ."
+    - script: "node --test"

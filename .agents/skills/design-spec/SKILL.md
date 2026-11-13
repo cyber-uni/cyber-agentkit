@@ -139,3 +139,22 @@ Build tests from the criteria list, one test or group per criterion ID, as nativ
 project's own test stack. Do not write a feature file for an agent to run: an agent running prose scenarios spends
 tokens on every run and cannot be relied on to follow them. A criterion that cannot become such a test fails C5;
 send it back to Write instead of guessing.
+
+## Done when
+
+Before reporting done, check each of these against the result. Report any that fails. These IDs are this skill's
+own; the spec criteria C1 to C9 in [the criteria](references/criteria.md) are a separate list.
+
+- **C1.** A spec written or revised has, in its `README.md`, these sections in this order: title and outcome, What,
+  Non-goals, Key terms, Actors and goals, Use cases, Criteria, Open questions, References.
+- **C2.** Every list item in the spec carries an ID of its kind, and no ID appears twice.
+- **C3.** Every use case has Trigger, Entry points, Inputs, Success, and Extensions, or says `extensions: none, <why>`.
+- **C4.** Every criterion in the spec names the use case it binds to.
+- **C5.** The spec holds no implementation design, task list, stack choice, or build status of a criterion.
+- **C6.** Every question left unsettled is under Open questions, and a spec with an open question is not reported
+  ready.
+- **C7.** A review gives pass or fail for each of the spec criteria C1 to C9, quotes the failing line for each fail,
+  and gives a recommendation with each open question.
+- **C8.** A review asked only to judge changed no file.
+- **C9.** Derived tests run on the project's own test stack, each test or group names the criterion ID it checks, and
+  no feature file was written.
