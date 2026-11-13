@@ -1,6 +1,6 @@
 ---
 name: reference
-description: Use this skill when loading, creating, customizing, updating, deleting, migrating, finding, or inspecting a reference (a document agents read by name, Markdown or a JSON, YAML, TOML, or text file), or when wiring a skill to load one. Also use it to migrate reference files left in a version 1 form, or under a name a plugin renamed, as a `reference-legacy-format` or `reference-renamed` warning asks.
+description: Use this skill when loading, creating, customizing, updating, deleting, migrating, finding, inspecting, or registering a reference (a document agents read by name, Markdown or a JSON, YAML, TOML, or text file), or when wiring a skill to load one. Also use it to migrate reference files left in a version 1 form, or under a name a plugin renamed, as a `reference-legacy-format` or `reference-renamed` warning asks.
 ---
 
 # Reference
@@ -31,6 +31,7 @@ Each contribution applies with its `merge`: `patch` (the default) replaces the t
 | bring reference files written for version 1 to the 2.0 form, or rename them as a plugin renamed their names, as a `reference-legacy-format` or `reference-renamed` warning asks | [Migrate](#migrate) |
 | make a skill load a reference | [Wire a skill](#wire-a-skill) |
 | find what a skill hard-codes that could move into references | [Audit](#audit) |
+| make an interface discoverable in the public registry, or check whether one like it is registered | [Register](#register) |
 
 Ask only when the request fits two modes. Otherwise pick one; outside Load, say which. Invoked as `/reference` with no request, run `list` from [Find](#find) and ask what to do with one.
 
@@ -123,9 +124,19 @@ Audit a skill for concerns that could move into references. The skill's author o
 6. Apply only a finding the user approves, with the commands that exist: `create <name> --default <skill folder>` for the default (see [Create](#create)), then [Wire a skill](#wire-a-skill) for the load line. Never edit a skill with `editable: false`: it is an installed copy and not the author's. Report the findings, and offer an override reference to the user instead.
 7. After applying, run `audit <skill>` again. Each moved reference must show `defaultAnswers: true` when no override exists, and the skill behaves as before. Say so when a load shows another tier answering, or a gap.
 
+## Register
+
+Registering makes an interface discoverable in the public registry. It is optional: using an interface never needs it, and `load`, `list`, and `check` never read the registry.
+
+1. Run `register <id>` with what is known: `--description`, `--plugin`, `--tag`, `--status`, `--interface <url>`, or `--file <entry.md>` for a prepared entry. It looks the id up in the live registry first, and needs a network. With none it stops with `registry-unreachable` and records nothing: say so, and do not guess.
+2. On `interface-registered`, the id is taken. Show the entry's `url` and use that interface. Changing its entry is a pull request that edits it.
+3. When it lists `near` matches, show each with its reasons and stop. Never decide yourself that one is the same or different. The user decides to reuse one, extend one, or go on. Only after they choose to go on, run again with `--seen <each id shown>`.
+4. With no near matches left, it shows the `route` it would take (`pull-request` or `issue`), `why`, and the `entry`. Show all three and ask. Opening an issue or a pull request is an outward action: run with `--yes` for the default route, or `--as issue` / `--as pull-request`, only on the user's explicit yes. With no user present, open nothing.
+5. Report the `url` it gives. When `recorded` is `false` with a `url`, the GitHub tool is signed out: give the user that page to file the issue.
+
 ## Rules
 
-- **Only Create, Update, Customize, Delete, and Migrate write.** Load writes only a pick the user made for an ambiguous name. Find, Inspect, Audit, and Wire a skill change no reference file.
+- **Only Create, Update, Customize, Delete, and Migrate write.** Load writes only a pick the user made for an ambiguous name. Find, Inspect, Audit, Register, and Wire a skill change no reference file. Register opens an issue or a pull request only on the user's explicit yes.
 - **Never edit, move, rename, or delete a reference an installed plugin or skill ships, or a managed one, not even to migrate it.** Customize it instead. Its callers load it by name.
 - **Never edit a generated document by hand.** Customize it again with its request.
 - **Write only what the user approves.** Show the file and its path before you write or delete it. A request to create a reference from text the user gives is its approval: write it, then show the file and its path. With no user present, write nothing.
