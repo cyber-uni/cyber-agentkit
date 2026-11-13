@@ -36,3 +36,25 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec vitest run src/skill-design/promptfoo-provider-source.test.ts -t "time limit"
         working-directory: packages/cyber-agentkit
+
+  # The prebuilt skill scripts must rebuild byte for byte on every platform and Node version a
+  # contributor builds on, or the drift check in `pnpm verify` would flag a correct commit.
+  # `code` runs it on Linux; this runs it on the rest.
+  plugin-check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+        node-version: ['lts/-1', 'lts/*']
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm plugin:check

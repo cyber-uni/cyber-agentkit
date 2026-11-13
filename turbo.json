@@ -21,7 +21,11 @@
 			"dependsOn": ["build"]
 		},
 		"verify": {
-			"dependsOn": ["check", "build", "typecheck", "lint", "test", "//#test:scripts"]
+			"dependsOn": ["check", "build", "typecheck", "lint", "test", "//#test:scripts", "//#plugin:check"]
+		},
+		"//#plugin:check": {
+			"cache": false,
+			"outputs": []
 		},
 		"//#test:scripts": {
 			"inputs": [
