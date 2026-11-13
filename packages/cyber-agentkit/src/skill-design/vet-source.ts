@@ -1,12 +1,14 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, lstatSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative, resolve, sep } from 'node:path'
+import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
-/** A skill source `skill vet` fetches: a git repository over HTTPS, and where in it the skill is. */
+/** A skill source `skill vet` fetches: a git repository over HTTPS, or a local folder, and where in it the skill is. */
 export type VetSource = {
-	/** The HTTPS URL the checkout clones. */
+	/** The HTTPS URL the checkout clones, or, for a local source, its absolute folder. */
 	url: string
+	/** A local source: the absolute folder copied, `--path` included. */
+	local?: string
 	/** `owner/repo` when the source is on GitHub, which is where the supply-chain signals come from. */
 	github?: { owner: string; repo: string }
 	/** The branch or tag to check out; the default branch when unset. */
@@ -24,15 +26,39 @@ function cleanPath(path: string | undefined): string | undefined | { problem: st
 	return parts.length ? parts.join('/') : undefined
 }
 
+/** A local folder is written as a path: absolute, or starting `./`, `../`, or `~/`, or `.` or `..` alone. */
+export function isLocalSource(text: string): boolean {
+	return (
+		text === '.' ||
+		text === '..' ||
+		/^(?:\.{1,2}|~)[\\/]/.test(text) ||
+		text.startsWith('/') ||
+		/^[A-Za-z]:[\\/]/.test(text) ||
+		text.startsWith('\\\\')
+	)
+}
+
 /**
- * Reads a source as `owner/repo`, `owner/repo/<path>`, a GitHub URL (with `/tree/<ref>/<path>`), or any other
- * `https://` git URL. Only HTTPS is taken, so no `file://`, `ssh`, or `ext::` transport runs.
+ * Reads a source as `owner/repo`, `owner/repo/<path>`, a GitHub URL (with `/tree/<ref>/<path>`), any other
+ * `https://` git URL, or a local folder written as a path. Only HTTPS is cloned, so no `file://`, `ssh`, or `ext::`
+ * transport runs; a local folder is copied, never run through git.
  */
 export function parseVetSource(
 	input: string,
 	overrides: { ref?: string | undefined; path?: string | undefined } = {},
+	place: { cwd?: string; home?: string } = {},
 ): VetSource | { problem: string } {
 	const text = input.trim()
+	if (isLocalSource(text)) {
+		if (overrides.ref !== undefined)
+			return { problem: `a local folder has no branch or tag; drop --ref ${overrides.ref}` }
+		const home = place.home ?? process.env['HOME'] ?? ''
+		const base = text.startsWith('~') ? join(home, text.slice(2)) : resolve(place.cwd ?? process.cwd(), text)
+		const cleaned = cleanPath(overrides.path)
+		if (typeof cleaned === 'object') return cleaned
+		const local = cleaned ? join(base, cleaned) : base
+		return { url: local, local }
+	}
 	let owner: string | undefined
 	let repo: string | undefined
 	let ref: string | undefined
@@ -90,6 +116,7 @@ export type FetchSource = (source: VetSource, folder: string) => { commit?: stri
  * symbolic links checked out as plain files, so no link reaches outside the checkout.
  */
 export const cloneSource: FetchSource = (source, folder) => {
+	if (source.local) return copyLocal(source.local, folder)
 	const env = { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_LFS_SKIP_SMUDGE: '1' }
 	const config = [
 		'-c',
@@ -131,6 +158,26 @@ export const cloneSource: FetchSource = (source, folder) => {
 	} catch {
 		return {}
 	}
+}
+
+const notCopied = new Set(['.git'])
+
+/**
+ * Copies a local folder's files into `folder`, leaving out `.git` and every symbolic link, so nothing in the copy
+ * reaches outside it and no git configuration of the source is read. It runs nothing, git included.
+ */
+export function copyLocal(from: string, folder: string): { commit?: string } | { problem: string } {
+	if (!isAbsolute(from) || !existsSync(from)) return { problem: `${from} does not exist` }
+	if (!statSync(from).isDirectory()) return { problem: `${from} is not a folder` }
+	try {
+		cpSync(from, folder, {
+			recursive: true,
+			filter: (path) => path === from || (!notCopied.has(basename(path)) && !lstatSync(path).isSymbolicLink()),
+		})
+	} catch (error) {
+		return { problem: `could not copy ${from}: ${(error as Error).message}` }
+	}
+	return {}
 }
 
 /** Runs `work` on a fresh folder under the system temp folder, and removes the folder afterwards, whatever happens. */

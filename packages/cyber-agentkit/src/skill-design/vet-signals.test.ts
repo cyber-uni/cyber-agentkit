@@ -34,7 +34,7 @@ describe('readSignals', () => {
 				body: { tag_name: 'v1.2.0', published_at: '2026-10-01T00:00:00Z' },
 			},
 		})
-		const signals = await readSignals(repo, { path: 'tools/x', trusted: ['ACME'], get, now })
+		const signals = await readSignals(repo, { path: 'tools/x', trusted: true, get, now })
 		expect(signals).toEqual({
 			publisher: { available: true, login: 'acme', kind: 'organization', verified: true, trusted: true },
 			maintenance: {
@@ -58,7 +58,7 @@ describe('readSignals', () => {
 				body: [{ commit: { committer: { date: '2024-11-01T00:00:00Z' } } }],
 			},
 		})
-		const signals = await readSignals(repo, { trusted: [], get, now })
+		const signals = await readSignals(repo, { trusted: false, get, now })
 		expect(signals.publisher).toEqual({ available: true, login: 'acme', kind: 'user', verified: false, trusted: false })
 		expect(signals.license).toEqual({ available: true, repository: null })
 		expect(signals.maintenance).toMatchObject({ status: 'stale', latestRelease: null, daysSinceCommit: 742 })
@@ -72,18 +72,18 @@ describe('readSignals', () => {
 				body: [{ commit: { committer: { date: '2026-11-01T00:00:00Z' } } }],
 			},
 		})
-		expect((await readSignals(repo, { trusted: [], get, now })).maintenance).toMatchObject({ status: 'archived' })
+		expect((await readSignals(repo, { trusted: false, get, now })).maintenance).toMatchObject({ status: 'archived' })
 	})
 
 	it('leaves each signal unavailable, with the reason, when GitHub refuses or cannot be reached', async () => {
 		const limited = github({ '/repos/acme/skills': { status: 403, body: { message: 'API rate limit exceeded' } } })
-		const signals = await readSignals(repo, { trusted: [], get: limited, now })
+		const signals = await readSignals(repo, { trusted: false, get: limited, now })
 		expect(signals.publisher).toMatchObject({ available: false, reason: expect.stringContaining('GITHUB_TOKEN') })
 		expect(signals.license).toMatchObject({ available: false })
 		const down: GitHubGet = async () => {
 			throw new Error('getaddrinfo ENOTFOUND')
 		}
-		expect((await readSignals(repo, { trusted: [], get: down, now })).maintenance).toMatchObject({
+		expect((await readSignals(repo, { trusted: false, get: down, now })).maintenance).toMatchObject({
 			available: false,
 			reason: expect.stringContaining('ENOTFOUND'),
 		})

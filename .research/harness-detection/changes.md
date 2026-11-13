@@ -215,3 +215,7 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
 ## 2026-11-12 (skill test containment)
 
 - Added E-CC-D13 to E-CC-D16: the macOS keychain naming of `CLAUDE_SECURESTORAGE_CONFIG_DIR`, the claude.ai connectors switch, the Bash sandbox and working-folder settings with live runs, and `claude auth status`, used to contain skill test runs and check their login.
+
+## 2026-11-13 (skill vet trust list)
+
+- Added E-CC-P8: the source shapes and exact matching of Claude Code's `strictKnownMarketplaces` allowlist, which `/skill vet`'s trust list entries follow.

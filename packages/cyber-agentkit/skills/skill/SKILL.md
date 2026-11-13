@@ -202,5 +202,5 @@ Before reporting done, check each of these against the result. Report any that f
   outside it.
 - **C8.** `help` named every command and `/skillify`, and changed no file.
 - **C9.** `customize` showed each aspect with the implementation in use, and changed no file the author had not picked.
-- **C10.** `vet` installed nothing, left no checkout behind, reported the install blocked on every critical failure, and
-  showed no number but a skills.sh count as installs.
+- **C10.** `vet` installed nothing, left no checkout behind, reported the install blocked on every critical failure and
+  on every warning from a source no trusted entry covers, and showed no number but a skills.sh count as installs.

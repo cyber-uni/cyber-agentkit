@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -45,7 +45,7 @@ const abandoned: GitHubGet = async (path) => {
 }
 const noListing: JsonGet = async () => ({ status: 200, body: { skills: [] } })
 
-async function vet(args: string[], options: SkillCommandOptions) {
+async function vet(args: string[], options: SkillCommandOptions, root = repoRoot) {
 	const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
 		createSkillCommand({
 			plugin: { name: 'cyber-agentkit', root: packageRoot },
@@ -56,17 +56,7 @@ async function vet(args: string[], options: SkillCommandOptions) {
 		}),
 	)
 	return app
-		.parse<number | undefined>([
-			'node',
-			'cyber-agentkit',
-			'skill',
-			'vet',
-			...args,
-			'--root',
-			repoRoot,
-			'--format',
-			'json',
-		])
+		.parse<number | undefined>(['node', 'cyber-agentkit', 'skill', 'vet', ...args, '--root', root, '--format', 'json'])
 		.then((code) => (typeof code === 'number' ? code : 0))
 }
 
@@ -120,9 +110,9 @@ describe('skill vet', () => {
 		expect(existsSync(seen.folder as string)).toBe(false)
 	})
 
-	it('does not block on a clean skill or on a warning, and leaves the read checks for the agent', async () => {
+	it('does not block on a clean skill or on a warning from a trusted publisher, and leaves the read checks for the agent', async () => {
 		const warned = goodSkillMd.replace('1. Read the merged pull requests.', '1. Run `sudo make install`.')
-		const code = await vet(['acme/skills'], {
+		const code = await vet(['acme/skills', '--trust', 'acme/skills'], {
 			fetchSource: fakeFetch({ 'skills/release-notes/SKILL.md': warned, 'skills/clean/SKILL.md': goodSkillMd }),
 		})
 		const report = JSON.parse(printed())
@@ -132,6 +122,86 @@ describe('skill vet', () => {
 		const checks = report.skills[1].report.aspects[0].checks
 		expect(checks).toContainEqual(expect.objectContaining({ id: 'SEC-12', status: 'fail', severity: 'warning' }))
 		expect(checks).toContainEqual(expect.objectContaining({ id: 'SEC-3', status: 'not-checked' }))
+	})
+
+	it('blocks on a warning when no trusted entry covers the source, and says that is why', async () => {
+		const warned = goodSkillMd.replace('1. Read the merged pull requests.', '1. Run `sudo make install`.')
+		// The entry names the repository, not the path vetted, so it matches nothing: entries match exactly.
+		const code = await vet(['acme/skills/release-notes', '--trust', 'acme/skills'], {
+			fetchSource: fakeFetch({ 'release-notes/SKILL.md': warned }),
+		})
+		const report = JSON.parse(printed())
+		expect(code).toBe(1)
+		expect(report).toMatchObject({ verdict: 'blocked', blockedBy: 'untrusted-warning', trust: { trusted: false } })
+		expect(report.skills[0].report.critical).toBe(0)
+		expect(report.signals.publisher.trusted).toBe(false)
+	})
+
+	it('reads the trusted sources from the trust list reference, merged with --trust, naming where each came from', async () => {
+		const root = mkdtempSync(join(tmpdir(), 'vet-trust-'))
+		mkdirSync(join(root, '.git'))
+		mkdirSync(join(root, '.agents', 'references'), { recursive: true })
+		writeFileSync(
+			join(root, '.agents', 'references', 'skill-design.vet.trusted-sources.md'),
+			'---\nmerge: combine\n---\n\n## Trusted sources\n\n- `acme/*`: our own organization\n- vercel-labs/skills\n',
+		)
+		const warned = goodSkillMd.replace('1. Read the merged pull requests.', '1. Run `sudo make install`.')
+		const code = await vet(
+			['acme/skills/release-notes', '--trust', 'cyber-uni/*', '--trust', 'acme/*'],
+			{ fetchSource: fakeFetch({ 'release-notes/SKILL.md': warned }) },
+			root,
+		)
+		const report = JSON.parse(printed())
+		expect(code).toBe(0)
+		expect(report).toMatchObject({ verdict: 'not-blocked', trust: { trusted: true, by: 'acme/*' } })
+		expect(report.blockedBy).toBeUndefined()
+		const repoFile = expect.stringMatching(/^repo .*skill-design\.vet\.trusted-sources\.md$/)
+		const from = Object.fromEntries(
+			report.trust.list.map(({ label, from }: { label: string; from: string[] }) => [label, from]),
+		)
+		expect(from).toEqual({
+			'acme/*': [repoFile, '--trust'],
+			'vercel-labs/skills': [repoFile],
+			'cyber-uni/*': ['--trust'],
+		})
+		expect(report.signals.publisher.trusted).toBe(true)
+	})
+
+	it('still blocks a trusted source on a critical failure', async () => {
+		const code = await vet(['acme/skills', '--trust', 'acme/*'], {
+			fetchSource: fakeFetch({ 'release-notes/SKILL.md': hostile }),
+		})
+		const report = JSON.parse(printed())
+		expect(code).toBe(1)
+		expect(report).toMatchObject({ blockedBy: 'critical', trust: { trusted: true } })
+	})
+
+	it('vets a local folder by copying it, without its links or .git, and trusts it by its absolute path', async () => {
+		const local = mkdtempSync(join(tmpdir(), 'vet-local-'))
+		const warned = goodSkillMd.replace('1. Read the merged pull requests.', '1. Run `sudo make install`.')
+		mkdirSync(join(local, 'release-notes'))
+		writeFileSync(join(local, 'release-notes', 'SKILL.md'), warned)
+		mkdirSync(join(local, '.git'))
+		writeFileSync(join(local, '.git', 'config'), '[core]\n\tfsmonitor = touch /tmp/pwned\n')
+		symlinkSync('/etc', join(local, 'release-notes', 'outside'))
+		const blocked = await vet([local], {})
+		expect(blocked).toBe(1)
+		expect(JSON.parse(printed())).toMatchObject({
+			source: { url: local, local: true },
+			blockedBy: 'untrusted-warning',
+		})
+		stdout.mockClear()
+		const trusted = await vet([local, '--trust', local], {})
+		const report = JSON.parse(printed())
+		expect(trusted).toBe(0)
+		expect(report).toMatchObject({ verdict: 'not-blocked', trust: { trusted: true, by: local } })
+		expect(report.signals).toBeUndefined()
+		expect(report.skills.map(({ path }: { path: string }) => path)).toEqual(['release-notes'])
+	})
+
+	it('refuses --ref on a local folder', async () => {
+		expect(await vet(['./x', '--ref', 'main'], {})).toBe(2)
+		expect(errors()).toContain('bad-source')
 	})
 
 	it('shows a skills.sh install count only for an exact match, and otherwise says why there is none', async () => {

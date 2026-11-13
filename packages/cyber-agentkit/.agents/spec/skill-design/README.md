@@ -103,7 +103,7 @@ in the design-spec skill.
 | [fix](./fix/README.md) | UC4 | Fix |
 | [enhance](./enhance/README.md) | UC5, UC7 | Enhance and self-improvement |
 | [customize](./customize/README.md) | UC8, UC9, UC10 | Autonomy, Aspects and implementations |
-| [vet](./vet/README.md) | UC26 | Vet |
+| [vet](./vet/README.md) | UC26, UC27 | Vet, Trust |
 
 ## Use cases
 

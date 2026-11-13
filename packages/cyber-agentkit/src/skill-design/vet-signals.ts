@@ -33,7 +33,7 @@ export type PublisherSignal =
 			kind: 'user' | 'organization'
 			/** An organization GitHub shows as verified (it proved a domain); `false` for a user, which cannot be. */
 			verified: boolean
-			/** Whether `login` is on the trust list the command was given. */
+			/** Whether an entry on the trust list covers the source. */
 			trusted: boolean
 	  }
 	| Unavailable
@@ -139,7 +139,7 @@ const string = (value: unknown): string | undefined => (typeof value === 'string
  */
 export async function readSignals(
 	github: { owner: string; repo: string },
-	options: { path?: string | undefined; trusted: readonly string[]; get: GitHubGet; now: Date },
+	options: { path?: string | undefined; trusted: boolean; get: GitHubGet; now: Date },
 ): Promise<SupplyChainSignals> {
 	const { owner, repo } = github
 	const base = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`
@@ -170,7 +170,6 @@ export async function readSignals(
 	}
 	const login = string(info.owner?.login) ?? owner
 	const kind = info.owner?.type === 'Organization' ? 'organization' : 'user'
-	const trustedList = options.trusted.map((name) => name.toLowerCase())
 
 	const publisher = async (): Promise<PublisherSignal> => {
 		let verified = false
@@ -180,7 +179,7 @@ export async function readSignals(
 				return unavailable(org ? why(org.status, org.body) : 'could not reach GitHub for the organization')
 			verified = (org.body as { is_verified?: unknown })?.is_verified === true
 		}
-		return { available: true, login, kind, verified, trusted: trustedList.includes(login.toLowerCase()) }
+		return { available: true, login, kind, verified, trusted: options.trusted }
 	}
 
 	const maintenance = async (): Promise<MaintenanceSignal> => {

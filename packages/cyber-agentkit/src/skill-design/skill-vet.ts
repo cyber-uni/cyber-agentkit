@@ -12,6 +12,7 @@ import {
 	type SupplyChainSignals,
 } from './vet-signals.js'
 import { type FetchSource, findSkillFolders, inTemporaryFolder, type VetSource } from './vet-source.js'
+import { type TrustedSource, trustFor } from './vet-trust.js'
 
 /** One skill found in the source, with its Security report. */
 export type VettedSkill = {
@@ -25,12 +26,23 @@ export type VettedSkill = {
 }
 
 export type SkillVetReport = {
-	source: { url: string; repository?: string; ref?: string; path?: string; commit?: string }
+	source: { url: string; repository?: string; ref?: string; path?: string; local?: boolean; commit?: string }
 	/**
-	 * `blocked` when a Security check failed at `critical` in any skill; `not-blocked` otherwise. The `read` checks
-	 * are left for the agent, and a critical one it fails blocks the install too.
+	 * `blocked` when a Security check failed at `critical` in any skill, or at `warning` when the source is not
+	 * trusted; `not-blocked` otherwise. The `read` checks are left for the agent, and one it fails blocks the install
+	 * by the same rule.
 	 */
 	verdict: 'blocked' | 'not-blocked'
+	/** Set when `blocked`: `critical` when a critical check failed, else `untrusted-warning`. */
+	blockedBy?: 'critical' | 'untrusted-warning'
+	trust: {
+		/** Whether an entry on the trust list covers the source. */
+		trusted: boolean
+		/** The entry that covers it, as written in its short form. */
+		by?: string
+		/** Every trusted source, with where each entry came from. */
+		list: TrustedSource[]
+	}
 	skills: VettedSkill[]
 	/** Unset when the source is not on GitHub. */
 	signals?: SupplyChainSignals
@@ -43,7 +55,7 @@ export type VetOptions = {
 	runScript: (script: string, folder: string) => ScriptRun
 	github: GitHubGet
 	skillsSh: JsonGet
-	trusted: readonly string[]
+	trusted: readonly TrustedSource[]
 	now: Date
 }
 
@@ -69,6 +81,13 @@ function securityOnly(skillName: string, security: LoadedAspect, run: () => Scri
 		}
 	}
 	return mergeChecks(skillName, [entry])
+}
+
+function verdictOf(skills: readonly VettedSkill[], trusted: boolean): Pick<SkillVetReport, 'verdict' | 'blockedBy'> {
+	if (skills.some(({ report }) => report.critical > 0)) return { verdict: 'blocked', blockedBy: 'critical' }
+	if (!trusted && skills.some(({ report }) => report.failed > report.critical))
+		return { verdict: 'blocked', blockedBy: 'untrusted-warning' }
+	return { verdict: 'not-blocked' }
 }
 
 /**
@@ -101,7 +120,12 @@ export async function vetSkill(options: VetOptions): Promise<SkillVetReport | { 
 	if ('problem' in checked) return checked
 	const { github } = source
 	const signals = github
-		? await readSignals(github, { path: source.path, trusted: options.trusted, get: options.github, now: options.now })
+		? await readSignals(github, {
+				path: source.path,
+				trusted: trustFor(options.trusted, source) !== undefined,
+				get: options.github,
+				now: options.now,
+			})
 		: undefined
 	const skills = github
 		? await Promise.all(
@@ -115,15 +139,19 @@ export async function vetSkill(options: VetOptions): Promise<SkillVetReport | { 
 				})),
 			)
 		: checked.skills
+	const by = trustFor(options.trusted, source)
+	const trusted = by !== undefined
 	return {
 		source: {
 			url: source.url,
 			...(source.github ? { repository: `${source.github.owner}/${source.github.repo}` } : {}),
 			...(source.ref ? { ref: source.ref } : {}),
 			...(source.path ? { path: source.path } : {}),
+			...(source.local ? { local: true } : {}),
 			...(checked.commit ? { commit: checked.commit } : {}),
 		},
-		verdict: skills.some(({ report }) => report.critical > 0) ? 'blocked' : 'not-blocked',
+		...verdictOf(skills, trusted),
+		trust: { trusted, ...(by ? { by: by.label } : {}), list: [...options.trusted] },
 		skills,
 		...(signals ? { signals } : {}),
 	}
