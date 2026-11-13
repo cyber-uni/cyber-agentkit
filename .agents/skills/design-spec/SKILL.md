@@ -55,8 +55,8 @@ section is derived from the ones before it, so a wrong outcome or a missed actor
 each section:
 
 1. Draft it. In a backfill the code supplies the draft, and it still goes through these steps: code shows what the
-   capability does, not what it should do. Decided behavior the code lacks is still written as a criterion; the gap
-   goes to the tracker.
+   capability does, not what it should do. Decided behavior the code lacks is still written as a criterion. Offer to
+   file the gap in the project tracker, and file it only when the user agrees.
 2. Judge the draft against the criteria that apply to it: C1 on the outcome, C2 on the non-goals, C3 on the actors and
    use cases, C4 to C6 on the criteria, C8 on the open questions.
 3. Show the user that section and the questions it raises, and nothing beyond it.
