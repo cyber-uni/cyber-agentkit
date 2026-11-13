@@ -5,6 +5,11 @@ implements: skill-design.aspects.criteria@1
 check-script: ../skills/skill/scripts/check-criteria.mjs
 ---
 
+Every skill needs a `## Done when` section, including a skill that only another skill loads: the agent, or the skill
+that loads it, has to know when the job is done, and the Criteria checks have nothing to check without it. CRI-1
+applies to every skill, takes no configured heading, and is critical. A repository adopting `/skill check` adds the
+section to each of its skills.
+
 ## Draft
 
 1. From the Intent, list what must be true of the result when the job is done well. Ask what a reviewer of the result
@@ -20,7 +25,7 @@ check-script: ../skills/skill/scripts/check-criteria.mjs
 
 ## Criteria
 
-- **CRI-1** [script] `SKILL.md` has a `## Done when` section with at least one item.
+- **CRI-1** [script] `SKILL.md` has a `## Done when` section with at least one item. This holds for every skill.
 - **CRI-2** [script] Each item starts with an ID `C<n>`, and no ID appears twice.
 - **CRI-3** [read, warning] Each item is true or false of the result, not a goal or a quality ("clear", "good", "well").
 - **CRI-4** [read, warning] Each item can be decided from the result and the case's inputs alone.

@@ -9,10 +9,17 @@ describe('checkCriteria', () => {
 
 	it('fails CRI-1 with no Done when section, or an empty one, and leaves CRI-2 not checked', () => {
 		const none = byId(checkCriteria(makeSkill({ 'SKILL.md': goodSkillMd.replace(/## Done when[\s\S]*/, '') })))
-		expect(none['CRI-1']).toMatchObject({ status: 'fail', message: expect.stringContaining('no `## Done when`') })
+		expect(none['CRI-1']).toMatchObject({
+			status: 'fail',
+			message: expect.stringContaining('no `## Done when` section, and every skill needs one'),
+		})
+		expect(none['CRI-1']?.message).toContain('`- **C1.** <a statement true or false of the result>`')
 		expect(none['CRI-2']).toMatchObject({ status: 'not-checked' })
 		const empty = byId(checkCriteria(makeSkill({ 'SKILL.md': goodSkillMd.replace(/- \*\*C[\s\S]*/, '') })))
-		expect(empty['CRI-1']).toMatchObject({ status: 'fail', message: expect.stringContaining('lists no item') })
+		expect(empty['CRI-1']).toMatchObject({
+			status: 'fail',
+			message: expect.stringContaining('lists no item; add at least one item as `- **C1.**'),
+		})
 	})
 
 	it('fails CRI-2 for an item without an ID and for a repeated ID', () => {
