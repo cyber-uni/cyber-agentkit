@@ -132,6 +132,6 @@ describe('bare invocation', () => {
 		const out = stdout.mock.calls.map(([chunk]) => String(chunk)).join('')
 		expect(out).toContain('bin: cyber-agentkit')
 		expect(out).toContain('harness:')
-		expect(out).toContain('commands[4]: reference,asset,prose-update,skill')
+		expect(out).toContain('commands[5]: reference,asset,prose-update,skill,instruction')
 	})
 })

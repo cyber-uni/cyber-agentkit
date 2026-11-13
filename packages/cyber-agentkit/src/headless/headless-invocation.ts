@@ -89,6 +89,11 @@ export interface HeadlessIsolation {
 	}
 	/** The folder a project's skills load from, relative to the working directory: `<folder>/<skill>/SKILL.md`. */
 	readonly projectSkills: string
+	/**
+	 * The project instruction file the harness loads into every session, relative to the working directory, such as
+	 * `CLAUDE.md` or `AGENTS.md`: where a run puts an instruction it is measured with.
+	 */
+	readonly projectInstructions: string
 	/** The flag that loads a plugin from a local folder for one run, when the harness has one. */
 	readonly pluginFlag?: string
 	readonly login: HeadlessLogin
@@ -205,6 +210,8 @@ export function headlessInvocation(harness: HarnessId): HeadlessInvocation {
 				isolation: {
 					configDir: { env: 'CLAUDE_CONFIG_DIR', default: '~/.claude' },
 					projectSkills: '.claude/skills',
+					// The project instruction file Claude Code loads (E-CC-I1).
+					projectInstructions: 'CLAUDE.md',
 					pluginFlag: '--plugin-dir',
 					// The credentials folder is set apart from the config folder by an undocumented variable (E-CC-D11).
 					// On macOS the same variable names the keychain entry instead (E-CC-D13). `auth status` answers
@@ -238,7 +245,17 @@ export function headlessInvocation(harness: HarnessId): HeadlessInvocation {
 						},
 						research: ['E-CC-D15'],
 					},
-					research: ['E-CC-D7', 'E-CC-D11', 'E-CC-D12', 'E-CC-D13', 'E-CC-D14', 'E-CC-D16', 'E-CC-L1', 'E-CC-H7'],
+					research: [
+						'E-CC-D7',
+						'E-CC-D11',
+						'E-CC-D12',
+						'E-CC-D13',
+						'E-CC-D14',
+						'E-CC-D16',
+						'E-CC-L1',
+						'E-CC-H7',
+						'E-CC-I1',
+					],
 				},
 				research: ['E-CC-H1', 'E-CC-H2', 'E-CC-H3', 'E-CC-H4', 'E-CC-H5', 'E-CC-H6'],
 			}
@@ -274,6 +291,8 @@ export function headlessInvocation(harness: HarnessId): HeadlessInvocation {
 				isolation: {
 					configDir: { env: 'CODEX_HOME', default: '~/.codex' },
 					projectSkills: '.agents/skills',
+					// Codex reads AGENTS.md from the project root down to the working folder (E-CODEX-I1).
+					projectInstructions: 'AGENTS.md',
 					// The login lives in CODEX_HOME, and --ignore-user-config keeps it there (E-CODEX-H6).
 					login: {
 						store: 'config-dir',
@@ -281,7 +300,7 @@ export function headlessInvocation(harness: HarnessId): HeadlessInvocation {
 						passEnv: ['OPENAI_API_KEY', 'CODEX_API_KEY'],
 					},
 					leaks: 'the global AGENTS.md in the Codex config folder (`$CODEX_HOME/AGENTS.md`)',
-					research: ['E-CODEX-D8', 'E-CODEX-L1', 'E-CODEX-H6', 'E-CODEX-H7'],
+					research: ['E-CODEX-D8', 'E-CODEX-L1', 'E-CODEX-H6', 'E-CODEX-H7', 'E-CODEX-I1'],
 				},
 				research: ['E-CODEX-H1', 'E-CODEX-H2', 'E-CODEX-H3', 'E-CODEX-H4', 'E-CODEX-H5'],
 			}

@@ -53,6 +53,7 @@ describe('headlessInvocation', () => {
 		expect(mode.supported === true && mode.isolation).toMatchObject({
 			configDir: { env: 'CLAUDE_CONFIG_DIR', default: '~/.claude' },
 			projectSkills: '.claude/skills',
+			projectInstructions: 'CLAUDE.md',
 			pluginFlag: '--plugin-dir',
 			login: {
 				store: 'separate',
@@ -69,6 +70,7 @@ describe('headlessInvocation', () => {
 		expect(mode.supported === true && mode.isolation).toMatchObject({
 			configDir: { env: 'CODEX_HOME', default: '~/.codex' },
 			projectSkills: '.agents/skills',
+			projectInstructions: 'AGENTS.md',
 			login: { store: 'config-dir', args: ['--ignore-user-config', '--ignore-rules'] },
 		})
 		expect(mode.supported === true && mode.isolation?.pluginFlag).toBeUndefined()

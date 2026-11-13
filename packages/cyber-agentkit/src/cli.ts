@@ -5,6 +5,7 @@ import { cli, exitCodes } from 'clibuilder'
 import { homeHeader, result } from 'clibuilder/axi'
 import { createAssetCommand } from './assets/asset.command.js'
 import { detectHarness } from './detection/detect-harness.js'
+import { createInstructionCommand } from './instruction-design/instruction.command.js'
 import { createProseUpdateCommand } from './prose-update/prose-update.command.js'
 import { createReferenceCommand } from './references/reference.command.js'
 import { createSkillCommand } from './skill-design/skill.command.js'
@@ -47,7 +48,7 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 						...homeHeader({ description: 'Work with the AI agent harness running here', bin: 'cyber-agentkit' }),
 						harness,
 						...(candidates.length > 1 ? { candidates } : {}),
-						commands: ['reference', 'asset', 'prose-update', 'skill'],
+						commands: ['reference', 'asset', 'prose-update', 'skill', 'instruction'],
 					},
 					{
 						help: [
@@ -62,6 +63,7 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 		.command(createAssetCommand({ plugin: { name, root } }))
 		.command(createProseUpdateCommand())
 		.command(createSkillCommand({ plugin: { name, root } }))
+		.command(createInstructionCommand({ plugin: { name, root } }))
 }
 
 /**
@@ -72,7 +74,9 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 function defaultFormat(argv: string[]): 'toon' | 'text' {
 	const args = argv.slice(2)
 	if (args.some((arg) => arg === '--format' || arg.startsWith('--format='))) return 'toon'
-	const subcommand = ['reference', 'asset', 'prose-update', 'skill'].includes(args[0] ?? '') ? args[1] : undefined
+	const subcommand = ['reference', 'asset', 'prose-update', 'skill', 'instruction'].includes(args[0] ?? '')
+		? args[1]
+		: undefined
 	return ['show', 'load', 'create', 'customize', 'update', 'select', 'delete', 'retire'].includes(subcommand ?? '')
 		? 'text'
 		: 'toon'

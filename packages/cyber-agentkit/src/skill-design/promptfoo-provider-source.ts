@@ -296,7 +296,7 @@ export default class SkillRun {
   constructor(options) { this.options = options; this.config = options.config }
   id() { return this.options.id || 'skill-run' }
   async callApi(prompt, context) {
-    const { arm, skillDir, skillName, pluginDir, pluginName, inner, timeout = 300, harness = 'claude-code', isolation, command } = this.config
+    const { arm, skillDir, skillName, pluginDir, pluginName, instruction, inner, timeout = 300, harness = 'claude-code', isolation, command } = this.config
     // A skill loaded from a plugin is called <plugin>:<skill> (research E21).
     const names = pluginName ? [skillName, pluginName + ':' + skillName] : [skillName]
     const vars = context.vars
@@ -315,6 +315,13 @@ export default class SkillRun {
     const plugin = pluginDir ? fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-plugin-'))) : undefined
     try {
       if (vars.files) fs.cpSync(vars.files, dir, { recursive: true })
+      // An instruction under measure goes in the project instruction file the harness loads, committed with the case files
+      // as a checked-in AGENTS.md is; it follows what the case's own file already says.
+      if (typeof instruction === 'string') {
+        const file = path.join(dir, isolation.projectInstructions)
+        const before = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').replace(/\s*$/, '\n\n') : ''
+        fs.writeFileSync(file, before + instruction)
+      }
       const commit = (cwd, message) => {
         const git = (args) => execFileSync('git', args, { cwd, stdio: 'pipe' })
         git(['init', '-q'])

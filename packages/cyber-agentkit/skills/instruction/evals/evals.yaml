@@ -1,0 +1,52 @@
+runs: 3
+threshold: 2
+trigger:
+  - { prompt: "Which wording of the Commit Discipline section in AGENTS.md works better, the current one or drafts/commit-discipline.md?", expect: fire }
+  - { prompt: "A/B test my AGENTS.md Delegation section against this new version.", expect: fire }
+  - { prompt: "Measure this CLAUDE.md rule against the one we have now, by running both.", expect: fire }
+  - { prompt: "Run the evals for the release-notes skill.", expect: skip }
+  - { prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
+  - { prompt: "Add the vetted Delegation section to my AGENTS.md.", expect: skip }
+  - { prompt: "Is my release-notes skill any good?", expect: skip }
+# files/repo holds AGENTS.md with a Commit Discipline section and a new wording in drafts/; files/repo-cases adds the
+# approved cases file for it. A full comparison makes nested model calls a run cannot contain, so it is not run here;
+# the command's own tests cover the report (C4) and where it is saved (C5).
+outcome:
+  - id: missing-section
+    prompt: Compare AGENTS.md#Delegation with drafts/commit-discipline.md using /instruction.
+    files: files/repo
+    criteria: [C1]
+    checks:
+      C1:
+        - regex: "Delegation[^\\n]{0,80}\\b(no|not|missing|doesn't|does not|isn't)\\b|\\b(no|not|missing)\\b[^\\n]{0,80}Delegation"
+        - script: test ! -e .agents/instruction-design/results && test -z "$(git status --porcelain)"
+  - id: no-cases
+    prompt: Compare AGENTS.md#Commit Discipline with drafts/commit-discipline.md using /instruction.
+    files: files/repo
+    criteria: [C2]
+    checks:
+      C2:
+        - regex: "\\bC1\\b"
+        - regex: "[Aa]pprov|[Ss]hould I|[Ss]hall I|[Ww]ant me to|[Oo][Kk] to|[Gg]o ahead|[Cc]onfirm"
+        - script: test ! -e .agents/instruction-design && test -z "$(git status --porcelain)"
+  - id: plan-count
+    prompt: >-
+      Compare AGENTS.md#Commit Discipline with drafts/commit-discipline.md using /instruction. Only tell me how many runs
+      it would make; don't start it.
+    files: files/repo-cases
+    criteria: [C3]
+    checks:
+      C3:
+        - regex: "\\b6\\b[^\\n]{0,40}runs|runs[^\\n]{0,20}\\b6\\b"
+        - script: test ! -e .agents/instruction-design/results
+  - id: full-compare
+    prompt: Compare AGENTS.md#Commit Discipline with drafts/commit-discipline.md using /instruction. Start it.
+    files: files/repo-cases
+    effects: outside
+    criteria: [C4, C5]
+    checks:
+      C4:
+        - regex: "C1[^\\n]*A[^\\n]*\\d+ ?(%|of)[^\\n]*B[^\\n]*\\d+ ?(%|of)"
+        - regex: "[Ww]inner|[Ww]ins|\\btie\\b"
+      C5:
+        - script: test -e .agents/instruction-design/results/commit-discipline/latest.json && test -z "$(git status --porcelain)"

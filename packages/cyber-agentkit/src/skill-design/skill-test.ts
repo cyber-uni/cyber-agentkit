@@ -164,7 +164,7 @@ export async function runTest(
  * logged in (its reason starts with `login: `), or Claude Code's sandbox could not start, so no command could be
  * contained (R107, R108).
  */
-function setupProblem(output: unknown): { problem: string; code: 'login' | 'sandbox' } | undefined {
+export function setupProblem(output: unknown): { problem: string; code: 'login' | 'sandbox' } | undefined {
 	const rows = ((output as { results?: { results?: { response?: { error?: string } }[] } })?.results?.results ??
 		[]) as { response?: { error?: string } }[]
 	const errors = rows.map((row) => row.response?.error).filter((error): error is string => !!error)
@@ -192,7 +192,7 @@ export function expectedPath(skillFolder: string): string {
 }
 
 /** The file name a result saved at `at` is kept under once a newer one replaces it. */
-function stem(at: string): string {
+export function stem(at: string): string {
 	return at.replace(/[:]/g, '-')
 }
 
@@ -233,7 +233,7 @@ export function saveResult(folder: string, result: TestResult, skillFolder: stri
 export const keptPastResults = 5
 
 /** Deletes all but the most recent past results of one skill, and the replies of every result it no longer keeps. */
-function pruneHistory(folder: string): void {
+export function pruneHistory(folder: string): void {
 	const names = readdirSync(folder)
 	const past = names
 		.filter((name) => name.endsWith('.json') && !name.endsWith('.replies.json') && name !== 'latest.json')
