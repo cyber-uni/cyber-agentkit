@@ -1,3 +1,6 @@
+import { cpSync, mkdirSync, mkdtempSync, realpathSync, symlinkSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { run } from '../cli.js'
 import { goodSkill, goodSkillMd, makeSkill } from './skill-design.fixtures.js'
@@ -137,5 +140,67 @@ describe('skill check', () => {
 		expect(code).toBe(1)
 		expect(printed()).toBe('')
 		expect(stderr.mock.calls.join('')).toContain('skill-missing: no SKILL.md in /nonexistent/skill')
+	})
+})
+
+describe('skill check across a repository', () => {
+	const repo = (skills: Record<string, string>) => {
+		const root = realpathSync(mkdtempSync(join(tmpdir(), 'skill-check-repo-')))
+		mkdirSync(join(root, '.git'))
+		for (const [folder, md] of Object.entries(skills)) {
+			const good = goodSkill({ 'SKILL.md': md })
+			cpSync(good.folder, join(root, folder), { recursive: true })
+		}
+		return root
+	}
+	const checkAll = (root: string, ...rest: string[]) =>
+		run(['node', 'cyber-agentkit', 'skill', 'check', '--root', root, '--format', 'json', ...rest])
+
+	it('checks every skill under skills and .agents/skills by default, with one summary', async () => {
+		const root = repo({ 'skills/release-notes': goodSkillMd, '.agents/skills/release-notes': goodSkillMd })
+		const code = await checkAll(root)
+		const report = JSON.parse(printed())
+		expect(code).toBe(0)
+		expect(report).toMatchObject({ skills: 2, skillsFailed: 0, failed: 0 })
+		const skipped = report.reports.map((item: { skipped: number }) => item.skipped)
+		expect(skipped.every((count: number) => count > 0)).toBe(true)
+		expect(report.skipped).toBe(skipped[0] + skipped[1])
+		expect(report.reports.map((item: { folder: string }) => item.folder)).toEqual([
+			'skills/release-notes',
+			'.agents/skills/release-notes',
+		])
+	})
+
+	it('scans the --dir globs instead, checking a skill reached through a symlink once', async () => {
+		const root = repo({ 'plugins/a/skills/release-notes': goodSkillMd })
+		mkdirSync(join(root, 'linked'))
+		symlinkSync(join(root, 'plugins/a/skills/release-notes'), join(root, 'linked/release-notes'))
+		await checkAll(root, '--dir', 'plugins/*/skills', '--dir', 'linked')
+		expect(JSON.parse(printed())).toMatchObject({ skills: 1, dirs: ['plugins/*/skills', 'linked'] })
+	})
+
+	it('exits 1 when any skill fails a critical check, and on a warning only with --fail-on any', async () => {
+		const wrong = goodSkillMd.replace('name: release-notes', 'name: Wrong')
+		expect(await checkAll(repo({ 'skills/release-notes': goodSkillMd, 'skills/other': wrong }))).toBe(1)
+		expect(JSON.parse(printed())).toMatchObject({ skills: 2, skillsFailed: 1 })
+		const warned = repo({ 'skills/release-notes': longBody(goodSkillMd) })
+		expect(await checkAll(warned)).toBe(0)
+		expect(await checkAll(warned, '--fail-on', 'any')).toBe(1)
+	})
+
+	it('ends the text report with the summary', async () => {
+		const root = repo({ 'skills/release-notes': goodSkillMd })
+		await run(['node', 'cyber-agentkit', 'skill', 'check', '--root', root, '--format', 'text'])
+		expect(printed()).toContain('release-notes (skills/release-notes): not-checked')
+		expect(printed()).toMatch(
+			/1 skills: not-checked \(0 failed; \d+ checks passed, 0 failed of which 0 critical, \d+ not checked, \d+ skipped\)/,
+		)
+	})
+
+	it('fails when no skill is found, and refuses a folder with --dir', async () => {
+		expect(await checkAll(repo({}), '--dir', 'nothing')).toBe(1)
+		expect(stderr.mock.calls.join('')).toContain('no-skills: no skill under nothing')
+		expect(await check(goodSkill().folder, '--dir', 'skills')).toBe(2)
+		expect(stderr.mock.calls.join('')).toContain('folder-and-dir')
 	})
 })

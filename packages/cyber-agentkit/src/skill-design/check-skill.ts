@@ -86,6 +86,6 @@ export function mergeChecks(skill: string, aspects: AspectToCheck[]): SkillCheck
 }
 
 /** Whether the report breaks the policy, so `skill check` exits non-zero. */
-export function failsPolicy(report: SkillCheckReport, failOn: FailOn): boolean {
+export function failsPolicy(report: Pick<SkillCheckReport, 'critical' | 'failed'>, failOn: FailOn): boolean {
 	return (failOn === 'critical' ? report.critical : report.failed) > 0
 }
