@@ -1,6 +1,7 @@
 ---
 name: skill
 description: Create, check, test, fix, enhance, customize, or vet an agent skill (a SKILL.md and its folder), as in "write a skill for X", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", "improve this skill", or "is this skill from GitHub safe to install".
+argument-hint: "help | create [description] | check [skill] | test [skill] | fix [skill] | enhance [skill] [prompt] | vet <source> | customize [aspect]"
 ---
 
 # Skill
@@ -134,9 +135,9 @@ stays user-invocable but turns model invocation off (in Claude Code, `disable-mo
 **Name-only skill.** A skill that another skill loads by name, and that no user request should match, is name-only. Its
 description declares it: exactly `By name only`, or `Partial Skill: ` followed by text. The description is the only text
 the model matches against, so for a name-only skill write exactly `By name only`, and put what the skill is, who calls
-it, and what it returns in the body and `README.md`. Its near misses still go to Verification as `skip` cases. TRG-1 and
-TRG-4 and TRG-7 do not apply to a name-only skill, and TRG-5 and TRG-6 apply only to one: report a check that does not
-apply as skipped.
+it, and what it returns in the body and `README.md`. Its near misses still go to Verification as `skip` cases. TRG-1,
+TRG-4, TRG-7, and TRG-9 do not apply to a name-only skill, and TRG-5 and TRG-6 apply only to one: report a check that
+does not apply as skipped.
 
 - **TRG-1** [read] The description says when to use the skill, in words a user would type, with no lead-in or filler
   words, unless the skill is user-only.
@@ -149,10 +150,13 @@ apply as skipped.
 - **TRG-7** [script, warning] The description is at least 12 words, and uses no phrase that fits any skill, such as
   "helps with" or "various tasks".
 - **TRG-8** [read, warning] It matches the body: each command, file, or skill it names exists and does what it says.
+- **TRG-9** [script, warning] A skill whose body documents the arguments it takes (a command table whose commands take
+  arguments, an `Arguments:` line or heading, or `$ARGUMENTS`) declares an `argument-hint` in its front matter.
 
 **Fix.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result. For TRG-5 and
 TRG-6, set the description to exactly `By name only` and move what it said to the body or `README.md`. For TRG-7, name
-the job and the words users type for it. For TRG-8, change whichever of the description and the body is out of date.
+the job and the words users type for it. For TRG-8, change whichever of the description and the body is out of date. For
+TRG-9, add an `argument-hint` that lists what the user types, such as `"<command> [skill]"`.
 
 ## Run the command
 

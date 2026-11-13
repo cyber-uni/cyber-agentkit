@@ -1,6 +1,7 @@
 import { isNameOnly, nameOnlyFormProblem } from './name-only-skills.js'
 import type { CheckOutcome } from './skill-check-types.js'
 import type { SkillFiles } from './skill-files.js'
+import { withoutFences } from './skill-text.js'
 
 /** The fewest words a description can have and still name a job and how users ask for it. */
 export const minDescriptionWords = 12
@@ -32,16 +33,46 @@ function checkSpecific(skill: SkillFiles): CheckOutcome {
 		: { id: 'TRG-7', status: 'pass' }
 }
 
+/** The ways a body documents the arguments a skill takes, each with how a failure names it. */
+const argumentSignals: [RegExp, string][] = [
+	[/^\|\s*`[^`|]*\S\s+[[<][^`|]*`\s*\|/m, 'a command table whose commands take arguments'],
+	[/^[ \t]*(?:[-*][ \t]+)?(?:\*\*|__)?Arguments?:/im, 'an `Arguments:` line'],
+	[/^#{1,6}[ \t]+Arguments?[ \t]*$/im, 'an `Arguments` heading'],
+	[/\$ARGUMENTS\b/, '`$ARGUMENTS`'],
+]
+
+/** TRG-9: a matched skill whose body documents arguments declares an `argument-hint` in its front matter. */
+function checkArgumentHint(skill: SkillFiles): CheckOutcome {
+	const hint = skill.frontmatter?.['argument-hint']
+	if (typeof hint === 'string' && hint.trim()) return { id: 'TRG-9', status: 'pass' }
+	const body = withoutFences(skill.body)
+	const found = argumentSignals.filter(([pattern]) => pattern.test(body)).map(([, name]) => name)
+	return found.length
+		? {
+				id: 'TRG-9',
+				status: 'fail',
+				message: `the body documents arguments (${found.join(', ')}) and the front matter has no \`argument-hint\``,
+				file: 'SKILL.md',
+			}
+		: { id: 'TRG-9', status: 'pass' }
+}
+
 /**
  * The Trigger aspect's script checks: TRG-5, a name-only skill's description takes the allowed form, and TRG-7,
- * a matched skill's description is specific. Each is skipped on the other kind of skill.
+ * a matched skill's description is specific, and TRG-9, a matched skill that takes arguments declares an
+ * `argument-hint`. Each is skipped on the other kind of skill.
  */
 export function checkTrigger(skill: SkillFiles): CheckOutcome[] {
 	if (!isNameOnly(skill))
-		return [{ id: 'TRG-5', status: 'skipped', message: 'the skill is not name-only' }, checkSpecific(skill)]
+		return [
+			{ id: 'TRG-5', status: 'skipped', message: 'the skill is not name-only' },
+			checkSpecific(skill),
+			checkArgumentHint(skill),
+		]
 	const problem = nameOnlyFormProblem(skill)
 	return [
 		problem ? { id: 'TRG-5', status: 'fail', message: problem, file: 'SKILL.md' } : { id: 'TRG-5', status: 'pass' },
 		{ id: 'TRG-7', status: 'skipped', message: 'the skill is name-only' },
+		{ id: 'TRG-9', status: 'skipped', message: 'the skill is name-only' },
 	]
 }
