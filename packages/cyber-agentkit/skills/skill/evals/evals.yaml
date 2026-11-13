@@ -7,11 +7,17 @@ trigger:
   - { prompt: "Run the evals for the release-notes skill.", expect: fire }
   - { prompt: "Which implementation does each skill-design aspect use? I may switch some.", expect: fire }
   - { prompt: "Is the skill in github.com/acme/skills safe to install? Vet it first.", expect: fire }
+  # The work itself changes a skill, though the request does not ask about skills (#205).
+  - { prompt: "Implement issue #42: the description in .agents/skills/release-notes/SKILL.md should also fire on 'changelog'. Open a PR when done.", expect: fire }
+  - { prompt: "Work on issue #57: add a references/labels.md to the release-notes skill folder that lists how to group notes by label, and link it from its steps.", expect: fire }
   - { prompt: "Turn what we just did into a skill.", expect: skip }
   - { prompt: "Load our style reference and tell me what it says about tone.", expect: skip }
   - { prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
   - { prompt: "Review my diff before I push.", expect: skip }
   - { prompt: "Install the release-notes plugin from our marketplace.", expect: skip }
+  # Near misses for #205: code that only reads skills, not a change to one.
+  - { prompt: "Fix the bug in src/skill/parse.ts where front matter with a CRLF line ending is not read from a SKILL.md.", expect: skip }
+  - { prompt: "Add a unit test for the function that lists the skills a plugin ships.", expect: skip }
 # files/samples holds two sample skills (R79): release-notes passes every check; release-notes-flawed passes every
 # script check but fails TRG-3 (its description says how it works), CRI-3 ("The notes are clear"), and SHP-3 (its
 # grouping step is prose a script could do).
@@ -68,6 +74,13 @@ outcome:
       wrote.
     files: files/samples
     criteria: [C11]
+  # Other work adds a skill (#205): the work is the approval, so the skill is written without asking about each aspect.
+  - id: work-adds-skill
+    prompt: >-
+      Implement issue #61: add a changelog-entry skill in .agents/skills that drafts a changelog entry for each merged
+      pull request. Report what you did when done.
+    files: files/samples
+    criteria: [C12]
   - id: fix-flawed
     prompt: >-
       Check the skill in .agents/skills/release-notes-flawed, then fix what the check finds. I approve every change;
@@ -141,3 +154,7 @@ rubrics:
     - script: "ls .agents/skills/*/SKILL.md | grep -qv release-notes"
     - regex: "Check:\\W{0,4}(pass|fail)"
     - script: "test ! -e .agents/skill-design/results"
+  # create writes the skill's evals; without the skill the work writes a SKILL.md alone.
+  C12:
+    - script: "test -f .agents/skills/changelog-entry/SKILL.md && test -f .agents/skills/changelog-entry/evals/evals.yaml"
+    - regex: "\\bcheck\\b"
