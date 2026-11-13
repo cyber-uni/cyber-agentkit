@@ -41,7 +41,7 @@ node <this skill's folder>/scripts/asset.mjs <mode> [<path>] --skill <skill fold
 
 `load`, `names`, and `where` read only. `create --copy` never copies from the managed tier: it is policy, a copy would leak it into the repository or home folder and read as in effect when the managed file still wins. If asked, refuse and offer `load` to read it.
 
-Ask the user before `create`, `update`, `delete`, or `select`, and name the file.
+Ask the user before `create`, `update`, `delete`, or `select`, name the file, and wait for a yes. A request to make the change is not that yes, unless it says it approves.
 
 To make a skill use a different file, place one of the same name in a higher tier: `.agents/assets/<name>.<ext>` for the project, `~/.agents/assets/<name>.<ext>` for the user. When two plugins hold a name and no tier does, `load` reports it ambiguous and lists the options: run `select <name> <option>` (a plugin name, or `default` for the skill's own file; `--scope user` for yourself, `--clear` to undo), ask for `<plugin>/<name>`, or place the file in a tier. `where <name>` shows the folders. `create` never overwrites and `update` needs the file to exist.
 
