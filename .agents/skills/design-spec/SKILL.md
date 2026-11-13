@@ -1,6 +1,6 @@
 ---
 name: design-spec
-description: Use this skill when writing, revising, or reviewing a design spec, the document that states what a capability must do (intent, use cases, and criteria on the outcome) before or alongside its code. Also use it for requests like "spec this feature", "write the spec for X", "is this spec good", or "review the spec", and before deriving tests from a spec.
+description: Write, revise, or review a design spec, the document that states what a capability must do (intent, use cases, and criteria on the outcome) before or alongside its code, as in "spec this feature", "write the spec for X", "is this spec good", or "review the spec". Also before deriving tests from a spec.
 ---
 
 # Design spec
