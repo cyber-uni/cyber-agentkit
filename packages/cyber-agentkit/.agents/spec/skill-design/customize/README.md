@@ -45,8 +45,9 @@ contract apply here; IDs are shared across the parent and its children. Retired 
 - **Entry points:** skill (primary): `/skill customize`, which hands the levels to the `reference` skill's Customize
   mode on `skill-design.autonomy`.
 - **Inputs:** a level (K7) per command; the tier.
-- **Success:** each command acts at its level. With no setting, `create` and `enhance` are `ask`, `fix` is
-  `apply-safe`, and `check` and `test` change nothing at any level. To customize the `skill-design` references,
+- **Success:** each command acts at its level. With no setting, each run derives its level from the situation and
+  states it with the reason: with an author present, `create` is `apply`, `fix` is `apply-safe`, and `enhance` is `ask`; with
+  none, as in a dispatched session, the command does the work and reports each decision. `check` and `test` `check` and `test` change nothing at any level. To customize the `skill-design` references,
   the author picks them from one list instead of being asked about each in turn. The setting lives outside the `aspects` segment, so the aspect wildcard
   never matches it.
 - **Extensions:**
@@ -57,15 +58,22 @@ contract apply here; IDs are shared across the parent and its children. Retired 
 
 **Autonomy (UC10)**
 
-- R90 (UC10): With no setting, `create` and `enhance` are `ask`, and `fix` is `apply-safe`. `skillify` has no level of
-  its own: the `create` it runs acts at `create`'s level.
+- R90 (UC10): With no setting and an author present, `create` is `apply`, `fix` is `apply-safe`, and `enhance` is
+  `ask`.
+  `skillify` has no level of its own: the `create` it runs acts at `create`'s level.
+- R150 (UC10): Each `create`, `fix`, and `enhance` run states its level, whether the author, the reference, or the
+  situation set it, and why, before its first change. With no author present and no level set, it takes `apply`
+  (`apply-safe` on a skill from an installed plugin), finishes without asking, and reports each decision it made and
+  whether `check` and `test` showed it safe.
 - R62 (UC10): At `apply-safe`, a command applies only the changes after which `check` and `test` pass with no
   criterion worse, and asks about the rest; with no author present, it reports the rest. At `apply`, it applies every
   change except those R74 keeps for the author, and reports each one.
-- R74 (UC2, UC4.3, UC10): A decision only the author can make (R13, R41) is asked at every level, whatever else
-  the level applies on its own. With no author present, it is reported as not applied.
+- R74 (UC2, UC4.3, UC10): A decision only the author can make (R13, R41, or removing or weakening a criterion) stops
+  the run at every level, whatever else the level applies on its own. With no author present, nothing that depends on
+  it is applied, and the run reports the work done so far and the decision.
 - R63 (UC10.1): A level set for `check` or `test` has no effect, and `/skill` says so.
-- R64 (UC10.2): A level that names no known value leaves that command at its default, and `/skill` says so.
+- R64 (UC10.2): A level that names no known value leaves that command to derive its level, and `/skill` says so.
+- R151 (UC10): The `skill` test cases cover a run with an author present and a run with none.
 - R65 (UC10): The level is read from the reference `skill-design.autonomy`, which the wildcard
   `skill-design.aspects.*` does not match.
 - R66 (UC8, UC9, UC10): `/skill customize` lists the `skill-design` references, and the author picks which to

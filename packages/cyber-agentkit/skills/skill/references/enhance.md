@@ -5,8 +5,10 @@ Suggest what would make a skill that passes `check` better, one suggestion at a 
 ## 1. Start
 
 1. Find the skill as [check](check.md) does. If the prompt names evidence that cannot be read, stop and name it.
-2. Run `check`. When it fails, point to `fix`, and go on only if the author says so; with no author present, stop.
-3. When the prompt asks for a different job from the skill's Intent, say so, point to `create`, and change nothing.
+2. Settle the autonomy level as `SKILL.md`'s Autonomy says.
+3. Run `check`. When it fails, point to `fix`, and go on only if the author says so; with no author present, run `fix`
+   at the same level first, and stop when `check` still fails.
+4. When the prompt asks for a different job from the skill's Intent, say so, point to `create`, and change nothing.
 
 ## 2. Gather evidence
 
@@ -29,17 +31,21 @@ the skill already has, and any the author declined before for this skill.
 
 ## 4. Apply
 
-At `ask` (the default), offer each suggestion on its own; the answer to one decides nothing about the others. Write only
-accepted ones. With no author present, apply a suggestion only when the level allows it and `test` shows no criterion
-worse than the skill's expected result, or, with none, the last saved result; when `test` cannot run, apply nothing. Never edit a skill from an installed plugin from
-evidence of use: leave the suggestion for the author to send upstream.
+At `ask`, offer each suggestion on its own; the answer to one decides nothing about the others. Write only accepted
+ones. With no author present, at `apply-safe` apply a suggestion only when `test` shows no criterion worse than the
+skill's expected result, or, with none, the last saved result; when `test` cannot run, apply nothing. At `apply`, apply
+each suggestion that `check` passes after, run `test`, and undo any that leaves a criterion worse. A suggestion that
+needs the author's decision stops the run as Autonomy says. Never edit a skill from an installed plugin from evidence of
+use: leave the suggestion for the author to send upstream.
 
 After writing, run `check`; it passes, or [fix](fix.md)'s rule for a check that a change broke applies.
-When a written change touches the skill's steps, its Criteria, or its evals, offer to run `test`, saying it makes
+When a written change touches the skill's steps, its Criteria, or its evals, offer to run `test` (with no author
+present, run it), saying it makes
 model calls and what the last run cost. When the result shows no criterion worse than before, offer to keep it as the
 skill's expected result with `skill accept <folder>`.
 
 ## Report
 
-Each suggestion with its outcome: applied, declined, or left for the author with its evidence. With nothing to suggest,
+The autonomy line, and each suggestion with its outcome: applied, with whether `test` showed it safe, declined, or
+left for the author with its evidence. With nothing to suggest,
 say so and change nothing.

@@ -64,7 +64,8 @@ aspect with its own and keeps the rest.
   Verification aspect writes it during `create`, alongside the eval cases.
 - **K7. Autonomy.** How much a command applies on its own: `ask` proposes each item and the author decides;
   `apply-safe` applies what passes `check` and `test` with no criterion worse and asks about the rest; `apply` applies
-  everything and still reports it.
+  everything and still reports it. With no level set, a run derives one from the situation, chiefly whether an author
+  is present to answer, as SDD's leash does.
 - **K8. Check script.** The part of an aspect implementation that a script runs without an agent. Its front matter
   names it, and the script reports which of the implementation's criteria it decides.
 
