@@ -55,7 +55,7 @@ Return the recommended prose, then for each part its outcome, and for each sente
 
 ## Retire a wording
 
-When the tool ships a new wording, add the old one to the history: `node <this skill's folder>/scripts/prose-update.mjs retire --history-from <file> --wording-from <file> --date <date> --reason "<why>"` prints the new history text. Save it only after the user approves. Write new wordings so that they only add sentences after the old ones: such a revision merges without collision.
+When the tool ships a new wording, add the old one to the history: `node <this skill's folder>/scripts/prose-update.mjs retire --history-from <file> --wording-from <file> --date <date> --reason "<why>"` prints the new history text, with the new entry first. Save that text as the history file as printed, and only after the user approves; never add the entry by hand. Write new wordings so that they only add sentences after the old ones: such a revision merges without collision.
 
 ## Done when
 

@@ -35,7 +35,7 @@ outcome:
     criteria: [C1, C2]
   - id: retire
     prompt: >-
-      We ship a new Testing wording today, so retire the one in current.md into history.md, dated 2026-11-13, with
+      Use the prose-update skill. We ship a new Testing wording today, so retire the one in current.md into history.md, dated 2026-11-13, with
       the reason "ship a new wording". I approve saving history.md; don't ask again.
     files: files/retire   # history.md holds one older entry
     criteria: [C1, C8]
