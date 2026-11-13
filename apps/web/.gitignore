@@ -4,3 +4,5 @@ node_modules/
 src/content/docs/packages/*/skills/
 src/content/docs/packages/*/cli/
 src/content/docs/packages/*/requires.md
+src/content/docs/interfaces/
+src/generated/

@@ -51,6 +51,10 @@ export default defineConfig({
 			sidebar: [
 				...packages,
 				{
+					label: 'Reference interfaces',
+					items: [{ label: 'Registry', slug: 'interface-registry' }, { autogenerate: { directory: 'interfaces' } }],
+				},
+				{
 					label: 'Concepts',
 					items: [
 						{ label: 'Harness detection', slug: 'concepts/harness-detection' },

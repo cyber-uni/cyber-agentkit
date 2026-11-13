@@ -40,6 +40,23 @@ export type {
 	HeadlessUsage,
 } from './headless/headless-invocation.js'
 export { headlessCommand, headlessInvocation } from './headless/headless-invocation.js'
+export type { InterfaceEntry, InterfaceEntryResult, InterfaceLink } from './interface-registry/interface-entry.js'
+export {
+	interfaceEntryLinks,
+	interfaceEntryText,
+	interfaceIdPattern,
+	parseInterfaceEntry,
+} from './interface-registry/interface-entry.js'
+export type { InterfaceLookup, NearMatch } from './interface-registry/interface-lookup.js'
+export { lookupInterface, normalizeInterfaceId } from './interface-registry/interface-lookup.js'
+export type { RegistryFetch, RegistryRead } from './interface-registry/interface-registry.js'
+export {
+	interfaceEntryUrl,
+	interfaceRegistry,
+	interfaceRegistryUrl,
+	RegistryUnreachable,
+	readInterfaceRegistry,
+} from './interface-registry/interface-registry.js'
 export type {
 	ManagedPolicyKind,
 	ManagedPolicyLocation,

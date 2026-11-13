@@ -14,6 +14,7 @@ export type {
 	ReferenceListReport,
 	ReferenceLoadEntry,
 	ReferenceMigrateReport,
+	ReferenceRegisterReport,
 	ReferenceSearchReport,
 	ReferenceWhereOutput,
 } from './references/reference.command.js'

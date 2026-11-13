@@ -1,0 +1,119 @@
+---
+import entries from '../generated/interfaces.json'
+
+// biome-ignore lint/correctness/noUnusedVariables: used in the template
+const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+// biome-ignore lint/correctness/noUnusedVariables: used in the template
+const tags = [...new Set(entries.flatMap((entry) => entry.tags))].sort()
+// biome-ignore lint/correctness/noUnusedVariables: used in the template
+const statuses = [...new Set(entries.map((entry) => entry.status).filter(Boolean))].sort()
+---
+
+{
+	entries.length === 0 ? (
+		<p>No interfaces are registered yet.</p>
+	) : (
+		<div class="iface-registry">
+			<div class="iface-controls">
+				<input type="search" id="iface-q" placeholder="Filter by id, description, tag, or plugin" aria-label="Filter interfaces" />
+				<select id="iface-tag" aria-label="Filter by tag">
+					<option value="">All tags</option>
+					{tags.map((tag) => <option value={tag}>{tag}</option>)}
+				</select>
+				<select id="iface-status" aria-label="Filter by status">
+					<option value="">All statuses</option>
+					{statuses.map((status) => <option value={status}>{status}</option>)}
+				</select>
+			</div>
+			<ul class="iface-list">
+				{entries.map((entry) => (
+					<li
+						data-text={[entry.id, entry.description, ...entry.tags, ...entry.plugins].join(' ').toLowerCase()}
+						data-tags={JSON.stringify(entry.tags)}
+						data-status={entry.status}
+					>
+						<a href={`${base}/interfaces/${entry.slug}/`}>{entry.id}</a>
+						{entry.status && <span class="iface-status">{entry.status}</span>}
+						{entry.description && <p>{entry.description}</p>}
+						{entry.tags.length > 0 && <p class="iface-tags">{entry.tags.join(' · ')}</p>}
+					</li>
+				))}
+			</ul>
+			<p id="iface-none" hidden>No interface matches.</p>
+		</div>
+	)
+}
+
+<style>
+	.iface-controls {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-block: 1rem;
+	}
+	.iface-controls input,
+	.iface-controls select {
+		padding: 0.4rem 0.6rem;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 0.25rem;
+		background: var(--sl-color-bg-nav);
+		color: var(--sl-color-text);
+		font: inherit;
+	}
+	.iface-controls input {
+		flex: 1 1 16rem;
+	}
+	.iface-list {
+		list-style: none;
+		padding: 0;
+	}
+	.iface-list li {
+		padding: 0.75rem 0;
+		border-top: 1px solid var(--sl-color-gray-5);
+	}
+	.iface-list li[hidden] {
+		display: none;
+	}
+	.iface-list a {
+		font-weight: 600;
+	}
+	.iface-list p {
+		margin: 0.25rem 0 0;
+	}
+	.iface-tags {
+		color: var(--sl-color-gray-3);
+		font-size: var(--sl-text-sm);
+	}
+	.iface-status {
+		margin-inline-start: 0.5rem;
+		padding: 0 0.4rem;
+		border: 1px solid var(--sl-color-gray-4);
+		border-radius: 0.25rem;
+		color: var(--sl-color-gray-2);
+		font-size: var(--sl-text-xs);
+	}
+</style>
+
+<script>
+	const q = document.getElementById('iface-q') as HTMLInputElement | null
+	const tag = document.getElementById('iface-tag') as HTMLSelectElement | null
+	const status = document.getElementById('iface-status') as HTMLSelectElement | null
+	const none = document.getElementById('iface-none')
+	const items = [...document.querySelectorAll<HTMLElement>('.iface-list li')]
+
+	function apply() {
+		const text = (q?.value ?? '').trim().toLowerCase()
+		let shown = 0
+		for (const item of items) {
+			const tags: string[] = JSON.parse(item.dataset.tags ?? '[]')
+			const ok =
+				(!text || (item.dataset.text ?? '').includes(text)) &&
+				(!tag?.value || tags.includes(tag.value)) &&
+				(!status?.value || item.dataset.status === status.value)
+			item.hidden = !ok
+			if (ok) shown++
+		}
+		if (none) none.hidden = shown > 0
+	}
+	for (const control of [q, tag, status]) control?.addEventListener('input', apply)
+</script>
