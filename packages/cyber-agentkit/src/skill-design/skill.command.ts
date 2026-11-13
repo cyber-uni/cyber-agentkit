@@ -32,6 +32,7 @@ import { planLine } from './test-progress.js'
 import type { TestResult } from './test-result.js'
 import { type GitHubGet, githubGet, type JsonGet, jsonGet, type SupplyChainSignals } from './vet-signals.js'
 import { cloneSource, type FetchSource, parseVetSource } from './vet-source.js'
+import { readTrustList, trustListName } from './vet-trust.js'
 
 export type SkillCommandOptions = {
 	plugin?: ReferencePlugin | undefined
@@ -478,11 +479,29 @@ function signalLines(signals: SupplyChainSignals): string[] {
 	return lines
 }
 
+function verdictText(report: SkillVetReport): string {
+	if (report.blockedBy === 'untrusted-warning')
+		return `blocked: a Security check failed at warning, and ${report.trust.publisher ? `the publisher ${report.trust.publisher} is not trusted` : 'the source has no publisher to trust'}`
+	if (report.verdict === 'blocked') return 'blocked: a Security check failed at critical'
+	return 'not blocked by a script check'
+}
+
+function trustLines({ trust }: SkillVetReport): string[] {
+	const who = trust.publisher
+		? `${trust.publisher}, ${trust.trusted ? 'trusted' : 'not on the trust list'}`
+		: 'no publisher known (the source is not on GitHub), not trusted'
+	const list =
+		trust.list.length === 0
+			? 'none'
+			: trust.list.map(({ name, from }) => `${name} (from ${from.join(', ')})`).join('; ')
+	return [`trust: ${who}`, `trusted publishers: ${list}`]
+}
+
 function vetText(report: SkillVetReport): string {
 	const { source } = report
 	const at = [source.ref, source.commit?.slice(0, 12)].filter(Boolean).join(' at ')
 	const lines = [
-		`${source.repository ?? source.url}${source.path ? `/${source.path}` : ''}${at ? ` (${at})` : ''}: install ${report.verdict === 'blocked' ? 'blocked' : 'not blocked by a script check'}`,
+		`${source.repository ?? source.url}${source.path ? `/${source.path}` : ''}${at ? ` (${at})` : ''}: install ${verdictText(report)}`,
 	]
 	for (const skill of report.skills) {
 		const r = skill.report
@@ -502,6 +521,7 @@ function vetText(report: SkillVetReport): string {
 	}
 	if (report.signals) lines.push(...signalLines(report.signals))
 	else lines.push('signals: not read, the source is not on GitHub')
+	lines.push(...trustLines(report))
 	return `${lines.join('\n')}\n`
 }
 
@@ -514,8 +534,7 @@ function vetCommand({
 }: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'vet',
-		description:
-			'Vet a third-party skill before installing it: check its source out to a temporary folder, run every Security check on each skill in it, read who publishes it, whether it is maintained, its license, and its skills.sh install count, and remove the folder. Runs nothing from the source. Exits 1 when a critical Security check fails, which blocks the install.',
+		description: `Vet a third-party skill before installing it: check its source out to a temporary folder, run every Security check on each skill in it, read who publishes it, whether it is maintained, its license, and its skills.sh install count, and remove the folder. Runs nothing from the source. Trusted publishers come from the \`${trustListName}\` reference, merged across its tiers, and \`--trust\`. Exits 1 when the install is blocked: a critical Security check fails, or a warning one does and the publisher is not trusted.`,
 		arguments: [
 			{
 				name: 'source',
@@ -535,7 +554,7 @@ function vetCommand({
 				type: t.string().optional(),
 			},
 			trust: {
-				description: 'A publisher (GitHub owner) the team trusts; repeat it for more.',
+				description: `A publisher (GitHub owner) to trust for this run, on top of the \`${trustListName}\` reference; repeat it for more.`,
 				type: t.array(t.string()).optional(),
 			},
 			root: {
@@ -577,6 +596,8 @@ function vetCommand({
 			})
 			const security = loadAspect('skill-design.aspects.security', layers, (path) => collapseHome(home, path))
 			for (const warning of security.warnings) process.stderr.write(`warning: security: ${warning}\n`)
+			const trust = readTrustList(layers, args.trust ?? [], (path) => collapseHome(home, path))
+			for (const warning of trust.warnings) process.stderr.write(`warning: trust: ${warning}\n`)
 			const vetted = await vetSkill({
 				source,
 				security,
@@ -584,7 +605,7 @@ function vetCommand({
 				runScript: runCheckScript,
 				github: get,
 				skillsSh: skillsShGet,
-				trusted: args.trust ?? [],
+				trusted: trust.publishers,
 				now: now(),
 			})
 			if ('problem' in vetted) {

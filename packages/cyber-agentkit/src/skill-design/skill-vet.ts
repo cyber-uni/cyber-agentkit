@@ -12,6 +12,7 @@ import {
 	type SupplyChainSignals,
 } from './vet-signals.js'
 import { type FetchSource, findSkillFolders, inTemporaryFolder, type VetSource } from './vet-source.js'
+import { isTrusted, type TrustedPublisher } from './vet-trust.js'
 
 /** One skill found in the source, with its Security report. */
 export type VettedSkill = {
@@ -27,10 +28,21 @@ export type VettedSkill = {
 export type SkillVetReport = {
 	source: { url: string; repository?: string; ref?: string; path?: string; commit?: string }
 	/**
-	 * `blocked` when a Security check failed at `critical` in any skill; `not-blocked` otherwise. The `read` checks
-	 * are left for the agent, and a critical one it fails blocks the install too.
+	 * `blocked` when a Security check failed at `critical` in any skill, or at `warning` when the publisher is not
+	 * trusted; `not-blocked` otherwise. The `read` checks are left for the agent, and one it fails blocks the install
+	 * by the same rule.
 	 */
 	verdict: 'blocked' | 'not-blocked'
+	/** Set when `blocked`: `critical` when a critical check failed, else `untrusted-warning`. */
+	blockedBy?: 'critical' | 'untrusted-warning'
+	trust: {
+		/** The publisher trust is decided for: the GitHub owner, unset for a source not on GitHub. */
+		publisher?: string
+		/** Whether the publisher is on the trust list; one with no known name is not. */
+		trusted: boolean
+		/** Every trusted publisher, with where each name came from. */
+		list: TrustedPublisher[]
+	}
 	skills: VettedSkill[]
 	/** Unset when the source is not on GitHub. */
 	signals?: SupplyChainSignals
@@ -43,7 +55,7 @@ export type VetOptions = {
 	runScript: (script: string, folder: string) => ScriptRun
 	github: GitHubGet
 	skillsSh: JsonGet
-	trusted: readonly string[]
+	trusted: readonly TrustedPublisher[]
 	now: Date
 }
 
@@ -69,6 +81,13 @@ function securityOnly(skillName: string, security: LoadedAspect, run: () => Scri
 		}
 	}
 	return mergeChecks(skillName, [entry])
+}
+
+function verdictOf(skills: readonly VettedSkill[], trusted: boolean): Pick<SkillVetReport, 'verdict' | 'blockedBy'> {
+	if (skills.some(({ report }) => report.critical > 0)) return { verdict: 'blocked', blockedBy: 'critical' }
+	if (!trusted && skills.some(({ report }) => report.failed > report.critical))
+		return { verdict: 'blocked', blockedBy: 'untrusted-warning' }
+	return { verdict: 'not-blocked' }
 }
 
 /**
@@ -101,7 +120,12 @@ export async function vetSkill(options: VetOptions): Promise<SkillVetReport | { 
 	if ('problem' in checked) return checked
 	const { github } = source
 	const signals = github
-		? await readSignals(github, { path: source.path, trusted: options.trusted, get: options.github, now: options.now })
+		? await readSignals(github, {
+				path: source.path,
+				trusted: options.trusted.map(({ name }) => name),
+				get: options.github,
+				now: options.now,
+			})
 		: undefined
 	const skills = github
 		? await Promise.all(
@@ -115,6 +139,9 @@ export async function vetSkill(options: VetOptions): Promise<SkillVetReport | { 
 				})),
 			)
 		: checked.skills
+	// The owner GitHub answers with wins over the URL's, which an old name of a moved repository still reaches.
+	const publisher = signals?.publisher.available ? signals.publisher.login : github?.owner
+	const trusted = isTrusted(options.trusted, publisher)
 	return {
 		source: {
 			url: source.url,
@@ -123,7 +150,8 @@ export async function vetSkill(options: VetOptions): Promise<SkillVetReport | { 
 			...(source.path ? { path: source.path } : {}),
 			...(checked.commit ? { commit: checked.commit } : {}),
 		},
-		verdict: skills.some(({ report }) => report.critical > 0) ? 'blocked' : 'not-blocked',
+		...verdictOf(skills, trusted),
+		trust: { ...(publisher ? { publisher } : {}), trusted, list: [...options.trusted] },
 		skills,
 		...(signals ? { signals } : {}),
 	}

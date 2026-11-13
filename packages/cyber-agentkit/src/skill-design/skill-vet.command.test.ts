@@ -45,7 +45,7 @@ const abandoned: GitHubGet = async (path) => {
 }
 const noListing: JsonGet = async () => ({ status: 200, body: { skills: [] } })
 
-async function vet(args: string[], options: SkillCommandOptions) {
+async function vet(args: string[], options: SkillCommandOptions, root = repoRoot) {
 	const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
 		createSkillCommand({
 			plugin: { name: 'cyber-agentkit', root: packageRoot },
@@ -56,17 +56,7 @@ async function vet(args: string[], options: SkillCommandOptions) {
 		}),
 	)
 	return app
-		.parse<number | undefined>([
-			'node',
-			'cyber-agentkit',
-			'skill',
-			'vet',
-			...args,
-			'--root',
-			repoRoot,
-			'--format',
-			'json',
-		])
+		.parse<number | undefined>(['node', 'cyber-agentkit', 'skill', 'vet', ...args, '--root', root, '--format', 'json'])
 		.then((code) => (typeof code === 'number' ? code : 0))
 }
 
@@ -120,9 +110,9 @@ describe('skill vet', () => {
 		expect(existsSync(seen.folder as string)).toBe(false)
 	})
 
-	it('does not block on a clean skill or on a warning, and leaves the read checks for the agent', async () => {
+	it('does not block on a clean skill or on a warning from a trusted publisher, and leaves the read checks for the agent', async () => {
 		const warned = goodSkillMd.replace('1. Read the merged pull requests.', '1. Run `sudo make install`.')
-		const code = await vet(['acme/skills'], {
+		const code = await vet(['acme/skills', '--trust', 'acme'], {
 			fetchSource: fakeFetch({ 'skills/release-notes/SKILL.md': warned, 'skills/clean/SKILL.md': goodSkillMd }),
 		})
 		const report = JSON.parse(printed())
@@ -132,6 +122,65 @@ describe('skill vet', () => {
 		const checks = report.skills[1].report.aspects[0].checks
 		expect(checks).toContainEqual(expect.objectContaining({ id: 'SEC-12', status: 'fail', severity: 'warning' }))
 		expect(checks).toContainEqual(expect.objectContaining({ id: 'SEC-3', status: 'not-checked' }))
+	})
+
+	it('blocks on a warning when the publisher is not trusted, and says that is why', async () => {
+		const warned = goodSkillMd.replace('1. Read the merged pull requests.', '1. Run `sudo make install`.')
+		const code = await vet(['acme/skills'], { fetchSource: fakeFetch({ 'release-notes/SKILL.md': warned }) })
+		const report = JSON.parse(printed())
+		expect(code).toBe(1)
+		expect(report).toMatchObject({
+			verdict: 'blocked',
+			blockedBy: 'untrusted-warning',
+			trust: { publisher: 'acme', trusted: false },
+		})
+		expect(report.skills[0].report.critical).toBe(0)
+	})
+
+	it('treats a source with no publisher as untrusted, so a warning blocks it', async () => {
+		const warned = goodSkillMd.replace('1. Read the merged pull requests.', '1. Run `sudo make install`.')
+		const code = await vet(['https://gitlab.com/acme/skills.git', '--trust', 'acme'], {
+			fetchSource: fakeFetch({ 'release-notes/SKILL.md': warned }),
+		})
+		const report = JSON.parse(printed())
+		expect(code).toBe(1)
+		expect(report.blockedBy).toBe('untrusted-warning')
+		expect(report.trust.publisher).toBeUndefined()
+		expect(report.trust.trusted).toBe(false)
+	})
+
+	it('reads the trusted publishers from the trust list reference, merged with --trust, naming where each came from', async () => {
+		const root = mkdtempSync(join(tmpdir(), 'vet-trust-'))
+		mkdirSync(join(root, '.git'))
+		mkdirSync(join(root, '.agents', 'references'), { recursive: true })
+		writeFileSync(
+			join(root, '.agents', 'references', 'skill-design.vet.trusted-publishers.md'),
+			'---\nmerge: combine\n---\n\n## Trusted publishers\n\n- `Acme`: our own organization\n- vercel-labs\n',
+		)
+		const warned = goodSkillMd.replace('1. Read the merged pull requests.', '1. Run `sudo make install`.')
+		const code = await vet(
+			['acme/skills', '--trust', 'cyber-uni', '--trust', 'acme'],
+			{ fetchSource: fakeFetch({ 'release-notes/SKILL.md': warned }) },
+			root,
+		)
+		const report = JSON.parse(printed())
+		expect(code).toBe(0)
+		expect(report).toMatchObject({ verdict: 'not-blocked', trust: { publisher: 'acme', trusted: true } })
+		expect(report.blockedBy).toBeUndefined()
+		const repoFile = expect.stringMatching(/^repo .*skill-design\.vet\.trusted-publishers\.md$/)
+		expect(report.trust.list).toContainEqual({ name: 'Acme', from: [repoFile, '--trust'] })
+		expect(report.trust.list).toContainEqual({ name: 'vercel-labs', from: [repoFile] })
+		expect(report.trust.list).toContainEqual({ name: 'cyber-uni', from: ['--trust'] })
+		expect(report.signals.publisher.trusted).toBe(true)
+	})
+
+	it('still blocks a trusted publisher on a critical failure', async () => {
+		const code = await vet(['acme/skills', '--trust', 'acme'], {
+			fetchSource: fakeFetch({ 'release-notes/SKILL.md': hostile }),
+		})
+		const report = JSON.parse(printed())
+		expect(code).toBe(1)
+		expect(report).toMatchObject({ blockedBy: 'critical', trust: { trusted: true } })
 	})
 
 	it('shows a skills.sh install count only for an exact match, and otherwise says why there is none', async () => {
