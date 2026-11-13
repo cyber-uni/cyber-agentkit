@@ -22,6 +22,14 @@ export type ConfigOptions = {
 	plugin?: { name: string; withSkill: string; baseline: string } | undefined
 	/** The harness each run drives, with where it keeps its config, skills, plugins, and login. */
 	harness: SkillTestHarness
+	/**
+	 * Arms that each load an instruction instead of the skill and its baseline (`instruction compare`): `label` names the
+	 * arm in promptfoo's output, `arm` in the progress lines, and `instruction` is the text put in the project
+	 * instruction file. `skillFolder`, `baselineFolder`, and `plugin` are then not used.
+	 */
+	arms?: { label: string; arm: string; instruction: string }[] | undefined
+	/** The config's description; `skill test: <skill name>` when absent. */
+	description?: string | undefined
 }
 
 /** The Agent SDK options for every run: only the run folder's own skills and settings, no web, a turn and cost cap. */
@@ -43,7 +51,7 @@ function inner(model: string | undefined): Record<string, unknown> {
 /** The promptfoo config for a plan: one provider per arm and one test per case, each criterion an assertion named by its ID. */
 export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<string, unknown> {
 	const plugin = options.plugin
-	const provider = (label: string, arm: string, skillDir: string | undefined) => ({
+	const provider = (label: string, arm: string, skillDir: string | undefined, instruction?: string) => ({
 		id: `file://${options.provider}`,
 		label,
 		config: {
@@ -54,11 +62,13 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 			isolation: options.harness.isolation,
 			...(options.harness.command ? { command: options.harness.command } : {}),
 			...(options.progress ? { progressFile: options.progress.file } : {}),
-			...(plugin
-				? { pluginName: plugin.name, pluginDir: arm === 'skill' ? plugin.withSkill : plugin.baseline }
-				: skillDir
-					? { skillDir }
-					: {}),
+			...(instruction !== undefined
+				? { instruction }
+				: plugin
+					? { pluginName: plugin.name, pluginDir: arm === 'skill' ? plugin.withSkill : plugin.baseline }
+					: skillDir
+						? { skillDir }
+						: {}),
 			inner: inner(options.model),
 		},
 	})
@@ -104,16 +114,18 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 		}
 	})
 	return {
-		description: `skill test: ${options.skillName}`,
+		description: options.description ?? `skill test: ${options.skillName}`,
 		prompts: ['{{prompt}}'],
 		...(options.progress ? { extensions: [`file://${options.progress.hook}:afterEach`] } : {}),
 		evaluateOptions: { maxConcurrency: plan.concurrency, repeat: plan.runs },
-		providers: [
-			provider('with-skill', 'skill', options.skillFolder),
-			options.baselineFolder
-				? provider('baseline', 'baseline', options.baselineFolder)
-				: provider('baseline', 'baseline', undefined),
-		],
+		providers: options.arms
+			? options.arms.map((item) => provider(item.label, item.arm, undefined, item.instruction))
+			: [
+					provider('with-skill', 'skill', options.skillFolder),
+					options.baselineFolder
+						? provider('baseline', 'baseline', options.baselineFolder)
+						: provider('baseline', 'baseline', undefined),
+				],
 		tests,
 	}
 }

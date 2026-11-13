@@ -23,6 +23,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
       status: git(dir, 'status', '--porcelain'),
       tracked: git(dir, 'ls-files'),
       skillInstalled: fs.existsSync(dir + '/.claude/skills/demo/SKILL.md'),
+      instructions: fs.existsSync(dir + '/CLAUDE.md') ? fs.readFileSync(dir + '/CLAUDE.md', 'utf8') : undefined,
       env: options.config.env,
       sandbox: options.config.sandbox,
       settings: options.config.settings,
@@ -37,7 +38,19 @@ exports.loadApiProvider = async (_id, { options }) => ({
 
 function runProvider(
 	withSkill: boolean,
-	{ platform, network, plugin }: { platform?: string; network?: string[]; plugin?: boolean } = {},
+	{
+		platform,
+		network,
+		plugin,
+		instruction,
+		caseInstructions,
+	}: {
+		platform?: string
+		network?: string[]
+		plugin?: boolean
+		instruction?: string
+		caseInstructions?: string
+	} = {},
 ): Record<string, any> {
 	const root = mkdtempSync(join(tmpdir(), 'provider-test-'))
 	mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
@@ -45,13 +58,14 @@ function runProvider(
 	writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), fakePromptfoo)
 	mkdirSync(join(root, 'files'))
 	writeFileSync(join(root, 'files', 'notes.txt'), 'hello')
+	if (caseInstructions !== undefined) writeFileSync(join(root, 'files', 'CLAUDE.md'), caseInstructions)
 	mkdirSync(join(root, 'skill'))
 	writeFileSync(join(root, 'skill', 'SKILL.md'), '---\nname: demo\n---\n')
 	writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
 	writeFileSync(
 		join(root, 'run.mjs'),
 		`${platform ? `Object.defineProperty(process, 'platform', { value: ${JSON.stringify(platform)} })\n` : ''}const { default: Provider } = await import('./provider.mjs')
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, ${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${plugin ? ` pluginName: 'kit', pluginDir: ${JSON.stringify(join(root, 'skill'))},` : ''} } })
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, ${instruction === undefined ? '' : `instruction: ${JSON.stringify(instruction)}, `}${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${plugin ? ` pluginName: 'kit', pluginDir: ${JSON.stringify(join(root, 'skill'))},` : ''} } })
 const response = await provider.callApi('hi', { vars: { kind: 'outcome', files: ${JSON.stringify(join(root, 'files'))}, rubrics: '{}'${network ? `, network: ${JSON.stringify(JSON.stringify(network))}` : ''} } })
 console.log(response.output)
 `,
@@ -72,6 +86,26 @@ describe('promptfooProviderSource run folder (F7)', () => {
 
 	it('is a repository with an empty commit when the arm has no skill', () => {
 		expect(runProvider(false)).toMatchObject({ isRepo: 'true', status: '', skillInstalled: false })
+	})
+})
+
+describe('promptfooProviderSource instruction (instruction compare)', () => {
+	it('writes the arm instruction to the project instruction file, committed with the case files', () => {
+		expect(runProvider(false, { instruction: '## Commit Discipline\n\nCommit each unit.\n' })).toMatchObject({
+			status: '',
+			tracked: 'CLAUDE.md\nnotes.txt',
+			instructions: '## Commit Discipline\n\nCommit each unit.\n',
+		})
+	})
+
+	it('adds it after what the case files already put in that file', () => {
+		expect(runProvider(false, { instruction: '## B\n', caseInstructions: '# Repo\n\nUse pnpm.\n\n' })).toMatchObject({
+			instructions: '# Repo\n\nUse pnpm.\n\n## B\n',
+		})
+	})
+
+	it('writes no instruction file when the arm has none', () => {
+		expect(runProvider(false).instructions).toBeUndefined()
 	})
 })
 

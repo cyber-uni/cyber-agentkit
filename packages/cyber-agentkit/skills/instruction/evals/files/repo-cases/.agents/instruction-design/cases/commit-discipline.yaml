@@ -1,0 +1,15 @@
+runs: 3
+threshold: 2
+criteria:
+  C1: The change is committed before the reply ends.
+  C2: The commit message starts with a Conventional Commits type.
+outcome:
+  - id: typo-fix
+    prompt: Fix the typo in notes.txt.
+    files: files/typo-fix
+    checks:
+      C1:
+        - script: test -z "$(git status --porcelain)"
+rubrics:
+  C2:
+    - script: git log -1 --format=%s | grep -Eq '^(feat|fix|docs|chore|refactor|test)(\(.+\))?:'
