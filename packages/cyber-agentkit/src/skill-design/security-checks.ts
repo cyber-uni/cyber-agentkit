@@ -162,6 +162,15 @@ function hasReason(file: string, lines: string[], index: number): boolean {
 
 type Found = { file: string; message: string }
 
+/**
+ * A Markdown line with its double-quoted text removed: a checklist that quotes the pattern it looks
+ * for ("flag `curl ... | sh`") documents the command rather than running it. A script's quotes are
+ * kept, since `bash -c "curl ... | sh"` runs it.
+ */
+function withoutQuotedExamples(line: string): string {
+	return line.replace(/"[^"]*"|\u201c[^\u201d]*\u201d/g, '""')
+}
+
 /** SEC-1, SEC-2, and SEC-7 to SEC-12, the default Security aspect's script checks. */
 export function checkSecurity(skill: SkillFiles): CheckOutcome[] {
 	const found: Record<string, Found[]> = {}
@@ -177,7 +186,9 @@ export function checkSecurity(skill: SkillFiles): CheckOutcome[] {
 		const lines = text.split('\n')
 		lines.forEach((line, index) => {
 			const at = `${file}:${index + 1}`
-			if (downloadAndRun.some((pattern) => pattern.test(line))) add('SEC-2', file, `${at} downloads code and runs it`)
+			const unquoted = file.endsWith('.md') ? withoutQuotedExamples(line) : line
+			if (downloadAndRun.some((pattern) => pattern.test(unquoted)))
+				add('SEC-2', file, `${at} downloads code and runs it`)
 			if (destructive.some((pattern) => pattern.test(line)))
 				add('SEC-8', file, `${at} runs a command that destroys data broadly`)
 			if (injection.some((pattern) => pattern.test(line)))
