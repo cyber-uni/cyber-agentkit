@@ -1,9 +1,12 @@
 import type { AspectCheck } from './skill-check-types.js'
 import { section } from './skill-files.js'
 
-const item = /^- \*\*([A-Z][A-Z0-9]*-\d+)\*\* \[(script|read|run)\] (.*)$/
+const item = /^- \*\*([A-Z][A-Z0-9]*-\d+)\*\* \[(script|read|run)(?:, (critical|warning))?\] (.*)$/
 
-/** The checks an aspect implementation lists under `## Criteria`, as `- **<ID>** [script|read|run] <statement>`. */
+/**
+ * The checks an aspect implementation lists under `## Criteria`, as
+ * `- **<ID>** [<how>] <statement>` or `- **<ID>** [<how>, <severity>] <statement>`; with no severity, critical.
+ */
 export function parseAspectChecks(content: string): AspectCheck[] {
 	const criteria = section(content, 'Criteria')
 	if (criteria === undefined) return []
@@ -14,7 +17,8 @@ export function parseAspectChecks(content: string): AspectCheck[] {
 			checks.push({
 				id: match[1] as string,
 				how: match[2] as AspectCheck['how'],
-				statement: (match[3] as string).trim(),
+				severity: (match[3] ?? 'critical') as AspectCheck['severity'],
+				statement: (match[4] as string).trim(),
 			})
 			continue
 		}

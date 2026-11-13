@@ -165,13 +165,13 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 ## Criteria
 
 - **VER-1** [script] `evals/evals.yaml` exists and follows the format in Cases.
-- **VER-2** [script] It has at least three `fire` and three `skip` trigger cases.
+- **VER-2** [script, warning] It has at least three `fire` and three `skip` trigger cases.
 - **VER-3** [script] Every Criteria ID has a rubric, and every rubric names a Criteria ID.
 - **VER-4** [script] Every `files` folder an outcome case names exists.
 - **VER-5** [script] `threshold` is between 1 and `runs`.
-- **VER-6** [read] Each `skip` case is a request a user could plausibly make that belongs to another job, not an
-  unrelated one.
-- **VER-7** [read] Each rubric decides its criterion, not something easier that happens to go with it.
+- **VER-6** [read, warning] Each `skip` case is a request a user could plausibly make that belongs to another job, not
+  an unrelated one.
+- **VER-7** [read, warning] Each rubric decides its criterion, not something easier that happens to go with it.
 - **VER-8** [read] No case holds private data, such as real names, tokens, or customer text.
 
 ## Fix
