@@ -1,6 +1,6 @@
 ---
 name: release-notes
-description: Use this skill when writing the release notes for a release from its merged pull requests, as in "write the release notes", "draft the changelog for 2.0", or "what shipped this release".
+description: Write the release notes for a release from its merged pull requests, as in "write the release notes", "draft the changelog for 2.0", or "what shipped this release".
 ---
 
 # Release notes

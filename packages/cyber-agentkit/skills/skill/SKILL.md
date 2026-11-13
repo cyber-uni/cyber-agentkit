@@ -1,6 +1,6 @@
 ---
 name: skill
-description: Use this skill when creating, checking, testing, fixing, enhancing, or customizing an agent skill (a SKILL.md and its folder), as in "write a skill for X", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", or "improve this skill".
+description: Create, check, test, fix, enhance, or customize an agent skill (a SKILL.md and its folder), as in "write a skill for X", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", or "improve this skill".
 ---
 
 # Skill
@@ -122,9 +122,12 @@ the prose to stderr or behind `--verbose`.
 
 Produces the `description` in the skill's front matter, and the near misses Verification turns into `skip` cases.
 
-**Draft.** Start with "Use this skill when", then name the job in the words users type, with two or three phrasings.
-Say nothing about when not to use it. List three or more near misses: requests a user could plausibly make that
-belong to the nearest other jobs. They go to Verification as `skip` cases, not into the description.
+**Draft.** Name the job in the words users type, with two or three phrasings. The agent reads the description to decide
+whether to load the skill, so keep it to the point: open with the job, not a lead-in such as "Use this skill when" or
+"Use when", and add no filler words. Say nothing about when not to use it. List three or more near misses: requests a
+user could plausibly make that belong to the nearest other jobs. They go to Verification as `skip` cases, not into the
+description. A skill the agent never loads on its own, one only a user invokes directly, may word its description
+freely.
 
 **Name-only skill.** A skill that another skill loads by name, and that no user request should match, is name-only. Its
 description declares it: exactly `By name only`, or `Partial Skill: ` followed by text. The description is the only text
@@ -133,7 +136,8 @@ it, and what it returns in the body and `README.md`. Its near misses still go to
 TRG-4 and TRG-7 do not apply to a name-only skill, and TRG-5 and TRG-6 apply only to one: report a check that does not
 apply as skipped.
 
-- **TRG-1** [read] The description says when to use the skill, in words a user would type.
+- **TRG-1** [read] The description says when to use the skill, in words a user would type, with no lead-in or filler
+  words, unless only a user invokes the skill directly.
 - **TRG-3** [read, warning] It describes when to use the skill, not how the skill works.
 - **TRG-4** [run] The skill fires on the requests it should and not on near misses.
 - **TRG-5** [script] A name-only skill's description is exactly `By name only`, or `Partial Skill: ` followed by text

@@ -5,7 +5,7 @@ import { readSkill, type SkillFiles } from './skill-files.js'
 
 export const goodSkillMd = `---
 name: release-notes
-description: Use this skill when writing release notes for a release. Not for summarizing one pull request.
+description: Write release notes for a release. Not for summarizing one pull request.
 ---
 
 # Release notes
