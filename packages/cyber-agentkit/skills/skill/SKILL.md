@@ -1,7 +1,7 @@
 ---
 name: skill
 description: Create, check, test, fix, enhance, customize, or vet an agent skill (a SKILL.md and its folder), as in "write a skill for X", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", "improve this skill", or "is this skill from GitHub safe to install".
-argument-hint: "help | create [description] | check [skill] | test [skill] | fix [skill] | enhance [skill] [prompt] | vet <source> | customize [aspect]"
+argument-hint: "<description> | help | create [description] | check [skill] | test [skill] | fix [skill] | enhance [skill] [prompt] | vet <source> | customize [aspect]"
 ---
 
 # Skill
@@ -22,8 +22,9 @@ works through the aspects below.
 | `vet <source>` | the author wants a third-party skill vetted before installing it: its Security checks, an install verdict, and who publishes it | [references/vet.md](references/vet.md) |
 | `customize [aspect]` | the author wants to see or change which implementation each aspect uses, or how much each command applies on its own | [references/customize.md](references/customize.md) |
 
-Take an explicit command first. Otherwise read the intent from the request; if it fits two commands, ask which. With
-no request, follow `help`.
+Take an explicit command first. When the request describes a skill to write but names no command, as in `/skill a
+skill that drafts release notes`, follow `create`, which carries on into `check` and `test`. Otherwise read the intent
+from the request; if it fits two commands, ask which. With no request, follow `help`.
 
 ## Aspects
 
@@ -71,7 +72,7 @@ Produces the skill's folder layout: what stays in `SKILL.md`, and what moves to 
 **Draft.** Keep everything in `SKILL.md` while its body stays under 500 lines. Move to `references/` text read only on
 some paths, such as one command's steps, and link each file from the step that needs it. Move to `scripts/` any step a
 program does the same way every time, such as parsing or validating a file. Write only what the agent would not do
-on its own, and give each step one way to do it. Propose the layout to the author.
+on its own, and give each step one way to do it. At `ask`, propose the layout to the author.
 
 - **SHP-1** [script, warning] The `SKILL.md` body is at most 500 lines and about 5,000 tokens, at four characters a
   token.
@@ -200,7 +201,7 @@ Before reporting done, check each of these against the result. Report any that f
 - **C2.** `check` changed no file, and reported each check only a run can decide as not checked.
 - **C3.** `check` reports no failure on a skill that meets every aspect, and names each check a skill fails, by its ID.
 - **C4.** `create` on a name that already exists left that skill unchanged and pointed to `check`, `fix`, and `enhance`.
-- **C5.** At `ask`, `create` wrote nothing the author had not approved.
+- **C5.** At `ask`, or when the author asked to approve each part, `create` wrote nothing the author had not approved.
 - **C6.** After `fix`, the checks it repaired pass a fresh `check`.
 - **C7.** `fix` reported each failure by its ID, and changed no part of the skill that no failure named, and no file
   outside it.
@@ -208,3 +209,4 @@ Before reporting done, check each of these against the result. Report any that f
 - **C9.** `customize` showed each aspect with the implementation in use, and changed no file the author had not picked.
 - **C10.** `vet` installed nothing, left no checkout behind, reported the install blocked on every critical failure and
   on every warning from a source no trusted entry covers, and showed no number but a skills.sh count as installs.
+- **C11.** `create` ran `check` on the skill it built, and started no `test` run before the author agreed to it.

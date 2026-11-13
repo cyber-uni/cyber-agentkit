@@ -54,9 +54,20 @@ outcome:
     files: files/samples
     criteria: [C4]
   - id: create-ask
-    prompt: Create a skill in .agents/skills that drafts a changelog entry for each merged pull request.
+    prompt: >-
+      Create a skill in .agents/skills that drafts a changelog entry for each merged pull request. Show me each
+      draft and wait for my approval before you write anything.
     files: files/samples
     criteria: [C5]
+  # A description with no command routes to create, which runs check and then asks before test's model runs. The
+  # sandbox has no author to agree, so no test result may be saved.
+  - id: create-described
+    prompt: >-
+      /skill a skill in .agents/skills that drafts a changelog entry for each merged pull request. I approve every
+      draft; don't ask again. End your reply with a line "Check:" then pass or fail, from the check of the skill you
+      wrote.
+    files: files/samples
+    criteria: [C11]
   - id: fix-flawed
     prompt: >-
       Check the skill in .agents/skills/release-notes-flawed, then fix what the check finds. I approve every change;
@@ -126,3 +137,7 @@ rubrics:
     - script: >-
         test -z "$(git status --porcelain --untracked-files=all)"
         && test -z "$(ls -d "${TMPDIR:-/tmp}"/cyber-agentkit-vet-* 2>/dev/null)"
+  C11:
+    - script: "ls .agents/skills/*/SKILL.md | grep -qv release-notes"
+    - regex: "Check:\\W{0,4}(pass|fail)"
+    - script: "test ! -e .agents/skill-design/results"
