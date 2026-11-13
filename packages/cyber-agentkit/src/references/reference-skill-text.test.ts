@@ -94,7 +94,7 @@ describe('the reference skill text', () => {
 		expect(migrate).toContain('each `user` row edits a file in their home folder that no git history restores')
 		expect(migrate).toContain('With no user present, write nothing, and report the plan.')
 		expect(migrate).toContain('Only after the user approves, run the same command with `--write`.')
-		expect(skill).toContain('migrating')
+		expect(skill.match(/description: [^\n]*?---/)?.[0]).toContain('migrate')
 	})
 
 	it('gives a load line naming the references and the skill of its package, or an interface (R89)', () => {

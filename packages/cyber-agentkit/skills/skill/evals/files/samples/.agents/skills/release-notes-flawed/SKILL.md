@@ -1,6 +1,6 @@
 ---
 name: release-notes-flawed
-description: Use this skill when writing the release notes for a release. It reads prs.json, drops merge commits and internal pull requests, groups the rest by label, and writes RELEASE_NOTES.md.
+description: Write the release notes for a release. It reads prs.json, drops merge commits and internal pull requests, groups the rest by label, and writes RELEASE_NOTES.md.
 ---
 
 # Release notes

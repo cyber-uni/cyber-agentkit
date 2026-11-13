@@ -1,6 +1,6 @@
 ---
 name: asset
-description: Use this skill when listing, reading, adding, changing, or deleting the static files in a skill's assets/ folder, such as templates, schemas, or JSON data a skill points to by path.
+description: List, read, add, change, or delete the static files in a skill's assets/ folder, such as templates, schemas, or JSON data a skill points to by path.
 ---
 
 # Asset

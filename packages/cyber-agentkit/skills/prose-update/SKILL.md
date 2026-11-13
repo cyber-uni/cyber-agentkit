@@ -1,6 +1,6 @@
 ---
 name: prose-update
-description: Use this skill when a section of prose a tool wrote earlier may have been edited by its owner and a newer wording is available, to get recommended updated prose that keeps the owner's sentences. Takes the offered prose, the found prose, and the historic prose.
+description: Recommend updated prose for a section a tool wrote earlier, when its owner may have edited it and a newer wording is available, keeping the owner's sentences. Takes the offered prose, the found prose, and the historic prose.
 ---
 
 # Update prose

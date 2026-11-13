@@ -1,6 +1,6 @@
 ---
 name: skillify
-description: Use this skill when work already done should become a skill, as in "turn what we just did into a skill", "skillify this session", "make a skill from these notes", "make a skill out of how I did this last week", or "turn this other skill into one for our repo".
+description: Turn work already done into a skill, as in "turn what we just did into a skill", "skillify this session", "make a skill from these notes", "make a skill out of how I did this last week", or "turn this other skill into one for our repo".
 argument-hint: "[sources: a document, another skill, or past sessions; default this session]"
 ---
 

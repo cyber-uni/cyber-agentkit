@@ -1,6 +1,6 @@
 ---
 name: reference
-description: Use this skill when loading, creating, customizing, updating, deleting, migrating, finding, inspecting, or registering a reference (a document agents read by name, Markdown or a JSON, YAML, TOML, or text file), or when wiring a skill to load one. Also use it to migrate reference files left in a version 1 form, or under a name a plugin renamed, as a `reference-legacy-format` or `reference-renamed` warning asks.
+description: Load, create, customize, update, delete, migrate, find, inspect, or register a reference (a document agents read by name, Markdown or a JSON, YAML, TOML, or text file), or wire a skill to load one. Also migrate reference files left in a version 1 form, or under a name a plugin renamed, as a `reference-legacy-format` or `reference-renamed` warning asks.
 ---
 
 # Reference
