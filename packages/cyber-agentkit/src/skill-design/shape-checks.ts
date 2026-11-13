@@ -6,13 +6,27 @@ import { headingAnchors, inOwnFolder, isExternal, linkTargets, plainPaths, resol
 
 type Visit = { text: string; from: string; file: string }
 
+/** The most lines, and the most tokens by estimate, SHP-1 allows in the `SKILL.md` body. */
+const maxLines = 500
+const maxTokens = 5000
+
+/** A token estimate for English prose and Markdown: about four characters a token. */
+export function estimateTokens(text: string): number {
+	return Math.ceil(text.length / 4)
+}
+
 /** SHP-1 and SHP-2, the Shape checks a script decides from what the body links and names. */
 export function checkShape(skill: SkillFiles): CheckOutcome[] {
 	const lines = skill.body.split('\n').length
+	const tokens = estimateTokens(skill.body)
+	const over = [
+		...(lines > maxLines ? [`the body is ${lines} lines`] : []),
+		...(tokens > maxTokens ? [`the body is about ${tokens} tokens`] : []),
+	]
 	const outcomes: CheckOutcome[] = [
-		lines <= 500
-			? { id: 'SHP-1', status: 'pass' }
-			: { id: 'SHP-1', status: 'fail', message: `the body is ${lines} lines`, file: 'SKILL.md' },
+		over.length
+			? { id: 'SHP-1', status: 'fail', message: over.join('; '), file: 'SKILL.md' }
+			: { id: 'SHP-1', status: 'pass' },
 	]
 	const broken: { file: string; message: string }[] = []
 	const reached = new Set<string>()

@@ -26,14 +26,20 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				id: 'INT-3',
 				how: 'read',
 				severity: 'warning',
-				statement: 'Nothing in the body works on a job the Intent does not name.',
+				statement:
+					'Nothing in the body works on a job the Intent does not name, says again what another part of the skill already says, or composes a skill, reference, or command that no longer exists or no longer does what the body expects.',
 			},
 		],
 	},
 	{
 		aspect: 'shape',
 		checks: [
-			{ id: 'SHP-1', how: 'script', severity: 'warning', statement: 'The `SKILL.md` body is at most 500 lines.' },
+			{
+				id: 'SHP-1',
+				how: 'script',
+				severity: 'warning',
+				statement: 'The `SKILL.md` body is at most 500 lines and about 5,000 tokens, at four characters a token.',
+			},
 			{
 				id: 'SHP-2',
 				how: 'script',
@@ -52,7 +58,8 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				id: 'SHP-4',
 				how: 'read',
 				severity: 'warning',
-				statement: 'Each file under `references/` is read only on some paths; text every run needs is in `SKILL.md`.',
+				statement:
+					'Each file under `references/` is read only on some paths, and the step that loads it says when; text every run needs is in `SKILL.md`, and large reference material (long tables, examples, or catalogs) is under `references/`.',
 			},
 			{
 				id: 'SHP-5',
@@ -121,6 +128,33 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				severity: 'warning',
 				statement: "A script that prompts the user takes a `--yes` flag, and the skill's Markdown documents it.",
 			},
+			{
+				id: 'SHP-15',
+				how: 'read',
+				severity: 'warning',
+				statement:
+					'The body gives no instruction the model would follow without it, such as "be thorough" or "write clean code", and does not open with a paragraph that repeats the description.',
+			},
+			{
+				id: 'SHP-16',
+				how: 'read',
+				severity: 'warning',
+				statement: 'The body has no `## Why`, `## Rationale`, or `## Next Steps` section.',
+			},
+			{
+				id: 'SHP-17',
+				how: 'read',
+				severity: 'warning',
+				statement:
+					'Where a step could be done more than one way, it names one default and when to leave it, not a menu of options to choose from.',
+			},
+			{
+				id: 'SHP-18',
+				how: 'read',
+				severity: 'warning',
+				statement:
+					'Each script or command the body runs writes machine output to stdout, in the format the body asks for, and prints prose only behind `--verbose`.',
+			},
 		],
 	},
 	{
@@ -169,6 +203,12 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				statement:
 					'The description is at least 12 words, and uses no phrase that fits any skill, such as "helps with" or "various tasks".',
 				appliesTo: 'matched',
+			},
+			{
+				id: 'TRG-8',
+				how: 'read',
+				severity: 'warning',
+				statement: 'It matches the body: each command, file, or skill it names exists and does what it says.',
 			},
 		],
 	},

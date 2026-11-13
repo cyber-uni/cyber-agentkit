@@ -22,7 +22,23 @@ describe('checkShape', () => {
 
 	it('fails a body over 500 lines', () => {
 		const md = `${goodSkillMd}${'line\n'.repeat(500)}`
-		expect(byId(checkShape(makeSkill({ 'SKILL.md': md })))['SHP-1']).toMatchObject({ status: 'fail' })
+		expect(byId(checkShape(makeSkill({ 'SKILL.md': md })))['SHP-1']).toMatchObject({
+			status: 'fail',
+			message: expect.stringContaining('lines'),
+		})
+	})
+
+	it('fails a body under 500 lines that is over about 5,000 tokens, and names the estimate', () => {
+		const md = `${goodSkillMd}${`${'word '.repeat(200)}\n`.repeat(25)}`
+		const outcome = byId(checkShape(makeSkill({ 'SKILL.md': md })))['SHP-1']
+		expect(outcome).toMatchObject({ status: 'fail' })
+		expect(outcome?.message).toMatch(/about \d+ tokens/)
+		expect(outcome?.message).not.toContain('lines')
+	})
+
+	it('passes a body just under about 5,000 tokens', () => {
+		const md = `${goodSkillMd}${`${'word '.repeat(150)}\n`.repeat(25)}`
+		expect(byId(checkShape(makeSkill({ 'SKILL.md': md })))['SHP-1']).toMatchObject({ status: 'pass' })
 	})
 
 	it('fails a broken link and an unlinked reference, ignoring links inside code fences', () => {
