@@ -7,6 +7,9 @@ An interface is a named contract. A skill consumes it, and a [reference](/cyber-
 in any tier implements it. The resolver lists the implementations of an interface, and checks that
 each one has the shape the interface describes.
 
+Registering an interface is optional. Those that were registered are listed in the
+[interface registry](/cyber-agentkit/interface-registry/).
+
 | Term | Means |
 | --- | --- |
 | interface | An id, a cardinality, a version, and the top-level sections an implementation has |

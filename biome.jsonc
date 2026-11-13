@@ -12,6 +12,8 @@
 			"!!**/node_modules",
 			"!!.turbo",
 			"!!**/.astro",
+			// Written by the docs site's interface registry generator at build time.
+			"!!apps/web/src/generated",
 			"!!**/.agents/*.json",
 			// Derived by `universal-plugin plugin build`. Its writer and the formatter disagree on
 			// array wrapping, so linting these makes every build/lint cycle flip them back and forth.
