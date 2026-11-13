@@ -16,9 +16,51 @@ jobs:
       os: '["ubuntu-latest"]'
       playwright-browsers: ''
 
+  # The macOS and Windows jobs below run only when the change touches what they test. This job lists the
+  # files the change touches: a pull request against its merge base, a merge group against the trunk it
+  # builds on. A change to this workflow runs them all. Only `code / all-checks` is a required check, so
+  # a skipped platform job holds no merge. If the diff cannot be read, every job runs.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      kill: ${{ steps.diff.outputs.kill }}
+      bundle: ${{ steps.diff.outputs.bundle }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+          # The kill code and its test.
+          KILL: >-
+            ^packages/cyber-agentkit/src/skill-design/promptfoo-provider-source(\.test)?\.ts$|^packages/cyber-agentkit/src/headless/headless-invocation\.ts$|^\.github/workflows/pull-request\.yml$
+          # What the prebuilt scripts bundle: library source, the plugin manifest, the lockfile, and the
+          # build tooling (package manifests, build and format config, the drift check), plus the scripts.
+          BUNDLE: >-
+            ^packages/cyber-agentkit/src/|^packages/cyber-agentkit/skills/[^/]+/scripts/|^packages/cyber-agentkit/(plugin|package|tsconfig)\.json$|^packages/cyber-agentkit/tsdown\.config\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|biome\.jsonc)$|^scripts/skill-scripts-drift\.mjs$|^\.github/workflows/pull-request\.yml$
+        run: |
+          if ! files=$(git diff --name-only "$BASE...$HEAD"); then
+            echo "::warning::Could not diff $BASE...$HEAD; running every platform job."
+            echo "kill=true" >> "$GITHUB_OUTPUT"
+            echo "bundle=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf 'Changed files:\n%s\n' "$files"
+          for gate in kill bundle; do
+            pattern=KILL; [ "$gate" = bundle ] && pattern=BUNDLE
+            if printf '%s\n' "$files" | grep -Eq "${!pattern}"; then hit=true; else hit=false; fi
+            echo "$gate=$hit" | tee -a "$GITHUB_OUTPUT"
+          done
+
   # skill test kills a run that passes its time limit, with every process it started. The kill differs per
   # platform (Linux reads /proc, macOS asks ps, Windows kills the process tree), so its test runs on each.
   timeout-kill:
+    needs: changes
+    if: needs.changes.outputs.kill == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -39,16 +81,13 @@ jobs:
 
   # The prebuilt skill scripts must rebuild byte for byte on every platform and Node version a
   # contributor builds on, or the drift check in `pnpm verify` would flag a correct commit.
-  # `code` runs it on Linux; this runs it on macOS. Windows is left out because
+  # `code` runs it on Linux; this runs it on macOS, on the current LTS. Windows is left out because
   # `universal-plugin plugin build` does not run there: it imports a `d:` path that is not a
   # `file://` URL (ERR_UNSUPPORTED_ESM_URL_SCHEME).
   plugin-check:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest]
-        node-version: ['lts/-1', 'lts/*']
-    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.bundle == 'true'
+    runs-on: macos-latest
     permissions:
       contents: read
     steps:
@@ -56,7 +95,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 'lts/*'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm plugin:check
