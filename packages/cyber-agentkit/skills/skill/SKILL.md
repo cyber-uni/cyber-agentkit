@@ -72,7 +72,7 @@ Produces the skill's folder layout: what stays in `SKILL.md`, and what moves to 
 **Draft.** Keep everything in `SKILL.md` while its body stays under 500 lines. Move to `references/` text read only on
 some paths, such as one command's steps, and link each file from the step that needs it. Move to `scripts/` any step a
 program does the same way every time, such as parsing or validating a file. Write only what the agent would not do
-on its own, and give each step one way to do it. Propose the layout to the author.
+on its own, and give each step one way to do it. At `ask`, propose the layout to the author.
 
 - **SHP-1** [script, warning] The `SKILL.md` body is at most 500 lines and about 5,000 tokens, at four characters a
   token.
@@ -201,7 +201,7 @@ Before reporting done, check each of these against the result. Report any that f
 - **C2.** `check` changed no file, and reported each check only a run can decide as not checked.
 - **C3.** `check` reports no failure on a skill that meets every aspect, and names each check a skill fails, by its ID.
 - **C4.** `create` on a name that already exists left that skill unchanged and pointed to `check`, `fix`, and `enhance`.
-- **C5.** At `ask`, `create` wrote nothing the author had not approved.
+- **C5.** At `ask`, or when the author asked to approve each part, `create` wrote nothing the author had not approved.
 - **C6.** After `fix`, the checks it repaired pass a fresh `check`.
 - **C7.** `fix` reported each failure by its ID, and changed no part of the skill that no failure named, and no file
   outside it.

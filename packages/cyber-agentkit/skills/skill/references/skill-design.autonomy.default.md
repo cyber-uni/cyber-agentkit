@@ -5,7 +5,7 @@ tags: [skill-design, autonomy]
 
 ## create
 
-ask
+apply
 
 ## fix
 
