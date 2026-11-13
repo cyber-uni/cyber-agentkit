@@ -22,11 +22,11 @@ check-script: ../skills/skill/scripts/check-criteria.mjs
 
 - **CRI-1** [script] `SKILL.md` has a `## Done when` section with at least one item.
 - **CRI-2** [script] Each item starts with an ID `C<n>`, and no ID appears twice.
-- **CRI-3** [read] Each item is true or false of the result, not a goal or a quality ("clear", "good", "well").
-- **CRI-4** [read] Each item can be decided from the result and the case's inputs alone.
-- **CRI-5** [read] Together the items cover the result the Intent names; nothing the Intent promises is left without
-  a criterion.
-- **CRI-6** [read] No item restates a rule another aspect already checks, such as the description's length.
+- **CRI-3** [read, warning] Each item is true or false of the result, not a goal or a quality ("clear", "good", "well").
+- **CRI-4** [read, warning] Each item can be decided from the result and the case's inputs alone.
+- **CRI-5** [read, warning] Together the items cover the result the Intent names; nothing the Intent promises is left
+  without a criterion.
+- **CRI-6** [read, warning] No item restates a rule another aspect already checks, such as the description's length.
 
 ## Fix
 

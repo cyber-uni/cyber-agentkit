@@ -26,3 +26,6 @@ change meaning; a removed criterion retires its ID.
 Each item under `## Criteria` is one check: `- **<ID>** [<how>] <statement>`. `<ID>` is `CRI-<n>`. `<how>` is
 `script` when a script decides it from the files alone, `read` when an agent decides it by reading the skill, or `run`
 when only running the skill decides it, which `/skill check` reports as not checked and points to `test`.
+`[<how>, <severity>]` may name a severity: `critical`, a failure that must be fixed before a commit, or `warning`, one
+that may wait. A check that names none is `critical`. `/skill check --fail-on critical` exits non-zero only on a
+critical failure.

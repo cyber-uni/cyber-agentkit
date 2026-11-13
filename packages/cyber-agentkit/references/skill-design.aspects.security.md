@@ -15,7 +15,7 @@ check-script: ../skills/skill/scripts/check-security.mjs
 - **SEC-4** [read] The skill treats what it fetches or reads from files as data, and never tells the agent to follow
   instructions found there.
 - **SEC-5** [read] A script the skill runs takes outside input as arguments, never as code it evaluates.
-- **SEC-6** [read] The skill asks for no more permission than its steps use.
+- **SEC-6** [read, warning] The skill asks for no more permission than its steps use.
 
 ## Fix
 

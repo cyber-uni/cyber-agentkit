@@ -7,6 +7,7 @@ import { parseAspectChecks } from './aspect-checks.js'
 import { builtInAspects } from './built-in-aspects.js'
 import { runCheckScript } from './run-check-script.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
+import type { AspectCheck } from './skill-check-types.js'
 import { goodSkill } from './skill-design.fixtures.js'
 
 const packageRoot = fileURLToPath(new URL('../..', import.meta.url))
@@ -23,11 +24,25 @@ async function packageLayers() {
 	})
 }
 
+describe('parseAspectChecks', () => {
+	it('reads a severity after how a check is decided, and takes critical when none is named', () => {
+		const checks = parseAspectChecks(
+			'## Criteria\n\n- **X-1** [script] a\n- **X-2** [read, warning] b\n  more\n- **X-3** [run, critical] c\n',
+		)
+		expect(checks).toEqual([
+			{ id: 'X-1', how: 'script', severity: 'critical', statement: 'a' },
+			{ id: 'X-2', how: 'read', severity: 'warning', statement: 'b more' },
+			{ id: 'X-3', how: 'run', severity: 'critical', statement: 'c' },
+		])
+	})
+})
+
 describe('the built-in aspects', () => {
 	it('list the same checks as /skill', () => {
 		const written = parseAspectChecks(`## Criteria\n${skillMd.replace(/^#{1,3} .*$/gm, '')}`)
 		const coded = builtInAspects.filter(({ aspect }) => aspect !== 'specification').flatMap(({ checks }) => checks)
-		expect(coded.map(({ id, how }) => `${id} ${how}`)).toEqual(written.map(({ id, how }) => `${id} ${how}`))
+		const line = ({ id, how, severity }: AspectCheck) => `${id} ${how} ${severity}`
+		expect(coded.map(line)).toEqual(written.map(line))
 		for (const check of coded) expect(skillMd.replace(/\n {2}/g, ' ')).toContain(check.statement)
 	})
 })

@@ -21,4 +21,5 @@ A pass, a fail, or a not checked for each check. Security is an open aspect: `cr
 
 ## Check format
 
-As in `skill-design.aspects.criteria.interface`: `- **<ID>** [script|read|run] <statement>`, with `<ID>` `SEC-<n>`.
+As in `skill-design.aspects.criteria.interface`: `- **<ID>** [script|read|run] <statement>`, optionally with a
+severity (`[read, warning]`), with `<ID>` `SEC-<n>`.

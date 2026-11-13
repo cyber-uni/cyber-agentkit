@@ -7,7 +7,7 @@ import { type Answer, CliError, type Format, printAnswer, result } from 'clibuil
 import { collapseHome } from '../command-output/collapse-home.js'
 import { type HarnessId, harnessIds } from '../harness/harness-id.js'
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
-import type { SkillCheckReport } from './check-skill.js'
+import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { type PluginEvalRun, runPluginEval, runPluginEvalTest } from './plugin-eval-backend.js'
 import { runCheckScript } from './run-check-script.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
@@ -49,7 +49,7 @@ function answerThenFail(answer: Answer<any>, format: Format): never {
 
 function textReport(report: SkillCheckReport): string {
 	const lines = [
-		`${report.skill}: ${report.status} (${report.passed} passed, ${report.failed} failed, ${report.notChecked} not checked)`,
+		`${report.skill}: ${report.status} (${report.passed} passed, ${report.failed} failed of which ${report.critical} critical, ${report.notChecked} not checked)`,
 	]
 	for (const aspect of report.aspects) {
 		lines.push(`${aspect.aspect} (${aspect.implementation}): ${aspect.status}`)
@@ -57,8 +57,9 @@ function textReport(report: SkillCheckReport): string {
 			if (check.status === 'pass') continue
 			const where = check.file ? ` [${check.file}]` : ''
 			const needs = check.needs ? ` (needs /skill ${check.needs})` : ''
+			const severity = check.status === 'fail' && check.severity ? ` (${check.severity})` : ''
 			lines.push(
-				`  ${check.id} ${check.status}: ${check.message ?? ''}${where}${check.status === 'not-checked' ? needs : ''}`,
+				`  ${check.id} ${check.status}${severity}: ${check.message ?? ''}${where}${check.status === 'not-checked' ? needs : ''}`,
 			)
 		}
 	}
@@ -69,7 +70,7 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'check',
 		description:
-			'Check a skill folder against every aspect without running it: the checks a script decides pass or fail, and every other check is listed as not checked. Exits 1 when any check fails.',
+			'Check a skill folder against every aspect without running it: the checks a script decides pass or fail, each critical or a warning, and every other check is listed as not checked. Exits 1 when a check fails, or with `--fail-on critical` only when a critical one does.',
 		arguments: [{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() }],
 		options: {
 			root: {
@@ -77,9 +78,30 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 					'The repository root whose references choose each aspect. Defaults to the nearest folder at or above the current directory holding `.git`.',
 				type: t.string().optional(),
 			},
+			'fail-on': {
+				description:
+					'Which failures exit 1: `any` (the default), or `critical`, which reports warnings and exits 0 on them, as a CI gate.',
+				type: t.string().optional(),
+			},
 		},
-		examples: [{ command: 'cyber-agentkit skill check .agents/skills/release-notes', description: 'Check one skill' }],
-		async run(this: { format: Format }, args: { folder: string; root?: string | undefined }) {
+		examples: [
+			{ command: 'cyber-agentkit skill check .agents/skills/release-notes', description: 'Check one skill' },
+			{
+				command: 'cyber-agentkit skill check .agents/skills/release-notes --fail-on critical',
+				description: 'Gate CI on critical failures only',
+			},
+		],
+		async run(
+			this: { format: Format },
+			args: { folder: string; root?: string | undefined; 'fail-on'?: string | undefined },
+		) {
+			const failOn = (args['fail-on'] ?? 'any') as FailOn
+			if (!failOnPolicies.includes(failOn)) {
+				process.stderr.write(
+					`error: unknown-fail-on: no --fail-on ${args['fail-on']}; use ${failOnPolicies.join(' or ')}\n`,
+				)
+				throw CliError.reported(exitCodes.usage)
+			}
 			const skill = readSkill(args.folder)
 			if (!skill) {
 				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
@@ -100,7 +122,7 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 				for (const warning of aspect.warnings) process.stderr.write(`warning: ${aspect.aspect}: ${warning}\n`)
 			const report = checkSkill(skill, aspects, runCheckScript)
 			const answer = result(report, { render: { text: textReport } })
-			if (report.failed) answerThenFail(answer, this.format)
+			if (failsPolicy(report, failOn)) answerThenFail(answer, this.format)
 			return answer
 		},
 	})

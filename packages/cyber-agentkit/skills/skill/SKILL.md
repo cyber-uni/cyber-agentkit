@@ -37,9 +37,10 @@ it lists other than `criteria`, `verification`, and names ending `.interface`.
 When the load reports that a chosen implementation is missing and the default answered instead, tell the author which
 aspect fell back and which implementation was missing.
 
-Each aspect's checks are listed as `- **<ID>** [<how>] <statement>`. `script` means a script decides it from the files
-alone, `read` means you decide it by reading the skill, and `run` means only running the skill decides it: `check`
-reports it as not checked and points to `test`.
+Each aspect's checks are listed as `- **<ID>** [<how>] <statement>`, or `- **<ID>** [<how>, warning] <statement>`.
+`script` means a script decides it from the files alone, `read` means you decide it by reading the skill, and `run`
+means only running the skill decides it: `check` reports it as not checked and points to `test`. A check marked
+`warning` may wait; every other check is `critical`, and a failure of it must be fixed before a commit.
 
 ### Intent
 
@@ -53,8 +54,8 @@ the result.
 paragraph in four sentences or fewer. Ask the author when the job could be read two ways, and when the result is
 not named.
 
-- **INT-1** [read] The opening paragraph of `README.md` names one job and the result the skill hands back.
-- **INT-3** [read] Nothing in the body works on a job the Intent does not name.
+- **INT-1** [read, warning] The opening paragraph of `README.md` names one job and the result the skill hands back.
+- **INT-3** [read, warning] Nothing in the body works on a job the Intent does not name.
 
 **Fix.** Changing the Intent is the author's decision: propose the change and ask, at every autonomy level.
 
@@ -66,16 +67,17 @@ Produces the skill's folder layout: what stays in `SKILL.md`, and what moves to 
 some paths, such as one command's steps, and link each file from the step that needs it. Move to `scripts/` any step a
 program does the same way every time, such as parsing or validating a file. Propose the layout to the author.
 
-- **SHP-1** [script] The `SKILL.md` body is at most 500 lines.
+- **SHP-1** [script, warning] The `SKILL.md` body is at most 500 lines.
 - **SHP-2** [script] Every file the body links exists, and every file under `references/` is linked from the body or
   from a file it links, except a reference default (`<name>.default.md`), which is loaded by name.
-- **SHP-3** [read] A step that applies fixed rules to data (filtering, sorting, grouping, counting, or formatting) is a
-  script, not prose, however few its rules. Judgment, such as choosing what to say, stays prose.
-- **SHP-4** [read] Each file under `references/` is read only on some paths; text every run needs is in `SKILL.md`.
-- **SHP-5** [read] A choice only one team would make (a host, tool, workflow, template, policy, or path) is a reference
-  the skill loads, not text in the skill, unless the skill cannot work without it.
-- **SHP-6** [read] Each reference the skill loads ships a default, or the skill names the plugin that supplies it and
-  says what it does when the name is missing.
+- **SHP-3** [read, warning] A step that applies fixed rules to data (filtering, sorting, grouping, counting, or
+  formatting) is a script, not prose, however few its rules. Judgment, such as choosing what to say, stays prose.
+- **SHP-4** [read, warning] Each file under `references/` is read only on some paths; text every run needs is in
+  `SKILL.md`.
+- **SHP-5** [read, warning] A choice only one team would make (a host, tool, workflow, template, policy, or path) is a
+  reference the skill loads, not text in the skill, unless the skill cannot work without it.
+- **SHP-6** [read, warning] Each reference the skill loads ships a default, or the skill names the plugin that supplies
+  it and says what it does when the name is missing.
 
 **Fix.** Move the text or the step as Draft says, and update the links. For SHP-5, propose the reference and the
 interface the skill should depend on (a new host, tracker, or workflow is then an implementation, not an edit to the
@@ -91,7 +93,7 @@ Say nothing about when not to use it. List three or more near misses: requests a
 belong to the nearest other jobs. They go to Verification as `skip` cases, not into the description.
 
 - **TRG-1** [read] The description says when to use the skill, in words a user would type.
-- **TRG-3** [read] It describes when to use the skill, not how the skill works.
+- **TRG-3** [read, warning] It describes when to use the skill, not how the skill works.
 - **TRG-4** [run] The skill fires on the requests it should and not on near misses.
 
 **Fix.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result.

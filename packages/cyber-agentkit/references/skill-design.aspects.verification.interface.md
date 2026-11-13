@@ -26,4 +26,5 @@ author names one; otherwise that criterion is reported as not tested.
 
 ## Check format
 
-As in `skill-design.aspects.criteria.interface`: `- **<ID>** [script|read|run] <statement>`, with `<ID>` `VER-<n>`.
+As in `skill-design.aspects.criteria.interface`: `- **<ID>** [script|read|run] <statement>`, optionally with a
+severity (`[read, warning]`), with `<ID>` `VER-<n>`.
