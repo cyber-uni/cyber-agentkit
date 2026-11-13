@@ -1,7 +1,7 @@
 ---
 name: skill
 description: Create, check, test, fix, enhance, customize, or vet an agent skill (a SKILL.md and its folder), as in "write a skill for X", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", "improve this skill", or "is this skill from GitHub safe to install".
-argument-hint: "help | create [description] | check [skill] | test [skill] | fix [skill] | enhance [skill] [prompt] | vet <source> | customize [aspect]"
+argument-hint: "<description> | help | create [description] | check [skill] | test [skill] | fix [skill] | enhance [skill] [prompt] | vet <source> | customize [aspect]"
 ---
 
 # Skill
