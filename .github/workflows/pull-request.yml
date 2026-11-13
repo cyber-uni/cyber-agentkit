@@ -39,12 +39,14 @@ jobs:
 
   # The prebuilt skill scripts must rebuild byte for byte on every platform and Node version a
   # contributor builds on, or the drift check in `pnpm verify` would flag a correct commit.
-  # `code` runs it on Linux; this runs it on the rest.
+  # `code` runs it on Linux; this runs it on macOS. Windows is left out because
+  # `universal-plugin plugin build` does not run there: it imports a `d:` path that is not a
+  # `file://` URL (ERR_UNSUPPORTED_ESM_URL_SCHEME).
   plugin-check:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-latest]
         node-version: ['lts/-1', 'lts/*']
     runs-on: ${{ matrix.os }}
     permissions:
