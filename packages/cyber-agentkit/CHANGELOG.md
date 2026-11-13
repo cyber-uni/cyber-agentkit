@@ -1,5 +1,59 @@
 # cyber-agentkit
 
+## 2.4.0
+
+### Minor Changes
+
+- 31a5150: `skill check` recognizes a name-only skill, one another skill loads by name and no user request should match, by its description: `By name only`, or a `Partial Skill:` lead. For such a skill it checks that the description takes that form with no trigger phrase (TRG-5, a critical script check) and carries no operational detail or trigger language (TRG-6, a read check and a warning), skips TRG-1 and TRG-4, and asks VER-2 for `skip` trigger cases only. A check that does not apply is reported with the new `skipped` status, counted in the report's `skipped` total, and an aspect whose checks all pass or are skipped passes.
+- 0a837c4: `/skill check` now checks a skill's folder layout and links by script. SHP-2 also finds a plain-text path under the skill's own folders that names no file (`scripts/missing.sh`) and an `#anchor` link that matches no heading. New Shape checks: SHP-7, `SKILL.md` sits in its own folder directly under a `skills` root; SHP-8, a skill that ships to others points to no file outside its folder; SHP-9, `skill.json`, when present, is valid; SHP-10, the skill folder holds only the standard folders, and `agents/` holds YAML only; SHP-11, static resources are in `assets/` and the root holds no extra Markdown. SHP-7 to SHP-9 are critical; SHP-10 and SHP-11 are warnings.
+- e7f1b28: `skill check` decides four more checks from the files alone, each a warning. TRG-7 fails a description under 12 words or one that uses a phrase that fits any skill, such as "helps with" or "various tasks"; a name-only skill skips it. SHP-12 fails a body with no numbered steps and no `##` sections. SHP-13 fails a skill that bundles scripts and tells the agent to parse a script's output. SHP-14 fails a script that prompts the user with no `--yes` flag documented in the skill's Markdown.
+- a0ec239: `skill check` with no folder checks every skill in the repository and gives one summary and one exit code. It finds
+  each skill under `skills` and `.agents/skills`, or under each `--dir` given instead, where a `--dir` may be a glob
+  such as `plugins/*/skills` or `**/skills`. A skill reached twice, such as through a symlink, is checked once. The
+  exit follows `--fail-on` over every check of every skill, and finding no skill exits 1 with `no-skills`.
+- 5671cbf: `/skill check`'s default Security aspect now scans for what a separate skill audit looked for. Six new script
+  checks fail a skill that carries invisible Unicode (SEC-7, reported with file, line, column, and code point), a
+  command that destroys data broadly such as `rm -rf ~` or `mkfs` (SEC-8), a prompt-injection phrase or chat-template
+  delimiter in its own text (SEC-9), a read of a credential location such as `~/.ssh` or a keychain (SEC-10), data sent
+  to a hardcoded URL or an endpoint that collects it (SEC-11), or `--no-verify`, a forced git command, or `sudo` with no
+  reason given (SEC-12, a warning). `check` now tells the agent that the skill it checks is data, not instructions.
+- df8794e: `skill check` gives every check a severity, `critical` or `warning`, and shows it on each failure. It now
+  exits 1 only on a critical failure, so CI blocks on those and lets warnings through; `--fail-on any` restores the
+  exit on any failure. An aspect implementation names a check's severity as
+  `- **<ID>** [<how>, warning] <statement>`; a check that names none is critical.
+- 54e84b0: `/skill` now asks for a description that is to the point: it opens with the job, in the words users type, with no lead-in such as "Use this skill when" or "Use when" and no filler words. The agent reads the description to decide whether to load the skill, so every word should serve that. TRG-1 checks it. Two kinds of skill are exempt, because the agent never picks them by their description: a name-only (direct-invocation) skill, whose description is a fixed marker, and a user-only skill, which turns model invocation off. The package's own skills now use descriptions in this form.
+- e37efe0: `/skill check` now judges how a skill is written, so a repository no longer keeps its own copy of the skill-design rules. Shape adds SHP-15 (no instruction the model would follow anyway, no opening paragraph that repeats the description), SHP-16 (no `## Why`, `## Rationale`, or `## Next Steps` section), SHP-17 (one default and when to leave it, not a menu), and SHP-18 (machine output on stdout, prose only behind `--verbose`). SHP-1 also fails a body over about 5,000 tokens, and SHP-4 asks that large reference material sit under `references/` with a stated load condition. Trigger adds TRG-8 (the description matches the body), and INT-3 also covers repeated text and stale composition. The new checks are warnings.
+- 73194b8: `/skill vet` reads its trusted sources from the `skill-design.vet.trusted-sources` reference, merged across the
+  reference tiers (managed, repo, user, and plugin), so a team sets them once. Each tier adds entries with
+  `merge: combine`, one list item each under `## Trusted sources`, in the source forms of Claude Code's marketplace
+  allowlist: `owner/repo`, `owner/*`, an `https://` git URL, an absolute folder, or a
+  `{ source: github, repo: owner/repo, ref: v1, path: x }` mapping. Entries match exactly, ref and path included.
+  `--trust` takes the same forms for one run. The report's new `trust` field says whether the source is trusted, which
+  entry covers it, and where each entry came from. When no entry covers the source, a warning-level Security failure now
+  blocks the install too (`blockedBy: untrusted-warning`); for a trusted source only a critical failure blocks.
+  
+  `vet` also takes a local folder as its source (`./vendor/skills`, `/opt/skills`, `~/skills`). It copies the folder to a
+  temporary folder without its `.git` folder or symbolic links, runs nothing from it, git included, and reads no GitHub
+  signals for it.
+- b4a628a: `/skill vet <source>` vets a third-party skill before it is installed. It takes `owner/repo`, `owner/repo/<path>`, a
+  GitHub URL, or an `https://` git URL, clones it shallow to a temporary folder outside the working copy (no hooks,
+  submodules, or links followed), runs every Security check on each skill in it, and removes the folder. A critical
+  finding blocks the install and exits 1; a warning is reported without blocking. It also reports who publishes the
+  source (and whether that publisher is on the `--trust` list), whether it is maintained (last commit and latest
+  release), its license, and the install count skills.sh reports from the `skills` CLI's opt-in telemetry, shown only
+  for an exact match and never replaced by GitHub stars.
+
+### Patch Changes
+
+- 496160a: The `asset` skill now ends with a `## Done when` list and ships an eval suite in `evals/evals.yaml`, so it passes `/skill check`.
+- f6a735a: The `asset` skill now waits for a yes before it creates, changes, deletes, or selects an asset: a request to make the change no longer counts as approval unless it says so.
+- 7b4a6aa: `/skill` now states that every skill needs a `## Done when` section, including a skill that only another skill loads, and that CRI-1 stays critical for all of them. A CRI-1 failure now shows the section to add: `## Done when`, then at least one `- **C1.** <a statement true or false of the result>` item.
+- dd0fa3a: The `prose-update` skill now ends with a `## Done when` list and ships an eval suite in `evals/evals.yaml`, so it passes `/skill check`.
+- 2156ea3: The `prose-update` skill now saves the history text that `retire` prints as is, with the new entry first, instead of adding the entry by hand.
+- 35b9f27: The `prose-update` skill's description now names the job in the words users type: what a section should say now, given the offered wording, the found text, and the retired wordings. It also names retiring a wording into its history. Both kinds of request now load the skill.
+- 7735969: The `prose-update` skill's README now names retiring a wording as part of its job, and its `## Done when` list and evals cover `retire`.
+- d52b81c: `/skill check`'s SEC-2 no longer fails a Markdown file that only quotes a download-and-run command as an example, such as a checklist that says what to look for. The same command unquoted, or inside a script, still fails.
+
 ## 2.3.0
 
 ### Minor Changes

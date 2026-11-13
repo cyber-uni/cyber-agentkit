@@ -43,7 +43,7 @@ node <this skill's folder>/scripts/reference.mjs <subcommand> ...
 
 `scripts/reference.mjs` is the package's `reference` command bundled into one file; it needs no `node_modules`. It finds the repository root from the working folder. Add `--root <repository root>` only when the working folder is not in the repository. A command that cannot complete exits 1 (or 2 for a usage error) and prints one error value on stdout, with `error` and `code` lines. A warning prints `warning: <code>: <message>` on stderr in text output, and does not change the exit code.
 
-Outside Load, when the script is missing or cannot run, use `pnpm exec cyber-agentkit reference` when the package is a direct dependency, else `npx -y cyber-agentkit@2.3.0 reference`, with the same arguments. Load never falls back to a package runner.
+Outside Load, when the script is missing or cannot run, use `pnpm exec cyber-agentkit reference` when the package is a direct dependency, else `npx -y cyber-agentkit@2.4.0 reference`, with the same arguments. Load never falls back to a package runner.
 
 ## Load
 
