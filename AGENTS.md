@@ -22,6 +22,19 @@ Use GitHub issues for feature planning by default. At the end of a brainstorming
 
 - **`commit-work` skill.** Staging, splitting, and message writing when committing.
 
+## Prebuilt skill scripts
+
+The marketplace installs the plugin from `packages/cyber-agentkit` on `main`, and `npx skills` copies
+skill folders from the repository, so the compiled `skills/<name>/scripts/*.mjs` files on `main` are
+what users run. `plugin.json` maps each one to its TypeScript source.
+
+- A pull request that changes a script's source, or anything it bundles, runs `pnpm plugin:build` and
+  commits the rebuilt scripts in a `chore:` commit of their own.
+- `pnpm plugin:check` (part of `pnpm verify`, so CI runs it) fails when a committed script does not
+  match a fresh build, and names each stale file.
+- After a rebase, rebuild with `pnpm plugin:build` instead of resolving a conflict in a built script by
+  hand, then run `pnpm plugin:check`.
+
 ## Skill Augmentations
 
 When loading any skill, also check `.agents/skills/<name>/SKILL.md` for project-level additions and merge them with the base skill. Files in `.agents/skills/` extend (not replace) the installed skill.
