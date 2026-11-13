@@ -7,18 +7,19 @@ author, that applies at `ask`; at `apply` or `apply-safe`, the report shows it i
 
 ## 1. Place it
 
-1. Put the skill where the author said: the repository's skills folder, a plugin's `skills/`, or the user's own skills
+1. Settle the autonomy level as `SKILL.md`'s Autonomy says.
+2. Put the skill where the author said: the repository's skills folder, a plugin's `skills/`, or the user's own skills
    folder. When they said nowhere, use the repository's skills folder (`.agents/skills/` when the repository has one),
-   or ask when the request is outside a repository.
-2. Name it in lowercase words joined by `-`, naming the job.
-3. If `<place>/<name>/SKILL.md` already exists, stop, change nothing, and point to `check`, `fix`, and `enhance`.
+   or ask when the request is outside a repository; with no author present, use the user's own skills folder.
+3. Name it in lowercase words joined by `-`, naming the job.
+4. If `<place>/<name>/SKILL.md` already exists, stop, change nothing, and point to `check`, `fix`, and `enhance`.
 
 ## 2. Walk the core aspects
 
 Load the aspects as `SKILL.md` says. For each of Intent, Criteria, Shape, and Trigger, in that order:
 
 1. Draft the aspect as its Draft says, from the description and the aspects written before it.
-2. At `apply` (the default for `create`) or `apply-safe`, write it and go on to the next aspect; the report lists each
+2. At `apply` or `apply-safe`, write it and go on to the next aspect; the report lists each
    draft. At `ask`, or when the author asked to approve each part, show the draft and ask the author to approve it,
    and write nothing before they do.
 3. Write the part into `<place>/<name>/`. A skill stopped partway keeps every written part on disk.
@@ -45,5 +46,5 @@ it: the instructions an agent follows to do the job and meet each criterion. Fol
 
 ## Report
 
-The skill's path, each aspect as written, the `check` result, and the `test` result per criterion, or that `test` was
+The autonomy line, the skill's path, each aspect as written, each decision made on the author's behalf, the `check` result, and the `test` result per criterion, or that `test` was
 not run.

@@ -59,12 +59,17 @@ outcome:
     prompt: Create a skill named release-notes in .agents/skills that writes release notes from merged pull requests.
     files: files/samples
     criteria: [C4]
+  # create-ask asks to approve each draft, so the author sets ask; create-unattended and enhance-intent-unattended say
+  # no author is present, so the level derives to apply and only an author's decision stops the run.
   - id: create-ask
     prompt: >-
       Create a skill in .agents/skills that drafts a changelog entry for each merged pull request. Show me each
       draft and wait for my approval before you write anything.
     files: files/samples
-    criteria: [C5]
+    criteria: [C5, C13]
+    checks:
+      C13:
+        - regex: "[Aa]utonomy:\\W{0,4}ask\\b"
   # A description with no command routes to create, which runs check and then asks before test's model runs. The
   # sandbox has no author to agree, so no test result may be saved.
   - id: create-described
@@ -81,6 +86,22 @@ outcome:
       pull request. Report what you did when done.
     files: files/samples
     criteria: [C12]
+  - id: create-unattended
+    prompt: >-
+      You were dispatched to implement an issue, and nobody will review drafts or answer questions. With /skill, create
+      a skill in .agents/skills that drafts a changelog entry for each merged pull request, then report what you did.
+    files: files/samples
+    criteria: [C13, C14]
+    checks:
+      C13:
+        - regex: "[Aa]utonomy:\\W{0,4}apply(-safe)?\\b"
+  - id: enhance-intent-unattended
+    prompt: >-
+      You were dispatched to implement an issue, and nobody will review drafts or answer questions. With /skill,
+      enhance the skill in .agents/skills/release-notes so it writes the notes from git tags instead of merged pull
+      requests, then report what you did.
+    files: files/samples
+    criteria: [C15]
   - id: fix-flawed
     prompt: >-
       Check the skill in .agents/skills/release-notes-flawed, then fix what the check finds. I approve every change;
@@ -144,6 +165,15 @@ rubrics:
     - regex: "[Vv]erification"
     - regex: "[Ss]ecurity"
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+  C13:
+    - regex: "[Aa]utonomy:\\W{0,4}(ask|apply-safe|apply)\\b"
+  C14:
+    - script: >-
+        f=$(ls .agents/skills/*/SKILL.md | grep -v -e '/release-notes/' -e '/release-notes-flawed/') && test -n "$f" && grep -q '^## Done when' $f
+    - not-regex: "\\?\\s*$"
+  C15:
+    - regex: "[Ii]ntent|[Pp]urpose|what (the skill|it) is for"
+    - script: "git diff --quiet HEAD -- .agents/skills/release-notes && test -z \"$(git status --porcelain --untracked-files=all -- .agents/skills/release-notes)\""
   C10:
     - regex: "Verdict:\\W{0,4}(blocked|not blocked)"
     - not-regex: "[Ss]tars?[^\\n]{0,40}[Ii]nstalls|[Ii]nstalls[^\\n]{0,40}[Ss]tars?"

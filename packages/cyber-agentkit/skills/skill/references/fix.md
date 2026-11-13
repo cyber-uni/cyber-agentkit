@@ -9,13 +9,13 @@ and run [test](test.md) only when the author asks. With no failures, say there i
 
 ## 2. Repair each one
 
-1. If the skill came from an installed plugin, say before the first edit that a plugin update will overwrite it.
-2. For each failure, apply its aspect's Fix. Change only the part the failure named.
-3. A repair that needs the author's decision, such as a new Intent, is asked; with no author present, report it as not
-   repaired.
-4. At `apply-safe` (the default for `fix`), keep a repair only when the failed check now passes and no other check
+1. Settle the autonomy level as `SKILL.md`'s Autonomy says.
+2. If the skill came from an installed plugin, say before the first edit that a plugin update will overwrite it.
+3. For each failure, apply its aspect's Fix. Change only the part the failure named.
+4. A repair that needs the author's decision, such as a new Intent, stops the run as Autonomy says.
+5. At `apply-safe`, keep a repair only when the failed check now passes and no other check
    fails; ask about the rest.
-5. When a repair makes another check fail, show both to the author, who keeps it, undoes it, or asks for another
+6. When a repair makes another check fail, show both to the author, who keeps it, undoes it, or asks for another
    repair. With no author present, undo it and report both.
 
 ## 3. Check again
@@ -25,4 +25,5 @@ with no author present, file none.
 
 ## Report
 
-Each failure: repaired, with the change, or not repaired, with the reason; and the result of the checks run again.
+The autonomy line; each failure: repaired, with the change, or not repaired, with the reason; each decision made on
+the author's behalf; and the result of the checks run again.

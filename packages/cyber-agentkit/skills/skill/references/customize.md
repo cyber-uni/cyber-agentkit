@@ -7,7 +7,7 @@ Show what `/skill` uses, take the author's picks in one answer, and write them t
 
 1. With the `reference` skill's Find mode, run `implementations skill-design.aspects.*`. For each aspect, show the
    implementation in use (`inUse`) and the ones available, each with its pin and description.
-2. Load `skill-design.autonomy` and show each command's level (`ask`, `apply-safe`, or `apply`).
+2. Load `skill-design.autonomy` and show each command's level (`ask`, `apply-safe`, `apply`, or `derive`, which settles it from the situation).
 3. With an `[aspect]` given, show only that aspect, and say the others are unchanged.
 
 ## 2. Ask once

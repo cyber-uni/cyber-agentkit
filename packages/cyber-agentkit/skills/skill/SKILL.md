@@ -176,16 +176,39 @@ with the same arguments.
 
 ## Autonomy
 
-Load `skill-design.autonomy` with the `reference` skill of `cyber-agentkit`. It sets one level per command:
+`create`, `fix`, and `enhance` each run at one level:
 
 - `ask`: propose each item; the author decides.
 - `apply-safe`: apply each change after which `check` and `test` pass with no criterion worse than before; ask about
   the rest, or report them when no author is present.
 - `apply`: apply every change, and report each one.
 
-A decision only the author can make (changing the Intent, what a skill generalizes over, an aspect the description says
-nothing about) is asked at every level; with no author present, report it as not applied. A level set for `check` or
-`test` has no effect: say so. A level that names no known value leaves the command at its default: say so.
+Before the first change, settle the level, take the first that answers, and state it as one line,
+`Autonomy: <level> (<source>: <reason>)`:
+
+1. `author`: the request names a level, or says to apply without asking ("I approve every change") or to ask first.
+2. `reference`: load `skill-design.autonomy` with the `reference` skill of `cyber-agentkit`; a level a customization
+   sets for the command answers. Its shipped default says `derive` and answers nothing. A level that names no known
+   value is ignored: say so.
+3. `derived`: from the situation.
+   - No author present: the session was dispatched with a brief or a work item (other work that adds or edits a
+     skill, as Commands says), runs headless, or the request says nobody will review the drafts. Take `apply`, or
+     `apply-safe` on a skill from an installed plugin.
+   - An author present: `apply` for `create`, which still asks before `test`'s runs; `apply-safe` for `fix`; `ask` for
+     `enhance`.
+
+With no author present, an `ask` from step 1 or 2 proposes every item in the report and writes nothing. A level set for
+`check` or `test` has no effect: say so.
+
+At `apply`, `fix` and `enhance` undo a change after which `check` fails. Report each decision made on the author's behalf, such as a
+name, a place, or a draft: what was chosen, why, and whether `check` and `test` showed it safe or it was applied on
+that reason alone.
+
+A decision only the author can make stops the run at every level: changing the Intent, what a skill generalizes over,
+an aspect the description says nothing about, or removing or weakening a `## Done when` criterion. Rewriting a
+criterion so it can be checked, as a Criteria fix does, keeps what it asks for and is not weakening it. Ask it when the
+author is present. With no author present, apply nothing that depends on it, and report the work done so far, the
+decision, and the options.
 
 ## Rules
 
@@ -217,3 +240,9 @@ Before reporting done, check each of these against the result. Report any that f
 - **C11.** `create` ran `check` on the skill it built, and started no `test` run before the author agreed to it.
 - **C12.** When other work added a skill, the skill was written in the same run without asking about each aspect,
   and `check` ran on it before the work was reported done.
+- **C13.** Each `create`, `fix`, and `enhance` run stated its autonomy level, where it came from, and why, before its
+  first change.
+- **C14.** With no author present, `create`, `fix`, and `enhance` finished without asking, and reported each decision
+  they made.
+- **C15.** A decision only the author can make stopped the run at every level: nothing that depends on it changed, and
+  the reply reported the work done so far and the decision.

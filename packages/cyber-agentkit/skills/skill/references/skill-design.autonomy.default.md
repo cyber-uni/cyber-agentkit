@@ -1,16 +1,16 @@
 ---
-description: How much each /skill command applies on its own - ask, apply-safe, or apply.
+description: How much each /skill command applies on its own - ask, apply-safe, apply, or derive from the situation.
 tags: [skill-design, autonomy]
 ---
 
 ## create
 
-apply
+derive
 
 ## fix
 
-apply-safe
+derive
 
 ## enhance
 
-ask
+derive
