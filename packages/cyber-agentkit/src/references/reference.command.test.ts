@@ -20,6 +20,7 @@ describe('reference command', () => {
 			'implementations',
 			'audit',
 			'check',
+			'register',
 		])
 	})
 

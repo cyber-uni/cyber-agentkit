@@ -1,5 +1,6 @@
 import type { cli } from 'clibuilder'
 import { command } from 'clibuilder'
+import { registerCommand } from '../interface-registry/register.command.js'
 import { checkCommand } from './reference-check.command.js'
 import { defaultReferencePath, layerSource } from './reference-command-support.js'
 import { createCommand } from './reference-create.command.js'
@@ -14,6 +15,7 @@ import { searchCommand } from './reference-search.command.js'
 import { auditCommand } from './reference-skill-audit.command.js'
 import { whereCommand } from './reference-where.command.js'
 
+export type { ReferenceRegisterReport } from '../interface-registry/register.command.js'
 export type { ReferenceCheckReport } from './reference-check.command.js'
 export { traceText } from './reference-command-support.js'
 export type { ReferenceCreateReport } from './reference-create.command.js'
@@ -57,6 +59,7 @@ export type ReferenceCommands = {
 	check: cli.Command
 	implementations: cli.Command
 	audit: cli.Command
+	register: cli.Command
 }
 
 /** A factory, so each host CLI names itself as the plugin whose own references come first. */
@@ -77,6 +80,7 @@ export function createReferenceCommands({
 		check: checkCommand(layersFor, path),
 		implementations: implementationsCommand(layersFor, path),
 		audit: auditCommand(layersFor, path),
+		register: registerCommand(path),
 	}
 }
 
@@ -93,11 +97,12 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 		check,
 		implementations,
 		audit,
+		register,
 	} = createReferenceCommands(options)
 	return command({
 		name: 'reference',
 		description:
-			'Read reference documents by name, composed from the managed, repo, user, plugin, and default tiers, create, customize, or delete a contribution, and migrate version 1 files.',
-		commands: [load, list, search, where, create, customize, remove, migrate, implementations, audit, check],
+			'Read reference documents by name, composed from the managed, repo, user, plugin, and default tiers, create, customize, or delete a contribution, migrate version 1 files, and register an interface in the public registry.',
+		commands: [load, list, search, where, create, customize, remove, migrate, implementations, audit, check, register],
 	})
 }
