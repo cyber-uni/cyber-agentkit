@@ -70,7 +70,7 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'check',
 		description:
-			'Check a skill folder against every aspect without running it: the checks a script decides pass or fail, each critical or a warning, and every other check is listed as not checked. Exits 1 when a check fails, or with `--fail-on critical` only when a critical one does.',
+			'Check a skill folder against every aspect without running it: the checks a script decides pass or fail, each critical or a warning, and every other check is listed as not checked. Exits 1 when a critical check fails, or with `--fail-on any` when any check does.',
 		arguments: [{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() }],
 		options: {
 			root: {
@@ -80,22 +80,22 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 			},
 			'fail-on': {
 				description:
-					'Which failures exit 1: `any` (the default), or `critical`, which reports warnings and exits 0 on them, as a CI gate.',
+					'Which failures exit 1: `critical` (the default), which reports warnings and exits 0 on them, or `any`.',
 				type: t.string().optional(),
 			},
 		},
 		examples: [
 			{ command: 'cyber-agentkit skill check .agents/skills/release-notes', description: 'Check one skill' },
 			{
-				command: 'cyber-agentkit skill check .agents/skills/release-notes --fail-on critical',
-				description: 'Gate CI on critical failures only',
+				command: 'cyber-agentkit skill check .agents/skills/release-notes --fail-on any',
+				description: 'Fail on warnings too',
 			},
 		],
 		async run(
 			this: { format: Format },
 			args: { folder: string; root?: string | undefined; 'fail-on'?: string | undefined },
 		) {
-			const failOn = (args['fail-on'] ?? 'any') as FailOn
+			const failOn = (args['fail-on'] ?? 'critical') as FailOn
 			if (!failOnPolicies.includes(failOn)) {
 				process.stderr.write(
 					`error: unknown-fail-on: no --fail-on ${args['fail-on']}; use ${failOnPolicies.join(' or ')}\n`,

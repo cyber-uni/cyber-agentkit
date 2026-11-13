@@ -11,9 +11,8 @@ say where you looked.
 
 Run `check <skill folder> --format json` as `SKILL.md`'s Run the command says. It reports the Agent Skills
 specification checks and every `script` check of the chosen implementations, running each one's check script, and
-lists the rest as not checked. It exits 1 when a check fails; with `--fail-on critical`, as CI runs it, only when a
-critical one fails. When no form of the command can run, decide the `script`
-checks yourself by reading the files. The same command runs in CI.
+lists the rest as not checked. It exits 1 when a critical check fails, and with `--fail-on any` when any check
+fails. When no form of the command can run, decide the `script` checks yourself by reading the files. The same command runs in CI.
 
 ## 3. Decide the rest
 

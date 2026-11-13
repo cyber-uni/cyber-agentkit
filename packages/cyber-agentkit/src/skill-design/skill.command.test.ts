@@ -42,19 +42,20 @@ describe('skill check', () => {
 		expect(report.aspects).toHaveLength(7)
 	})
 
-	it('reports each failure with its severity, and exits 1 on a warning under the default policy', async () => {
+	it('reports each failure with its severity, and exits 0 on warnings under the default policy', async () => {
 		const code = await check(goodSkill({ 'SKILL.md': longBody(goodSkillMd) }).folder)
 		const report = JSON.parse(printed())
-		expect(code).toBe(1)
+		expect(code).toBe(0)
 		expect(report).toMatchObject({ failed: 1, critical: 0 })
 		expect(report.aspects[2].checks).toContainEqual(
 			expect.objectContaining({ id: 'SHP-1', status: 'fail', severity: 'warning' }),
 		)
 	})
 
-	it('exits 0 on warnings and 1 on a critical failure with --fail-on critical', async () => {
-		expect(await check(goodSkill({ 'SKILL.md': longBody(goodSkillMd) }).folder, '--fail-on', 'critical')).toBe(0)
+	it('exits 1 on a warning with --fail-on any, and on a critical failure under either policy', async () => {
+		expect(await check(goodSkill({ 'SKILL.md': longBody(goodSkillMd) }).folder, '--fail-on', 'any')).toBe(1)
 		const md = longBody(goodSkillMd.replace('name: release-notes', 'name: Wrong'))
+		expect(await check(goodSkill({ 'SKILL.md': md }).folder)).toBe(1)
 		expect(await check(goodSkill({ 'SKILL.md': md }).folder, '--fail-on', 'critical')).toBe(1)
 	})
 

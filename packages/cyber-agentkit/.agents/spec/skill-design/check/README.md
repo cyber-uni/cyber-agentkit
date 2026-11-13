@@ -41,8 +41,8 @@ contract apply here; IDs are shared across the parent and its children.
   criterion and the part of the skill that breaks it.
 - R18 (UC3): `check` changes no file and runs no part of the skill.
 - R19 (UC3): The check script runs only the checks a script can decide, and each gives the same result as in
-  `/skill check`. It reports every other check as not checked, needing `/skill check`, never as a pass. It exits
-  non-zero when any check it ran fails, or, under a critical-only policy, when a critical check it ran fails.
+  `/skill check`. It reports every other check as not checked, needing `/skill check`, never as a pass. By default it
+  exits non-zero only when a critical check it ran fails; under a fail-on-any policy, when any check it ran fails.
 - R20 (UC3.2): A skill that fails the Agent Skills specification gets those failures reported, and every aspect is
   still checked in the same run.
 - R21 (UC3.4): A criterion that only a run can decide is reported as not checked and points to `test`, never as a
