@@ -70,7 +70,8 @@ export type TestResult = {
 /** One run's record in the replies file beside a saved result (R138). */
 export type Reply = {
 	case: string
-	arm: 'with-skill' | 'baseline'
+	/** `with-skill` or `baseline` for `skill test`; the wording's label (`A` or `B`) for `instruction compare`. */
+	arm: string
 	/** 1-based. */
 	run: number
 	outcome: 'pass' | 'fail' | 'fired' | 'not fired' | 'not run'
@@ -153,9 +154,22 @@ function criterionPassed(row: Row, id: string): { pass: boolean; output: string 
 export function readPromptfooOutput(
 	output: unknown,
 	plan: TestPlan,
-	meta: { skill: string; at: string; verification: string; baseline: string; baselineRan: boolean },
+	meta: {
+		skill: string
+		at: string
+		verification: string
+		baseline: string
+		baselineRan: boolean
+		/**
+		 * The provider labels of the arm the result is about and of the arm it is set against; `with-skill` and
+		 * `baseline` when absent. `instruction compare` reads each wording's arm this way.
+		 */
+		arms?: { main: string; other: string } | undefined
+	},
 ): TestResult {
 	const rows: Row[] = ((output as { results?: { results?: Row[] } })?.results?.results ?? []) as Row[]
+	const main = meta.arms?.main ?? 'with-skill'
+	const other = meta.arms?.other ?? 'baseline'
 	const byCase = (id: string, label: string) =>
 		rows.filter((row) => row.testCase?.description === id && row.provider?.label === label)
 	const notRun = [...plan.notRun]
@@ -174,7 +188,7 @@ export function readPromptfooOutput(
 	const trigger: TriggerResult[] = plan.cases
 		.filter((item) => item.kind === 'trigger')
 		.map((item) => {
-			const runs = byCase(item.id, 'with-skill').filter(ok)
+			const runs = byCase(item.id, main).filter(ok)
 			const fired = runs.filter((row) => row.response?.metadata?.fired).length
 			const right = item.expect === 'fire' ? fired : runs.length - fired
 			return {
@@ -203,7 +217,7 @@ export function readPromptfooOutput(
 		const failures: Failure[] = []
 		const statuses: Status[] = []
 		for (const item of covering) {
-			const runs = byCase(item.id, 'with-skill').filter(ok)
+			const runs = byCase(item.id, main).filter(ok)
 			let casePassed = 0
 			for (const row of runs) {
 				const decided = criterionPassed(row, id)
@@ -221,7 +235,7 @@ export function readPromptfooOutput(
 				: 'pass'
 		const result: CriterionResult = { id, status, passed, ran }
 		if (meta.baselineRan) {
-			const base = covering.flatMap((item) => byCase(item.id, 'baseline').filter(ok))
+			const base = covering.flatMap((item) => byCase(item.id, other).filter(ok))
 			result.baseline = { passed: base.filter((row) => criterionPassed(row, id).pass).length, ran: base.length }
 		}
 		if (failures.length) result.failures = failures
@@ -231,7 +245,7 @@ export function readPromptfooOutput(
 	const outcomeStatus = (item: (typeof outcomes)[number]): Status => {
 		const ids = [...new Set([...Object.keys(item.rubrics), ...Object.keys(item.judged)])]
 		if (!ids.length) return 'not-tested'
-		const runs = byCase(item.id, 'with-skill').filter(ok)
+		const runs = byCase(item.id, main).filter(ok)
 		if (!runs.length) return 'not-run'
 		const each = ids.map((id) => statusOf(runs.filter((row) => criterionPassed(row, id).pass).length, runs.length))
 		return each.includes('fail') ? 'fail' : 'pass'
@@ -245,7 +259,7 @@ export function readPromptfooOutput(
 	const blocked: Blocked[] = rows.flatMap((row) =>
 		(row.response?.metadata?.blocked ?? []).map((item) => ({
 			case: row.testCase?.description ?? '?',
-			arm: row.provider?.label === 'with-skill' ? ('skill' as const) : ('baseline' as const),
+			arm: row.provider?.label === main ? ('skill' as const) : ('baseline' as const),
 			run: (row.repeatIndex ?? 0) + 1,
 			what: item.what,
 			target: item.target,
@@ -270,13 +284,16 @@ export function readPromptfooOutput(
 }
 
 /** The reply of every run, passed or failed, with the skill and without it, for the file beside a saved result (R138). */
-export function readReplies(output: unknown): Reply[] {
+export function readReplies(
+	output: unknown,
+	armOf: (label: string | undefined) => string = (label) => (label === 'baseline' ? 'baseline' : 'with-skill'),
+): Reply[] {
 	const rows: Row[] = ((output as { results?: { results?: Row[] } })?.results?.results ?? []) as Row[]
 	const replies: Reply[] = []
 	for (const row of rows) {
 		const meta = row.response?.metadata
 		if (meta?.skipped) continue
-		const arm = row.provider?.label === 'baseline' ? 'baseline' : 'with-skill'
+		const arm = armOf(row.provider?.label)
 		const entry: Reply = {
 			case: row.testCase?.description ?? '?',
 			arm,

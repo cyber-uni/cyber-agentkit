@@ -86,11 +86,51 @@ export function planTest(
 		return { code: 'no-cases', problem: 'evals/evals.yaml lists no case' }
 
 	const items = criteriaItems(skill)
-	const criteria = items ? items.ids.filter((id): id is string => id !== undefined) : []
+	return planEvals(evals, {
+		criteria: items ? items.ids.filter((id): id is string => id !== undefined) : [],
+		...(items ? {} : { noCriteria: 'the skill has no `## Done when`; run `/skill check` and `/skill fix`' }),
+		folder: join(skill.folder, 'evals'),
+		file: 'evals/evals.yaml',
+		judge,
+		cases: only,
+		threads,
+	})
+}
+
+/**
+ * Decides what runs from cases already read and checked: which cases, which checks, and what is reported without a
+ * run. `skill test` reads them from a skill's `evals/evals.yaml`; `instruction compare` from its cases file.
+ */
+export function planEvals(
+	evals: EvalsFile,
+	{
+		criteria,
+		noCriteria,
+		noRubric = 'it has no rubric; run `/skill fix`',
+		folder,
+		file,
+		judge,
+		cases: only,
+		threads = availableParallelism(),
+	}: {
+		/** Every criterion ID, in order. */
+		criteria: string[]
+		/** Set when there are no criteria to test: why, reported against every criterion. */
+		noCriteria?: string | undefined
+		/** Why a criterion with no rubric is not tested. */
+		noRubric?: string | undefined
+		/** The folder a case's `files` is relative to. */
+		folder: string
+		/** The cases file, as messages name it. */
+		file: string
+		judge?: string | undefined
+		cases?: string[] | undefined
+		threads?: number | undefined
+	},
+): PlanResult {
 	const rubrics = evals.rubrics ?? {}
 	const notTested: TestPlan['notTested'] = []
-	if (!items)
-		notTested.push({ id: '*', reason: 'the skill has no `## Done when`; run `/skill check` and `/skill fix`' })
+	if (noCriteria !== undefined) notTested.push({ id: '*', reason: noCriteria })
 	const outcomeCases = evals.outcome ?? []
 	for (const id of criteria) {
 		const testing = outcomeCases.filter((item) => (item.criteria ?? criteria).includes(id))
@@ -99,7 +139,7 @@ export function planTest(
 			...testing.flatMap((item) => (item.checks?.[id] ? [item.checks[id]] : [])),
 		]
 		const covered = !!rubrics[id] || (testing.length > 0 && testing.every((item) => item.checks?.[id]))
-		if (!covered) notTested.push({ id, reason: 'it has no rubric; run `/skill fix`' })
+		if (!covered) notTested.push({ id, reason: noRubric })
 		else if (!judge && lists.some((list) => list.some((check) => 'judge' in check)))
 			notTested.push({ id, reason: 'its rubric needs a judge, and none was named' })
 	}
@@ -124,7 +164,7 @@ export function planTest(
 		}
 		const ids = (item.criteria ?? criteria).filter((id) => criteria.includes(id) && !untested.has(id))
 		const planned: PlannedCase = { id: item.id, kind: 'outcome', prompt: item.prompt, rubrics: {}, judged: {} }
-		if (item.files !== undefined) planned.files = resolve(skill.folder, 'evals', item.files)
+		if (item.files !== undefined) planned.files = resolve(folder, item.files)
 		if (item.network?.length) planned.network = item.network
 		for (const id of ids) {
 			const list = item.checks?.[id] ?? rubrics[id]
@@ -142,7 +182,7 @@ export function planTest(
 	if (evals.concurrency !== undefined) {
 		if (evals.concurrency > bound)
 			warnings.push(
-				`evals.yaml asks for ${evals.concurrency} runs at once; running ${bound}, fewer than half of the ${threads} hardware threads`,
+				`${file.split('/').pop()} asks for ${evals.concurrency} runs at once; running ${bound}, fewer than half of the ${threads} hardware threads`,
 			)
 		else concurrency = evals.concurrency
 	}
@@ -154,7 +194,7 @@ export function planTest(
 		if (unknown.length)
 			return {
 				code: 'unknown-case',
-				problem: `no case ${unknown.join(', ')} in evals/evals.yaml; the cases are ${[...known].join(', ')}`,
+				problem: `no case ${unknown.join(', ')} in ${file}; the cases are ${[...known].join(', ')}`,
 			}
 		chosen = cases.filter((item) => only.includes(item.id))
 		skipped = notRun.filter((item) => only.includes(item.case))
