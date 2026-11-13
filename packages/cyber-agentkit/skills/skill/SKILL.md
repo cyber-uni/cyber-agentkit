@@ -1,6 +1,6 @@
 ---
 name: skill
-description: Create, check, test, fix, enhance, customize, or vet an agent skill (a SKILL.md and its folder), as in "write a skill for X", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", "improve this skill", or "is this skill from GitHub safe to install".
+description: Create, check, test, fix, enhance, customize, or vet an agent skill (a SKILL.md and its folder), as in "write a skill for X", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", "improve this skill", or "is this skill from GitHub safe to install". Also load it before adding, editing, or linking any file of a skill (its SKILL.md, or a file under its references/, scripts/, assets/, or evals/) while doing other work, such as implementing an issue that adds a skill or changes one, even when the request never says "skill".
 argument-hint: "<description> | help | create [description] | check [skill] | test [skill] | fix [skill] | enhance [skill] [prompt] | vet <source> | customize [aspect]"
 ---
 
@@ -25,6 +25,11 @@ works through the aspects below.
 Take an explicit command first. When the request describes a skill to write but names no command, as in `/skill a
 skill that drafts release notes`, follow `create`, which carries on into `check` and `test`. Otherwise read the intent
 from the request; if it fits two commands, ask which. With no request, follow `help`.
+
+When other work adds a skill or edits one, such as implementing an issue, the work is the approval, for `test`'s runs
+too. For a new skill, follow `create`. For a change to an existing skill, make the change the work calls for, and add a
+trigger or outcome case for each behavior it adds. Then run `check` and `test`, follow `fix` for what they find, and
+report the result with the work. Ask only for a decision the work leaves open and only the author can make.
 
 ## Aspects
 
@@ -210,3 +215,5 @@ Before reporting done, check each of these against the result. Report any that f
 - **C10.** `vet` installed nothing, left no checkout behind, reported the install blocked on every critical failure and
   on every warning from a source no trusted entry covers, and showed no number but a skills.sh count as installs.
 - **C11.** `create` ran `check` on the skill it built, and started no `test` run before the author agreed to it.
+- **C12.** When other work added a skill, the skill was written in the same run without asking about each aspect,
+  and `check` ran on it before the work was reported done.
