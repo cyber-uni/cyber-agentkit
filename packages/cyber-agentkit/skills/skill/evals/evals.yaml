@@ -6,10 +6,12 @@ trigger:
   - { prompt: "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.", expect: fire }
   - { prompt: "Run the evals for the release-notes skill.", expect: fire }
   - { prompt: "Which implementation does each skill-design aspect use? I may switch some.", expect: fire }
+  - { prompt: "Is the skill in github.com/acme/skills safe to install? Vet it first.", expect: fire }
   - { prompt: "Turn what we just did into a skill.", expect: skip }
   - { prompt: "Load our style reference and tell me what it says about tone.", expect: skip }
   - { prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
   - { prompt: "Review my diff before I push.", expect: skip }
+  - { prompt: "Install the release-notes plugin from our marketplace.", expect: skip }
 # files/samples holds two sample skills (R79): release-notes passes every check; release-notes-flawed passes every
 # script check but fails TRG-3 (its description says how it works), CRI-3 ("The notes are clear"), and SHP-3 (its
 # grouping step is prose a script could do).
@@ -69,6 +71,13 @@ outcome:
     prompt: Show me which implementation each aspect of /skill uses. Don't change anything yet.
     files: files/samples
     criteria: [C9]
+  - id: vet-public
+    prompt: >-
+      Vet the find-skills skill in github.com/vercel-labs/skills before I install it. Don't install it. End your reply
+      with a line "Verdict:" then blocked or not blocked.
+    files: files/samples
+    network: [github.com, api.github.com, codeload.github.com, skills.sh]
+    criteria: [C10]
 rubrics:
   C1:
     - regex: "deploy-notes"
@@ -103,6 +112,7 @@ rubrics:
     - regex: "\\bfix\\b"
     - regex: "\\benhance\\b"
     - regex: "\\bcustomize\\b"
+    - regex: "\\bvet\\b"
     - regex: "skillify"
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
   C9:
@@ -110,3 +120,9 @@ rubrics:
     - regex: "[Vv]erification"
     - regex: "[Ss]ecurity"
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+  C10:
+    - regex: "Verdict:\\W{0,4}(blocked|not blocked)"
+    - not-regex: "[Ss]tars?[^\\n]{0,40}[Ii]nstalls|[Ii]nstalls[^\\n]{0,40}[Ss]tars?"
+    - script: >-
+        test -z "$(git status --porcelain --untracked-files=all)"
+        && test -z "$(ls -d "${TMPDIR:-/tmp}"/cyber-agentkit-vet-* 2>/dev/null)"
