@@ -211,6 +211,14 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				severity: 'warning',
 				statement: 'It matches the body: each command, file, or skill it names exists and does what it says.',
 			},
+			{
+				id: 'TRG-9',
+				how: 'script',
+				severity: 'warning',
+				statement:
+					'A skill whose body documents the arguments it takes (a command table whose commands take arguments, an `Arguments:` line or heading, or `$ARGUMENTS`) declares an `argument-hint` in its front matter.',
+				appliesTo: 'matched',
+			},
 		],
 	},
 ]

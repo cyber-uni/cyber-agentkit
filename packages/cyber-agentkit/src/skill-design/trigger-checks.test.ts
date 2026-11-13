@@ -83,3 +83,63 @@ describe('checkTrigger (TRG-7)', () => {
 		expect(byId(checkTrigger(skill))['TRG-7']).toMatchObject({ status: 'not-checked' })
 	})
 })
+
+describe('checkTrigger (TRG-9)', () => {
+	const trg9 = (skill: SkillFiles) => byId(checkTrigger(skill))['TRG-9']
+	const withBody = (body: string, frontmatter = '') =>
+		goodSkill({ 'SKILL.md': goodSkillMd.replace(/^---\n\n/m, `${frontmatter}---\n\n${body}\n\n`) })
+
+	it('passes a skill whose body documents no arguments', () => {
+		expect(trg9(goodSkill())).toEqual({ id: 'TRG-9', status: 'pass' })
+	})
+
+	it('fails each way a body documents arguments when there is no `argument-hint`, naming it', () => {
+		const cases: [string, string][] = [
+			[
+				'| Command | Use |\n| --- | --- |\n| `check [skill]` | check it |',
+				'a command table whose commands take arguments',
+			],
+			['| `vet <source>` | vet it |', 'a command table whose commands take arguments'],
+			['Arguments: the release tag', 'an `Arguments:` line'],
+			['**Arguments:** the release tag', 'an `Arguments:` line'],
+			['## Arguments\n\nThe release tag.', 'an `Arguments` heading'],
+			['Draft notes for $ARGUMENTS.', '`$ARGUMENTS`'],
+		]
+		for (const [body, signal] of cases)
+			expect(trg9(withBody(body))).toEqual({
+				id: 'TRG-9',
+				status: 'fail',
+				message: `the body documents arguments (${signal}) and the front matter has no \`argument-hint\``,
+				file: 'SKILL.md',
+			})
+	})
+
+	it('passes a body that documents arguments when the front matter has an `argument-hint`', () => {
+		expect(trg9(withBody('Arguments: the release tag', 'argument-hint: "[tag]"\n'))).toEqual({
+			id: 'TRG-9',
+			status: 'pass',
+		})
+	})
+
+	it('fails an empty `argument-hint`', () => {
+		expect(trg9(withBody('Arguments: the release tag', 'argument-hint: ""\n'))).toMatchObject({ status: 'fail' })
+	})
+
+	it('reads no arguments from a command table without them, or from a code fence', () => {
+		const body = '| `help` | show help |\n\n```md\nArguments: x\n$ARGUMENTS\n| `check [skill]` | x |\n```'
+		expect(trg9(withBody(body))).toEqual({ id: 'TRG-9', status: 'pass' })
+	})
+
+	it('reads no arguments from `$ARGUMENTS` or `Arguments:` named in a code span', () => {
+		const body = 'TRG-9 looks for an `Arguments:` line or `$ARGUMENTS` in the body.'
+		expect(trg9(withBody(body))).toEqual({ id: 'TRG-9', status: 'pass' })
+	})
+
+	it('skips a name-only skill', () => {
+		expect(trg9(withDescription('By name only'))).toEqual({
+			id: 'TRG-9',
+			status: 'skipped',
+			message: 'the skill is name-only',
+		})
+	})
+})
