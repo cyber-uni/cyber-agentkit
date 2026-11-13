@@ -10,7 +10,7 @@ promptfoo, beside a run without the skill. Type `/skill` to run it yourself. Ins
 | Command | Does |
 | --- | --- |
 | `help` | lists and explains the commands; also what a bare `/skill` shows |
-| `create` | drafts Intent, Criteria, Shape, and Trigger, builds the skill, checks it, then tests it once you agree; also what `/skill <description>` runs |
+| `create` | drafts Intent, Criteria, Shape, and Trigger, builds the skill, checks it, then tests it within the test budget; also what `/skill <description>` runs |
 | `check` | reads the skill against every aspect; changes nothing |
 | `test` | runs the evals and saves the result; changes nothing |
 | `fix` | repairs what check or test found |
@@ -18,12 +18,15 @@ promptfoo, beside a run without the skill. Type `/skill` to run it yourself. Ins
 | `vet` | fetches a third-party skill, runs every Security check, and gives an install verdict with supply-chain signals |
 | `customize` | shows which implementation each aspect uses and each command's autonomy, and changes them through the `reference` skill |
 
-`create`, `fix`, and `enhance` each start by stating their autonomy level and why: `ask` (propose each item),
+Every run behaves the same way, whether a person is watching or an agent was dispatched; the leash decides where it
+stops. `create`, `fix`, and `enhance` each start by stating their autonomy level and why: `ask` (propose each item),
 `apply-safe` (apply what `check` and `test` show is safe), or `apply` (apply everything and report it). The author's
-request or a `skill-design.autonomy` customization sets it; otherwise the run derives it from the situation. With an
-author present, `create` applies, `fix` applies what is safe, and `enhance` asks. With no author present, as in a
-session dispatched to implement an issue, the command does the work and reports each decision it made. A decision that
-is the author's alone, such as changing a skill's Intent, stops the run at every level.
+request or a `skill-design.autonomy` customization sets it; by default `create` applies, `fix` applies what is safe,
+and `enhance` asks, and work that adds or edits a skill, such as implementing an issue, applies. The same reference
+holds a test budget, `$10 or 60 runs` by default: `skill test --estimate` prices a test from its last saved result
+(or $0.18 a run with none), and a test within the budget runs without asking. A test over the budget, or a decision
+that is the author's alone, such as changing a skill's Intent, stops the run: the work so far is kept and reported,
+and the reply ends with the question and its options.
 
 Every skill needs a `## Done when` section, the last section of its `SKILL.md`, listing the checkable outcomes
 `- **C1.** <statement>` the agent checks before it reports done. This holds for a skill that only another skill loads

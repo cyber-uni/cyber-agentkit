@@ -34,5 +34,5 @@ SHP-5 fails only for a choice you judge another team would make differently. Cha
 
 One line per aspect: pass, fail, or not checked. An aspect whose checks all pass or are skipped passes. Under each
 fail, the check's ID, its severity (`critical` or `warning`), its statement, and the part of the skill that breaks it,
-quoted with its file. List the critical failures first: they must be fixed before a commit. In an interactive run with
-failures, offer `fix`.
+quoted with its file. List the critical failures first: they must be fixed before a commit. With failures, offer `fix`
+as `SKILL.md`'s Rules say.

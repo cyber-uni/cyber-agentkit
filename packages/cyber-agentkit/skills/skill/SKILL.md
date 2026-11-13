@@ -26,10 +26,10 @@ Take an explicit command first. When the request describes a skill to write but 
 skill that drafts release notes`, follow `create`, which carries on into `check` and `test`. Otherwise read the intent
 from the request; if it fits two commands, ask which. With no request, follow `help`.
 
-When other work adds a skill or edits one, such as implementing an issue, the work is the approval, for `test`'s runs
-too. For a new skill, follow `create`. For a change to an existing skill, make the change the work calls for, and add a
+When other work adds a skill or edits one, such as implementing an issue, the work is the approval to apply; `test`'s
+runs go by the test budget (see Autonomy). For a new skill, follow `create`. For a change to an existing skill, make the change the work calls for, and add a
 trigger or outcome case for each behavior it adds. Then run `check` and `test`, follow `fix` for what they find, and
-report the result with the work. Ask only for a decision the work leaves open and only the author can make.
+report the result with the work. Stop only as Autonomy's Stops says.
 
 ## Aspects
 
@@ -122,7 +122,7 @@ interface the skill should depend on (a new host, tracker, or workflow is then a
 skill), and the author decides each move. Apply an approved one with the `reference` skill: Create the default, then
 Wire a skill. For SHP-6, ship the default. For SHP-7 to SHP-11, move the file or folder the check names, and update
 what links or names it. For SHP-12, write the body as steps or sections. For SHP-13, make the script print what the
-step needs, and point the step at that. For SHP-14, add the flag so an unattended run never waits. For SHP-15 and SHP-16, delete the text. For SHP-17, keep
+step needs, and point the step at that. For SHP-14, add the flag so a run need never wait at a prompt. For SHP-15 and SHP-16, delete the text. For SHP-17, keep
 as the default the option most runs need, and name the condition under which the step does otherwise. For SHP-18, move
 the prose to stderr or behind `--verbose`.
 
@@ -176,39 +176,64 @@ with the same arguments.
 
 ## Autonomy
 
+Every run behaves the same way, whoever is or is not watching: the leash decides where it stops. Never decide whether
+an author is present.
+
 `create`, `fix`, and `enhance` each run at one level:
 
-- `ask`: propose each item; the author decides.
-- `apply-safe`: apply each change after which `check` and `test` pass with no criterion worse than before; ask about
-  the rest, or report them when no author is present.
+- `ask`: propose each item, and stop for the answer before writing it.
+- `apply-safe`: apply each change after which `check` and `test` pass with no criterion worse than before; stop and ask
+  about the rest.
 - `apply`: apply every change, and report each one.
 
 Before the first change, settle the level, take the first that answers, and state it as one line,
 `Autonomy: <level> (<source>: <reason>)`:
 
 1. `author`: the request names a level, or says to apply without asking ("I approve every change") or to ask first.
-2. `reference`: load `skill-design.autonomy` with the `reference` skill of `cyber-agentkit`; a level a customization
-   sets for the command answers. Its shipped default says `derive` and answers nothing. A level that names no known
-   value is ignored: say so.
-3. `derived`: from the situation.
-   - No author present: the session was dispatched with a brief or a work item (other work that adds or edits a
-     skill, as Commands says), runs headless, or the request says nobody will review the drafts. Take `apply`, or
-     `apply-safe` on a skill from an installed plugin.
-   - An author present: `apply` for `create`, which still asks before `test`'s runs; `apply-safe` for `fix`; `ask` for
-     `enhance`.
+   Other work that adds or edits a skill, as Commands says, is the approval to apply: take `apply`, or `apply-safe` on
+   a skill from an installed plugin.
+2. `reference`: load `skill-design.autonomy` with the `reference` skill of `cyber-agentkit`; the level it sets for the
+   command answers. Its shipped default is `apply` for `create`, `apply-safe` for `fix`, and `ask` for `enhance`. A
+   level that names no known value, such as `derive` from an older version, is ignored: say so, and take the shipped
+   default.
 
-With no author present, an `ask` from step 1 or 2 proposes every item in the report and writes nothing. A level set for
-`check` or `test` has no effect: say so.
+A level set for `check` or `test` has no effect: say so.
 
-At `apply`, `fix` and `enhance` undo a change after which `check` fails. Report each decision made on the author's behalf, such as a
-name, a place, or a draft: what was chosen, why, and whether `check` and `test` showed it safe or it was applied on
-that reason alone.
+At `apply`, `fix` and `enhance` undo a change after which `check` fails. Report each decision made on the author's
+behalf, such as a name, a place, or a draft: what was chosen, why, and whether `check` and `test` showed it safe or it
+was applied on that reason alone.
 
-A decision only the author can make stops the run at every level: changing the Intent, what a skill generalizes over,
-an aspect the description says nothing about, or removing or weakening a `## Done when` criterion. Rewriting a
-criterion so it can be checked, as a Criteria fix does, keeps what it asks for and is not weakening it. Ask it when the
-author is present. With no author present, apply nothing that depends on it, and report the work done so far, the
-decision, and the options.
+### Test budget
+
+`skill-design.autonomy` also holds the test budget, under `## test budget`: a cost in US dollars and a run count,
+`$10 or 60 runs` by default. Before any `test` run, whichever command starts it, run
+
+```sh
+node <this skill's folder>/scripts/skill.mjs test <skill folder> --estimate --budget-cost <cost> --budget-runs <runs> --format json
+```
+
+It makes no run, and prints `runs`, `estimate` (US dollars, or `null` when no cost is known), `basis`, `last` (the last
+saved result's `runs`, `cost`, and `durationMs`, when there is one), and `within`. The estimate scales the last saved
+result to the planned runs, or uses a default per-run cost with none; with no cost known, the run count is held to the
+budget. State it as one line, `Test budget: <within|over> (<runs> runs, <estimate or "no cost known">; budget <cost>
+or <runs> runs)`. When `within` is true, start `test` without asking. When it is false, stop.
+
+### Stops
+
+A run stops only where its level says to ask, for a `test` over the budget, and for a decision only the author can
+make: changing the Intent, what a skill generalizes over, an aspect the description says nothing about, or removing or
+weakening a `## Done when` criterion. Rewriting a criterion so it can be checked, as a Criteria fix does, keeps what it
+asks for and is not weakening it. A request that names such a change still stops: say what it changes, and ask.
+
+A stop is the same every time:
+
+1. Keep every part already written, and apply nothing that depends on the answer.
+2. Report the work done so far.
+3. End with the question and its options, each lettered. For a `test` over the budget, give the run count, the
+   estimate, and how long the last run took, with the options to run it all, run some cases (`--case`), or not run it.
+
+Whoever reads the reply answers it: someone in the session, or, from a dispatched agent's report of being blocked, the
+one who dispatched it.
 
 ## Rules
 
@@ -216,8 +241,8 @@ decision, and the options.
 - A skill that `create` writes meets the Agent Skills specification: `name` is 1 to 64 lowercase letters,
   digits, and hyphens and matches the folder; `description` is 1 to 1024 characters.
 - Run no judge unless the author names one.
-- In an interactive run that found failures, end `check` and `test` by offering `fix`. Change nothing unless the author
-  accepts. With no author present, make no offer.
+- When `check` or `test`, run as the command asked, finds failures, end by offering `fix`, and change nothing unless the
+  author accepts. When another command runs them, it goes on as its own steps say.
 - Never edit a skill that came from an installed plugin without saying first that a plugin update will overwrite the
   change.
 
@@ -237,12 +262,15 @@ Before reporting done, check each of these against the result. Report any that f
 - **C9.** `customize` showed each aspect with the implementation in use, and changed no file the author had not picked.
 - **C10.** `vet` installed nothing, left no checkout behind, reported the install blocked on every critical failure and
   on every warning from a source no trusted entry covers, and showed no number but a skills.sh count as installs.
-- **C11.** `create` ran `check` on the skill it built, and started no `test` run before the author agreed to it.
+- **C11.** `create` ran `check` on the skill it built, then estimated `test` against the test budget, stated the
+  `Test budget:` line, and, within the budget, started `test` without asking.
 - **C12.** When other work added a skill, the skill was written in the same run without asking about each aspect,
   and `check` ran on it before the work was reported done.
 - **C13.** Each `create`, `fix`, and `enhance` run stated its autonomy level, where it came from, and why, before its
   first change.
-- **C14.** With no author present, `create`, `fix`, and `enhance` finished without asking, and reported each decision
-  they made.
+- **C14.** A `test` estimated over the budget started no run, the skill written so far stayed on disk, and the reply
+  ended by asking whether to run it, giving the run count, the estimate, and the options.
 - **C15.** A decision only the author can make stopped the run at every level: nothing that depends on it changed, and
-  the reply reported the work done so far and the decision.
+  the reply reported the work done so far, then ended with the decision and its options.
+- **C16.** No run decided whether an author is present: the level came from the request or `skill-design.autonomy`,
+  and the run stopped only where Autonomy's Stops says.

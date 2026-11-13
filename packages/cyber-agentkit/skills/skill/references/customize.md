@@ -7,12 +7,13 @@ Show what `/skill` uses, take the author's picks in one answer, and write them t
 
 1. With the `reference` skill's Find mode, run `implementations skill-design.aspects.*`. For each aspect, show the
    implementation in use (`inUse`) and the ones available, each with its pin and description.
-2. Load `skill-design.autonomy` and show each command's level (`ask`, `apply-safe`, `apply`, or `derive`, which settles it from the situation).
+2. Load `skill-design.autonomy` and show each command's level (`ask`, `apply-safe`, or `apply`) and the test budget.
 3. With an `[aspect]` given, show only that aspect, and say the others are unchanged.
 
 ## 2. Ask once
 
-Ask in one question what to change: an implementation per aspect, one plugin for every aspect, autonomy levels, and
+Ask in one question what to change: an implementation per aspect, one plugin for every aspect, autonomy levels, the
+test budget, and
 whether it applies to the whole repository (`repo`, the default) or to the author alone (`user`). Change nothing the
 author does not name.
 
@@ -22,7 +23,8 @@ With the `reference` skill's Customize mode:
 
 - One plugin for every aspect: one `customize skill-design.aspects.*` with that plugin as the step.
 - A pick per aspect: one `customize skill-design.aspects.<aspect>` per aspect named.
-- Autonomy: customize `skill-design.autonomy` with the levels asked, by request; it is not part of the aspect family.
+- Autonomy or the test budget: customize `skill-design.autonomy` with the levels or budget asked, by request; it is not
+  part of the aspect family.
 
 ## Report
 
