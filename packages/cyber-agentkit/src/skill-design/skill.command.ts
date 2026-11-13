@@ -481,20 +481,18 @@ function signalLines(signals: SupplyChainSignals): string[] {
 
 function verdictText(report: SkillVetReport): string {
 	if (report.blockedBy === 'untrusted-warning')
-		return `blocked: a Security check failed at warning, and ${report.trust.publisher ? `the publisher ${report.trust.publisher} is not trusted` : 'the source has no publisher to trust'}`
+		return 'blocked: a Security check failed at warning, and no entry on the trust list covers the source'
 	if (report.verdict === 'blocked') return 'blocked: a Security check failed at critical'
 	return 'not blocked by a script check'
 }
 
 function trustLines({ trust }: SkillVetReport): string[] {
-	const who = trust.publisher
-		? `${trust.publisher}, ${trust.trusted ? 'trusted' : 'not on the trust list'}`
-		: 'no publisher known (the source is not on GitHub), not trusted'
+	const who = trust.by ? `trusted, covered by ${trust.by}` : 'not trusted, no entry on the trust list covers the source'
 	const list =
 		trust.list.length === 0
 			? 'none'
-			: trust.list.map(({ name, from }) => `${name} (from ${from.join(', ')})`).join('; ')
-	return [`trust: ${who}`, `trusted publishers: ${list}`]
+			: trust.list.map(({ label, from }) => `${label} (from ${from.join(', ')})`).join('; ')
+	return [`trust: ${who}`, `trusted sources: ${list}`]
 }
 
 function vetText(report: SkillVetReport): string {
@@ -520,7 +518,7 @@ function vetText(report: SkillVetReport): string {
 			}
 	}
 	if (report.signals) lines.push(...signalLines(report.signals))
-	else lines.push('signals: not read, the source is not on GitHub')
+	else lines.push(`signals: not read, the source is ${source.local ? 'a local folder' : 'not on GitHub'}`)
 	lines.push(...trustLines(report))
 	return `${lines.join('\n')}\n`
 }
@@ -534,12 +532,12 @@ function vetCommand({
 }: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'vet',
-		description: `Vet a third-party skill before installing it: check its source out to a temporary folder, run every Security check on each skill in it, read who publishes it, whether it is maintained, its license, and its skills.sh install count, and remove the folder. Runs nothing from the source. Trusted publishers come from the \`${trustListName}\` reference, merged across its tiers, and \`--trust\`. Exits 1 when the install is blocked: a critical Security check fails, or a warning one does and the publisher is not trusted.`,
+		description: `Vet a third-party skill before installing it: check its source out (or copy a local folder) to a temporary folder, run every Security check on each skill in it, read who publishes it, whether it is maintained, its license, and its skills.sh install count, and remove the folder. Runs nothing from the source. Trusted sources come from the \`${trustListName}\` reference, merged across its tiers, and \`--trust\`. Exits 1 when the install is blocked: a critical Security check fails, or a warning one does and no trusted entry covers the source.`,
 		arguments: [
 			{
 				name: 'source',
 				description:
-					'The source: `owner/repo`, `owner/repo/<path>`, a GitHub URL (with `/tree/<ref>/<path>`), or an `https://` git URL.',
+					'The source: `owner/repo`, `owner/repo/<path>`, a GitHub URL (with `/tree/<ref>/<path>`), an `https://` git URL, or a local folder written as a path (`./skills/x`, `/abs/path`, `~/x`).',
 				type: t.string(),
 			},
 		],
@@ -554,7 +552,7 @@ function vetCommand({
 				type: t.string().optional(),
 			},
 			trust: {
-				description: `A publisher (GitHub owner) to trust for this run, on top of the \`${trustListName}\` reference; repeat it for more.`,
+				description: `A source to trust for this run, on top of the \`${trustListName}\` reference: \`owner/repo\`, \`owner/*\`, an \`https://\` git URL, an absolute folder, or a \`{ source: github, repo: owner/repo, ref: v1 }\` mapping. It matches exactly, ref and path included; repeat it for more.`,
 				type: t.array(t.string()).optional(),
 			},
 			root: {
@@ -566,8 +564,12 @@ function vetCommand({
 		examples: [
 			{ command: 'cyber-agentkit skill vet acme/skills/release-notes', description: 'Vet one skill on GitHub' },
 			{
-				command: 'cyber-agentkit skill vet https://github.com/acme/skills/tree/v1.2.0/release-notes --trust acme',
-				description: 'Vet a tagged skill from a publisher the team trusts',
+				command: "cyber-agentkit skill vet acme/skills/release-notes --trust 'acme/*'",
+				description: 'Vet a skill from an owner trusted for this run',
+			},
+			{
+				command: 'cyber-agentkit skill vet ./vendor/skills/release-notes',
+				description: 'Vet a skill in a local folder',
 			},
 		],
 		async run(
@@ -580,7 +582,11 @@ function vetCommand({
 				root?: string | undefined
 			},
 		) {
-			const source = parseVetSource(args.source, { ref: args.ref, path: args.path })
+			const source = parseVetSource(
+				args.source,
+				{ ref: args.ref, path: args.path },
+				{ cwd: process.cwd(), home: homedir() },
+			)
 			if ('problem' in source) {
 				process.stderr.write(`error: bad-source: ${source.problem}\n`)
 				throw CliError.reported(exitCodes.usage)
@@ -605,7 +611,7 @@ function vetCommand({
 				runScript: runCheckScript,
 				github: get,
 				skillsSh: skillsShGet,
-				trusted: trust.publishers,
+				trusted: trust.sources,
 				now: now(),
 			})
 			if ('problem' in vetted) {

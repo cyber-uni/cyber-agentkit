@@ -12,7 +12,7 @@ import {
 	type SupplyChainSignals,
 } from './vet-signals.js'
 import { type FetchSource, findSkillFolders, inTemporaryFolder, type VetSource } from './vet-source.js'
-import { isTrusted, type TrustedPublisher } from './vet-trust.js'
+import { type TrustedSource, trustFor } from './vet-trust.js'
 
 /** One skill found in the source, with its Security report. */
 export type VettedSkill = {
@@ -26,9 +26,9 @@ export type VettedSkill = {
 }
 
 export type SkillVetReport = {
-	source: { url: string; repository?: string; ref?: string; path?: string; commit?: string }
+	source: { url: string; repository?: string; ref?: string; path?: string; local?: boolean; commit?: string }
 	/**
-	 * `blocked` when a Security check failed at `critical` in any skill, or at `warning` when the publisher is not
+	 * `blocked` when a Security check failed at `critical` in any skill, or at `warning` when the source is not
 	 * trusted; `not-blocked` otherwise. The `read` checks are left for the agent, and one it fails blocks the install
 	 * by the same rule.
 	 */
@@ -36,12 +36,12 @@ export type SkillVetReport = {
 	/** Set when `blocked`: `critical` when a critical check failed, else `untrusted-warning`. */
 	blockedBy?: 'critical' | 'untrusted-warning'
 	trust: {
-		/** The publisher trust is decided for: the GitHub owner, unset for a source not on GitHub. */
-		publisher?: string
-		/** Whether the publisher is on the trust list; one with no known name is not. */
+		/** Whether an entry on the trust list covers the source. */
 		trusted: boolean
-		/** Every trusted publisher, with where each name came from. */
-		list: TrustedPublisher[]
+		/** The entry that covers it, as written in its short form. */
+		by?: string
+		/** Every trusted source, with where each entry came from. */
+		list: TrustedSource[]
 	}
 	skills: VettedSkill[]
 	/** Unset when the source is not on GitHub. */
@@ -55,7 +55,7 @@ export type VetOptions = {
 	runScript: (script: string, folder: string) => ScriptRun
 	github: GitHubGet
 	skillsSh: JsonGet
-	trusted: readonly TrustedPublisher[]
+	trusted: readonly TrustedSource[]
 	now: Date
 }
 
@@ -122,7 +122,7 @@ export async function vetSkill(options: VetOptions): Promise<SkillVetReport | { 
 	const signals = github
 		? await readSignals(github, {
 				path: source.path,
-				trusted: options.trusted.map(({ name }) => name),
+				trusted: trustFor(options.trusted, source) !== undefined,
 				get: options.github,
 				now: options.now,
 			})
@@ -139,19 +139,19 @@ export async function vetSkill(options: VetOptions): Promise<SkillVetReport | { 
 				})),
 			)
 		: checked.skills
-	// The owner GitHub answers with wins over the URL's, which an old name of a moved repository still reaches.
-	const publisher = signals?.publisher.available ? signals.publisher.login : github?.owner
-	const trusted = isTrusted(options.trusted, publisher)
+	const by = trustFor(options.trusted, source)
+	const trusted = by !== undefined
 	return {
 		source: {
 			url: source.url,
 			...(source.github ? { repository: `${source.github.owner}/${source.github.repo}` } : {}),
 			...(source.ref ? { ref: source.ref } : {}),
 			...(source.path ? { path: source.path } : {}),
+			...(source.local ? { local: true } : {}),
 			...(checked.commit ? { commit: checked.commit } : {}),
 		},
 		...verdictOf(skills, trusted),
-		trust: { ...(publisher ? { publisher } : {}), trusted, list: [...options.trusted] },
+		trust: { trusted, ...(by ? { by: by.label } : {}), list: [...options.trusted] },
 		skills,
 		...(signals ? { signals } : {}),
 	}
