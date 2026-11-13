@@ -1,5 +1,29 @@
 # cyber-agentkit
 
+## 2.3.0
+
+### Minor Changes
+
+- 1a2e2d5: Add `reference audit <skill>`, which reports what a skill hard-codes that could move into references. Give the skill's folder or its name. It lists the skill's files with their sizes, the references the skill loads with whether each ships a default and which tiers answer it, and leads found by pattern with their lines: git hosts and trackers, command-line tools, paths, URLs, and step lists. A lead is a candidate, not a verdict. The `reference` skill has the agent judge each lead against the six concerns (provider, workflow, tool, output format, policy, environment), propose the interface the skill should depend on, and leave the decision to the user. `--also <term>` flags a host or tool of your own. The command writes nothing; an approved finding is applied with `create --default` and the existing steps to wire a skill. `/skill check` now also asks, in Shape, whether a choice only one team would make belongs in a reference (SHP-5), and whether each reference the skill loads ships a default (SHP-6), using `reference audit` for the leads.
+- 9ae6f62: `skill test` contains each Claude Code run to its own folder, as the harness definition's new `containment` declares. Shell commands run in Claude Code's sandbox, the file tools stay in
+  the run's folder, and the network is closed except for the hosts a case lists in its new `network` field. The result
+  lists what a run tried and was refused under `blocked`. On macOS a run now gets an empty Claude config folder too, so
+  it sees none of the user's plugins or settings, and claude.ai connectors stay off. Before the first run, `skill test`
+  checks that a run can log in, and stops with `error: login:` saying why when it cannot, instead of failing each run
+  as "Not logged in". It stops with `error: sandbox:` when the sandbox cannot start. Codex runs and `--backend
+  plugin-eval` runs are not contained by skill test, and the test warns about it. The Claude Code login declaration
+  gains `keychainOn` and `status`, in place of `keepConfigDirOn` for macOS.
+  
+  `skill test` also runs on Windows now: its run wrapper loaded promptfoo by a drive path, which Node refuses there.
+- 8459149: `skill test` gives each run a copy of the skill's plugin of its own, committed in git, and names it to `script` checks as `$SKILL_TEST_PLUGIN`, so a check can tell whether the run changed the installed plugin or run the plugin's scripts.
+- fea49ea: Add `reference register <id>`, which records a reference interface in the public registry so others can find it. It looks the id up first against the live registry: it stops on the same id, and shows near matches with why each matched, going on only past the ones named in `--seen`. It then opens a pull request adding the entry, or an issue carrying it, only with `--yes` or a forcing `--as`. With no network it says so and records nothing. The library exports the entry parser and the lookup (`parseInterfaceEntry`, `lookupInterface`, `readInterfaceRegistry`). `reference` load, list, and check never read the registry.
+- 8afc48c: Make a saved `skill test` result explain itself. Every run's whole reply, passed, failed, or not run, with the skill and without it, is now saved beside the result in `<at>.replies.json`, which the result names in `replies`; the text report prints its path, and the result also records promptfoo's `evalId`. A run that errored gives one short reason, such as `Not logged in`, instead of the Agent SDK's full `Error calling Claude Agent SDK: …` message, in the result and in the progress lines. When the last saved result predates the run count, the plan line says it made an unknown number of runs instead of guessing. The expected result keeps its shape: `skill accept` and `--accept` leave `replies` and `evalId` out.
+- 2e41c29: `skill test` runs on more than Claude Code. `--harness codex` drives each run through `codex exec`, and `--backend plugin-eval` runs the cases on Claude Code's own `claude plugin eval`. Both save the same result as a normal run. Where a run keeps its config, skills, plugins, and login now comes from the harness definition: `headlessInvocation()` declares it as `isolation` for Claude Code and Codex, and every run's environment is built from that. Claude Code runs are isolated as before. A Codex run still reads the global `AGENTS.md` in `CODEX_HOME`, and the test warns about it. `claude plugin eval` cannot run `script` checks, so a criterion that uses one is reported as not tested on that backend.
+
+### Patch Changes
+
+- 10fbf70: `/skill`'s own Done-when criteria now say what the skill adds: C2 also asks `check` to report each check only a run can decide as not checked, and C7 asks `fix` to report each failure by its ID. Its evals read `check`'s verdict from closing `Failed:` and `Not checked:` lines instead of the prose around them, and its missing-skill case names the skill instead of a path, so the run looks it up in the user's skills folders too.
+
 ## 2.2.0
 
 ### Minor Changes
