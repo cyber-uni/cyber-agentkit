@@ -1,6 +1,6 @@
 ---
 name: skill
-description: Create, check, test, fix, enhance, or customize an agent skill (a SKILL.md and its folder), as in "write a skill for X", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", or "improve this skill".
+description: Create, check, test, fix, enhance, customize, or vet an agent skill (a SKILL.md and its folder), as in "write a skill for X", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", "improve this skill", or "is this skill from GitHub safe to install".
 ---
 
 # Skill
@@ -18,6 +18,7 @@ works through the aspects below.
 | `test [skill]` | the author wants the skill's evals run: does it fire on the right requests, and does its result meet its Criteria | [references/test.md](references/test.md) |
 | `fix [skill]` | `check` or `test` found failures to repair | [references/fix.md](references/fix.md) |
 | `enhance [skill] [prompt]` | the skill passes `check`, and the author wants it better, from its use or their own request | [references/enhance.md](references/enhance.md) |
+| `vet <source>` | the author wants a third-party skill vetted before installing it: its Security checks, an install verdict, and who publishes it | [references/vet.md](references/vet.md) |
 | `customize [aspect]` | the author wants to see or change which implementation each aspect uses, or how much each command applies on its own | [references/customize.md](references/customize.md) |
 
 Take an explicit command first. Otherwise read the intent from the request; if it fits two commands, ask which. With
@@ -201,3 +202,5 @@ Before reporting done, check each of these against the result. Report any that f
   outside it.
 - **C8.** `help` named every command and `/skillify`, and changed no file.
 - **C9.** `customize` showed each aspect with the implementation in use, and changed no file the author had not picked.
+- **C10.** `vet` installed nothing, left no checkout behind, reported the install blocked on every critical failure, and
+  showed no number but a skills.sh count as installs.

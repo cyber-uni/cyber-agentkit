@@ -26,9 +26,12 @@ import {
 	saveResult,
 } from './skill-test.js'
 import { skillTestHarness, skillTestHarnesses } from './skill-test-harness.js'
+import { type SkillVetReport, vetSkill } from './skill-vet.js'
 import { planTest } from './test-plan.js'
 import { planLine } from './test-progress.js'
 import type { TestResult } from './test-result.js'
+import { type GitHubGet, githubGet, type JsonGet, jsonGet, type SupplyChainSignals } from './vet-signals.js'
+import { cloneSource, type FetchSource, parseVetSource } from './vet-source.js'
 
 export type SkillCommandOptions = {
 	plugin?: ReferencePlugin | undefined
@@ -40,6 +43,14 @@ export type SkillCommandOptions = {
 	progress?: { heartbeatMs?: number | undefined; pollMs?: number | undefined } | undefined
 	/** The machine's hardware threads, which bound how many runs go at once (R103); tests set it. */
 	threads?: number | undefined
+	/** How `skill vet` puts a source's files in its temporary folder; tests pass a fake. */
+	fetchSource?: FetchSource | undefined
+	/** How `skill vet` reads the GitHub API; tests pass a fake. */
+	githubGet?: GitHubGet | undefined
+	/** How `skill vet` reads the skills.sh install count; tests pass a fake. */
+	skillsShGet?: JsonGet | undefined
+	/** The time `skill vet` measures maintenance from; tests fix it. */
+	now?: (() => Date) | undefined
 }
 
 function answerThenFail(answer: Answer<any>, format: Format): never {
@@ -444,12 +455,155 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 	})
 }
 
+function signalLines(signals: SupplyChainSignals): string[] {
+	const lines: string[] = []
+	const { publisher, maintenance, license } = signals
+	if (publisher.available)
+		lines.push(
+			`publisher: ${publisher.login} (${publisher.kind}${publisher.verified ? ', verified' : ''}), ${publisher.trusted ? 'trusted' : 'not on the trust list'}`,
+		)
+	else lines.push(`publisher: unknown, ${publisher.reason}`)
+	if (maintenance.available) {
+		const commit =
+			maintenance.lastCommit === null
+				? 'no commit found'
+				: `last commit ${maintenance.lastCommit.slice(0, 10)} (${maintenance.daysSinceCommit} days ago)`
+		const release = maintenance.latestRelease
+			? `latest release ${maintenance.latestRelease.tag} ${maintenance.latestRelease.published.slice(0, 10)}`
+			: 'no release'
+		lines.push(`maintenance: ${maintenance.status}, ${commit}, ${release}`)
+	} else lines.push(`maintenance: unknown, ${maintenance.reason}`)
+	if (license.available) lines.push(`license: ${license.repository ?? 'none'}`)
+	else lines.push(`license: unknown, ${license.reason}`)
+	return lines
+}
+
+function vetText(report: SkillVetReport): string {
+	const { source } = report
+	const at = [source.ref, source.commit?.slice(0, 12)].filter(Boolean).join(' at ')
+	const lines = [
+		`${source.repository ?? source.url}${source.path ? `/${source.path}` : ''}${at ? ` (${at})` : ''}: install ${report.verdict === 'blocked' ? 'blocked' : 'not blocked by a script check'}`,
+	]
+	for (const skill of report.skills) {
+		const r = skill.report
+		lines.push(
+			`${skill.path} (${r.skill}): ${r.failed} failed of which ${r.critical} critical, ${r.notChecked} not checked${skill.license ? `, license ${skill.license}` : ''}`,
+		)
+		if (skill.installs?.available)
+			lines.push(`  installs via the skills CLI (skills.sh, opt-in telemetry): ${skill.installs.count}`)
+		else if (skill.installs) lines.push(`  installs: not shown, ${skill.installs.reason}`)
+		for (const aspect of r.aspects)
+			for (const check of aspect.checks) {
+				if (check.status === 'pass' || check.status === 'skipped') continue
+				const where = check.file ? ` [${skill.path}/${check.file}]` : ''
+				const severity = check.status === 'fail' && check.severity ? ` (${check.severity})` : ''
+				lines.push(`  ${check.id} ${check.status}${severity}: ${check.message ?? ''}${where}`)
+			}
+	}
+	if (report.signals) lines.push(...signalLines(report.signals))
+	else lines.push('signals: not read, the source is not on GitHub')
+	return `${lines.join('\n')}\n`
+}
+
+function vetCommand({
+	plugin,
+	fetchSource = cloneSource,
+	githubGet: get = githubGet,
+	skillsShGet = jsonGet,
+	now = () => new Date(),
+}: SkillCommandOptions): cli.Command {
+	return command({
+		name: 'vet',
+		description:
+			'Vet a third-party skill before installing it: check its source out to a temporary folder, run every Security check on each skill in it, read who publishes it, whether it is maintained, its license, and its skills.sh install count, and remove the folder. Runs nothing from the source. Exits 1 when a critical Security check fails, which blocks the install.',
+		arguments: [
+			{
+				name: 'source',
+				description:
+					'The source: `owner/repo`, `owner/repo/<path>`, a GitHub URL (with `/tree/<ref>/<path>`), or an `https://` git URL.',
+				type: t.string(),
+			},
+		],
+		options: {
+			ref: {
+				description: 'The branch or tag to check out. Defaults to the default branch.',
+				type: t.string().optional(),
+			},
+			path: {
+				description:
+					'The folder inside the repository holding the skill, or several. Defaults to the whole repository.',
+				type: t.string().optional(),
+			},
+			trust: {
+				description: 'A publisher (GitHub owner) the team trusts; repeat it for more.',
+				type: t.array(t.string()).optional(),
+			},
+			root: {
+				description:
+					'The repository root whose references choose the Security aspect. Defaults to the nearest folder at or above the current directory holding `.git`.',
+				type: t.string().optional(),
+			},
+		},
+		examples: [
+			{ command: 'cyber-agentkit skill vet acme/skills/release-notes', description: 'Vet one skill on GitHub' },
+			{
+				command: 'cyber-agentkit skill vet https://github.com/acme/skills/tree/v1.2.0/release-notes --trust acme',
+				description: 'Vet a tagged skill from a publisher the team trusts',
+			},
+		],
+		async run(
+			this: { format: Format },
+			args: {
+				source: string
+				ref?: string | undefined
+				path?: string | undefined
+				trust?: string[] | undefined
+				root?: string | undefined
+			},
+		) {
+			const source = parseVetSource(args.source, { ref: args.ref, path: args.path })
+			if ('problem' in source) {
+				process.stderr.write(`error: bad-source: ${source.problem}\n`)
+				throw CliError.reported(exitCodes.usage)
+			}
+			const home = homedir()
+			const layers = await referenceLayers({
+				root: args.root,
+				cwd: process.cwd(),
+				home,
+				platform: process.platform,
+				env: process.env,
+				plugin,
+			})
+			const security = loadAspect('skill-design.aspects.security', layers, (path) => collapseHome(home, path))
+			for (const warning of security.warnings) process.stderr.write(`warning: security: ${warning}\n`)
+			const vetted = await vetSkill({
+				source,
+				security,
+				fetch: fetchSource,
+				runScript: runCheckScript,
+				github: get,
+				skillsSh: skillsShGet,
+				trusted: args.trust ?? [],
+				now: now(),
+			})
+			if ('problem' in vetted) {
+				process.stderr.write(`error: ${vetted.code}: ${vetted.problem}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			const answer = result(vetted, { render: { text: vetText } })
+			if (vetted.verdict === 'blocked') answerThenFail(answer, this.format)
+			return answer
+		},
+	})
+}
+
 /** `skill`: the commands `/skill` runs without an agent. */
 export function createSkillCommand(options: SkillCommandOptions = {}): cli.Command {
 	return command({
 		name: 'skill',
 		description:
-			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, or accept a test result as its expected result.',
-		commands: [checkCommand(options), testCommand(options), acceptCommand(options)],
+			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, accept a test result as its expected result, or vet a third-party skill before installing it.',
+		commands: [checkCommand(options), testCommand(options), acceptCommand(options), vetCommand(options)],
 	})
 }

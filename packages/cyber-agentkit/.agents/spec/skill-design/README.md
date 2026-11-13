@@ -21,8 +21,9 @@ sharing it has no common bar to check it against.
 
 `skill-design` splits the work of designing a skill into **aspects**: intent, criteria, shape, trigger, verification, and others.
 Each aspect states what it receives and what it must produce. `cyber-agentkit` ships a default for every aspect and a
-front door, `/skill`, with seven commands: help lists the others, create a skill, check it without running it, test it by running its evals,
-fix what check or test found, enhance it beyond that, and customize which implementation each aspect uses. A second skill, `/skillify`, turns work already done into
+front door, `/skill`, with eight commands: help lists the others, create a skill, check it without running it, test it by running its evals,
+fix what check or test found, enhance it beyond that, customize which implementation each aspect uses, and vet a skill someone else wrote before
+installing it. A second skill, `/skillify`, turns work already done into
 the description `create` needs and runs it. A team or plugin replaces one
 aspect with its own and keeps the rest.
 
@@ -38,8 +39,8 @@ aspect with its own and keeps the rest.
 - **N5.** A general way to compose any group of references. Only a family of aspects needs the wildcard in customize and
   in the implementations listing.
 - **N6.** Building an eval engine. The default Verification runs on an existing one.
-- **N7.** Vetting a skill someone else wrote before using it: its source, whether it is maintained, its licence. A
-  skill consumer, who uses a designed skill but never runs `/skill`, is left to a later spec.
+- **N7.** Installing a skill, or keeping an installed one current. `vet` gives a verdict before an install and does
+  not perform it.
 
 ## Key terms
 
@@ -52,7 +53,7 @@ aspect with its own and keeps the rest.
   aspect, core and open.
 - **K3. Family.** The aspect interfaces under `skill-design.aspects`, addressed by a wildcard. No interface is named for
   the family.
-- **K4. Front door.** The `/skill` skill with the commands help, create, check, test, fix, enhance, and customize. `check`
+- **K4. Front door.** The `/skill` skill with the commands help, create, check, test, fix, enhance, customize, and vet. `check`
   reads the skill against every aspect's criteria without running it, like a linter; `test` runs the Verification
   aspect's evals, both whether the skill fires on the right requests and whether its result meets the Criteria;
   `customize` shows the `skill-design` references and hands the author's picks to the `reference` skill.
@@ -89,6 +90,7 @@ in the design-spec skill.
 | A3.5 | Team lead | Applies a choice to the whole repo, or only to themselves. |
 | A4.1 | Plugin author | Ships an extension or a new open aspect without any change to `/skill`. |
 | A4.2 | Plugin author | Knows their implementation meets the aspect's criteria. |
+| A5.1 | Skill maintainer | Knows whether a skill from a source they do not own is safe to install, and where it comes from, before installing it. |
 
 **Child specs.** Each use case lives in the child that owns it; UC11 and UC25 stay here.
 
@@ -101,6 +103,7 @@ in the design-spec skill.
 | [fix](./fix/README.md) | UC4 | Fix |
 | [enhance](./enhance/README.md) | UC5, UC7 | Enhance and self-improvement |
 | [customize](./customize/README.md) | UC8, UC9, UC10 | Autonomy, Aspects and implementations |
+| [vet](./vet/README.md) | UC26 | Vet |
 
 ## Use cases
 
