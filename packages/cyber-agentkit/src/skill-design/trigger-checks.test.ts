@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { isNameOnly } from './name-only-skills.js'
-import { goodSkill, goodSkillMd } from './skill-design.fixtures.js'
+import { byId, goodSkill, goodSkillMd } from './skill-design.fixtures.js'
+import type { SkillFiles } from './skill-files.js'
 import { checkTrigger } from './trigger-checks.js'
+
+const trg5 = (skill: SkillFiles) => checkTrigger(skill).filter(({ id }) => id === 'TRG-5')
 
 const withDescription = (description: string) =>
 	goodSkill({
@@ -20,14 +23,12 @@ describe('isNameOnly', () => {
 
 describe('checkTrigger (TRG-5)', () => {
 	it('skips a skill that is not name-only', () => {
-		expect(checkTrigger(goodSkill())).toEqual([
-			{ id: 'TRG-5', status: 'skipped', message: 'the skill is not name-only' },
-		])
+		expect(trg5(goodSkill())).toEqual([{ id: 'TRG-5', status: 'skipped', message: 'the skill is not name-only' }])
 	})
 
 	it('passes `By name only` and a `Partial Skill:` description with no trigger phrase', () => {
 		for (const description of ['By name only', 'Partial Skill: invoke by name only'])
-			expect(checkTrigger(withDescription(description))).toEqual([{ id: 'TRG-5', status: 'pass' }])
+			expect(trg5(withDescription(description))).toEqual([{ id: 'TRG-5', status: 'pass' }])
 	})
 
 	it('fails a description that is not in the allowed form, naming what is wrong', () => {
@@ -40,8 +41,45 @@ describe('checkTrigger (TRG-5)', () => {
 			['Partial Skill: when to use: grading', 'trigger phrase "when to use"'],
 		]
 		for (const [description, message] of cases)
-			expect(checkTrigger(withDescription(description))).toEqual([
+			expect(trg5(withDescription(description))).toEqual([
 				{ id: 'TRG-5', status: 'fail', message: expect.stringContaining(message), file: 'SKILL.md' },
 			])
+	})
+})
+
+describe('checkTrigger (TRG-7)', () => {
+	it('passes a specific description of 12 words or more', () => {
+		expect(byId(checkTrigger(goodSkill()))['TRG-7']).toEqual({ id: 'TRG-7', status: 'pass' })
+	})
+
+	it('fails a description under 12 words, with its count', () => {
+		expect(byId(checkTrigger(withDescription('Use this skill when writing release notes.')))['TRG-7']).toMatchObject({
+			status: 'fail',
+			file: 'SKILL.md',
+			message: 'the description is 7 words, under 12',
+		})
+	})
+
+	it('fails a generic phrase, whatever its case, naming it', () => {
+		const skill = withDescription(
+			'Use this skill when the user wants help. It Helps With various tasks around a release.',
+		)
+		expect(byId(checkTrigger(skill))['TRG-7']).toMatchObject({
+			status: 'fail',
+			message: 'the description uses "helps with", "various tasks"',
+		})
+	})
+
+	it('skips a name-only skill, whose short description is the point', () => {
+		expect(byId(checkTrigger(withDescription('By name only')))['TRG-7']).toEqual({
+			id: 'TRG-7',
+			status: 'skipped',
+			message: 'the skill is name-only',
+		})
+	})
+
+	it('leaves a missing description to SPEC-3', () => {
+		const skill = goodSkill({ 'SKILL.md': goodSkillMd.replace(/^description: .*\n/m, '') })
+		expect(byId(checkTrigger(skill))['TRG-7']).toMatchObject({ status: 'not-checked' })
 	})
 })

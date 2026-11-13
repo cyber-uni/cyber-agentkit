@@ -69,3 +69,91 @@ export function checkShape(skill: SkillFiles): CheckOutcome[] {
 	)
 	return outcomes
 }
+
+/** The Markdown an agent reads: the `SKILL.md` body and every `.md` under `references/`, outside code fences. */
+function agentMarkdown(skill: SkillFiles): { file: string; lines: string[] }[] {
+	const texts = [{ file: 'SKILL.md', text: skill.body }]
+	for (const file of skill.files)
+		if (file.startsWith('references/') && file.endsWith('.md')) {
+			const text = readText(skill, file)
+			if (text !== undefined) texts.push({ file, text })
+		}
+	return texts.map(({ file, text }) => {
+		let fenced = false
+		const lines = text.split('\n').map((line) => {
+			if (/^\s*(```|~~~)/.test(line)) {
+				fenced = !fenced
+				return ''
+			}
+			return fenced ? '' : line
+		})
+		return { file, lines }
+	})
+}
+
+/** A line telling the agent to read a script's output as text it must pick apart. */
+const parsesOutput = [
+	/\b(parse|scrape|grep|extract [\w\s]{0,20}? from)\s+(the\s+|its\s+)?(script'?s?\s+|command'?s?\s+)?(output|stdout)\b/i,
+	/\bfrom\s+(the\s+)?script'?s?\s+(output|stdout)\b/i,
+	/\bread\s+(the\s+)?(summary\s+)?table\s+(it|the script)\s+prints\b/i,
+]
+
+/** A script that waits for the user to type an answer. */
+const prompts =
+	/\breadline\b|\bcreateInterface\s*\(|\.question\s*\(|\bread\s+(-r\s+)?-p\b|\bRead-Host\b|\binquirer\b|@clack\/prompts|\benquirer\b|\bprompts\s*\(|^\s*\w+\s*=\s*input\s*\(/m
+
+/** SHP-12, SHP-13, and SHP-14, the Shape checks a script decides on the body and its scripts. */
+export function checkShapeBody(skill: SkillFiles): CheckOutcome[] {
+	const markdown = agentMarkdown(skill)
+	const body = (markdown[0] as { lines: string[] }).lines
+	const steps = body.some((line) => /^\s*\d+[.)]\s+\S/.test(line) || /^#{2,6}\s+\S/.test(line))
+	const outcomes: CheckOutcome[] = [
+		steps
+			? { id: 'SHP-12', status: 'pass' }
+			: {
+					id: 'SHP-12',
+					status: 'fail',
+					message: 'the body has no numbered steps and no `##` sections',
+					file: 'SKILL.md',
+				},
+	]
+	const scripts = skill.files.filter((file) => file.startsWith('scripts/'))
+	const parses: { file: string; message: string }[] = []
+	if (scripts.length)
+		for (const { file, lines } of markdown)
+			lines.forEach((line, index) => {
+				if (/\bjson\b/i.test(line)) return
+				if (parsesOutput.some((pattern) => pattern.test(line)))
+					parses.push({ file, message: `${file}:${index + 1} tells the agent to parse a script's output` })
+			})
+	outcomes.push(
+		parses.length
+			? {
+					id: 'SHP-13',
+					status: 'fail',
+					message: parses.map((item) => item.message).join('; '),
+					file: (parses[0] as { file: string }).file,
+				}
+			: { id: 'SHP-13', status: 'pass' },
+	)
+	const documented = markdown.some(({ lines }) => lines.some((line) => line.includes('--yes')))
+	const asking: { file: string; message: string }[] = []
+	for (const file of scripts) {
+		const text = readText(skill, file)
+		if (text === undefined || !prompts.test(text)) continue
+		if (!text.includes('--yes')) asking.push({ file, message: `${file} prompts the user and has no \`--yes\` flag` })
+		else if (!documented)
+			asking.push({ file, message: `${file} prompts the user, and no Markdown the agent reads documents \`--yes\`` })
+	}
+	outcomes.push(
+		asking.length
+			? {
+					id: 'SHP-14',
+					status: 'fail',
+					message: asking.map((item) => item.message).join('; '),
+					file: (asking[0] as { file: string }).file,
+				}
+			: { id: 'SHP-14', status: 'pass' },
+	)
+	return outcomes
+}

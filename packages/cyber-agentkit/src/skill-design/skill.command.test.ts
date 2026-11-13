@@ -79,7 +79,7 @@ describe('skill check', () => {
 		expect(stderr.mock.calls.join('')).toContain('unknown-fail-on: no --fail-on some; use any or critical')
 	})
 
-	it('skips TRG-1 and TRG-4 on a name-only skill and checks the form of its description (R140)', async () => {
+	it('skips TRG-1, TRG-4, and TRG-7 on a name-only skill and checks the form of its description (R140)', async () => {
 		const md = goodSkillMd.replace(/^description: .*$/m, 'description: By name only')
 		const code = await check(goodSkill({ 'SKILL.md': md }).folder)
 		const report = JSON.parse(printed())
@@ -103,16 +103,18 @@ describe('skill check', () => {
 				message: 'an agent decides it by reading the skill',
 				needs: 'check',
 			},
+			{ id: 'TRG-7', status: 'skipped', severity: 'warning', message: 'the skill is name-only' },
 		])
-		expect(report.skipped).toBe(2)
+		expect(report.skipped).toBe(3)
 	})
 
-	it('skips TRG-5 and TRG-6 on a skill that is not name-only', async () => {
+	it('skips TRG-5 and TRG-6 on a skill that is not name-only, and checks TRG-7', async () => {
 		await check(goodSkill().folder)
 		const trigger = JSON.parse(printed()).aspects.find((aspect: { aspect: string }) => aspect.aspect === 'trigger')
 		expect(trigger.checks.slice(3)).toEqual([
 			{ id: 'TRG-5', status: 'skipped', severity: 'critical', message: 'the skill is not name-only' },
 			{ id: 'TRG-6', status: 'skipped', severity: 'warning', message: 'the skill is not name-only' },
+			{ id: 'TRG-7', status: 'pass', severity: 'warning' },
 		])
 	})
 

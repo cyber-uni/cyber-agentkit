@@ -1,6 +1,10 @@
+import { readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { checkShape } from './shape-checks.js'
-import { byId, goodSkillMd, makeSkill } from './skill-design.fixtures.js'
+import { checkShape, checkShapeBody } from './shape-checks.js'
+import { byId, goodSkill, goodSkillMd, makeSkill } from './skill-design.fixtures.js'
+import { readSkill, type SkillFiles } from './skill-files.js'
+import { checkTrigger } from './trigger-checks.js'
 
 describe('checkShape', () => {
 	it('passes a body whose links resolve and whose references are all linked, through linked files too', () => {
@@ -56,4 +60,75 @@ describe('checkShape plain-text paths and anchors', () => {
 		expect(outcome?.message).toContain('references/fix.md links references/fix.md#missing')
 		expect(outcome?.message).not.toMatch(/#steps|#done-when|#apply-a-fix/)
 	})
+})
+
+describe('checkShapeBody', () => {
+	it('passes a body of steps whose scripts print what the agent needs', () => {
+		expect(checkShapeBody(goodSkill()).map((outcome) => outcome.status)).toEqual(['pass', 'pass', 'pass'])
+	})
+
+	it('fails a body with no numbered steps and no `##` sections, a lone title not counting', () => {
+		const md = goodSkillMd.replace(/\n# Release notes[\s\S]*$/, '\n# Release notes\n\nWrite good notes.\n')
+		expect(byId(checkShapeBody(makeSkill({ 'SKILL.md': md })))['SHP-12']).toMatchObject({
+			status: 'fail',
+			file: 'SKILL.md',
+		})
+	})
+
+	it('passes numbered steps with no sections', () => {
+		const md = goodSkillMd.replace(/\n# Release notes[\s\S]*$/, '\n1. Read the pull requests.\n')
+		expect(byId(checkShapeBody(makeSkill({ 'SKILL.md': md })))['SHP-12']).toMatchObject({ status: 'pass' })
+	})
+
+	it("fails a step that parses a bundled script's output, with its file and line, in references too", () => {
+		const skill = goodSkill({
+			'scripts/notes.mjs': 'console.log("ok")\n',
+			'references/run.md': 'Run the script.\nThen parse the output for the version.\n',
+		})
+		expect(byId(checkShapeBody(skill))['SHP-13']).toMatchObject({
+			status: 'fail',
+			file: 'references/run.md',
+			message: "references/run.md:2 tells the agent to parse a script's output",
+		})
+	})
+
+	it('passes parsing JSON output, quoted examples, and a skill with no scripts', () => {
+		const json = goodSkill({
+			'scripts/notes.mjs': '',
+			'references/run.md': 'Parse the output of `notes --format json`.\n\n```md\nparse the output\n```\n',
+		})
+		expect(byId(checkShapeBody(json))['SHP-13']).toMatchObject({ status: 'pass' })
+		const none = goodSkill({ 'references/run.md': 'Run `git log`, then parse the output.\n' })
+		expect(byId(checkShapeBody(none))['SHP-13']).toMatchObject({ status: 'pass' })
+	})
+
+	it('fails a script that prompts with no `--yes` flag, or one the Markdown does not document', () => {
+		const ask = "import { createInterface } from 'node:readline'\n"
+		expect(byId(checkShapeBody(goodSkill({ 'scripts/ask.mjs': ask })))['SHP-14']).toMatchObject({
+			status: 'fail',
+			file: 'scripts/ask.mjs',
+			message: 'scripts/ask.mjs prompts the user and has no `--yes` flag',
+		})
+		const flag = `${ask}if (process.argv.includes('--yes')) skip()\n`
+		expect(byId(checkShapeBody(goodSkill({ 'scripts/ask.mjs': flag })))['SHP-14']).toMatchObject({
+			status: 'fail',
+			message: 'scripts/ask.mjs prompts the user, and no Markdown the agent reads documents `--yes`',
+		})
+		const documented = goodSkill({
+			'scripts/ask.mjs': flag,
+			'SKILL.md': `${goodSkillMd}\nIn an unattended run, pass \`--yes\`.\n`,
+		})
+		expect(byId(checkShapeBody(documented))['SHP-14']).toMatchObject({ status: 'pass' })
+	})
+})
+
+describe('the shipped skills', () => {
+	const root = fileURLToPath(new URL('../../skills', import.meta.url))
+	for (const name of readdirSync(root)) {
+		it(`${name} passes the body and description checks`, () => {
+			const skill = readSkill(`${root}/${name}`) as SkillFiles
+			const outcomes = [...checkShapeBody(skill), ...checkTrigger(skill)]
+			expect(outcomes.filter((outcome) => outcome.status !== 'pass' && outcome.status !== 'skipped')).toEqual([])
+		})
+	}
 })
