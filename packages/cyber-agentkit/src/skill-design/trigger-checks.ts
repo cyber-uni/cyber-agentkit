@@ -33,20 +33,25 @@ function checkSpecific(skill: SkillFiles): CheckOutcome {
 		: { id: 'TRG-7', status: 'pass' }
 }
 
-/** The ways a body documents the arguments a skill takes, each with how a failure names it. */
-const argumentSignals: [RegExp, string][] = [
-	[/^\|\s*`[^`|]*\S\s+[[<][^`|]*`\s*\|/m, 'a command table whose commands take arguments'],
-	[/^[ \t]*(?:[-*][ \t]+)?(?:\*\*|__)?Arguments?:/im, 'an `Arguments:` line'],
-	[/^#{1,6}[ \t]+Arguments?[ \t]*$/im, 'an `Arguments` heading'],
-	[/\$ARGUMENTS\b/, '`$ARGUMENTS`'],
+/**
+ * The ways a body documents the arguments a skill takes, each with how a failure names it. A command table is read
+ * from its code spans; the other signals are read with code spans removed, so a body that only names `$ARGUMENTS` or
+ * `Arguments:` in prose, as `/skill` does to describe this check, is not read as taking arguments.
+ */
+const argumentSignals: [RegExp, string, 'with-code' | 'without-code'][] = [
+	[/^\|\s*`[^`|]*\S\s+[[<][^`|]*`\s*\|/m, 'a command table whose commands take arguments', 'with-code'],
+	[/^[ \t]*(?:[-*][ \t]+)?(?:\*\*|__)?Arguments?:/im, 'an `Arguments:` line', 'without-code'],
+	[/^#{1,6}[ \t]+Arguments?[ \t]*$/im, 'an `Arguments` heading', 'without-code'],
+	[/\$ARGUMENTS\b/, '`$ARGUMENTS`', 'without-code'],
 ]
 
 /** TRG-9: a matched skill whose body documents arguments declares an `argument-hint` in its front matter. */
 function checkArgumentHint(skill: SkillFiles): CheckOutcome {
 	const hint = skill.frontmatter?.['argument-hint']
 	if (typeof hint === 'string' && hint.trim()) return { id: 'TRG-9', status: 'pass' }
-	const body = withoutFences(skill.body)
-	const found = argumentSignals.filter(([pattern]) => pattern.test(body)).map(([, name]) => name)
+	const body = { 'with-code': withoutFences(skill.body), 'without-code': '' }
+	body['without-code'] = body['with-code'].replace(/`[^`\n]*`/g, '')
+	const found = argumentSignals.filter(([pattern, , text]) => pattern.test(body[text])).map(([, name]) => name)
 	return found.length
 		? {
 				id: 'TRG-9',

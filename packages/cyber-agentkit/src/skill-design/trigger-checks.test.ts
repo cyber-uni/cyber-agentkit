@@ -130,6 +130,11 @@ describe('checkTrigger (TRG-9)', () => {
 		expect(trg9(withBody(body))).toEqual({ id: 'TRG-9', status: 'pass' })
 	})
 
+	it('reads no arguments from `$ARGUMENTS` or `Arguments:` named in a code span', () => {
+		const body = 'TRG-9 looks for an `Arguments:` line or `$ARGUMENTS` in the body.'
+		expect(trg9(withBody(body))).toEqual({ id: 'TRG-9', status: 'pass' })
+	})
+
 	it('skips a name-only skill', () => {
 		expect(trg9(withDescription('By name only'))).toEqual({
 			id: 'TRG-9',
