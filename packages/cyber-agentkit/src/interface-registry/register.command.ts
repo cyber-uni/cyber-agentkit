@@ -186,7 +186,7 @@ export function registerCommand(path: string): cli.Command {
 				if (!forced && !args.yes) {
 					return result(shown, {
 						help: [
-							`Nothing was opened. Run again with \`--yes\` to open the ${choice.route}, or \`--as issue\` / \`--as pull-request\` to choose.`,
+							`Nothing was opened. Run again with \`--yes\` to open the ${choice.route === 'pull-request' ? 'pull request' : 'issue'}, or \`--as issue\` / \`--as pull-request\` to choose.`,
 						],
 					})
 				}
