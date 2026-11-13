@@ -27,6 +27,7 @@ import {
 } from './skill-test.js'
 import { skillTestHarness, skillTestHarnesses } from './skill-test-harness.js'
 import { type SkillVetReport, vetSkill } from './skill-vet.js'
+import { defaultTestBudget, estimateTest, estimateText } from './test-estimate.js'
 import { planTest } from './test-plan.js'
 import { planLine } from './test-progress.js'
 import type { TestResult } from './test-result.js'
@@ -282,6 +283,19 @@ function testCommand({
 					"After the run, also write its result to the skill's `evals/expected.json`, the expected result that later runs compare with.",
 				type: t.boolean().optional(),
 			},
+			estimate: {
+				description:
+					'Make no run: print how many runs the test plans, its estimated cost (from the last saved result, else the default per-run cost), and whether that is within the budget.',
+				type: t.boolean().optional(),
+			},
+			'budget-cost': {
+				description: `The budget --estimate holds the cost to, in US dollars. Defaults to ${defaultTestBudget.cost}.`,
+				type: t.number().optional(),
+			},
+			'budget-runs': {
+				description: `The budget --estimate holds the run count to when no cost is known. Defaults to ${defaultTestBudget.runs}.`,
+				type: t.number().optional(),
+			},
 		},
 		examples: [
 			{ command: 'cyber-agentkit skill test .agents/skills/release-notes', description: 'Test one skill' },
@@ -301,6 +315,10 @@ function testCommand({
 				command: 'cyber-agentkit skill test .agents/skills/release-notes --accept',
 				description: "Test it and keep the result as the skill's expected result",
 			},
+			{
+				command: 'cyber-agentkit skill test .agents/skills/release-notes --estimate --budget-cost 10 --budget-runs 60',
+				description: 'Estimate what the test costs, and whether it is within a budget, without running it',
+			},
 		],
 		async run(
 			this: { format: Format; ui?: { displayLevel?: string } },
@@ -314,6 +332,9 @@ function testCommand({
 				root?: string | undefined
 				accept?: boolean | undefined
 				case?: string[] | undefined
+				estimate?: boolean | undefined
+				'budget-cost'?: number | undefined
+				'budget-runs'?: number | undefined
 			},
 		) {
 			const skill = readSkill(args.folder)
@@ -357,6 +378,21 @@ function testCommand({
 			}
 			for (const warning of planned.warnings) process.stderr.write(`warning: ${warning}\n`)
 			const home = homedir()
+			if (args.estimate) {
+				const skillName =
+					typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+				const estimate = estimateTest(
+					skillName,
+					planned.plan,
+					lastResult(resultsFolder(resultsBase(args.root, home), skillName), skill.folder),
+					harness.id,
+					{
+						cost: args['budget-cost'] ?? defaultTestBudget.cost,
+						runs: args['budget-runs'] ?? defaultTestBudget.runs,
+					},
+				)
+				return result(estimate, { render: { text: () => estimateText(estimate) } })
+			}
 			const layers = await referenceLayers({
 				root: args.root,
 				cwd: process.cwd(),
