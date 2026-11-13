@@ -1,0 +1,203 @@
+{
+	"version": 1,
+	"skill": "prose-update",
+	"at": "2026-11-13T10:01:05.943Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"trigger": [
+		{
+			"case": "trigger-1",
+			"prompt": "The owner edited the Testing section our tool wrote, and we have a new wording. Recommend updated prose that keeps their sentences.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"prompt": "Here's the wording we offer now, what's in their AGENTS.md, and the wordings we retired. What should the section say now?",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"prompt": "Merge our new section wording into the copy the user changed, without losing their edits.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"prompt": "Retire the old Testing wording into the history file; we ship a new one today.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"prompt": "Proofread the Testing section of AGENTS.md and fix the grammar.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"prompt": "Resolve the merge conflict in AGENTS.md from the rebase.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"prompt": "Add a rule to AGENTS.md that this repo uses pnpm.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"prompt": "Make the repo's style reference say we write in the present tense.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		}
+	],
+	"criteria": [
+		{
+			"id": "C1",
+			"status": "pass",
+			"passed": 12,
+			"ran": 12,
+			"baseline": {
+				"passed": 12,
+				"ran": 12
+			}
+		},
+		{
+			"id": "C2",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C3",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C4",
+			"status": "pass",
+			"passed": 6,
+			"ran": 6,
+			"baseline": {
+				"passed": 4,
+				"ran": 6
+			}
+		},
+		{
+			"id": "C5",
+			"status": "not-tested",
+			"reason": "its rubric needs a judge, and none was named"
+		},
+		{
+			"id": "C6",
+			"status": "not-tested",
+			"reason": "its rubric needs a judge, and none was named"
+		},
+		{
+			"id": "C7",
+			"status": "pass",
+			"passed": 6,
+			"ran": 6,
+			"baseline": {
+				"passed": 3,
+				"ran": 6
+			}
+		},
+		{
+			"id": "C8",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		}
+	],
+	"cases": [
+		{
+			"case": "trigger-1",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"status": "pass"
+		},
+		{
+			"case": "update",
+			"status": "pass"
+		},
+		{
+			"case": "conflict",
+			"status": "pass"
+		},
+		{
+			"case": "no-history",
+			"status": "pass"
+		},
+		{
+			"case": "retire",
+			"status": "pass"
+		}
+	],
+	"notRun": [],
+	"cost": 3.8574,
+	"durationMs": 141963,
+	"totalRuns": 48,
+	"comparedWith": "previous",
+	"changed": []
+}
