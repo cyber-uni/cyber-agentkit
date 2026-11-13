@@ -165,7 +165,7 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				how: 'read',
 				severity: 'critical',
 				statement:
-					'The description says when to use the skill, in words a user would type, with no lead-in or filler words, unless only a user invokes the skill directly.',
+					'The description says when to use the skill, in words a user would type, with no lead-in or filler words, unless the skill is user-only.',
 				appliesTo: 'matched',
 			},
 			{

@@ -126,8 +126,9 @@ Produces the `description` in the skill's front matter, and the near misses Veri
 whether to load the skill, so keep it to the point: open with the job, not a lead-in such as "Use this skill when" or
 "Use when", and add no filler words. Say nothing about when not to use it. List three or more near misses: requests a
 user could plausibly make that belong to the nearest other jobs. They go to Verification as `skip` cases, not into the
-description. A skill the agent never loads on its own, one only a user invokes directly, may word its description
-freely.
+description. Two kinds of skill are exempt from this, because the agent never picks them by their description: a
+name-only skill (a direct-invocation skill), whose description is a fixed marker as below, and a user-only skill, which
+stays user-invocable but turns model invocation off (in Claude Code, `disable-model-invocation: true`).
 
 **Name-only skill.** A skill that another skill loads by name, and that no user request should match, is name-only. Its
 description declares it: exactly `By name only`, or `Partial Skill: ` followed by text. The description is the only text
@@ -137,7 +138,7 @@ TRG-4 and TRG-7 do not apply to a name-only skill, and TRG-5 and TRG-6 apply onl
 apply as skipped.
 
 - **TRG-1** [read] The description says when to use the skill, in words a user would type, with no lead-in or filler
-  words, unless only a user invokes the skill directly.
+  words, unless the skill is user-only.
 - **TRG-3** [read, warning] It describes when to use the skill, not how the skill works.
 - **TRG-4** [run] The skill fires on the requests it should and not on near misses.
 - **TRG-5** [script] A name-only skill's description is exactly `By name only`, or `Partial Skill: ` followed by text
