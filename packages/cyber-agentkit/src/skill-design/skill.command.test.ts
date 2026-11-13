@@ -79,6 +79,43 @@ describe('skill check', () => {
 		expect(stderr.mock.calls.join('')).toContain('unknown-fail-on: no --fail-on some; use any or critical')
 	})
 
+	it('skips TRG-1 and TRG-4 on a name-only skill and checks the form of its description (R140)', async () => {
+		const md = goodSkillMd.replace(/^description: .*$/m, 'description: By name only')
+		const code = await check(goodSkill({ 'SKILL.md': md }).folder)
+		const report = JSON.parse(printed())
+		const trigger = report.aspects.find((aspect: { aspect: string }) => aspect.aspect === 'trigger')
+		expect(code).toBe(0)
+		expect(trigger.checks).toEqual([
+			{ id: 'TRG-1', status: 'skipped', severity: 'critical', message: 'the skill is name-only' },
+			{
+				id: 'TRG-3',
+				status: 'not-checked',
+				severity: 'warning',
+				message: 'an agent decides it by reading the skill',
+				needs: 'check',
+			},
+			{ id: 'TRG-4', status: 'skipped', severity: 'critical', message: 'the skill is name-only' },
+			{ id: 'TRG-5', status: 'pass', severity: 'critical' },
+			{
+				id: 'TRG-6',
+				status: 'not-checked',
+				severity: 'warning',
+				message: 'an agent decides it by reading the skill',
+				needs: 'check',
+			},
+		])
+		expect(report.skipped).toBe(2)
+	})
+
+	it('skips TRG-5 and TRG-6 on a skill that is not name-only', async () => {
+		await check(goodSkill().folder)
+		const trigger = JSON.parse(printed()).aspects.find((aspect: { aspect: string }) => aspect.aspect === 'trigger')
+		expect(trigger.checks.slice(3)).toEqual([
+			{ id: 'TRG-5', status: 'skipped', severity: 'critical', message: 'the skill is not name-only' },
+			{ id: 'TRG-6', status: 'skipped', severity: 'warning', message: 'the skill is not name-only' },
+		])
+	})
+
 	it('stops and names the folder when it holds no SKILL.md', async () => {
 		const code = await check('/nonexistent/skill')
 		expect(code).toBe(1)

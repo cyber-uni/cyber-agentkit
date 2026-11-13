@@ -17,6 +17,8 @@ export type AspectToCheck = {
 	problem?: string
 	/** The script broke, rather than there being none: reported as a failure, so CI does not pass on it. */
 	broken?: boolean
+	/** The checks that do not apply to this skill, each with why: reported as skipped, whatever decides them. */
+	skipped?: Record<string, string>
 }
 
 export type AspectReport = { aspect: string; implementation: string; status: CheckStatus; checks: CheckOutcome[] }
@@ -29,11 +31,14 @@ export type SkillCheckReport = {
 	/** How many of the failures are critical; the rest are warnings. */
 	critical: number
 	notChecked: number
+	skipped: number
 	aspects: AspectReport[]
 }
 
 function outcomeFor(check: AspectCheck, aspect: AspectToCheck): CheckOutcome {
 	const { id, severity } = check
+	const skipped = aspect.skipped?.[id]
+	if (skipped !== undefined) return { id, status: 'skipped', severity, message: skipped }
 	if (check.how === 'read')
 		return { id, status: 'not-checked', severity, message: 'an agent decides it by reading the skill', needs: 'check' }
 	if (check.how === 'run')
@@ -46,12 +51,13 @@ function outcomeFor(check: AspectCheck, aspect: AspectToCheck): CheckOutcome {
 
 function statusOf(outcomes: CheckOutcome[]): CheckStatus {
 	if (outcomes.some((outcome) => outcome.status === 'fail')) return 'fail'
-	return outcomes.every((outcome) => outcome.status === 'pass') ? 'pass' : 'not-checked'
+	return outcomes.every((outcome) => outcome.status === 'pass' || outcome.status === 'skipped') ? 'pass' : 'not-checked'
 }
 
 /**
  * Merges each aspect's checks with what ran: a script check takes the reported outcome, and every other
- * check is left not checked, naming the `/skill` command that decides it. Never reports a pass it did not see.
+ * check is left not checked, naming the `/skill` command that decides it. A check that does not apply to the skill
+ * is skipped. Never reports a pass it did not see.
  */
 export function mergeChecks(skill: string, aspects: AspectToCheck[]): SkillCheckReport {
 	const reports = aspects.map((aspect): AspectReport => {
@@ -74,6 +80,7 @@ export function mergeChecks(skill: string, aspects: AspectToCheck[]): SkillCheck
 		failed: failed.length,
 		critical: failed.filter((outcome) => outcome.severity === 'critical').length,
 		notChecked: all.filter((outcome) => outcome.status === 'not-checked').length,
+		skipped: all.filter((outcome) => outcome.status === 'skipped').length,
 		aspects: reports,
 	}
 }
