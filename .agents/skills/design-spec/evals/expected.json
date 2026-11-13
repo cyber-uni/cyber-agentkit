@@ -1,0 +1,265 @@
+{
+	"version": 1,
+	"skill": "design-spec",
+	"at": "2026-11-13T09:34:20.789Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"trigger": [
+		{
+			"case": "trigger-1",
+			"prompt": "Spec this feature before we build it: users can export a report as CSV.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"prompt": "Write the design spec for the slugify function in src/slugify.js.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"prompt": "Is this spec good? specs/export/README.md",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"prompt": "Derive tests from the criteria in specs/slugify/README.md.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"prompt": "Write an ADR for choosing Postgres over SQLite.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"prompt": "Break the export feature into implementation tasks for the sprint.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"prompt": "Write unit tests for src/slugify.js.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"prompt": "Review this pull request for bugs.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		}
+	],
+	"criteria": [
+		{
+			"id": "C1",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C2",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C3",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C4",
+			"status": "pass",
+			"passed": 2,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			},
+			"failures": [
+				{
+					"case": "backfill",
+					"run": 2,
+					"output": "I wrote the spec at `specs/slugify/README.md`. It isn't ready yet: it has five open questions, and the spec has to wait until someone answers them. The example outputs in it (such as `\"Straße\"` → `\"stra-e\"`) come from reading the code, not from running it. The sandbox blocked `node`, so none of them have been checked.\n\n**What it covers:**\n- **Sections:** title and outcome, What, Non-goals, Key terms, Actors and goals, Use cases, Criteria, Open questions, References, in that order. Every item has an ID and none is repeated.\n- **Actors:** the developer who calls it (A1). I also included the reader of the published URL (A2), who never calls it but depends on slugs that read like the title and stay the same when case or accents change.\n- **Use cases:** UC1 gets a slug for a title. Its extensions cover a title that isn't a string and a title that produces an empty slug. UC2 is the caller learning that a title can't produce a slug.\n- **Criteria:** R1–R6 cover the slug's shape: accents dropped, NFKD decomposition, lowercasing, hyphens collapsed and trimmed, and the same title always giving the same slug. R7 and R8 cover the two refusals: a `TypeError` for a non-string, and an `Error` with the message `empty-slug`. Each criterion names its use case.\n- **No decision graph:** the code has only two simple refusal branches, so a graph wasn't needed.\n\n**Open questions, each with my recommendation:**\n- **Q1 – Non-Latin titles:** a title written entirely in a non-Latin script is refused. Letters like `ß`/`ø`/`æ` become hyphens, so `\"Straße\"` gives `\"stra-e\"`. I recommend converting a fixed table of Latin letters (`ß`→`ss`, `ø`→`o`) and leaving other scripts out of scope.\n- **Q2 – Apostrophes:** `\"Don't Stop\"` gives `\"don-t-stop\"`. I recommend dropping apostrophes without a hyphen, giving `\"dont-stop\"`.\n- **Q3 – Maximum length:** there is none. I recommend stating \"no limit\" as a decision unless a consumer has a known limit.\n- **Q4 – Error contract:** callers can only tell the erro"
+				}
+			]
+		},
+		{
+			"id": "C5",
+			"status": "not-tested",
+			"reason": "its rubric needs a judge, and none was named"
+		},
+		{
+			"id": "C6",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C7",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C8",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C9",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		}
+	],
+	"cases": [
+		{
+			"case": "trigger-1",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"status": "pass"
+		},
+		{
+			"case": "backfill",
+			"status": "pass"
+		},
+		{
+			"case": "review-only",
+			"status": "pass"
+		},
+		{
+			"case": "derive-tests",
+			"status": "pass"
+		}
+	],
+	"notRun": [],
+	"blocked": [
+		{
+			"case": "derive-tests",
+			"arm": "baseline",
+			"run": 1,
+			"what": "network",
+			"target": "registry.npmjs.org"
+		},
+		{
+			"case": "derive-tests",
+			"arm": "skill",
+			"run": 1,
+			"what": "network",
+			"target": "registry.npmjs.org"
+		},
+		{
+			"case": "derive-tests",
+			"arm": "skill",
+			"run": 2,
+			"what": "network",
+			"target": "registry.npmjs.org"
+		},
+		{
+			"case": "derive-tests",
+			"arm": "baseline",
+			"run": 2,
+			"what": "network",
+			"target": "registry.npmjs.org"
+		},
+		{
+			"case": "derive-tests",
+			"arm": "baseline",
+			"run": 3,
+			"what": "network",
+			"target": "registry.npmjs.org"
+		},
+		{
+			"case": "derive-tests",
+			"arm": "skill",
+			"run": 3,
+			"what": "network",
+			"target": "registry.npmjs.org"
+		}
+	],
+	"cost": 4.6825,
+	"durationMs": 151525,
+	"totalRuns": 42,
+	"comparedWith": "previous",
+	"changed": []
+}

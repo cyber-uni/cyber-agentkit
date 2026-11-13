@@ -1,6 +1,6 @@
 ---
 name: prose-update
-description: Recommend updated prose for a section a tool wrote earlier, when its owner may have edited it and a newer wording is available, keeping the owner's sentences. Takes the offered prose, the found prose, and the historic prose.
+description: Recommend what a section a tool wrote earlier should say now, given the newer wording offered, the text found in the file, and the retired wordings, keeping the owner's edits. Also retire a wording into its history when a new one ships.
 ---
 
 # Update prose
@@ -55,4 +55,21 @@ Return the recommended prose, then for each part its outcome, and for each sente
 
 ## Retire a wording
 
-When the tool ships a new wording, add the old one to the history: `node <this skill's folder>/scripts/prose-update.mjs retire --history-from <file> --wording-from <file> --date <date> --reason "<why>"` prints the new history text. Save it only after the user approves. Write new wordings so that they only add sentences after the old ones: such a revision merges without collision.
+When the tool ships a new wording, add the old one to the history: `node <this skill's folder>/scripts/prose-update.mjs retire --history-from <file> --wording-from <file> --date <date> --reason "<why>"` prints the new history text, with the new entry first. Save that text as the history file as printed, and only after the user approves; never add the entry by hand. Write new wordings so that they only add sentences after the old ones: such a revision merges without collision.
+
+## Done when
+
+Before reporting done, check each of these against the result. Report any that fails.
+
+- **C1.** No file changed, except a history file the user approved saving after `retire`.
+- **C2.** When one of the three inputs is missing, the reply names which one and gives no recommended prose.
+- **C3.** For each `up-to-date`, `owners`, or `update` part, the recommended prose is the part's `text` from the script.
+- **C4.** Every owner sentence in the found prose is in the recommendation, or is marked `decided` with a reason.
+- **C5.** Every sentence of the recommendation that is not from the found prose or the offered wording is marked
+  `decided` with a reason.
+- **C6.** The answer gives each part's outcome, and for each sentence whether it was kept, taken from the offered
+  wording, or decided.
+- **C7.** The answer asks the owner a question only about a part that is a `conflict` or `undetermined`, or whose
+  recommendation carries a `decided` sentence.
+- **C8.** After an approved `retire`, the history file starts the retired wording under a new
+  `## Superseded <date> — <reason>` entry, above every older entry, and keeps every older entry.

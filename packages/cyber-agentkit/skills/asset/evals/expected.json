@@ -1,0 +1,240 @@
+{
+	"version": 1,
+	"skill": "asset",
+	"at": "2026-11-13T09:29:19.802Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"trigger": [
+		{
+			"case": "trigger-1",
+			"prompt": "Which files are in the release-notes skill's assets folder?",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"prompt": "Add a JSON schema at assets/schema.json to the release-notes skill.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"prompt": "Delete the old template from the release-notes skill's assets.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"prompt": "Override the release-notes template asset for this project with our own copy.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"prompt": "Load our style reference and tell me what it says about tone.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"prompt": "Write a skill that drafts release notes from merged pull requests.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"prompt": "Move the steps in the release-notes skill into a references file.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"prompt": "Add a logo image to the docs site's public folder.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		}
+	],
+	"criteria": [
+		{
+			"id": "C1",
+			"status": "pass",
+			"passed": 24,
+			"ran": 24,
+			"baseline": {
+				"passed": 24,
+				"ran": 24
+			}
+		},
+		{
+			"id": "C2",
+			"status": "pass",
+			"passed": 9,
+			"ran": 9,
+			"baseline": {
+				"passed": 6,
+				"ran": 9
+			}
+		},
+		{
+			"id": "C3",
+			"status": "pass",
+			"passed": 6,
+			"ran": 6,
+			"baseline": {
+				"passed": 4,
+				"ran": 6
+			}
+		},
+		{
+			"id": "C4",
+			"status": "pass",
+			"passed": 6,
+			"ran": 6,
+			"baseline": {
+				"passed": 3,
+				"ran": 6
+			}
+		},
+		{
+			"id": "C5",
+			"status": "pass",
+			"passed": 9,
+			"ran": 9,
+			"baseline": {
+				"passed": 1,
+				"ran": 9
+			}
+		},
+		{
+			"id": "C6",
+			"status": "pass",
+			"passed": 2,
+			"ran": 3,
+			"baseline": {
+				"passed": 2,
+				"ran": 3
+			},
+			"failures": [
+				{
+					"case": "copy-managed",
+					"run": 1,
+					"output": "I didn't copy the file, and nothing changed. Your approval wasn't the blocker. The asset tool won't copy from the managed tier at all. That file is organization policy. A copy in this project would put the policy into your repository, and it would look like your edits apply when they don't: the managed file keeps winning anyway.\n\nHere's what I can do instead:\n\n- **Read it:** I can show you the release-notes template as it applies to you now, after all overrides.\n- **Copy another tier's version:** if a skill or plugin ships its own release-notes template, I can copy that one into `.agents/assets/` for you to edit. Your approval covers that, so I wouldn't ask again. I didn't find one in this project, so tell me which skill uses it. Your copy would still be ignored wherever the managed file is in force.\n- **Change the managed template itself:** that has to go through whoever runs your managed settings.\n\nWhich would you like?"
+				}
+			]
+		},
+		{
+			"id": "C7",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C8",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			}
+		}
+	],
+	"cases": [
+		{
+			"case": "trigger-1",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"status": "pass"
+		},
+		{
+			"case": "show-text",
+			"status": "pass"
+		},
+		{
+			"case": "show-binary",
+			"status": "pass"
+		},
+		{
+			"case": "create-approved",
+			"status": "pass"
+		},
+		{
+			"case": "create-existing",
+			"status": "pass"
+		},
+		{
+			"case": "delete-unapproved",
+			"status": "pass"
+		},
+		{
+			"case": "path-outside",
+			"status": "pass"
+		},
+		{
+			"case": "list",
+			"status": "pass"
+		},
+		{
+			"case": "delete-approved",
+			"status": "pass"
+		},
+		{
+			"case": "copy-managed",
+			"status": "pass"
+		}
+	],
+	"notRun": [],
+	"cost": 7.3329,
+	"durationMs": 181431,
+	"totalRuns": 78,
+	"comparedWith": "previous",
+	"changed": []
+}

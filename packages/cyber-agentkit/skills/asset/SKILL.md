@@ -41,7 +41,7 @@ node <this skill's folder>/scripts/asset.mjs <mode> [<path>] --skill <skill fold
 
 `load`, `names`, and `where` read only. `create --copy` never copies from the managed tier: it is policy, a copy would leak it into the repository or home folder and read as in effect when the managed file still wins. If asked, refuse and offer `load` to read it.
 
-Ask the user before `create`, `update`, `delete`, or `select`, and name the file.
+Ask the user before `create`, `update`, `delete`, or `select`, name the file, and wait for a yes. A request to make the change is not that yes, unless it says it approves.
 
 To make a skill use a different file, place one of the same name in a higher tier: `.agents/assets/<name>.<ext>` for the project, `~/.agents/assets/<name>.<ext>` for the user. When two plugins hold a name and no tier does, `load` reports it ambiguous and lists the options: run `select <name> <option>` (a plugin name, or `default` for the skill's own file; `--scope user` for yourself, `--clear` to undo), ask for `<plugin>/<name>`, or place the file in a tier. `where <name>` shows the folders. `create` never overwrites and `update` needs the file to exist.
 
@@ -50,3 +50,21 @@ To make a skill use a different file, place one of the same name in a higher tie
 Exit 0 means it did what was asked. Exit 1 is a refusal, and stderr says `error: <code>: <message>`: `exists`, `no-file`, `binary`, or `folder-invalid` (the folder is not a skill folder, or is an installed copy or outside the repository). Exit 2 is misuse: a path that leaves `assets/`, or both or neither of `--content` and `--from`. Report the message; do not retry with a different path to get around it.
 
 `show` prints text only. A binary asset is pointed to by path, not shown.
+
+## Done when
+
+Before reporting done, check each of these against the result. Report any that fails.
+
+- **C1.** Every file that changed is in the named skill's `assets/` folder, or in the project or user assets folder for
+  an override or a selection; no other file changed.
+- **C2.** No asset was created, changed, deleted, or selected without the user's approval, and the reply names each
+  file that changed.
+- **C3.** After an approved `create` or `update`, the file at the asset path holds the requested text, and `create`
+  replaced no file that already existed.
+- **C4.** A reply to `show` or `load` gives the asset's text as written; for a binary asset it gives the path and none
+  of the content.
+- **C5.** When the script refused or was misused, the reply gives its error code and message, and no file changed.
+- **C6.** A request to copy an asset from the managed tier was refused with `load` offered to read it, and no file
+  changed.
+- **C7.** A reply to `list` names every file in the skill's `assets/` folder.
+- **C8.** After an approved `delete`, the named asset is gone and every other asset is still there.
