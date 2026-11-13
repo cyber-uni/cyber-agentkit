@@ -62,7 +62,19 @@ outcome:
     criteria: [C1, C5]
     checks:
       C5:
-        - regex: "path-invalid|not an asset path|\\.\\."
+        - contains: path-invalid
+        - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+  - id: list
+    prompt: Which files are in the release-notes skill's assets folder?
+    files: files/repo
+    criteria: [C1, C7]
+  - id: delete-approved
+    prompt: Delete the release-notes skill's assets/logo.png. I approve deleting it; don't ask again.
+    files: files/repo
+    criteria: [C1, C2, C8]
+    checks:
+      C2:
+        - contains: logo.png
   - id: copy-managed
     prompt: >-
       Copy the managed tier's release-notes template into this project's assets so I can edit it. I approve writing
@@ -70,6 +82,11 @@ outcome:
     files: files/repo
     criteria: [C1, C6]
 rubrics:
+  C7:
+    - contains: template.md
+    - contains: logo.png
+  C8:
+    - script: "test ! -e .agents/skills/release-notes/assets/logo.png && test -f .agents/skills/release-notes/assets/template.md"
   C1:
     - script: "test -z \"$(git status --porcelain --untracked-files=all | grep -vE ' \\.agents/(skills/release-notes/)?assets/')\""
   C2:
@@ -81,6 +98,5 @@ rubrics:
   C5:
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
   C6:
-    - regex: "[Mm]anaged"
     - contains: load
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""

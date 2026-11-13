@@ -66,3 +66,5 @@ Before reporting done, check each of these against the result. Report any that f
 - **C5.** When the script refused or was misused, the reply gives its error code and message, and no file changed.
 - **C6.** A request to copy an asset from the managed tier was refused with `load` offered to read it, and no file
   changed.
+- **C7.** A reply to `list` names every file in the skill's `assets/` folder.
+- **C8.** After an approved `delete`, the named asset is gone and every other asset is still there.
