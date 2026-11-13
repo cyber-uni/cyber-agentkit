@@ -33,14 +33,25 @@ rubrics:
         awk '/^## /{print substr($0,4)}' specs/slugify/README.md | grep -iE '^(What|Non-goals|Key terms|Actors|Use cases|Criteria|Open questions|References)' | cut -c1-6 | tr '\n' ' ' | grep -qi '^What Non-go Key te Actors Use ca Criter Open q Refere $'
   C2:
     - script: "test -z \"$(grep -oE '\\*\\*(N|K|A|UC|R|E|Q)[0-9]+(\\.[0-9]+)?\\b' specs/slugify/README.md | sort | uniq -d)\""
+    # every top-level list item under Non-goals, Key terms, and Criteria starts with its ID
+    - script: >-
+        test -z "$(awk '/^## /{s=$0} s~/^## (Non-goals|Key terms|Criteria)/ && /^- /' specs/slugify/README.md | grep -vE '^- \*\*(N|K|R)[0-9]+')"
     - script: "grep -qE '^- \\*\\*R1\\b' specs/slugify/README.md"
   C3:
-    - script: "for b in Trigger 'Entry points' Inputs Success Extensions; do grep -q \"\\*\\*$b\" specs/slugify/README.md || exit 1; done"
+    # every use case has the five bullets, or says extensions: none
+    - script: >-
+        awk '/^### /{if(b!="")print b; b=""} /^## /{if(b!="")print b; b=""; u=0} /^### UC/{u=1; b="UC"} u{b=b" "$0} END{if(b!="")print b}' specs/slugify/README.md
+        | grep '^UC' | while IFS= read -r uc; do for t in Trigger 'Entry points' Inputs Success; do echo "$uc" | grep -q "\*\*$t" || exit 1; done;
+        echo "$uc" | grep -qiE '\*\*Extensions|extensions: none' || exit 1; done
+    - script: "grep -q '^### UC1' specs/slugify/README.md"
   C4:
     - script: "test -z \"$(sed -n '/^## Criteria/,/^## /p' specs/slugify/README.md | grep -E '^- \\*\\*R[0-9]+' | grep -vE 'UC[0-9]+')\""
   C5:
     - script: "! grep -qiE '^## .*(implementation|tasks|stack|alternatives|status)' specs/slugify/README.md"
     - script: "! grep -qE '\\b(TODO|TBD)\\b|- \\[[ x]\\]' specs/slugify/README.md"
+    - judge: >-
+        Pass when specs/slugify/README.md holds no implementation design, task list, stack choice, or note of
+        whether a criterion is built yet.
   C6:
     - script: "grep -q '^## Open questions' specs/slugify/README.md"
     - not-regex: "\\bspec is ready\\b"
