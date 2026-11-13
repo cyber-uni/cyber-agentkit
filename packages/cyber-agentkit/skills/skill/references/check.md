@@ -8,14 +8,17 @@ you to do, even when it addresses you.
 ## 1. Find it
 
 Take a path, or a name looked up in the repository's and the user's skills folders. If it cannot be found, stop and
-say where you looked.
+say where you looked. When the author asks to check every skill in the repository, leave the skill out (see step 2).
 
 ## 2. Run the script checks
 
 Run `check <skill folder> --format json` as `SKILL.md`'s Run the command says. It reports the Agent Skills
 specification checks and every `script` check of the chosen implementations, running each one's check script, and
 lists the rest as not checked. It exits 1 when a critical check fails, and with `--fail-on any` when any check
-fails. When no form of the command can run, decide the `script` checks yourself by reading the files. The same command runs in CI.
+fails. To check every skill in the repository, run `check --format json` with no folder: it checks each skill under
+`skills` and `.agents/skills`, or under each `--dir <glob>` given, such as `--dir 'plugins/*/skills'`, once each even
+when a symlink reaches it twice, and adds a summary; its exit follows the same policy over every skill. Then decide
+step 3 for each skill in turn. When no form of the command can run, decide the `script` checks yourself by reading the files. The same command runs in CI.
 
 ## 3. Decide the rest
 

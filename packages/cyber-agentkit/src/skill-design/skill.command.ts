@@ -8,6 +8,7 @@ import { collapseHome } from '../command-output/collapse-home.js'
 import { type HarnessId, harnessIds } from '../harness/harness-id.js'
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
+import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
 import { type PluginEvalRun, runPluginEval, runPluginEvalTest } from './plugin-eval-backend.js'
 import { runCheckScript } from './run-check-script.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
@@ -66,13 +67,33 @@ function textReport(report: SkillCheckReport): string {
 	return `${lines.join('\n')}\n`
 }
 
+function repositoryText(report: RepositoryCheckReport): string {
+	const parts = report.reports.map((skill) =>
+		textReport(skill).replace(/^[^:\n]+:/, `${skill.skill} (${skill.folder}):`),
+	)
+	parts.push(
+		`${report.skills} skills: ${report.status} (${report.skillsFailed} failed; ${report.passed} checks passed, ${report.failed} failed of which ${report.critical} critical, ${report.notChecked} not checked, ${report.skipped} skipped)\n`,
+	)
+	return parts.join('\n')
+}
+
 function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'check',
 		description:
-			'Check a skill folder against every aspect without running it: the checks a script decides pass or fail, each critical or a warning, and every other check is listed as not checked. Exits 1 when a critical check fails, or with `--fail-on any` when any check does.',
-		arguments: [{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() }],
+			'Check a skill folder against every aspect without running it: the checks a script decides pass or fail, each critical or a warning, and every other check is listed as not checked. Given no folder, checks every skill under `--dir`, by default `skills` and `.agents/skills`, and adds a summary. Exits 1 when a critical check fails, or with `--fail-on any` when any check does.',
+		arguments: [
+			{
+				name: 'folder',
+				description: 'The skill folder, holding its SKILL.md. Leave it out to check every skill under `--dir`.',
+				type: t.string().optional(),
+			},
+		],
 		options: {
+			dir: {
+				description: `A folder to find skills in, relative to the root; a glob such as \`plugins/*/skills\` names several, and \`**\` matches any depth. Each folder that is a skill is checked, else each skill directly under it, and a skill reached twice through a symlink is checked once. Repeat it for more. Defaults to ${defaultSkillDirs.map((dir) => `\`${dir}\``).join(' and ')}.`,
+				type: t.array(t.string()).optional(),
+			},
 			root: {
 				description:
 					'The repository root whose references choose each aspect. Defaults to the nearest folder at or above the current directory holding `.git`.',
@@ -90,10 +111,20 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 				command: 'cyber-agentkit skill check .agents/skills/release-notes --fail-on any',
 				description: 'Fail on warnings too',
 			},
+			{ command: 'cyber-agentkit skill check', description: 'Check every skill under skills and .agents/skills' },
+			{
+				command: "cyber-agentkit skill check --dir .agents/skills --dir 'plugins/*/skills'",
+				description: 'Check every skill in a monorepo',
+			},
 		],
 		async run(
 			this: { format: Format },
-			args: { folder: string; root?: string | undefined; 'fail-on'?: string | undefined },
+			args: {
+				folder?: string | undefined
+				dir?: string[] | undefined
+				root?: string | undefined
+				'fail-on'?: string | undefined
+			},
 		) {
 			const failOn = (args['fail-on'] ?? 'critical') as FailOn
 			if (!failOnPolicies.includes(failOn)) {
@@ -102,9 +133,20 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 				)
 				throw CliError.reported(exitCodes.usage)
 			}
-			const skill = readSkill(args.folder)
-			if (!skill) {
+			if (args.folder !== undefined && args.dir?.length) {
+				process.stderr.write('error: folder-and-dir: give a skill folder or --dir, not both\n')
+				throw CliError.reported(exitCodes.usage)
+			}
+			const skill = args.folder === undefined ? undefined : readSkill(args.folder)
+			if (args.folder !== undefined && !skill) {
 				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			const root = args.root === undefined ? findRoot(process.cwd()) : resolve(args.root)
+			const dirs = args.dir?.length ? args.dir : defaultSkillDirs
+			const found = skill ? [] : findSkills(root, dirs)
+			if (!skill && found.length === 0) {
+				process.stderr.write(`error: no-skills: no skill under ${dirs.join(', ')} in ${root}\n`)
 				throw CliError.reported(exitCodes.error)
 			}
 			const home = homedir()
@@ -120,9 +162,19 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 			const aspects = aspectNames(layers).map((name) => loadAspect(name, layers, display))
 			for (const aspect of aspects)
 				for (const warning of aspect.warnings) process.stderr.write(`warning: ${aspect.aspect}: ${warning}\n`)
-			const report = checkSkill(skill, aspects, runCheckScript)
-			const answer = result(report, { render: { text: textReport } })
-			if (failsPolicy(report, failOn)) answerThenFail(answer, this.format)
+			if (skill) {
+				const report = checkSkill(skill, aspects, runCheckScript)
+				const answer = result(report, { render: { text: textReport } })
+				if (failsPolicy(report, failOn)) answerThenFail(answer, this.format)
+				return answer
+			}
+			const reports = found.flatMap(({ folder }) => {
+				const files = readSkill(folder)
+				return files ? [{ folder, report: checkSkill(files, aspects, runCheckScript) }] : []
+			})
+			const combined = combineReports(root, dirs, reports)
+			const answer = result(combined, { render: { text: repositoryText } })
+			if (failsPolicy(combined, failOn)) answerThenFail(answer, this.format)
 			return answer
 		},
 	})

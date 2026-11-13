@@ -33,6 +33,9 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC3.6** The skill is name-only: another skill loads it by name, and no user request should match it. Its
     description is checked for the form that declares the kind and for carrying nothing a request could match. The
     criteria on how it is matched to requests are reported as skipped, not as failures.
+  - **UC3.7** CI checks every skill in the repository with one command. The script finds each skill under a set of
+    folders the author can change, naming several at once by glob, checks each skill once even when a symlink reaches
+    it twice, and gives one summary and one exit code under the same policy.
 - **Example:** `/skill check release-notes` passes Intent, Criteria, Shape, and Security, and fails Trigger because the
   description says how the skill works instead of when to use it.
 
@@ -55,3 +58,7 @@ contract apply here; IDs are shared across the parent and its children.
 - R140 (UC3.6): A name-only skill is told by its description alone. `check` fails one whose description does not take
   the allowed form or carries trigger language, and reports each criterion on how a skill is matched to requests as
   skipped, never as a fail or a pass.
+- R141 (UC3.7): Given no skill, the check script checks every skill under the folders it is given, or under
+  `skills` and `.agents/skills` by default, where a folder may be a glob. A skill reached through more than one path
+  is checked once. The report gives each skill's result and a summary, and the exit follows R19's policy over every
+  check of every skill. Finding no skill is an error, not a pass.
