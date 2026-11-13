@@ -50,5 +50,8 @@ rubrics:
   C6:
     - regex: "\\b([Uu]pdate|[Cc]onflict)\\b"
     - regex: "\\b([Kk]ept|[Tt]aken|[Dd]ecided)\\b"
+    - judge: >-
+        Pass when the answer gives the outcome of every part, and says of every sentence of the recommendation
+        whether it was kept, taken from the offered wording, or decided.
   C7:
-    - not-regex: "\\?\\s*$"
+    - not-regex: "\\?(\\s|$)"
