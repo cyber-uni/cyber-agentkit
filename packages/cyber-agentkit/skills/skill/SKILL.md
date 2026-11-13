@@ -22,8 +22,9 @@ works through the aspects below.
 | `vet <source>` | the author wants a third-party skill vetted before installing it: its Security checks, an install verdict, and who publishes it | [references/vet.md](references/vet.md) |
 | `customize [aspect]` | the author wants to see or change which implementation each aspect uses, or how much each command applies on its own | [references/customize.md](references/customize.md) |
 
-Take an explicit command first. Otherwise read the intent from the request; if it fits two commands, ask which. With
-no request, follow `help`.
+Take an explicit command first. When the request describes a skill to write but names no command, as in `/skill a
+skill that drafts release notes`, follow `create`, which carries on into `check` and `test`. Otherwise read the intent
+from the request; if it fits two commands, ask which. With no request, follow `help`.
 
 ## Aspects
 
@@ -208,3 +209,4 @@ Before reporting done, check each of these against the result. Report any that f
 - **C9.** `customize` showed each aspect with the implementation in use, and changed no file the author had not picked.
 - **C10.** `vet` installed nothing, left no checkout behind, reported the install blocked on every critical failure and
   on every warning from a source no trusted entry covers, and showed no number but a skills.sh count as installs.
+- **C11.** `create` ran `check` on the skill it built, and started no `test` run before the author agreed to it.

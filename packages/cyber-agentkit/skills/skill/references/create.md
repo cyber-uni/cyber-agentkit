@@ -31,9 +31,13 @@ it: the instructions an agent follows to do the job and meet each criterion. Fol
 
 1. Draft the Verification aspect as its Draft says, from the approved Criteria and the Trigger's near misses, and get
    it approved as in step 2.
-2. Run [check](check.md), then [test](test.md).
-3. When `test` fails, leave the skill in place, report each failing criterion, and offer `fix`.
+2. Run [check](check.md) on the skill, without stopping to ask, and report its result.
+3. Carry on into [test](test.md). Before any of its runs start, tell the author how many runs it makes and about how
+   long they take, and ask whether to run them, at every autonomy level. When the author declines, or no author is
+   present, run nothing and report `test` as not run.
+4. When `check` or `test` fails, leave the skill in place, report each failing check or criterion, and offer `fix`.
 
 ## Report
 
-The skill's path, each aspect approved, the `check` result, and the `test` result per criterion.
+The skill's path, each aspect approved, the `check` result, and the `test` result per criterion, or that `test` was
+not run.

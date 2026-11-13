@@ -13,4 +13,7 @@ Show this list, then ask which command the author wants. Run no script and chang
 | `vet <source>` | fetches a third-party skill to a temporary folder, runs every Security check, and reports an install verdict with who publishes it, its installs, maintenance, and license | you are about to install a skill you do not own | `/skill vet acme/skills/release-notes` |
 | `customize [aspect]` | shows which implementation each aspect uses and each command's autonomy, and changes them | your team wants another plugin's checks, or commands to apply more or less on their own | `/skill customize verification` |
 
+A request that describes a skill without naming a command, such as `/skill a skill that drafts release notes`, runs
+`create`. A bare `/skill` shows this list.
+
 To turn work already done (a session, existing instructions, another skill) into a skill, use `/skillify`.
