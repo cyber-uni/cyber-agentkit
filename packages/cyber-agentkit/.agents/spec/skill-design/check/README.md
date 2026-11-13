@@ -30,6 +30,9 @@ contract apply here; IDs are shared across the parent and its children.
     `test`, never as a pass.
   - **UC3.5** CI gates on the check script, blocking only on critical failures. Each failure carries its severity;
     a critical one must be fixed before a commit, and a warning is reported and let through.
+  - **UC3.6** The skill is name-only: another skill loads it by name, and no user request should match it. Its
+    description is checked for the form that declares the kind and for carrying nothing a request could match. The
+    criteria on how it is matched to requests are reported as skipped, not as failures.
 - **Example:** `/skill check release-notes` passes Intent, Criteria, Shape, and Security, and fails Trigger because the
   description says how the skill works instead of when to use it.
 
@@ -49,3 +52,6 @@ contract apply here; IDs are shared across the parent and its children.
   pass.
 - R139 (UC3.5): Every check has a severity, critical or warning, and the report shows it on each failure. A check
   that names none is critical.
+- R140 (UC3.6): A name-only skill is told by its description alone. `check` fails one whose description does not take
+  the allowed form or carries trigger language, and reports each criterion on how a skill is matched to requests as
+  skipped, never as a fail or a pass.

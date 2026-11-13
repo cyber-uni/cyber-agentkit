@@ -12,7 +12,8 @@ export const checkSeverities: readonly CheckSeverity[] = ['critical', 'warning']
 /** One check an aspect implementation lists under `## Criteria`. */
 export type AspectCheck = { id: string; how: CheckHow; severity: CheckSeverity; statement: string }
 
-export type CheckStatus = 'pass' | 'fail' | 'not-checked'
+/** `skipped`: the check does not apply to this kind of skill, such as TRG-1 on a name-only skill. */
+export type CheckStatus = 'pass' | 'fail' | 'not-checked' | 'skipped'
 
 /** What a check script reports for one check, and what `skill check` reports for every check. */
 export type CheckOutcome = {
@@ -20,7 +21,7 @@ export type CheckOutcome = {
 	status: CheckStatus
 	/** From the check's declaration; a check script does not set it. */
 	severity?: CheckSeverity
-	/** Why it failed or was not checked. */
+	/** Why it failed, was not checked, or was skipped. */
 	message?: string
 	/** The file, relative to the skill folder, that breaks it. */
 	file?: string

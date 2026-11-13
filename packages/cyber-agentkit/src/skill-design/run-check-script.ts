@@ -4,7 +4,7 @@ import type { CheckOutcome } from './skill-check-types.js'
 
 export type ScriptRun = { outcomes: CheckOutcome[] } | { problem: string; broken: boolean }
 
-const statuses = new Set(['pass', 'fail', 'not-checked'])
+const statuses = new Set(['pass', 'fail', 'not-checked', 'skipped'])
 
 /** Reads a check script's stdout: `{"checks": [{"id", "status", "message"?, "file"?}]}`. */
 export function readScriptOutput(stdout: string): CheckOutcome[] | string {

@@ -105,11 +105,23 @@ Produces the `description` in the skill's front matter, and the near misses Veri
 Say nothing about when not to use it. List three or more near misses: requests a user could plausibly make that
 belong to the nearest other jobs. They go to Verification as `skip` cases, not into the description.
 
+**Name-only skill.** A skill that another skill loads by name, and that no user request should match, is name-only. Its
+description declares it: exactly `By name only`, or `Partial Skill: ` followed by text. The description is the only text
+the model matches against, so for a name-only skill write exactly `By name only`, and put what the skill is, who calls
+it, and what it returns in the body and `README.md`. Its near misses still go to Verification as `skip` cases. TRG-1 and
+TRG-4 do not apply to a name-only skill, and TRG-5 and TRG-6 apply only to one: report a check that does not apply as
+skipped.
+
 - **TRG-1** [read] The description says when to use the skill, in words a user would type.
 - **TRG-3** [read, warning] It describes when to use the skill, not how the skill works.
 - **TRG-4** [run] The skill fires on the requests it should and not on near misses.
+- **TRG-5** [script] A name-only skill's description is exactly `By name only`, or `Partial Skill: ` followed by text
+  with no trigger phrase, such as "use when" or "when to use".
+- **TRG-6** [read, warning] A name-only skill's description carries no operational detail (what it does, who calls it, or how
+  it works) and no trigger language.
 
-**Fix.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result.
+**Fix.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result. For TRG-5 and
+TRG-6, set the description to exactly `By name only` and move what it said to the body or `README.md`.
 
 ## Run the command
 

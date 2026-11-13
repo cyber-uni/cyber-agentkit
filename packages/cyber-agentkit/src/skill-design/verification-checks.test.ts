@@ -13,6 +13,22 @@ describe('checkVerification', () => {
 		])
 	})
 
+	it('asks a name-only skill for three `skip` trigger cases and no `fire` ones (VER-2)', () => {
+		const nameOnly = goodSkillMd.replace(/^description: .*$/m, 'description: By name only')
+		const skipsOnly = goodEvals.replace(/^ {2}- \{ prompt: .*, expect: fire \}\n/gm, '')
+		const passing = checkVerification(goodSkill({ 'SKILL.md': nameOnly, 'evals/evals.yaml': skipsOnly }))
+		expect(passing[1]).toEqual({ id: 'VER-2', status: 'pass' })
+		const twoSkips = skipsOnly.replace(/^ {2}- \{ prompt: review my diff, expect: skip \}\n/m, '')
+		const failing = checkVerification(goodSkill({ 'SKILL.md': nameOnly, 'evals/evals.yaml': twoSkips }))
+		expect(failing[1]).toMatchObject({
+			id: 'VER-2',
+			status: 'fail',
+			message: '2 `skip` trigger cases for a name-only skill',
+		})
+		const matched = checkVerification(goodSkill({ 'evals/evals.yaml': skipsOnly }))
+		expect(matched[1]).toMatchObject({ id: 'VER-2', status: 'fail', message: '0 `fire` and 3 `skip` trigger cases' })
+	})
+
 	it('fails VER-1 and leaves the rest not checked when the file is missing or not YAML', () => {
 		const missing = checkVerification(makeSkill({ 'SKILL.md': goodSkillMd }))
 		expect(missing[0]).toMatchObject({ id: 'VER-1', status: 'fail' })

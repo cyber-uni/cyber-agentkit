@@ -1,11 +1,14 @@
 import type { AspectCheck } from './skill-check-types.js'
 import { specChecks } from './spec-checks.js'
 
+/** A built-in check, and the kind of skill it applies to when not every skill (`name-only`, or `matched`: not name-only). */
+export type BuiltInCheck = AspectCheck & { appliesTo?: 'name-only' | 'matched' }
+
 /**
  * The aspects written into `/skill` itself, with the checks its `SKILL.md` lists for them. A test keeps
  * the two in step. The specification floor comes first: every other aspect is still checked when it fails.
  */
-export const builtInAspects: { aspect: string; checks: AspectCheck[] }[] = [
+export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 	{
 		aspect: 'specification',
 		checks: specChecks.map(({ id, statement }) => ({ id, how: 'script', severity: 'critical', statement })),
@@ -109,6 +112,7 @@ export const builtInAspects: { aspect: string; checks: AspectCheck[] }[] = [
 				how: 'read',
 				severity: 'critical',
 				statement: 'The description says when to use the skill, in words a user would type.',
+				appliesTo: 'matched',
 			},
 			{
 				id: 'TRG-3',
@@ -121,6 +125,23 @@ export const builtInAspects: { aspect: string; checks: AspectCheck[] }[] = [
 				how: 'run',
 				severity: 'critical',
 				statement: 'The skill fires on the requests it should and not on near misses.',
+				appliesTo: 'matched',
+			},
+			{
+				id: 'TRG-5',
+				how: 'script',
+				severity: 'critical',
+				statement:
+					'A name-only skill\'s description is exactly `By name only`, or `Partial Skill: ` followed by text with no trigger phrase, such as "use when" or "when to use".',
+				appliesTo: 'name-only',
+			},
+			{
+				id: 'TRG-6',
+				how: 'read',
+				severity: 'warning',
+				statement:
+					"A name-only skill's description carries no operational detail (what it does, who calls it, or how it works) and no trigger language.",
+				appliesTo: 'name-only',
 			},
 		],
 	},

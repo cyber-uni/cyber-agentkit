@@ -9,7 +9,8 @@ check-script: ../skills/skill/scripts/check-verification.mjs
 
 1. **Trigger cases.** Write at least three requests that should fire the skill, phrased the way different users
    would ask, and at least three near misses: requests a user could plausibly make that belong to another job, taken
-   from the near misses Trigger listed. Keep each to what a user would type.
+   from the near misses Trigger listed. Keep each to what a user would type. A name-only skill (see `/skill`'s Trigger)
+   is never matched to a request, so write only the near misses for it, as `skip` cases.
 2. **Outcome cases.** Write at least one case per criterion: a request and the files it works on. Put the files under
    `evals/files/<case id>/`. Use small, made-up inputs; never copy private data into a case.
    A run has no user to answer a question, so a case whose skill asks before it writes states the approval in its
@@ -165,7 +166,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 ## Criteria
 
 - **VER-1** [script] `evals/evals.yaml` exists and follows the format in Cases.
-- **VER-2** [script, warning] It has at least three `fire` and three `skip` trigger cases.
+- **VER-2** [script, warning] It has at least three `skip` trigger cases, and at least three `fire` ones unless the skill is
+  name-only.
 - **VER-3** [script] Every Criteria ID has a rubric, and every rubric names a Criteria ID.
 - **VER-4** [script] Every `files` folder an outcome case names exists.
 - **VER-5** [script] `threshold` is between 1 and `runs`.

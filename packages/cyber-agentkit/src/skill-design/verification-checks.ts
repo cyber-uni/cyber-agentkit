@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse } from 'yaml'
+import { isNameOnly } from './name-only-skills.js'
 import type { CheckOutcome } from './skill-check-types.js'
 import { criteriaItems, type SkillFiles } from './skill-files.js'
 
@@ -142,10 +143,19 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 
 	const fire = evals.trigger?.filter((item) => item.expect === 'fire').length ?? 0
 	const skip = evals.trigger?.filter((item) => item.expect === 'skip').length ?? 0
+	// A name-only skill is never matched to a request, so it needs no `fire` cases; its `skip` cases still count.
+	const nameOnly = isNameOnly(skill)
 	outcomes.push(
-		fire >= 3 && skip >= 3
+		(nameOnly || fire >= 3) && skip >= 3
 			? { id: 'VER-2', status: 'pass' }
-			: { id: 'VER-2', status: 'fail', message: `${fire} \`fire\` and ${skip} \`skip\` trigger cases`, file },
+			: {
+					id: 'VER-2',
+					status: 'fail',
+					message: nameOnly
+						? `${skip} \`skip\` trigger cases for a name-only skill`
+						: `${fire} \`fire\` and ${skip} \`skip\` trigger cases`,
+					file,
+				},
 	)
 
 	const items = criteriaItems(skill)

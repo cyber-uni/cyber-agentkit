@@ -50,6 +50,25 @@ describe('mergeChecks', () => {
 		expect(report).toMatchObject({ status: 'not-checked', passed: 1, failed: 0, critical: 0, notChecked: 3 })
 	})
 
+	it('reports a check that does not apply as skipped, and passes an aspect of passes and skips', () => {
+		const report = mergeChecks('s', [
+			{
+				aspect: 'x',
+				implementation: 'p',
+				checks: [checks[0] as AspectCheck, checks[2] as AspectCheck],
+				reported: [{ id: 'X-1', status: 'pass' }],
+				skipped: { 'X-3': 'it does not apply' },
+			},
+		])
+		expect(report.aspects[0]?.checks[1]).toEqual({
+			id: 'X-3',
+			status: 'skipped',
+			severity: 'warning',
+			message: 'it does not apply',
+		})
+		expect(report).toMatchObject({ status: 'pass', passed: 1, skipped: 1, notChecked: 0 })
+	})
+
 	it('never passes a script check when nothing ran', () => {
 		const report = mergeChecks('s', [{ aspect: 'x', implementation: 'p', checks, reported: undefined }])
 		expect(report.aspects[0]?.checks[0]).toMatchObject({ status: 'not-checked', message: 'it has no check script' })
@@ -98,6 +117,7 @@ describe('failsPolicy', () => {
 		failed,
 		critical,
 		notChecked: 0,
+		skipped: 0,
 		aspects: [],
 	})
 
@@ -117,6 +137,7 @@ describe('readScriptOutput', () => {
 		expect(readScriptOutput('{"checks":[{"id":"X-1","status":"fail","message":"m","file":"f"}]}')).toEqual([
 			{ id: 'X-1', status: 'fail', message: 'm', file: 'f' },
 		])
+		expect(readScriptOutput('{"checks":[{"id":"X-1","status":"skipped"}]}')).toEqual([{ id: 'X-1', status: 'skipped' }])
 	})
 
 	it('names what is wrong with output it cannot read', () => {

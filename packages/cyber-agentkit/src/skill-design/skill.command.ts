@@ -49,7 +49,7 @@ function answerThenFail(answer: Answer<any>, format: Format): never {
 
 function textReport(report: SkillCheckReport): string {
 	const lines = [
-		`${report.skill}: ${report.status} (${report.passed} passed, ${report.failed} failed of which ${report.critical} critical, ${report.notChecked} not checked)`,
+		`${report.skill}: ${report.status} (${report.passed} passed, ${report.failed} failed of which ${report.critical} critical, ${report.notChecked} not checked, ${report.skipped} skipped)`,
 	]
 	for (const aspect of report.aspects) {
 		lines.push(`${aspect.aspect} (${aspect.implementation}): ${aspect.status}`)
