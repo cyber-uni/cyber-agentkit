@@ -52,16 +52,21 @@ describe('the shipped aspects', () => {
 		expect(aspectNames(await packageLayers())).toEqual([
 			'skill-design.aspects.criteria',
 			'skill-design.aspects.verification',
+			'skill-design.aspects.research',
 			'skill-design.aspects.security',
 		])
 	})
 
-	it('each name a check script that decides every script check it lists, and no other', async () => {
+	it('each with a script check name a check script that decides every script check it lists, and no other', async () => {
 		const layers = await packageLayers()
 		const skill = goodSkill()
 		for (const name of aspectNames(layers)) {
 			const aspect = loadAspect(name, layers, (path) => path)
 			expect(aspect.problem).toBeUndefined()
+			if (!aspect.checks.some(({ how }) => how === 'script')) {
+				expect(aspect.checkScript, name).toBeUndefined()
+				continue
+			}
 			expect(aspect.checkScript, name).toMatch(/skills\/skill\/scripts\/check-[a-z]+\.mjs$/)
 			const ran = runCheckScript(aspect.checkScript as string, skill.folder)
 			if (!('outcomes' in ran)) throw new Error(ran.problem)

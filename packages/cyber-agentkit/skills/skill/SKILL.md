@@ -35,7 +35,8 @@ report the result with the work. Stop only as Autonomy's Stops says.
 
 An aspect is one step of designing a skill: what it receives, what it produces, and the checks on its output. The
 core aspects, in the order `create` walks them, are Intent, Criteria, Shape, Trigger, then Verification. Every other
-aspect is open: `check`, `fix`, and `enhance` use it, and `create` does not walk it.
+aspect is open: `check`, `fix`, and `enhance` use it, and `create` does not walk it, except Research, which `create`
+runs after the Intent draft and before Criteria.
 
 Intent, Shape, and Trigger are written below. Criteria, Verification, and every open aspect are references a team can
 swap. Load `skill-design.aspects.criteria` and `skill-design.aspects.verification` with the `reference` skill of
@@ -223,8 +224,8 @@ or <runs> runs)`. When `within` is true, start `test` without asking. When it is
 ### Stops
 
 A run stops only where its level says to ask, for a `test` over the budget, and for a decision only the author can
-make: changing the Intent, what a skill generalizes over, an aspect the description says nothing about, or removing or
-weakening a `## Done when` criterion. Rewriting a criterion so it can be checked, as a Criteria fix does, keeps what it
+make: changing the Intent (such as adopting or extending an existing skill that Research found), what a skill
+generalizes over, an aspect the description says nothing about, or removing or weakening a `## Done when` criterion. Rewriting a criterion so it can be checked, as a Criteria fix does, keeps what it
 asks for and is not weakening it. A request that names such a change still stops: say what it changes, and ask.
 
 A stop is the same every time:
@@ -276,3 +277,5 @@ Before reporting done, check each of these against the result. Report any that f
   the reply reported the work done so far, then ended with the decision and its options.
 - **C16.** No run decided whether an author is present: the level came from the request or `skill-design.autonomy`,
   and the run stopped only where Autonomy's Stops says.
+- **C17.** `create` ran Research before it wrote Criteria: the skill's `README.md` has a `## Research` section, or,
+  when an existing skill covers the job, the run wrote no `SKILL.md`, named that skill, and asked whether to adopt it.

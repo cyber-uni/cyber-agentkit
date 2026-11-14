@@ -2,7 +2,7 @@
 
 Designs an agent skill through aspects a team can swap one at a time. `/skill` creates a skill from a described job, checks it without running it, tests it by running its evals, fixes what check
 or test found, enhances it beyond that, customizes which implementation each aspect uses, and vets a third-party skill before it is installed. Intent, Shape, and Trigger are built in. Criteria, Verification, and every
-open aspect, such as Security, are references (`skill-design.aspects.<aspect>`) that another plugin can replace through
+open aspect, such as Security and Research, are references (`skill-design.aspects.<aspect>`) that another plugin can replace through
 the `reference` skill's Customize mode. The default Verification runs each case several times in a sandbox, on
 promptfoo, beside a run without the skill. Type `/skill` to run it yourself. Installed as a Claude Code plugin, it is
 `/cyber-agentkit:skill` (pnpm install: `pnpm-cyber-agentkit-skill`).
@@ -10,13 +10,26 @@ promptfoo, beside a run without the skill. Type `/skill` to run it yourself. Ins
 | Command | Does |
 | --- | --- |
 | `help` | lists and explains the commands; also what a bare `/skill` shows |
-| `create` | drafts Intent, Criteria, Shape, and Trigger, builds the skill, checks it, then tests it within the test budget; also what `/skill <description>` runs |
+| `create` | drafts Intent, researches it, drafts Criteria, Shape, and Trigger, builds the skill, checks it, then tests it within the test budget; also what `/skill <description>` runs |
 | `check` | reads the skill against every aspect; changes nothing |
 | `test` | runs the evals and saves the result; changes nothing |
 | `fix` | repairs what check or test found |
 | `enhance` | suggests improvements one at a time, from use or a request |
 | `vet` | fetches a third-party skill, runs every Security check, and gives an install verdict with supply-chain signals |
 | `customize` | shows which implementation each aspect uses and each command's autonomy, and changes them through the `reference` skill |
+
+## Research
+
+Skipped: written before the research step. Its prior art, the skill-authoring tools compared when the aspects were
+designed, is the [skill-design-interface research](https://github.com/cyber-uni/cyber-agentkit/tree/main/.research/skill-design-interface).
+The research step itself is [issue #221](https://github.com/cyber-uni/cyber-agentkit/issues/221).
+
+## How it runs
+
+Before the Intent is final, `create` runs Research: it looks for existing skills for the job and checks that each
+target harness can do it, through `research-workbench:deep-research` by default, sized to the skill (full, a quick
+prior-art search, or a skip with its reason). When an existing skill already covers the job, `create` stops and asks
+whether to adopt it, extend it, or build anyway.
 
 Every run behaves the same way, whether a person is watching or an agent was dispatched; the leash decides where it
 stops. `create`, `fix`, and `enhance` each start by stating their autonomy level and why: `ask` (propose each item),

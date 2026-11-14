@@ -50,7 +50,7 @@ aspect with its own and keeps the rest.
   `/skill` itself and are not swapped. Where a criterion speaks of an aspect's implementation, it means a swappable one.
 - **K2. Core aspect.** Intent, Criteria, Shape, Trigger, or Verification. `create` walks the first four in that order,
   then builds the skill and runs Verification against the Criteria. **Open aspect:** any other. `enhance` reviews every
-  aspect, core and open.
+  aspect, core and open. `create` also runs one open aspect, Research, after the Intent draft and before Criteria.
 - **K3. Family.** The aspect interfaces under `skill-design.aspects`, addressed by a wildcard. No interface is named for
   the family.
 - **K4. Front door.** The `/skill` skill with the commands help, create, check, test, fix, enhance, customize, and vet. `check`
@@ -160,7 +160,7 @@ in the design-spec skill.
 **Aspects and implementations (UC11)**
 
 - R67 (UC8, UC11): Each swappable aspect (K1) is the reference interface `skill-design.aspects.<aspect>`, and
-  `cyber-agentkit` ships a default for every one it defines, including the open aspect Security.
+  `cyber-agentkit` ships a default for every one it defines, including the open aspects Security and Research.
 - R71 (UC11): An open aspect that an installed plugin ships is checked by `check` and reviewed by `enhance`, with no
   change to `/skill`.
 - R72 (UC11.1): An aspect named `interface` or `default` is refused.
