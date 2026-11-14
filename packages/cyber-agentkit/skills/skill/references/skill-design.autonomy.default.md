@@ -1,16 +1,20 @@
 ---
-description: How much each /skill command applies on its own - ask, apply-safe, apply, or derive from the situation.
+description: How much each /skill command applies on its own (ask, apply-safe, or apply), and the test budget a test runs within without asking.
 tags: [skill-design, autonomy]
 ---
 
 ## create
 
-derive
+apply
 
 ## fix
 
-derive
+apply-safe
 
 ## enhance
 
-derive
+ask
+
+## test budget
+
+$10 or 60 runs

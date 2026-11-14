@@ -8,8 +8,8 @@ the author asks to accept one, or when the first passing run saves one (see Save
 1. Find the skill as [check](check.md) does.
 2. If the skill has no `## Done when`, report every outcome as not tested, pointing to `check` and `fix`; trigger
    cases still run.
-3. If it has no eval cases, draft them as Verification's Draft says and get the author's approval before any run. With
-   no author present, run nothing and report the missing cases.
+3. If it has no eval cases, draft them as Verification's Draft says, then stop as `SKILL.md`'s Autonomy says, asking
+   to approve them before any run.
 4. A criterion with no rubric is reported as not tested, pointing to `fix`.
 
 ## 2. Run
@@ -19,8 +19,10 @@ outside effect is not run, and is reported as such. Each run is contained to its
 only for the hosts its case lists. When the test stops with `error: login:` or `error: sandbox:`, pass the reason on
 as it is said; no run was made.
 
-A full test makes many runs and can take several minutes. Before starting, tell the author how many runs it makes
-and, from the plan line, about how long and how much it took last time. When the plan line says an unknown number of
+A full test makes many runs and can take several minutes. Before starting, estimate it against the test budget as
+`SKILL.md`'s Autonomy says: within it, start without asking; over it, stop. A request that names the runs to make, such
+as "run the full test", is the answer for that run. Say how many runs it makes and, from the plan line, about how long
+and how much it took last time. When the plan line says an unknown number of
 runs, the last result was saved before the run count was recorded and may have covered only some cases: say so. Start it in the background where the harness
 can, so the author can keep working, and watch its progress lines on stderr: one per finished run (`[n/total] <case>
 run <k> (<arm>): <outcome>`) and a `still running` line when none has finished for 30 seconds. Pass them on at most once
@@ -117,4 +119,4 @@ control with the skill, so the team compares with the same result.
 Each trigger case beside what was expected; each criterion's pass rate, threshold, and baseline; each failure with its
 case and the output that broke it; what the runs with the skill tried and were refused, if anything; and the cases that changed between pass and fail since the expected result, or, with
 none, the previous result, saying which. With neither, say there is none to compare. Say when the result was saved as the
-expected result. In an interactive run with failures, offer `fix`.
+expected result. With failures, offer `fix` as `SKILL.md`'s Rules say.

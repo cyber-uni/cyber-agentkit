@@ -498,6 +498,48 @@ describe('skill test progress (UC6)', () => {
 		})
 	})
 
+	describe('--estimate (#214)', () => {
+		it('makes no run and prints the runs, the estimate, and whether it is within the budget', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			let ran = false
+			const run: PromptfooRun = async (...args) => {
+				ran = true
+				return fakeRun({})(...args)
+			}
+			expect(await test(skill.folder, run, root, '--estimate')).toBe(0)
+			expect(ran).toBe(false)
+			expect(JSON.parse(printed())).toMatchObject({
+				skill: 'release-notes',
+				runs: 24,
+				estimate: 4.32,
+				basis: 'per-run-default',
+				budget: { cost: 10, runs: 60 },
+				within: true,
+			})
+			expect(existsSync(join(root, '.agents', 'skill-design', 'results'))).toBe(false)
+		})
+
+		it('takes the budget from its options, and scales the last saved result', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			await test(skill.folder, fakeRun({}), root)
+			const latest = join(root, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json')
+			const saved = JSON.parse(readFileSync(latest, 'utf8'))
+			writeFileSync(latest, JSON.stringify({ ...saved, cost: 3, totalRuns: 12, durationMs: 120_000 }))
+			stdout.mockClear()
+			await test(skill.folder, fakeRun({}), root, '--estimate', '--budget-cost', '5', '--budget-runs', '20')
+			expect(JSON.parse(printed())).toMatchObject({
+				runs: 24,
+				estimate: 6,
+				basis: 'last-result',
+				last: { runs: 12, cost: 3, durationMs: 120_000 },
+				budget: { cost: 5, runs: 20 },
+				within: false,
+			})
+		})
+	})
+
 	describe('as each run ends (R98)', () => {
 		it('prints one line per ended run with its count, case, run, arm, outcome and time, and never the reply', async () => {
 			const run = reporting([

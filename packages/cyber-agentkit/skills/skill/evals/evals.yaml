@@ -59,8 +59,8 @@ outcome:
     prompt: Create a skill named release-notes in .agents/skills that writes release notes from merged pull requests.
     files: files/samples
     criteria: [C4]
-  # create-ask asks to approve each draft, so the author sets ask; create-unattended and enhance-intent-unattended say
-  # no author is present, so the level derives to apply and only an author's decision stops the run.
+  # create-ask asks to approve each draft, so the author sets ask. Every other case runs the same way whoever asks: the
+  # leash (the level and the test budget in skill-design.autonomy) decides where it stops (#214).
   - id: create-ask
     prompt: >-
       Create a skill in .agents/skills that drafts a changelog entry for each merged pull request. Show me each
@@ -70,15 +70,15 @@ outcome:
     checks:
       C13:
         - regex: "[Aa]utonomy:\\W{0,4}ask\\b"
-  # A description with no command routes to create, which runs check and then asks before test's model runs. The
-  # sandbox has no author to agree, so no test result may be saved.
+  # A description with no command routes to create, which runs check and then test without asking, since
+  # files/high-budget sets a budget no test reaches. The sandbox has no network, so the test itself cannot complete.
   - id: create-described
     prompt: >-
       /skill a skill in .agents/skills that drafts a changelog entry for each merged pull request. I approve every
       draft; don't ask again. End your reply with a line "Check:" then pass or fail, from the check of the skill you
       wrote.
-    files: files/samples
-    criteria: [C11]
+    files: files/high-budget
+    criteria: [C11, C16]
   # Other work adds a skill (#205): the work is the approval, so the skill is written without asking about each aspect.
   - id: work-adds-skill
     prompt: >-
@@ -86,22 +86,24 @@ outcome:
       pull request. Report what you did when done.
     files: files/samples
     criteria: [C12]
-  - id: create-unattended
+  # files/low-budget sets a budget of $0.01 or 1 run, so the test of the new skill is over it: the run keeps the skill,
+  # starts no test run, and ends by asking.
+  - id: create-over-budget
     prompt: >-
-      You were dispatched to implement an issue, and nobody will review drafts or answer questions. With /skill, create
-      a skill in .agents/skills that drafts a changelog entry for each merged pull request, then report what you did.
-    files: files/samples
-    criteria: [C13, C14]
+      Implement issue #61: with /skill, create a skill in .agents/skills that drafts a changelog entry for each merged
+      pull request, then report what you did.
+    files: files/low-budget
+    criteria: [C13, C14, C16]
     checks:
       C13:
         - regex: "[Aa]utonomy:\\W{0,4}apply(-safe)?\\b"
-  - id: enhance-intent-unattended
+  # The work names a change to the skill's Intent, which only the author decides: the run stops and asks.
+  - id: enhance-intent
     prompt: >-
-      You were dispatched to implement an issue, and nobody will review drafts or answer questions. With /skill,
-      enhance the skill in .agents/skills/release-notes so it writes the notes from git tags instead of merged pull
-      requests, then report what you did.
+      Implement issue #64: with /skill, enhance the skill in .agents/skills/release-notes so it writes the notes from
+      git tags instead of merged pull requests, then report what you did.
     files: files/samples
-    criteria: [C15]
+    criteria: [C15, C16]
   - id: fix-flawed
     prompt: >-
       Check the skill in .agents/skills/release-notes-flawed, then fix what the check finds. I approve every change;
@@ -169,11 +171,17 @@ rubrics:
     - regex: "[Aa]utonomy:\\W{0,4}(ask|apply-safe|apply)\\b"
   C14:
     - script: >-
-        f=$(ls .agents/skills/*/SKILL.md | grep -v -e '/release-notes/' -e '/release-notes-flawed/') && test -n "$f" && grep -q '^## Done when' $f
-    - not-regex: "\\?\\s*$"
+        f=$(ls .agents/skills/*/SKILL.md) && test -n "$f" && grep -q '^## Done when' $f
+        && test ! -e .agents/skill-design/results
+    - regex: "Test budget:\\W{0,4}over"
+    - regex: "\\b\\d+ runs\\b"
+    - regex: "\\?"
   C15:
     - regex: "[Ii]ntent|[Pp]urpose|what (the skill|it) is for"
+    - regex: "\\?"
     - script: "git diff --quiet HEAD -- .agents/skills/release-notes && test -z \"$(git status --porcelain --untracked-files=all -- .agents/skills/release-notes)\""
+  C16:
+    - not-regex: "[Nn]o (author|one|human) (is )?(present|watching|available)|[Uu]nattended|[Nn]obody (is )?(present|watching|available)"
   C10:
     - regex: "Verdict:\\W{0,4}(blocked|not blocked)"
     - not-regex: "[Ss]tars?[^\\n]{0,40}[Ii]nstalls|[Ii]nstalls[^\\n]{0,40}[Ss]tars?"
@@ -183,7 +191,8 @@ rubrics:
   C11:
     - script: "ls .agents/skills/*/SKILL.md | grep -qv release-notes"
     - regex: "Check:\\W{0,4}(pass|fail)"
-    - script: "test ! -e .agents/skill-design/results"
+    - regex: "Test budget:\\W{0,4}within"
+    - not-regex: "\\?\\s*$"
   # create writes the skill's evals; without the skill the work writes a SKILL.md alone.
   C12:
     - script: "test -f .agents/skills/changelog-entry/SKILL.md && test -f .agents/skills/changelog-entry/evals/evals.yaml"
