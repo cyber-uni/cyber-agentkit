@@ -18,6 +18,13 @@ trigger:
   # Near misses for #205: code that only reads skills, not a change to one.
   - { prompt: "Fix the bug in src/skill/parse.ts where front matter with a CRLF line ending is not read from a SKILL.md.", expect: skip }
   - { prompt: "Add a unit test for the function that lists the skills a plugin ships.", expect: skip }
+  # A skill that ships inside a plugin or package, "add a skill", and a skill that teaches a library (#216).
+  - { prompt: "Add an /axi skill to the agent plugin in our cli-kit npm package that teaches agents writing a CLI to follow our version of AXI.", expect: fire }
+  - { prompt: "Add a skill to this plugin.", expect: fire }
+  - { prompt: "Teach agents to use our date library: write a skill for it that ships with the npm package.", expect: fire }
+  - { prompt: "Add a release-notes skill.", expect: fire }
+  - { prompt: "Teach me how to use our date library's parse function.", expect: skip }
+  - { prompt: "Add a hooks component to this plugin's plugin.json.", expect: skip }
 # files/samples holds two sample skills (R79): release-notes passes every check; release-notes-flawed passes every
 # script check but fails TRG-3 (its description says how it works), CRI-3 ("The notes are clear"), and SHP-3 (its
 # grouping step is prose a script could do).
