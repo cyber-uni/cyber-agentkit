@@ -1,5 +1,27 @@
 # cyber-agentkit
 
+## 2.6.0
+
+### Minor Changes
+
+- 265b3ef: `/skill` with a description of a skill and no command now runs `create`. `create` no longer stops at each aspect:
+  its default autonomy is `apply`, so it writes each aspect, builds the skill, runs `check` (deciding every read check
+  and repairing what fails), and then asks before `test`'s runs start. A team that wants each draft approved sets
+  `create` back to `ask` with `/skill customize`. A bare `/skill` still shows `help`.
+- 31e0c47: `/skill` derives each run's autonomy level from the situation, as SDD's leash does. `create`, `fix`, and `enhance`
+  state the level and its reason before the first change. With no author present, as in a session dispatched to
+  implement an issue, they do the work at `apply` and report each decision they made; a decision that is the author's
+  alone, such as changing a skill's Intent, still stops the run. The `skill-design.autonomy` default now says `derive`
+  for each command.
+- bba1a2f: `/skill` behaves the same in every run, whoever is or is not watching: it no longer guesses whether an author is present. The leash in `skill-design.autonomy` decides where a run stops: each command's level (`apply` for `create`, `apply-safe` for `fix`, `ask` for `enhance` by default) and a new test budget, `$10 or 60 runs` by default. `skill test --estimate` prices a test from its last saved result, or at $0.18 a run with none, and a test within the budget runs without asking. A test over the budget, or a decision only the author can make, stops the run the same way every time: the work so far is kept and reported, and the reply ends with the question and its options.
+
+### Patch Changes
+
+- 514fbc8: The `skill` skill now also loads before other work writes a file in a skill's folder, such as implementing an issue
+  that adds or changes a skill, even when the request never mentions skills. The work counts as the approval: the skill
+  writes the new skill or the change without asking about each aspect, adds an eval case for what the work adds, then
+  runs `check` and `test` and fixes what they find before the work is reported done.
+
 ## 2.5.0
 
 ### Minor Changes
