@@ -253,8 +253,8 @@ Before reporting done, check each of these against the result. Report any that f
 - **C4.** `create` on a name that already exists left that skill unchanged and pointed to `check`, `fix`, and `enhance`.
 - **C5.** At `ask`, or when the author asked to approve each part, `create` wrote nothing the author had not approved.
 - **C6.** After `fix`, the checks it repaired pass a fresh `check`.
-- **C7.** `fix` reported each failure by its ID, and changed no part of the skill that no failure named, and no file
-  outside it.
+- **C7.** `fix` named each failure by its ID or in words, and changed no part of the skill that no failure named,
+  and no file outside it.
 - **C8.** `help` named every command and `/skillify`, and changed no file.
 - **C9.** `customize` showed each aspect with the implementation in use, and changed no file the author had not picked.
 - **C10.** `vet` installed nothing, left no checkout behind, reported the install blocked on every critical failure and
