@@ -117,19 +117,8 @@ program does the same way every time, such as parsing or validating a file. At `
   that skill, and reads the reference's bundled `<name>.default.md` directly only as the fallback for when the command
   cannot run.
 
-**Fix.** Move the text or the step as Draft says, and update the links. For SHP-1, before changing anything, estimate
-what each way to trim that applies saves, at four characters a token, naming the sections it touches:
-
-1. **Drop dead text**: text for a command, option, or case the skill no longer has.
-2. **Move to a reference**: a section only one command or case reads moves to its own file under `references/`, and
-   the body says when to load it. It saves the most when the skill serves several commands.
-3. **Tighten the prose**: cut what SHP-15 names, repeats, and explanations of reasons, and shorten sentences without
-   changing what the agent does. Never cut or weaken a `## Done when` criterion.
-4. **Move checkable detail to a script**: a rule a script or test can decide moves there, and the prose keeps a
-   one-line pointer to it.
-
-At `ask`, offer each one, lettered, with its estimate, and apply only what the author picks. At `apply-safe` and
-`apply`, apply them in that order until SHP-1 passes, keeping each only when `test` is no worse. For SHP-5, propose the reference and the
+**Fix.** Move the text or the step as Draft says, and update the links. For SHP-1, offer the ways to trim in
+[fix](references/fix.md#shp-1-ways-to-trim). For SHP-5, propose the reference and the
 interface the skill should depend on, and the author decides each move. Apply an approved one with the `reference` skill: Create the default, then
 Wire a skill. For SHP-6, ship the default. For SHP-7 to SHP-11, move the file or folder the check names, and update
 what links or names it. For SHP-12, write the body as steps or sections. For SHP-13, make the script print what the
@@ -196,8 +185,8 @@ Never decide whether an author is present: the level decides where a run stops.
   about the rest.
 - `apply`: apply every change, and report each one.
 
-Before the first change, settle the level, take the first that answers, and state it as one line,
-`Autonomy: <level> (<source>: <reason>)`:
+Settle the level before anything else, taking the first that answers. Open every reply with it as one line, written
+exactly `Autonomy: <level> (<source>: <reason>)`, even when the run stops or changes nothing:
 
 1. `author`: the request names a level, or says to apply without asking ("I approve every change") or to ask first.
    Other work that adds or edits a skill, as Commands says, is the approval to apply: take `apply`, or `apply-safe` on
@@ -214,15 +203,15 @@ was applied on that reason alone.
 
 ### Test budget
 
-`skill-design.autonomy` also holds the test budget, under `## test budget`: a cost in US dollars and a run count,
-`$10 or 60 runs` by default. Before any `test` run, whichever command starts it, run
+`skill-design.autonomy` also holds the test budget, under `## test budget`: a cost in US dollars and a run count. Take both
+from the reference as loaded, never a guess; when it sets none, say so and take the shipped `$10 or 60 runs`. Before any `test` run, whichever command starts it, run
 
 ```sh
 node <this skill's folder>/scripts/skill.mjs test <skill folder> --estimate --budget-cost <cost> --budget-runs <runs> --format json
 ```
 
 It makes no run, and prints `runs`, `estimate` (US dollars, or `null` when no cost is known), `last` (the last saved
-result), and `within`. State it as one line, `Test budget: <within|over> (<runs> runs, <estimate or "no cost known">; budget <cost>
+result), and `within`. State it as one line, written exactly `Test budget: <within|over> (<runs> runs, <estimate or "no cost known">; budget <cost>
 or <runs> runs)`. When `within` is true, start `test` without asking. When it is false, stop.
 
 ### Stops
@@ -267,9 +256,9 @@ Before reporting done, check each against the result, and report any that fails.
   `Test budget:` line, and, within the budget, started `test` without asking.
 - **C12.** When other work added a skill, the skill was written in the same run without asking about each aspect,
   and `check` ran on it before the work was reported done.
-- **C13.** Each `create`, `fix`, and `enhance` run stated its autonomy level, where it came from, and why, before its
-  first change.
-- **C14.** A `test` estimated over the budget started no run, the skill written so far stayed on disk, and the reply
+- **C13.** Each `create`, `fix`, and `enhance` reply opened with the line `Autonomy: <level> (<source>: <reason>)`, even
+  when the run stopped before any change.
+- **C14.** A `test` estimated over the budget, as `skill-design.autonomy` sets it, started no run, the skill written so far stayed on disk, and the reply
   ended by asking whether to run it, giving the run count, the estimate, and the options.
 - **C15.** A decision only the author can make stopped the run at every level: nothing that depends on it changed, and
   the reply reported the work done so far, then ended with the decision and its options.
