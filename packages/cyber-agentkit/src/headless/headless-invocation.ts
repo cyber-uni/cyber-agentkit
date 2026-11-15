@@ -16,6 +16,8 @@ export interface HeadlessMode {
 	readonly promptFlag?: string
 	/** The flag that selects the model. */
 	readonly modelFlag: string
+	/** The model each tier names, when the vendor documents a model for each; absent when it does not. */
+	readonly modelTiers?: HeadlessModelTiers
 	readonly permission: HeadlessPermission
 	/** The output formats it can print. The first is the default. */
 	readonly outputFormats: readonly HeadlessOutputFormat[]
@@ -28,6 +30,13 @@ export interface HeadlessMode {
 	/** The claim IDs in `.research/harness-detection/evidence.md` that back these facts. */
 	readonly research: readonly string[]
 }
+
+/** A model tier, from the cheapest to the most capable. */
+export const modelTiers = ['small', 'mid', 'top'] as const
+export type ModelTier = (typeof modelTiers)[number]
+
+/** The model value, such as an alias, that each tier names for one harness, with the claim IDs that back it. */
+export type HeadlessModelTiers = { readonly [tier in ModelTier]: string } & { readonly research: readonly string[] }
 
 export interface HeadlessUnavailable {
 	readonly harness: HarnessId
@@ -186,6 +195,8 @@ export function headlessInvocation(harness: HarnessId): HeadlessInvocation {
 				executable: 'claude',
 				oneShot: ['-p'],
 				modelFlag: '--model',
+				// Each alias follows the vendor's latest model of its line (E-CC-H13).
+				modelTiers: { small: 'haiku', mid: 'sonnet', top: 'opus', research: ['E-CC-H13'] },
 				permission: {
 					flag: '--permission-mode',
 					values: ['acceptEdits', 'auto', 'bypassPermissions', 'manual', 'dontAsk', 'plan'],

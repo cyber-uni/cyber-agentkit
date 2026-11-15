@@ -295,10 +295,22 @@ function finish(response, { arm, vars, dir, home, plugin, dependencies = [], env
 // read as they come. Only Codex's events are read (E-CODEX-H7): the reply is the last agent_message, usage comes
 // from turn.completed, a turn.failed or top-level error is the run's error, and a skill is used when a command
 // reads <projectSkills>/<skill>/SKILL.md, the only sign of it. A trigger run ends at the first such read.
+// A case that names its own model (vars.model, R161) replaces the run's: the model flag and its value come out of the
+// command line, and the case's go in before the prompt.
+function withModel(command, model) {
+  if (!model || !command.modelFlag) return command.args
+  const args = []
+  for (let i = 0; i < command.args.length; i++) {
+    if (command.args[i] === command.modelFlag) { i++; continue }
+    args.push(command.args[i])
+  }
+  return [...args, command.modelFlag, model]
+}
+
 function runCli({ command, isolation, prompt, names, vars, dir, env, timeout, marker, callLog }) {
   return new Promise((resolve) => {
     const children = []
-    const child = spawnInGroup(children)({ command: command.executable, args: [...command.args, prompt], cwd: dir, env: { ...process.env, ...env } })
+    const child = spawnInGroup(children)({ command: command.executable, args: [...withModel(command, vars.model), prompt], cwd: dir, env: { ...process.env, ...env } })
     child.stdin.end()
     const skillRead = new RegExp(isolation.projectSkills.split('.').join('\\.') + '/([\\w.-]+)/SKILL\\.md')
     let reply = ''
@@ -474,7 +486,7 @@ export default class SkillRun {
         }
       }
       // The plugin loads beside the plugins it depends on: Claude Code does not start it without them (E-CC-H10).
-      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(plugin ? { plugins: [plugin, ...dependencyDirs].map((p) => ({ type: 'local', path: p })) } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3 } : {}), hooks, env, working_dir: dir, ...(contained ? { sandbox: contained.sandbox, settings: contained.settings, ...(plugin ? { additional_directories: [plugin, ...dependencyDirs] } : {}) } : {}), spawn_claude_code_process: spawnInGroup(children) } } })
+      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(vars.model ? { model: vars.model } : {}), ...(plugin ? { plugins: [plugin, ...dependencyDirs].map((p) => ({ type: 'local', path: p })) } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3 } : {}), hooks, env, working_dir: dir, ...(contained ? { sandbox: contained.sandbox, settings: contained.settings, ...(plugin ? { additional_directories: [plugin, ...dependencyDirs] } : {}) } : {}), spawn_claude_code_process: spawnInGroup(children) } } })
       const controller = new AbortController()
       let limit
       const timedOut = new Promise((resolve) => {

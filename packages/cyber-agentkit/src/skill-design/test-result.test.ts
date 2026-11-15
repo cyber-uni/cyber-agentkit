@@ -68,6 +68,19 @@ const triggerRows = (fires: boolean[]): RowSpec[] =>
 		.flatMap((item, index) => [0, 1, 2].map((run) => ({ case: item.id, run, fired: fires[index] as boolean })))
 
 describe('readPromptfooOutput', () => {
+	it("records the plan's model, and the model of each case that names its own (R161)", () => {
+		const modelled = {
+			...plan,
+			model: 'sonnet',
+			cases: plan.cases.map((item) => (item.id === 'two-prs' ? { ...item, model: 'opus' } : item)),
+		} as TestPlan
+		const result = readPromptfooOutput(output(triggerRows([true, true, true, false, false, false])), modelled, meta)
+		expect(result.model).toBe('sonnet')
+		expect(result.cases.find((item) => item.case === 'two-prs')?.model).toBe('opus')
+		expect(result.cases.filter((item) => item.model).map((item) => item.case)).toEqual(['two-prs'])
+		expect(readPromptfooOutput(output([]), plan, meta)).not.toHaveProperty('model')
+	})
+
 	it('reports each trigger case and each criterion against the threshold and the baseline', () => {
 		const rows: RowSpec[] = [
 			...triggerRows([true, true, true, false, false, false]),
@@ -263,6 +276,34 @@ describe('compareWithPrevious', () => {
 
 	it('says when there is no previous result', () => {
 		expect(compareWithPrevious(result([]), undefined)).toMatchObject({ noPrevious: true })
+	})
+
+	it('lists the cases that ran whose model differs from the compared result, an unrecorded one as unknown (R161)', () => {
+		const now = {
+			...result([
+				{ case: 'a', status: 'pass' },
+				{ case: 'b', status: 'pass', model: 'opus' },
+				{ case: 'c', status: 'pass', model: 'haiku' },
+				{ case: 'd', status: 'not-run' },
+			]),
+			model: 'sonnet',
+		}
+		const before = {
+			...result([
+				{ case: 'a', status: 'pass' },
+				{ case: 'b', status: 'pass' },
+				{ case: 'c', status: 'pass', model: 'haiku' },
+				{ case: 'd', status: 'pass' },
+			]),
+			model: 'sonnet',
+		}
+		expect(compareWithPrevious(now, before).modelChanged).toEqual([{ case: 'b', from: 'sonnet', to: 'opus' }])
+		const { model: _model, ...unrecorded } = before
+		expect(compareWithPrevious(now, unrecorded as TestResult).modelChanged).toEqual([
+			{ case: 'a', from: 'unknown', to: 'sonnet' },
+			{ case: 'b', from: 'unknown', to: 'opus' },
+		])
+		expect(compareWithPrevious(now, now)).not.toHaveProperty('modelChanged')
 	})
 })
 

@@ -58,6 +58,19 @@ describe('checkVerification', () => {
 		for (const guard of ['yes', 1, []]) expect(one(guard)).toEqual(['outcome case 1: `guard` is not true or false'])
 	})
 
+	it("accepts a tier or a model ID as a case's model, and rejects others (R161)", () => {
+		const outcome = (model: unknown) => evalsProblems({ outcome: [{ id: 'a', prompt: 'p', model }] })
+		const trigger = (model: unknown) => evalsProblems({ trigger: [{ prompt: 'p', expect: 'fire', model }] })
+		for (const model of ['mid', 'claude-sonnet-5-5', 'gpt-5.6-luna', 'sonnet[1m]']) {
+			expect(outcome(model)).toEqual([])
+			expect(trigger(model)).toEqual([])
+		}
+		for (const model of ['', 'a b', '--x', 3]) {
+			expect(outcome(model)).toEqual(['outcome case 1: `model` is not a tier or a model ID'])
+			expect(trigger(model)).toEqual(['trigger case 1: `model` is not a tier or a model ID'])
+		}
+	})
+
 	it('names each format problem', () => {
 		expect(
 			evalsProblems({

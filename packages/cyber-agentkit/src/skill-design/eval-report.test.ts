@@ -181,6 +181,29 @@ describe('guard cases in the report (R160)', () => {
 	})
 })
 
+describe('the model in the report (R161)', () => {
+	it('names the model the cases ran on, and each case on its own', () => {
+		const modelled = {
+			...result,
+			model: 'sonnet',
+			cases: [
+				{ case: 'two-prs', status: 'pass', passed: 3, ran: 3, model: 'opus' },
+				{ case: 'one-pr', status: 'pass', passed: 3, ran: 3 },
+			],
+		} as TestResult
+		expect(md(modelled)).toContain('The cases ran on `sonnet`, except `two-prs` on `opus`.')
+		expect(evalReport('release-notes', modelled)).toMatchObject({
+			model: 'sonnet',
+			caseModels: [{ case: 'two-prs', model: 'opus' }],
+		})
+		expect(md({ ...result, model: 'default' } as TestResult)).toContain("The cases ran on the harness's default model.")
+	})
+
+	it('says nothing of a model a result did not record', () => {
+		expect(md(result)).not.toContain('ran on')
+	})
+})
+
 describe('doneWhenCriteria', () => {
 	it('reads each criterion and its continuation lines', () => {
 		const body = [

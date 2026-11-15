@@ -34,7 +34,14 @@ import {
 	runTest,
 	saveResult,
 } from './skill-test.js'
-import { skillTestHarness, skillTestHarnesses } from './skill-test-harness.js'
+import {
+	harnessDefault,
+	resolveModel,
+	resolvePlanModels,
+	type SkillTestHarness,
+	skillTestHarness,
+	skillTestHarnesses,
+} from './skill-test-harness.js'
 import { type SkillVetReport, vetSkill } from './skill-vet.js'
 import { defaultTestBudget, estimateTest, estimateText } from './test-estimate.js'
 import { planScripts, planTest, withoutScripts } from './test-plan.js'
@@ -246,8 +253,10 @@ function guardLine(item: CaseStatus, threshold: number): string {
 /** The text report; `folder` is where the result was saved, so the replies file is named in full. */
 function testText(result: TestResult, folder?: string): string {
 	const lines = [
-		`${result.skill}: ${result.runs} runs per case, threshold ${result.threshold}, baseline ${result.baseline}`,
+		`${result.skill}: ${result.runs} runs per case, threshold ${result.threshold}, baseline ${result.baseline}${result.model ? `, model ${result.model === harnessDefault ? "the harness's default" : result.model}` : ''}`,
 	]
+	// Each case on a model of its own says so, so its result is not read as the run's model's (R161).
+	for (const item of result.cases) if (item.model) lines.push(`model ${item.case}: ${item.model}`)
 	// Sandbox failures come first, so the pass rates below are not read as the skill's (R154).
 	const sandbox = result.sandboxFailures ?? []
 	if (sandbox.length) {
@@ -298,6 +307,16 @@ function testText(result: TestResult, folder?: string): string {
 	else
 		for (const item of result.changed ?? [])
 			lines.push(`changed since ${result.comparedWith}: ${item.case} ${item.from} → ${item.to}`)
+	// A comparison across models says so (R161): the same change and its models, one line for the cases sharing them.
+	const models = new Map<string, string[]>()
+	for (const item of result.modelChanged ?? []) {
+		const key = `${item.from} → ${item.to}`
+		models.set(key, [...(models.get(key) ?? []), item.case])
+	}
+	for (const [key, cases] of models)
+		lines.push(
+			`warning: model changed since ${result.comparedWith}: ${key} for ${cases.length === result.cases.filter((item) => item.status !== 'not-run').length ? 'every case that ran' : cases.join(', ')}; a change there may be the model's, not the skill's`,
+		)
 	for (const item of result.moved ?? [])
 		lines.push(
 			`moved across accepted results: ${item.case} ${item.rates.map((rate, index) => `${index === item.rates.length - 1 ? 'now ' : ''}${rate.passed} of ${rate.ran}`).join(' → ')}`,
@@ -333,7 +352,8 @@ function testCommand({
 				type: t.string().optional(),
 			},
 			model: {
-				description: "The model each run uses. Defaults to the harness's default.",
+				description:
+					"The model each run uses: a tier (`small`, `mid`, `top`) or a model ID. Defaults to the harness's mid-tier model, or its own default when its tiers are not known. A case's own `model` in evals.yaml wins over it. The judge keeps --judge.",
 				type: t.string().optional(),
 			},
 			judge: {
@@ -442,11 +462,25 @@ function testCommand({
 				)
 				throw CliError.reported(exitCodes.usage)
 			}
-			const harness = skillTestHarness(harnessId as HarnessId, args.model)
-			if ('problem' in harness) {
-				process.stderr.write(`error: unsupported-harness: ${harness.problem}\n`)
+			const driver = skillTestHarness(harnessId as HarnessId)
+			if ('problem' in driver) {
+				process.stderr.write(`error: unsupported-harness: ${driver.problem}\n`)
 				throw CliError.reported(exitCodes.usage)
 			}
+			// A tier becomes the harness's model, and with none named the runs take its mid tier (R161).
+			const runModel = resolveModel(driver, args.model)
+			if ('problem' in runModel) {
+				process.stderr.write(`error: unknown-tier: ${runModel.problem}\n`)
+				throw CliError.reported(exitCodes.usage)
+			}
+			const harness =
+				runModel.model === undefined
+					? driver
+					: (skillTestHarness(harnessId as HarnessId, runModel.model) as SkillTestHarness)
+			if (runModel.model === undefined)
+				process.stderr.write(
+					`warning: harness-default-model: ${harness.id} has no known mid-tier model, so each run uses its default; name one with --model\n`,
+				)
 			const backend = args.backend ?? 'promptfoo'
 			if (backend !== 'promptfoo' && backend !== 'plugin-eval') {
 				process.stderr.write(`error: unknown-backend: no backend ${backend}; use promptfoo or plugin-eval\n`)
@@ -464,6 +498,12 @@ function testCommand({
 				throw CliError.reported(planned.code === 'unknown-case' ? exitCodes.usage : exitCodes.error)
 			}
 			for (const warning of planned.warnings) process.stderr.write(`warning: ${warning}\n`)
+			const modelled = resolvePlanModels(planned.plan, harness, args.model)
+			if ('problem' in modelled) {
+				process.stderr.write(`error: unknown-tier: ${modelled.problem}\n`)
+				throw CliError.reported(exitCodes.usage)
+			}
+			planned.plan = modelled.plan
 			// The scripts of a skill from outside the repository are listed, and run only when the author trusts them (R158).
 			const repository = args.root === undefined ? findRoot(process.cwd()) : resolve(args.root)
 			const scripts = planScripts(planned.plan)
@@ -525,7 +565,7 @@ function testCommand({
 				skill,
 				skillName: name,
 				baselineFolder: args.baseline === undefined ? undefined : resolve(args.baseline),
-				model: args.model,
+				model: modelled.model,
 				judge: args.judge,
 				verification: `${verification.name} from ${verification.implementation}`,
 				at: new Date().toISOString(),

@@ -121,6 +121,8 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 			vars: {
 				prompt: item.prompt,
 				kind: item.kind,
+				// A case's own model wins over the run's (R161).
+				...(item.model ? { model: item.model } : {}),
 				...(item.files ? { files: item.files } : {}),
 				...(item.setup ? { setup: item.setup } : {}),
 				...(item.network?.length ? { network: JSON.stringify(item.network) } : {}),
