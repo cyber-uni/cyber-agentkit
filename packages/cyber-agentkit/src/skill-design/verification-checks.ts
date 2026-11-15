@@ -29,6 +29,8 @@ export type EvalsFile = {
 		id: string
 		prompt: string
 		files?: string
+		/** A script, relative to `evals/`, that each run runs in its folder after the files are committed. */
+		setup?: string
 		criteria?: string[]
 		effects?: 'outside'
 		/** Hosts the case's runs may reach, such as `registry.npmjs.org` or `*.github.com`; none by default. */
@@ -91,6 +93,8 @@ export function evalsProblems(value: unknown): string[] {
 				}
 				if (item['files'] !== undefined && typeof item['files'] !== 'string')
 					problems.push(`${where}: \`files\` is not a path`)
+				if (item['setup'] !== undefined && (typeof item['setup'] !== 'string' || item['setup'] === ''))
+					problems.push(`${where}: \`setup\` is not a path`)
 				const criteria = item['criteria']
 				if (criteria !== undefined && !(Array.isArray(criteria) && criteria.every((id) => typeof id === 'string')))
 					problems.push(`${where}: \`criteria\` is not a list of IDs`)

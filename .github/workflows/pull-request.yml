@@ -26,6 +26,7 @@ jobs:
       contents: read
     outputs:
       kill: ${{ steps.diff.outputs.kill }}
+      sandbox: ${{ steps.diff.outputs.sandbox }}
       bundle: ${{ steps.diff.outputs.bundle }}
     steps:
       - uses: actions/checkout@v7
@@ -38,6 +39,9 @@ jobs:
           # The kill code and its test.
           KILL: >-
             ^packages/cyber-agentkit/src/skill-design/promptfoo-provider-source(\.test)?\.ts$|^packages/cyber-agentkit/src/headless/headless-invocation\.ts$|^\.github/workflows/pull-request\.yml$
+          # The script sandbox code and its test.
+          SANDBOX: >-
+            ^packages/cyber-agentkit/src/skill-design/promptfoo-provider-source(\.test)?\.ts$|^packages/cyber-agentkit/package\.json$|^\.github/workflows/pull-request\.yml$
           # What the prebuilt scripts bundle: library source, the plugin manifest, the lockfile, and the
           # build tooling (package manifests, build and format config, the drift check), plus the scripts.
           BUNDLE: >-
@@ -47,11 +51,12 @@ jobs:
             echo "::warning::Could not diff $BASE...$HEAD; running every platform job."
             echo "kill=true" >> "$GITHUB_OUTPUT"
             echo "bundle=true" >> "$GITHUB_OUTPUT"
+            echo "sandbox=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           printf 'Changed files:\n%s\n' "$files"
-          for gate in kill bundle; do
-            pattern=KILL; [ "$gate" = bundle ] && pattern=BUNDLE
+          for gate in kill bundle sandbox; do
+            pattern=KILL; [ "$gate" = bundle ] && pattern=BUNDLE; [ "$gate" = sandbox ] && pattern=SANDBOX
             if printf '%s\n' "$files" | grep -Eq "${!pattern}"; then hit=true; else hit=false; fi
             echo "$gate=$hit" | tee -a "$GITHUB_OUTPUT"
           done
@@ -78,6 +83,30 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec vitest run src/skill-design/promptfoo-provider-source.test.ts -t "time limit"
         working-directory: packages/cyber-agentkit
+
+  # skill test runs a case's setup script and `script` checks in Anthropic's sandbox runtime, which needs
+  # bubblewrap and socat on Linux. The `code` job has neither, so its containment tests skip; this job
+  # installs them and lets unprivileged user namespaces through, so the tests run and cannot pass by skipping.
+  script-sandbox:
+    needs: changes
+    if: needs.changes.outputs.sandbox == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: sudo apt-get update && sudo apt-get install -y bubblewrap socat
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run src/skill-design/promptfoo-provider-source.test.ts -t "setup scripts and script checks"
+        working-directory: packages/cyber-agentkit
+        env:
+          SKILL_TEST_REQUIRE_SANDBOX: '1'
 
   # The prebuilt skill scripts must rebuild byte for byte on every platform and Node version a
   # contributor builds on, or the drift check in `pnpm verify` would flag a correct commit.

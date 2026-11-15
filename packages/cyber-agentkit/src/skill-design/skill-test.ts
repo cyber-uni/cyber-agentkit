@@ -205,10 +205,14 @@ export function setupProblem(output: unknown): { problem: string; code: 'login' 
 	const errors = rows.map((row) => row.response?.error).filter((error): error is string => !!error)
 	const login = errors.find((error) => error.startsWith('login: '))
 	if (login) return { code: 'login', problem: login.slice('login: '.length) }
+	// The provider's own word that the script sandbox cannot start (R157): no setup script or script check runs.
+	const scripts = errors.find((error) => error.startsWith('sandbox: '))
+	if (scripts) return { code: 'sandbox', problem: scripts.slice('sandbox: '.length) }
 	// A known fault that broke one run's shell is that run's sandbox failure (R154), not a sandbox that could not start.
 	const sandbox = errors.find(
 		(error) =>
 			!recognizeSandboxFault(error) &&
+			!error.startsWith('setup script failed: ') &&
 			/sandbox/i.test(error) &&
 			/unavailable|cannot|missing|not supported|bubblewrap|bwrap/i.test(error),
 	)

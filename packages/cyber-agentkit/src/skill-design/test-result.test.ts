@@ -505,3 +505,37 @@ describe('sandbox failures (R154)', () => {
 		expect(compareWithPrevious(now, old, 'expected').changed).toEqual([{ case: 'two-prs', from: 'fail', to: 'pass' }])
 	})
 })
+
+describe('setup script failures (R156)', () => {
+	const failed = (spec: RowSpec) => {
+		const made = row({ ...spec, error: 'setup script failed: no such branch: main' }) as ReturnType<typeof row> & {
+			response: { metadata: Record<string, unknown> }
+		}
+		made.response.metadata['setupFailed'] = { text: 'preparing\nno such branch: main' }
+		return made
+	}
+
+	it('lists a run whose setup script failed as not run, with its reason, and leaves it out of every pass rate', () => {
+		const rows = [
+			row({ case: 'two-prs', run: 0, checks: { C1: true, C2: true } }),
+			failed({ case: 'two-prs', run: 1 }),
+			failed({ case: 'two-prs', run: 2 }),
+		]
+		const result = readPromptfooOutput({ results: { results: rows } }, plan, meta)
+		expect(result.criteria[0]).toMatchObject({ id: 'C1', status: 'pass', passed: 1, ran: 1 })
+		expect(result.cases.find((item) => item.case === 'two-prs')).toMatchObject({ status: 'pass', passed: 1, ran: 1 })
+		expect(result.notRun).toEqual([
+			{ case: 'two-prs (with-skill, run 2)', reason: 'setup script failed: no such branch: main' },
+			{ case: 'two-prs (with-skill, run 3)', reason: 'setup script failed: no such branch: main' },
+		])
+	})
+
+	it("keeps the script's whole output in the run's reply", () => {
+		const replies = readReplies({ results: { results: [failed({ case: 'two-prs', run: 0 })] } })
+		expect(replies[0]).toMatchObject({
+			outcome: 'not run',
+			reason: 'setup script failed: no such branch: main',
+			error: 'preparing\nno such branch: main',
+		})
+	})
+})

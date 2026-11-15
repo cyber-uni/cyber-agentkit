@@ -2,14 +2,16 @@
  * The promptfoo provider `skill test` writes beside its config. promptfoo's Claude Agent SDK provider
  * (0.125.1) runs in a temp folder it deletes and has no `copy_working_dir` (research E20), so this
  * wrapper makes each run's folder: a fresh copy of the case's files committed in a new git repository, plus the
- * skill under the harness's project skills folder (`.claude/skills/<name>/` for Claude Code) in the arm that has it (excluded from git status), or, for a skill developed in a plugin, a fresh copy of that arm's plugin loaded as a local plugin (R91), committed in a git repository of its own and named to script checks by `SKILL_TEST_PLUGIN`, or its skills copied into the project skills folder for a harness with no local-plugin flag. Claude Code runs through promptfoo's Agent SDK provider; another harness (`config.harness`) runs through its own CLI (`config.command`). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. After the run it decides the rubric checks that
+ * skill under the harness's project skills folder (`.claude/skills/<name>/` for Claude Code) in the arm that has it (excluded from git status), or, for a skill developed in a plugin, a fresh copy of that arm's plugin loaded as a local plugin (R91), committed in a git repository of its own and named to script checks by `SKILL_TEST_PLUGIN`, or its skills copied into the project skills folder for a harness with no local-plugin flag. Claude Code runs through promptfoo's Agent SDK provider; another harness (`config.harness`) runs through its own CLI (`config.command`). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. A case's setup script (`vars.setup`) runs in the
+ * folder after the files are committed and before the model starts, and it and each `script` check run in the script
+ * sandbox (R155, R157). After the run it decides the rubric checks that
  * need no judge in that folder, records whether the skill fired, and removes the folder. Each run also gets an empty home folder.
  * It resolves promptfoo from the npx install running it.
  *
  * Progress (R98, R99): when its config names a `progressFile`, the provider appends one JSON line when a run starts
  * ({ event: 'start', case, arm, run, kind, t }); `promptfooHookSource` appends the line when it ends.
  */
-export const promptfooProviderSource = String.raw`import { execFileSync, execSync, spawn } from 'node:child_process'
+export const promptfooProviderSource = String.raw`import { execFileSync, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
@@ -22,7 +24,7 @@ const req = createRequire(fs.realpathSync(process.argv[1]))
 const { loadApiProvider } = await import(pathToFileURL(req.resolve('promptfoo')).href)
 const cap = (text) => (text.length > 2000 ? text.slice(0, 2000) + '…' : text)
 
-function decide(check, output, dir, env) {
+function decide(check, output, dir, script) {
   const [kind, value] = Object.entries(check)[0]
   const file = (p) => path.join(dir, p)
   const read = (p) => (fs.existsSync(file(p)) ? fs.readFileSync(file(p), 'utf8') : undefined)
@@ -37,7 +39,7 @@ function decide(check, output, dir, env) {
       return { pass: text !== undefined && text.includes(value.text), detail: text === undefined ? value.path + ' does not exist' : cap(text) }
     }
     case 'script':
-      try { execSync(value, { cwd: dir, env, stdio: 'pipe', timeout: 60000 }); return { pass: true, detail: '' } }
+      try { script(value); return { pass: true, detail: '' } }
       catch (error) { return { pass: false, detail: cap(String(error.stderr || error.stdout || error.message)) } }
     default: return { pass: false, detail: 'unknown check ' + kind }
   }
@@ -101,6 +103,51 @@ function containment({ dir, home, plugin, dependencies = [], network }) {
       filesystem: { denyRead: [...new Set([os.tmpdir(), real(os.tmpdir()), os.homedir()])], allowRead: [...own, ...needed, nodeInstall], allowWrite: own },
     },
   }
+}
+
+// A setup script and a script check are the case author's shell, so they run contained as a run's shell commands
+// are (R157), on every harness: in Anthropic's sandbox runtime (srt, research E22), which uses the same OS sandbox
+// as Claude Code's (bubblewrap on Linux and WSL, Seatbelt on macOS). Writes go only to the run's own folders, reads
+// of the home folders and the system temp folder are refused but for the run's own folders and the node install,
+// and the network is closed: srt allows no host when allowedDomains is empty. Before the first script, a probe asks
+// srt to run 'true'; when it cannot, every run that needs a script answers the error 'sandbox: …', and no script runs
+// outside the sandbox.
+let scriptSandboxChecked
+function scriptSandbox() {
+  scriptSandboxChecked ??= (() => {
+    let cli
+    try { cli = path.join(path.dirname(req.resolve('@anthropic-ai/sandbox-runtime')), 'cli.js') }
+    catch { return { problem: 'sandbox: the script sandbox (@anthropic-ai/sandbox-runtime) is not installed beside promptfoo, so no setup script or script check can be contained' } }
+    const probe = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-probe-')))
+    try {
+      runContained(cli, 'true', { cwd: probe, own: [probe], env: process.env, timeout: 60000 })
+      return { cli }
+    } catch (error) {
+      const said = String(error.stderr || error.stdout || error.message).trim().split('\n')[0]
+      return { problem: 'sandbox: the script sandbox cannot start, so no setup script or script check can be contained: ' + said + '. On Linux and WSL it needs bubblewrap and socat installed.' }
+    } finally { try { fs.rmSync(probe, { recursive: true, force: true }) } catch {} }
+  })()
+  return scriptSandboxChecked
+}
+
+// Runs a shell command in srt: own folders readable and writable, needed folders readable, no network. The settings
+// file lives in a folder of its own, outside what the command may write. Throws as execSync does when it exits non-zero.
+function runContained(cli, command, { cwd, own, needed = [], env, timeout }) {
+  const real = (p) => { try { return fs.realpathSync(p) } catch { return p } }
+  const nodeInstall = path.dirname(path.dirname(real(process.execPath)))
+  // srt reads its own helpers (vendor/seccomp on Linux) from inside the sandbox.
+  const srtPackage = path.dirname(path.dirname(real(cli)))
+  const writable = [...new Set(own.flatMap((p) => [p, real(p)]))]
+  const readable = [...writable, ...new Set(needed.flatMap((p) => [p, real(p)]))]
+  const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-srt-'))
+  try {
+    const settings = path.join(settingsDir, 'srt-settings.json')
+    fs.writeFileSync(settings, JSON.stringify({
+      network: { allowedDomains: [], deniedDomains: [] },
+      filesystem: { denyRead: [...new Set([os.tmpdir(), real(os.tmpdir()), os.homedir()])], allowRead: [...readable, nodeInstall, srtPackage], allowWrite: writable, denyWrite: [] },
+    }))
+    return execFileSync(process.execPath, [cli, '--settings', settings, '-c', command], { cwd, env, stdio: 'pipe', timeout, encoding: 'utf8' })
+  } finally { try { fs.rmSync(settingsDir, { recursive: true, force: true }) } catch {} }
 }
 
 const inside = (roots, p) => roots.some((root) => p === root || p.startsWith(root.endsWith(path.sep) ? root : root + path.sep))
@@ -223,13 +270,20 @@ function spawnInGroup(children) {
 
 // Decides the rubric checks that need no judge in the run's folder, and records whether the skill fired.
 // A script check finds the run's own plugin copy at SKILL_TEST_PLUGIN.
-function finish(response, { arm, vars, dir, plugin, fired, blocked, sandboxFault }) {
+// A script check runs contained (R157), with the run's own environment; a run that needs one when the script sandbox
+// cannot start never reaches here (callApi answers the sandbox error first).
+function finish(response, { arm, vars, dir, home, plugin, dependencies = [], env: runEnv = {}, fired, blocked, sandboxFault }) {
   const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')
   const checks = {}
-  const env = { ...process.env, ...(plugin ? { SKILL_TEST_PLUGIN: plugin } : {}) }
+  const env = { ...process.env, ...runEnv, ...(plugin ? { SKILL_TEST_PLUGIN: plugin } : {}) }
+  const script = (command) => {
+    const sandbox = scriptSandbox()
+    if (sandbox.problem) throw new Error(sandbox.problem)
+    return runContained(sandbox.cli, command, { cwd: dir, own: [dir, home, plugin].filter(Boolean), needed: dependencies, env, timeout: 60000 })
+  }
   if (!response.error)
     for (const [id, list] of Object.entries(JSON.parse(vars.rubrics || '{}'))) {
-      const results = list.map((check) => decide(check, output, dir, env))
+      const results = list.map((check) => decide(check, output, dir, script))
       const failed = results.find((result) => !result.pass)
       checks[id] = failed ? { pass: false, detail: failed.detail } : { pass: true }
     }
@@ -326,6 +380,12 @@ export default class SkillRun {
       const login = await loginProblem(isolation)
       if (login) return { error: login, metadata: { arm } }
     }
+    // A run that needs a script needs the script sandbox; when it cannot start, the run does not start either (R157).
+    const scripted = !!vars.setup || Object.values(JSON.parse(vars.rubrics || '{}')).some((list) => list.some((check) => 'script' in check))
+    if (scripted) {
+      const sandbox = scriptSandbox()
+      if (sandbox.problem) return { error: sandbox.problem, metadata: { arm } }
+    }
     // Real paths: Claude Code takes a working folder as written, and on macOS the temp folder runs through a link.
     const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-run-')))
     const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-home-')))
@@ -351,6 +411,23 @@ export default class SkillRun {
         git(['commit', '-q', '-m', message, '--allow-empty'])
       }
       commit(dir, 'case files')
+      const marker = 'SKILL_TEST_RUN=' + randomUUID()
+      const env = { ...isolatedEnv(isolation, home), SKILL_TEST_RUN: marker.split('=')[1] }
+      // The case's setup script makes the state the model starts from, after the files are committed (R155). It runs
+      // from a copy in the run's home, so it is not part of the run's folder, contained as a script check is (R157). A
+      // script that fails ends the run as not run, with its output (R156).
+      if (vars.setup) {
+        const script = path.join(home, '.skill-test-setup', path.basename(vars.setup))
+        fs.mkdirSync(path.dirname(script), { recursive: true })
+        fs.copyFileSync(vars.setup, script)
+        fs.chmodSync(script, 0o755)
+        try {
+          runContained(scriptSandbox().cli, "'" + script.replace(/'/g, "'\''") + "'", { cwd: dir, own: [dir, home], env: { ...process.env, ...env }, timeout: 120000 })
+        } catch (error) {
+          const said = String([error.stdout, error.stderr].filter(Boolean).join('\n') || error.message).trim()
+          return { error: 'setup script failed: ' + (said.split('\n').filter(Boolean).slice(-1)[0] ?? 'it exited ' + error.status), metadata: { arm, setupFailed: { text: cap(said || 'it exited ' + error.status) } } }
+        }
+      }
       if (plugin) {
         fs.cpSync(pluginDir, plugin, { recursive: true })
         commit(plugin, 'plugin')
@@ -364,12 +441,10 @@ export default class SkillRun {
       // Every Skill call the run makes, one JSON line each ({ skill, args }), so a rubric can check what one skill passed to another.
       const callLog = path.join(dir, '.skill-test', 'skill-calls.jsonl')
       fs.mkdirSync(path.dirname(callLog), { recursive: true })
-      const marker = 'SKILL_TEST_RUN=' + randomUUID()
-      const env = { ...isolatedEnv(isolation, home), SKILL_TEST_RUN: marker.split('=')[1] }
       const children = []
       if (harness !== 'claude-code') {
         const response = await runCli({ command, isolation, prompt, names, vars, dir, env, timeout, marker, callLog })
-        return finish(response, { arm, vars, dir, plugin, fired: response.metadata?.fired ?? false })
+        return finish(response, { arm, vars, dir, home, plugin, dependencies: dependencyDirs, env, fired: response.metadata?.fired ?? false })
       }
       // A trigger case only needs to know which skill the request chose. A hook records each Skill call and ends a trigger run at the first
       // one, counting it as fired when it is the skill under test; a turn cap of three backs it up for a run that calls none. The SDK
@@ -422,7 +497,7 @@ export default class SkillRun {
       watch?.review(response.metadata?.toolCalls)
       const calls = response.metadata?.skillCalls ?? []
       const fired = hookFired || calls.some((call) => names.includes(call.name) || names.includes(call.input?.skill))
-      return finish(response, { arm, vars, dir, plugin, fired, blocked: contained ? blocked : undefined, sandboxFault: faults.hit() })
+      return finish(response, { arm, vars, dir, home, plugin, dependencies: dependencyDirs, env, fired, blocked: contained ? blocked : undefined, sandboxFault: faults.hit() })
     } finally {
       for (const folder of [dir, home, plugin].filter(Boolean)) try { fs.rmSync(folder, { recursive: true, force: true }) } catch {}
     }

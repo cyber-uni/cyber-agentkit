@@ -18,6 +18,8 @@ export type PlannedCase = {
 	expect?: 'fire' | 'skip'
 	/** The folder whose copy each run starts in. */
 	files?: string
+	/** For an outcome case: the setup script each run runs in its folder before the model starts (R155). */
+	setup?: string
 	/** For an outcome case: the hosts its runs may reach; none by default (R107). */
 	network?: string[]
 	/** For an outcome case: the criteria it tests that have a rubric, with the checks a run decides. */
@@ -165,6 +167,7 @@ export function planEvals(
 		const ids = (item.criteria ?? criteria).filter((id) => criteria.includes(id) && !untested.has(id))
 		const planned: PlannedCase = { id: item.id, kind: 'outcome', prompt: item.prompt, rubrics: {}, judged: {} }
 		if (item.files !== undefined) planned.files = resolve(folder, item.files)
+		if (item.setup !== undefined) planned.setup = resolve(folder, item.setup)
 		if (item.network?.length) planned.network = item.network
 		for (const id of ids) {
 			const list = item.checks?.[id] ?? rubrics[id]

@@ -2,8 +2,15 @@ import { sandboxFaults } from './sandbox-faults.js'
 import type { SkillTestHarness } from './skill-test-harness.js'
 import type { TestPlan } from './test-plan.js'
 
-/** The promptfoo and Agent SDK versions `skill test` runs through npx (research E20). */
-export const promptfooPackages = ['promptfoo@0.125.1', '@anthropic-ai/claude-agent-sdk@0.3.322'] as const
+/** The sandbox runtime version that contains a case's setup script and `script` checks (research E22). */
+export const scriptSandboxPackage = '@anthropic-ai/sandbox-runtime@0.0.81'
+
+/** The promptfoo, Agent SDK, and script sandbox versions `skill test` runs through npx (research E20, E22). */
+export const promptfooPackages = [
+	'promptfoo@0.125.1',
+	'@anthropic-ai/claude-agent-sdk@0.3.322',
+	scriptSandboxPackage,
+] as const
 
 export type ConfigOptions = {
 	skillName: string
@@ -115,6 +122,7 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 				prompt: item.prompt,
 				kind: item.kind,
 				...(item.files ? { files: item.files } : {}),
+				...(item.setup ? { setup: item.setup } : {}),
 				...(item.network?.length ? { network: JSON.stringify(item.network) } : {}),
 				rubrics: JSON.stringify(item.rubrics),
 			},

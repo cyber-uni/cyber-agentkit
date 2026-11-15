@@ -139,3 +139,22 @@ Confidence: H high, M medium, L low. Read 2026-11-10. "Unverified" means the cla
   `dist/src/claude-agent-sdk-*.js` (`plugins: config.plugins?.map(...)`, `RESERVED_POLICY_EXTRA_ARGS`), read from the
   installed packages; a spike run on `claude-haiku-5-5` in a scratch folder.
 - Confidence: H for what ran on these versions; M that the call name keeps this form in later releases.
+
+## E22. Containing a case's own scripts: Anthropic's sandbox runtime 0.0.81, 2026-11-15
+
+- Claim: `@anthropic-ai/sandbox-runtime` (the `srt` CLI) wraps any command in the OS sandbox Claude Code's Bash
+  sandbox is built from: bubblewrap with the network namespace removed on Linux, `sandbox-exec` with a generated
+  Seatbelt profile on macOS. `srt --settings <file> -c <command>` runs a command string as `sh -c` would, and exits
+  with its code. Writes are denied everywhere but `filesystem.allowWrite`; reads are allowed but for `denyRead`, and
+  `allowRead` re-allows a path inside a denied one. The network is denied but for `network.allowedDomains`, so an
+  empty list closes it. A settings file named with `--settings` must exist and validate, or `srt` exits instead of
+  falling back to defaults. On Linux, `srt` runs a helper from its own `vendor/seccomp/` folder inside the sandbox,
+  so that folder must be readable there.
+- Seen: in a scratch folder on Linux (WSL, bubblewrap and socat installed), `echo bad > ../outside.txt` failed with
+  `Read-only file system` and `curl https://example.com` with `CONNECT tunnel failed, response 403`, while a write in
+  the allowed folder went through. With the package under a denied home folder and its folder not in `allowRead`,
+  every command failed with `apply-seccomp: No such file or directory`.
+- Source: the package README and `srt --help` of `@anthropic-ai/sandbox-runtime@0.0.81`
+  (https://www.npmjs.com/package/@anthropic-ai/sandbox-runtime), read from the installed package; the spike above.
+- Confidence: H for this version on Linux; M for macOS, which was not run; the README calls the package a research
+  preview whose configuration may change, so the version stays pinned.

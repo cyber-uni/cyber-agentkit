@@ -10,3 +10,8 @@
 ## 2026-11-11
 
 - Added E21: a local plugin loads through the SDK `plugins` option, and its skills are called `<plugin>:<skill>`.
+
+## 2026-11-15
+
+- Added E22: Anthropic's sandbox runtime (`srt`) contains a case's setup script and `script` checks with the same OS
+  sandbox as Claude Code's Bash tool: writes only where allowed, no network.
