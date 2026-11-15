@@ -14,7 +14,8 @@ the author asks to accept one, or when the first passing run saves one (see Save
 
 ## 2. Run
 
-Run the cases as Verification's Run says. Pass a judge only when the author named one. A case marked as having an
+Run the cases as Verification's Run says. Pass a judge only when the author named one. Pass `--model` only when the
+author named a model or a tier; without it the runs take the harness's mid-tier model. A case marked as having an
 outside effect is not run, and is reported as such. Each run is contained to its own folder, and reaches the network
 only for the hosts its case lists. When the test stops with `error: login:`, `error: sandbox:`, `error: dependency-missing:`,
 `error: dependency-unsupported:`, or `error: plugin-load:`, pass the reason on as it is said; no run was made. For
@@ -55,6 +56,7 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
   "folder": "/home/me/code/app/skills/release-notes",
   "at": "2026-11-10T21:00:00Z",
   "verification": "skill-design.aspects.verification from cyber-agentkit",
+  "model": "sonnet",
   "runs": 3,
   "threshold": 2,
   "baseline": "without the skill",
@@ -126,6 +128,10 @@ or `network`, and `target` the path or host. A refused attempt does not by itsel
 `cases` holds each case's status: an outcome case passes when every criterion it tests meets the threshold in it.
 A case marked `guard: true` in `evals.yaml` carries `guard: true` and, when the baseline ran, `baseline`: its baseline
 runs in which every criterion it tests passed. A criterion that only guard cases test carries `guard: true` too.
+`model` names the model the cases ran on (`default` when the harness picked it), and a case that named its own in
+`evals.yaml` carries its own `model`. `modelChanged`, left out when none did, lists the cases whose model differs from
+the result `changed` compares with, each `from` and `to`; `unknown` is the model of a result saved before it was
+recorded.
 `passed` and `ran` count its runs that went right: for an outcome case, the runs in which every criterion it tests
 passed; for a trigger case, the runs that fired or skipped as expected.
 `changed` lists the cases that went between `pass` and `fail` since the skill's expected result
@@ -172,6 +178,8 @@ trigger case beside what was expected; each criterion's pass rate, threshold, an
 case and the output that broke it; each guard case, whose pass without the skill too is expected, so never report it as a
 skill that adds nothing, while a guard that fails with the skill is a failure like any other; what the runs with the
 skill tried and were refused, if anything; and the cases that changed between pass and fail since the expected result, or, with
-none, the previous result, saying which. With neither, say there is none to compare. Name each case in `moved` with
+none, the previous result, saying which. With neither, say there is none to compare. Name the model the cases ran on,
+and each case on its own. When `modelChanged` lists cases, say their model changed since the result compared with, so
+a change there may be the model's rather than the skill's. Name each case in `moved` with
 its rate in each accepted result and in this run. Say when the result was saved as the
 expected result. With failures, offer `fix` as `SKILL.md`'s Rules say.

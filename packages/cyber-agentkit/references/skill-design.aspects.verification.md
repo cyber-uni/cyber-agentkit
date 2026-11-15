@@ -50,6 +50,7 @@ outcome:
     effects: outside          # optional; the case is not run
     network: [registry.npmjs.org]  # optional; the hosts its runs may reach (`*.example.com` for subdomains), none by default
     guard: true               # optional; a regression guard, expected to pass without the skill too
+    model: top                # optional; a tier (small, mid, top) or a model ID its runs use, over --model
     checks:                   # optional; per-case checks that replace rubrics.<ID> for this case
       C2:
         - contains: "no merge commits"
@@ -99,7 +100,12 @@ A criterion counts as having a rubric (VER-3) when it has `rubrics.<ID>` or when
 Run `test <skill folder>` with the `/skill` command, as its Run the command says. It runs promptfoo at a pinned version
 through `npx`, so the first run downloads it. Add `--judge <model>` only when the author named a judge, `--baseline
 <folder>` to compare with another version instead of a run without the skill, and `--model <model>` to choose the model
-each run uses. It saves the result, prints it, and exits 1 when a case or a criterion fails. Each run's result stays local (the
+each run uses: a tier (`small`, `mid`, `top`) or a model ID. Without `--model`, each run uses the harness's mid-tier
+model (`sonnet` on Claude Code), not its most capable one; a harness whose tiers are not known, such as Codex, runs on
+its own default, and the test warns. A case's own `model`, a tier or an ID, wins over `--model` for that case: set it
+on a case known to need a stronger model, or one a cheaper model does well. A tier the harness does not map is an
+error before any run. `--judge` alone sets the judge's model. A skill tested only on a mid-tier model may behave
+differently on the model its users run. It saves the result, prints it, and exits 1 when a case or a criterion fails. Each run's result stays local (the
 results folder ignores itself). Each save keeps `latest.json` and the 5 most recent past results of the skill, and deletes
 older ones. The reply of every run, passed or failed, goes in a file beside the result that its `replies` field names. It also deletes the results of any other skill whose recorded skill folder no longer exists, and leaves a
 result with no recorded folder alone. Add `--accept` to also keep the result as the skill's expected result,
