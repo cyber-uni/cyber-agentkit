@@ -30,6 +30,10 @@ describe('addCase (R159)', () => {
 		addCase(skill.folder, 'red-check', { prompt: 'commit the parser change', setup: true })
 		const script = join(skill.folder, 'evals', 'setup', 'red-check.sh')
 		expect(readFileSync(script, 'utf8')).toMatch(/^#!\/bin\/sh\n/)
+		// It says which paths a run cannot write and how to install a git hook anyway (#290).
+		expect(readFileSync(script, 'utf8')).toContain('.git/hooks and .git/config are read-only')
+		expect(readFileSync(script, 'utf8')).toContain('git config --global core.hooksPath "$PWD/hooks"')
+		expect(readFileSync(script, 'utf8')).toContain('skill case try <skill folder> red-check')
 		expect(existsSync(join(skill.folder, 'evals', 'files', 'red-check'))).toBe(false)
 		expect(parse(evalsOf(skill.folder)).outcome[1]).toEqual({
 			id: 'red-check',

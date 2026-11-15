@@ -15,9 +15,19 @@ check-script: ../skills/skill/scripts/check-verification.mjs
    `evals/files/<case id>/`. Use small, made-up inputs; never copy private data into a case. Add and remove a case with
    `skill case add <skill folder> <case id> --prompt <request>` and `skill case remove <skill folder> <case id>`,
    never by deleting or rewriting case folders in the shell.
+   `skill case add` also takes `--criteria C1,C2` and `--check <ID>=<script>`, and adds the entry after the last case
+   without reformatting the others.
    When a case needs a state plain files cannot hold, such as a git history with a start commit and uncommitted work,
    give it a setup script (`skill case add ... --setup` scaffolds `evals/setup/<case id>.sh`) that makes that state.
+   A case whose state is most of another's starts from a copy of that case's script with `--from <case id>`.
    The prompt then holds only the request: never tell the model to run a setup step.
+   The setup runs with an empty `HOME`, and the run's `.git/hooks` and `.git/config` are read-only: a write there fails
+   with `Read-only file system` or `Device or resource busy`. Install a git hook from a tracked folder instead, with
+   `git config --global core.hooksPath "$PWD/hooks"`, which writes the run's own `HOME`, and set any other git config
+   with `--global` too. `skill case try <skill folder> <case id>` runs the setup alone, as a run runs it, with no model
+   call: it prints the folder's `git status --porcelain` and keeps the folder and home under the skill's results
+   path (`try/<case id>/`). A path the setup wrote into the home, such as `core.hooksPath`, names the run's own folder,
+   not the kept copy.
    A run has no user to answer a question, so a case whose skill asks before it writes states the approval in its
    prompt, such as "I approve writing it; don't ask again".
 3. **Rubrics.** For each Criteria ID, write the checks that decide it from a run's output. Prefer a deterministic
