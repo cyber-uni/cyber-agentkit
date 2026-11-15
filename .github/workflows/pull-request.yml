@@ -85,7 +85,7 @@ jobs:
         working-directory: packages/cyber-agentkit
 
   # skill test runs a case's setup script and `script` checks in Anthropic's sandbox runtime, which needs
-  # bubblewrap and socat on Linux. The `code` job has neither, so its containment tests skip; this job
+  # bubblewrap, socat, and ripgrep on Linux. The `code` job has none of them, so its containment tests skip; this job
   # installs them and lets unprivileged user namespaces through, so the tests run and cannot pass by skipping.
   script-sandbox:
     needs: changes
@@ -100,8 +100,8 @@ jobs:
         with:
           node-version: '24'
           cache: pnpm
-      - run: sudo apt-get update && sudo apt-get install -y bubblewrap socat
-      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - run: sudo apt-get update && sudo apt-get install -y bubblewrap socat ripgrep
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec vitest run src/skill-design/promptfoo-provider-source.test.ts src/skill-design/plugin-eval-backend.test.ts -t "setup scripts"
         working-directory: packages/cyber-agentkit

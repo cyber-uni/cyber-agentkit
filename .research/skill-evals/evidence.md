@@ -149,8 +149,9 @@ Confidence: H high, M medium, L low. Read 2026-11-10. "Unverified" means the cla
   `allowRead` re-allows a path inside a denied one. The network is denied but for `network.allowedDomains`, so an
   empty list closes it. A settings file named with `--settings` must exist and validate, or `srt` exits instead of
   falling back to defaults. On Linux, `srt` runs a helper from its own `vendor/seccomp/` folder inside the sandbox,
-  so that folder must be readable there.
-- Seen: in a scratch folder on Linux (WSL, bubblewrap and socat installed), `echo bad > ../outside.txt` failed with
+  so that folder must be readable there. On Linux it needs `bubblewrap`, `socat`, and `ripgrep` (`rg`, for its
+  deny-path scan) installed, per its README's platform requirements.
+- Seen: in a scratch folder on Linux (WSL, bubblewrap, socat, and ripgrep installed), `echo bad > ../outside.txt` failed with
   `Read-only file system` and `curl https://example.com` with `CONNECT tunnel failed, response 403`, while a write in
   the allowed folder went through. With the package under a denied home folder and its folder not in `allowRead`,
   every command failed with `apply-seccomp: No such file or directory`.

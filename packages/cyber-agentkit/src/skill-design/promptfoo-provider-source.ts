@@ -124,7 +124,7 @@ function scriptSandbox() {
       return { cli }
     } catch (error) {
       const said = String(error.stderr || error.stdout || error.message).trim().split('\n')[0]
-      return { problem: 'sandbox: the script sandbox cannot start, so no setup script or script check can be contained: ' + said + '. On Linux and WSL it needs bubblewrap and socat installed.' }
+      return { problem: 'sandbox: the script sandbox cannot start, so no setup script or script check can be contained: ' + said + '. On Linux and WSL it needs bubblewrap, socat, and ripgrep installed.' }
     } finally { try { fs.rmSync(probe, { recursive: true, force: true }) } catch {} }
   })()
   return scriptSandboxChecked

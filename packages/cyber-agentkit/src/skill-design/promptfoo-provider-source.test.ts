@@ -17,6 +17,28 @@ function linkSandbox(root: string): void {
 	symlinkSync(dirname(dirname(srt)), join(root, 'node_modules', '@anthropic-ai', 'sandbox-runtime'), 'dir')
 }
 
+/** Why the script sandbox does not start on this machine (on Linux it needs bubblewrap, socat, and ripgrep), or undefined when it does. */
+const sandboxDown = (() => {
+	const settings = mkdtempSync(join(tmpdir(), 'provider-srt-'))
+	writeFileSync(
+		join(settings, 's.json'),
+		JSON.stringify({
+			network: { allowedDomains: [], deniedDomains: [] },
+			filesystem: { denyRead: [], allowWrite: [settings], denyWrite: [] },
+		}),
+	)
+	try {
+		execFileSync(process.execPath, [srt, '--settings', join(settings, 's.json'), '-c', 'true'], { stdio: 'pipe' })
+		return undefined
+	} catch (error) {
+		return String((error as { stderr?: unknown }).stderr || (error as Error).message).trim() || 'it exited non-zero'
+	}
+})()
+const sandboxStarts = sandboxDown === undefined
+// The CI job that installs the sandbox's tools sets this, so the tests that need it cannot pass by being skipped there.
+if (process.env['SKILL_TEST_REQUIRE_SANDBOX'] && sandboxDown)
+	throw new Error(`the script sandbox does not start on this machine: ${sandboxDown}`)
+
 const claude = headlessInvocation('claude-code')
 const isolation = JSON.stringify(claude.supported === true ? claude.isolation : undefined)
 
@@ -687,41 +709,23 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 		return { response: JSON.parse(out), source }
 	}
 
-	it('loads a copy of the arm plugin of its own, so a check on SKILL_TEST_PLUGIN fails when the run changed it', () => {
-		const changed = pluginRun(true)
-		expect(changed.response.output).not.toBe(changed.source)
-		expect(changed.response.metadata.checks.C2).toMatchObject({ pass: false })
-		expect(readFileSync(join(changed.source, 'skills', 'demo', 'SKILL.md'), 'utf8')).not.toContain('changed')
-		expect(existsSync(changed.response.output)).toBe(false)
-	})
+	it.skipIf(!sandboxStarts)(
+		'loads a copy of the arm plugin of its own, so a check on SKILL_TEST_PLUGIN fails when the run changed it',
+		() => {
+			const changed = pluginRun(true)
+			expect(changed.response.output).not.toBe(changed.source)
+			expect(changed.response.metadata.checks.C2).toMatchObject({ pass: false })
+			expect(readFileSync(join(changed.source, 'skills', 'demo', 'SKILL.md'), 'utf8')).not.toContain('changed')
+			expect(existsSync(changed.response.output)).toBe(false)
+		},
+	)
 
-	it('passes that check when the run left the plugin alone', () => {
+	it.skipIf(!sandboxStarts)('passes that check when the run left the plugin alone', () => {
 		expect(pluginRun(false).response.metadata.checks.C2).toEqual({ pass: true })
 	})
 })
 
 describe('promptfooProviderSource setup scripts and script checks (R155, R156, R157)', () => {
-	/** Whether the script sandbox starts on this machine: on Linux it needs bubblewrap and socat. */
-	const sandboxStarts = (() => {
-		const settings = mkdtempSync(join(tmpdir(), 'provider-srt-'))
-		writeFileSync(
-			join(settings, 's.json'),
-			JSON.stringify({
-				network: { allowedDomains: [], deniedDomains: [] },
-				filesystem: { denyRead: [], allowWrite: [settings], denyWrite: [] },
-			}),
-		)
-		try {
-			execFileSync(process.execPath, [srt, '--settings', join(settings, 's.json'), '-c', 'true'], { stdio: 'pipe' })
-			return true
-		} catch {
-			return false
-		}
-	})()
-	// The CI job that installs the sandbox's tools sets this, so the tests below cannot pass by being skipped there.
-	if (process.env['SKILL_TEST_REQUIRE_SANDBOX'] && !sandboxStarts)
-		throw new Error('the script sandbox does not start on this machine')
-
 	/** Runs one outcome run with a setup script and rubrics through the fake promptfoo; answers its whole response. */
 	function scripted({ setup, rubrics = {} }: { setup?: string; rubrics?: Record<string, Record<string, unknown>[]> }): {
 		response: Record<string, any>

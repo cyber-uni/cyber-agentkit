@@ -147,7 +147,7 @@ say so before the first run in a session.
 - A setup script and a `script` check are shell the case's author wrote, so each runs contained, on every harness, in
   Anthropic's sandbox runtime (`@anthropic-ai/sandbox-runtime`, pinned and run through the same `npx` install): it
   writes only to the run's own folders and reaches no network. When that sandbox cannot start (on Linux and WSL it
-  needs bubblewrap and socat), `test` stops with `error: sandbox:` and runs no script outside it.
+  needs bubblewrap, socat, and ripgrep), `test` stops with `error: sandbox:` and runs no script outside it.
 - When the skill's folder is outside the repository (`--root`, else the one holding the current directory), `test`
   lists each setup script and `script` check before the first run, with `warning: untrusted-scripts:`, and runs none of
   them unless `--trust-scripts` is given; the cases that need them are reported as not run. Read them before passing

@@ -8,7 +8,8 @@ case's files are committed, so the prompt holds only the request. A failing setu
 with the script's output, and counts toward no pass rate.
 
 Setup scripts and `script` checks now run contained in Anthropic's sandbox runtime: they write only to the run's
-folders and reach no network. When that sandbox cannot start (on Linux and WSL it needs bubblewrap and socat), the test
+folders and reach no network. When that sandbox cannot start (on Linux and WSL it needs bubblewrap, socat, and
+ripgrep), the test
 stops with `error: sandbox:`. For a skill outside the repository, `skill test` lists its scripts and runs none without
 `--trust-scripts`.
 

@@ -107,18 +107,20 @@ describe('writePluginEvalSuite', () => {
 
 describe('writePluginEvalSuite setup scripts (R155, R157)', () => {
 	const cli = join(dirname(createRequire(import.meta.url).resolve('@anthropic-ai/sandbox-runtime')), 'cli.js')
+	let down = ''
 	const sandboxStarts = (() => {
 		const folder = mkdtempSync(join(tmpdir(), 'plugin-eval-srt-'))
 		writeFileSync(join(folder, 's.json'), JSON.stringify(scriptSandboxSettings(folder)))
 		try {
 			execFileSync(process.execPath, [cli, '--settings', join(folder, 's.json'), '-c', 'true'], { stdio: 'pipe' })
 			return true
-		} catch {
+		} catch (error) {
+			down = String((error as { stderr?: unknown }).stderr || (error as Error).message).trim()
 			return false
 		}
 	})()
 	if (process.env['SKILL_TEST_REQUIRE_SANDBOX'] && !sandboxStarts)
-		throw new Error('the script sandbox does not start on this machine')
+		throw new Error(`the script sandbox does not start on this machine: ${down}`)
 
 	function scaffold(setup: string): { workspace: string; outside: string; run: () => string } {
 		const skill = goodSkill({

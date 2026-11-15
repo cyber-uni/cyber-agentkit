@@ -99,7 +99,7 @@ export const installScriptSandbox: ScriptSandboxInstall = async (folder) => {
 	const probe = await exec(process.execPath, [cli, '--settings', settings, '-c', 'true'], folder)
 	if (!probe.ok)
 		return {
-			problem: `the script sandbox cannot start, so no setup script can be contained: ${probe.said.split('\n')[0]}. On Linux and WSL it needs bubblewrap and socat installed.`,
+			problem: `the script sandbox cannot start, so no setup script can be contained: ${probe.said.split('\n')[0]}. On Linux and WSL it needs bubblewrap, socat, and ripgrep installed.`,
 		}
 	return { node: process.execPath, cli }
 }
