@@ -78,10 +78,16 @@ function retiredOf(history: ClassifyInput['history']): Retired[] {
 }
 
 function chooseBase(found: Sentence[], retired: Retired[]): { base?: Retired; tied?: Retired[] } {
-	const counts = retired.map((r) => ({ r, count: shared(found, r.sentences) }))
+	const counts = retired.map((r) => {
+		const count = shared(found, r.sentences)
+		return { r, count, missing: r.sentences.length - count }
+	})
 	const most = Math.max(0, ...counts.map((c) => c.count))
 	if (most < 1) return {}
-	const top = counts.filter((c) => c.count === most).map((c) => c.r)
+	const sharing = counts.filter((c) => c.count === most)
+	// A wording that contains another ties with it on shared count; the one the found text lacks fewer sentences of wins.
+	const fewest = Math.min(...sharing.map((c) => c.missing))
+	const top = sharing.filter((c) => c.missing === fewest).map((c) => c.r)
 	return top.length > 1 ? { tied: top } : { base: top[0] as Retired }
 }
 
