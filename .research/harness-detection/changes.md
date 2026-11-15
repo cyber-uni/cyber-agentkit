@@ -244,3 +244,8 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
 
 - Added E-CC-H12: a failing `scaffold_script` ends the run before any model call, with the error
   `scaffold failed (exit <code>): <stderr>`; the scaffold runs unsandboxed in the workspace with a temporary home.
+
+## 2026-11-15 (Claude Code model tiers)
+
+- Added E-CC-H13: the `haiku`, `sonnet`, and `opus` aliases name a small, a mid, and a top tier, each following the
+  vendor's latest model of its line. `skill test` maps its tiers to them.
