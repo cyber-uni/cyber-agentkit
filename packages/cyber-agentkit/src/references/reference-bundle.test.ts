@@ -116,6 +116,43 @@ describe('bundleSkill', () => {
 	})
 })
 
+describe('bundleSkill: an interface the skill loads', () => {
+	const iface = '## Steps\n\nRequired.\n'
+	const load = 'Load the implementations of the `recipe` interface with the `reference` skill of `cyber-agentkit`.\n'
+
+	it('bundles the interface document as <id>.interface.default.md', () => {
+		const folder = plugin('recipe.interface', iface, load)
+		const written = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+
+		expect(written.entries).toEqual([
+			{ name: 'recipe.interface', state: 'current', file: 'references/recipe.interface.default.md', written: true },
+		])
+		expect(readFileSync(join(folder, 'references/recipe.interface.default.md'), 'utf8')).toBe(iface)
+	})
+
+	it('reads a skill copy named <id>.interface.md as misnamed, and leaves it alone', () => {
+		const folder = plugin('recipe.interface', iface, load)
+		put(join(folder, 'references/recipe.interface.md'), iface)
+		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+
+		expect(report.entries).toEqual([
+			{ name: 'recipe.interface', state: 'misnamed', file: 'references/recipe.interface.md' },
+		])
+		expect(report.ok).toBe(false)
+	})
+
+	it('reports the interface copy as an orphan once the skill stops loading it', () => {
+		const folder = plugin('recipe.interface', iface, load)
+		put(join(folder, 'references/recipe.interface.default.md'), iface)
+		put(join(folder, 'SKILL.md'), '---\nname: demo\ndescription: d\n---\nNo load line.\n')
+		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: false })
+
+		expect(report.entries).toEqual([
+			{ name: 'recipe.interface', state: 'orphan', file: 'references/recipe.interface.default.md' },
+		])
+	})
+})
+
 describe('pluginRootOf', () => {
 	it('finds the nearest folder above a skill that carries a plugin manifest', () => {
 		plugin('bug-title', '## Title\n')

@@ -55,12 +55,16 @@ function textFiles(dir: string, top = dir): string[] {
 	return out
 }
 
-/** The reference names the skill loads with the `reference` skill, read from its own text files. */
+/**
+ * The reference names the skill loads with the `reference` skill, read from its own text files. An
+ * interface it loads is named `<id>.interface`, the name its document is held under.
+ */
 export function loadedNames(skillFolder: string): string[] {
 	const names = new Set<string>()
 	for (const file of textFiles(skillFolder)) {
-		const { names: found } = loadsIn(readFileSync(join(skillFolder, file), 'utf8'))
+		const { names: found, interfaces } = loadsIn(readFileSync(join(skillFolder, file), 'utf8'))
 		for (const name of found) names.add(name)
+		for (const id of interfaces) names.add(`${id}.interface`)
 	}
 	return [...names].sort()
 }

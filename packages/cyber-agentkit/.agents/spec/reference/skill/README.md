@@ -102,8 +102,11 @@ IDs are shared across the parent and its children.
     renamed.
   - UC25.4 A `<name>.default.md` for a name the skill no longer loads: `orphan`, which fails `--check`. Nothing is
     deleted.
-  - UC25.5 An interface the skill loads: not bundled by this use case, so the skill's copies of interface documents
-    are left to the author.
+  - UC25.5 An interface the skill loads (`implementations of the <id> interface`): its copy is the plugin's
+    `<id>.interface.md`, written as `references/<id>.interface.default.md`, the default rule (K13) applied to the name
+    `<id>.interface`, with no exception. It is listed under the name `<id>.interface`. A copy held as
+    `references/<id>.interface.md`, as repobuddy writes one today, is `misnamed` and fails `--check`. A skill default
+    of an interface answers only when no other tier holds the interface (R14).
 
 ## Criteria
 
