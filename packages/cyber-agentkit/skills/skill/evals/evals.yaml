@@ -100,7 +100,7 @@ outcome:
         - regex: "release-notes\\b"
         - regex: "[Aa]dopt|[Rr]euse|[Uu]se the existing"
         # A stop asks a question or lists lettered options, as C14 and C15 test it.
-        - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa][.)][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb][.)]"
+        - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
         - script: "test ! -e .agents/skills/pr-release-notes/SKILL.md"
   # Other work adds a skill (#205): the work is the approval, so the skill is written without asking about each aspect.
   # Its job is one no skill in files/samples covers, so research finds nothing to adopt and does not stop the run.
@@ -150,7 +150,7 @@ outcome:
         - regex: "[Rr]eferences?/|[Rr]eference file"
         - regex: "[Ll]egacy"
         - regex: "~?\\d[\\d,]* tokens"
-        - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa][.)][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb][.)]"
+        - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
         - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
   # files/sandbox-report holds release-notes with no expected result, and test-report.json, what `skill test
   # --format json` printed for it when a sandbox failure broke one of two-prs' runs with the skill (#248). The sandbox
@@ -258,11 +258,12 @@ rubrics:
     # The budget line in any case or markup, such as `Test budget: over` or **`test` budget:** over.
     - regex: "[Tt]est\\W{0,4}[Bb]udget\\W{0,6}over\\b"
     - regex: "\\b\\d+ runs\\b"
-    # A stop ends with a question or with options lettered A, B, and so on (#264); the scripts check it stopped.
-    - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa][.)][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb][.)]"
+    # A stop ends with a question or with options lettered A, B, and so on (#264), in any markup, such as **A:**, **A.**,
+    # or A); the scripts check it stopped.
+    - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
   C15:
     - regex: "[Ii]ntent|[Pp]urpose|what (the skill|it) is for"
-    - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa][.)][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb][.)]"
+    - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
     - script: "git diff --quiet HEAD -- .agents/skills/release-notes && test -z \"$(git status --porcelain --untracked-files=all -- .agents/skills/release-notes)\""
   C16:
     - not-regex: "[Nn]o (author|one|human) (is )?(present|watching|available)|[Uu]nattended|[Nn]obody (is )?(present|watching|available)"
