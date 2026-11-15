@@ -12,3 +12,7 @@ Lists, shows, creates, updates, and deletes the static files in a skill's `asset
 | load, names, where, select | resolve an asset by name through the tiers, list names, show where an override goes, and choose which plugin's file answers a name several hold |
 
 For a document fetched by name and layered across the managed, project, user, and plugin tiers, use [`/reference`](../reference/README.md).
+
+## Research
+
+Skipped: written before the research step.
