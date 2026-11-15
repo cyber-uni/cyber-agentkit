@@ -29,6 +29,8 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC1.4** Verification fails. The skill stays in place, and the failing criteria are reported so `fix` can repair
     them.
   - **UC1.5** The author stops partway. The aspects already approved stay on disk.
+  - **UC1.6** Research finds an existing skill that already does the job. `/skill` names it and asks whether to adopt
+    it, extend it, or build anyway, before any Criteria is written; on adopt, it creates nothing.
 - **Example:** `/skill create "summarize a PR for release notes"`. The author approves the intent, two criteria, a
   single-file shape, and the trigger description; Verification runs the two criteria against a sample PR.
 
@@ -36,7 +38,8 @@ contract apply here; IDs are shared across the parent and its children.
 
 **Create (UC1, UC2)**
 
-- R5 (UC1): `create` drafts Intent, Criteria, Shape, and Trigger in that order, then builds the skill, then runs `test`.
+- R5 (UC1): `create` drafts Intent, researches it, then drafts Criteria, Shape, and Trigger in that order, then builds
+  the skill, then runs `test`.
 - R6 (UC1, UC2, UC10): At `ask`, no aspect's output is written before the author approves it.
 - R7 (UC1.1, UC2.4): When a skill with that name exists at the chosen location, the command stops, leaves it unchanged,
   and points to `check`, `fix`, and `enhance`.
@@ -44,3 +47,7 @@ contract apply here; IDs are shared across the parent and its children.
   order that was approved is reopened.
 - R9 (UC1.4, UC2.4): When the last step's `test` fails, the skill stays in place and the failing criteria are reported.
 - R10 (UC1.5, UC2.4): When the author stops partway, every aspect already approved stays on disk.
+- R152 (UC1): Before Criteria is drafted, the skill's research is recorded: a linked research record, a quick
+  prior-art search, or a skip with its reason, through a Research implementation a team can swap.
+- R153 (UC1.6): When Research finds an existing skill that does the job, `create` stops at every autonomy level, names
+  that skill, and asks whether to adopt it, with no `SKILL.md` written before the answer.

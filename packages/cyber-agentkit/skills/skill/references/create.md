@@ -16,9 +16,12 @@ author, that applies at `ask`; at `apply` or `apply-safe`, the report shows it i
 
 ## 2. Walk the core aspects
 
-Load the aspects as `SKILL.md` says. For each of Intent, Criteria, Shape, and Trigger, in that order:
+Load the aspects as `SKILL.md` says. For each of Intent, Research, Criteria, Shape, and Trigger, in that order:
 
-1. Draft the aspect as its Draft says, from the description and the aspects written before it.
+1. Draft the aspect as its Draft says, from the description and the aspects written before it. Research's Draft
+   researches the drafted Intent, and may change it: redraft the Intent from its recommendation before Criteria, and
+   when Research stops to ask whether to adopt or extend an existing skill, write no `SKILL.md` before the answer.
+   On adopt, create nothing: `vet` the skill and report it.
 2. At `apply` or `apply-safe`, write it and go on to the next aspect; the report lists each
    draft. At `ask`, or when the author asked to approve each part, show the draft and ask the author to approve it,
    and write nothing before they do.
@@ -28,7 +31,7 @@ When the author rejects a draft, redraft that aspect, and reopen every aspect af
 
 ## 3. Build the skill
 
-Write the Intent as the opening of `README.md`. Write the Criteria as `## Done when`, the last
+Write the Intent as the opening of `README.md`, and Research's `## Research` section after it. Write the Criteria as `## Done when`, the last
 section of `SKILL.md`; every skill has one, even a skill only another skill loads. Write the steps of `SKILL.md` before
 it: the instructions an agent follows to do the job and meet each criterion. Follow the Shape.
 
@@ -46,5 +49,5 @@ it: the instructions an agent follows to do the job and meet each criterion. Fol
 
 ## Report
 
-The autonomy line, the skill's path, each aspect as written, each decision made on the author's behalf, the `check`
+The autonomy line, the skill's path, each aspect as written, Research's size (full, quick, or skip) and recommendation, each decision made on the author's behalf, the `check`
 result, the `Test budget:` line, and the `test` result per criterion, or that `test` was not run and why.

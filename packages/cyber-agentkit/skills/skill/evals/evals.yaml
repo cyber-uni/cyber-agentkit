@@ -86,6 +86,20 @@ outcome:
       wrote.
     files: files/high-budget
     criteria: [C11, C16]
+  # Research finds that the installed release-notes skill already does the job (#221): create names it, writes no
+  # SKILL.md, and asks whether to adopt it, since adopting changes the Intent.
+  - id: create-covered
+    prompt: >-
+      Create a skill named pr-release-notes in .agents/skills that writes the release notes for a release from the
+      merged pull requests listed in prs.json, grouped under Features and Fixes.
+    files: files/samples
+    criteria: [C17]
+    checks:
+      C17:
+        - regex: "release-notes\\b"
+        - regex: "[Aa]dopt|[Rr]euse|[Uu]se the existing"
+        - regex: "\\?"
+        - script: "test ! -e .agents/skills/pr-release-notes/SKILL.md"
   # Other work adds a skill (#205): the work is the approval, so the skill is written without asking about each aspect.
   - id: work-adds-skill
     prompt: >-
@@ -204,3 +218,5 @@ rubrics:
   C12:
     - script: "test -f .agents/skills/changelog-entry/SKILL.md && test -f .agents/skills/changelog-entry/evals/evals.yaml"
     - regex: "\\bcheck\\b"
+  C17:
+    - regex: "[Rr]esearch"

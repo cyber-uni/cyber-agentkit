@@ -32,6 +32,7 @@ describe('skill check', () => {
 			'trigger',
 			'criteria',
 			'verification',
+			'research',
 			'security',
 		])
 	})
@@ -42,7 +43,7 @@ describe('skill check', () => {
 		const report = JSON.parse(printed())
 		expect(code).toBe(1)
 		expect(report.aspects[0].checks).toContainEqual(expect.objectContaining({ id: 'SPEC-2', status: 'fail' }))
-		expect(report.aspects).toHaveLength(7)
+		expect(report.aspects).toHaveLength(8)
 	})
 
 	it('reports each failure with its severity, and exits 0 on warnings under the default policy', async () => {
