@@ -8,7 +8,7 @@
  * need no judge in that folder, records whether the skill fired, and removes the folder. Each run also gets an empty home folder.
  * It resolves promptfoo from the npx install running it.
  *
- * Usage limit (R161): a run whose error carries one of the config's `usageLimits` writes its message to the config's
+ * Usage limit (R162): a run whose error carries one of the config's `usageLimits` writes its message to the config's
  * `limitFile`, and every run that starts after that file exists ends before it does anything, as limit reached.
  *
  * Progress (R98, R99): when its config names a `progressFile`, the provider appends one JSON line when a run starts
@@ -295,7 +295,7 @@ function finish(response, { arm, vars, dir, home, plugin, dependencies = [], env
   return response
 }
 
-// The account's usage limit (R161): the config's usageLimits, from usage-limits.ts, matched against a run's error. The
+// The account's usage limit (R162): the config's usageLimits, from usage-limits.ts, matched against a run's error. The
 // first run that hits one writes { text, resets? } to limitFile; a run that finds that file starts nothing.
 function usageLimit(limits, file) {
   return {
@@ -413,9 +413,9 @@ export default class SkillRun {
     const names = pluginName ? [skillName, pluginName + ':' + skillName] : [skillName]
     const vars = context.vars
     if (vars.kind === 'trigger' && arm !== 'skill') return { output: '', metadata: { arm, skipped: true } }
-    // A resume runs only the arms a run has left (R162); vars.__run is then the run's number.
+    // A resume runs only the arms a run has left (R163); vars.__run is then the run's number.
     if (vars.__arms && !JSON.parse(vars.__arms).includes(arm)) return { output: '', metadata: { arm, skipped: true } }
-    // Once a run reached the usage limit, no run starts (R161).
+    // Once a run reached the usage limit, no run starts (R162).
     const limits = usageLimit(usageLimits, limitFile)
     const reached = limits.reached()
     if (reached) return { error: 'limit reached: ' + reached.text, metadata: { arm, limitReached: { ...reached, started: false } } }
@@ -555,7 +555,7 @@ export default class SkillRun {
  * graded, so it knows what the provider cannot: whether the run met its criteria. It appends the run's end line to
  * `progress.jsonl` next to itself ({ event: 'end', case, arm, run, kind, outcome, reason?, durationMs, t }), where
  * `outcome` is `pass` or `fail` (every assertion of the run), `fired` or `not fired` for a trigger run, `not run`
- * with the reason, `sandbox failure`, or `limit reached` (R161) with its message, `started: false` for a run that
+ * with the reason, `sandbox failure`, or `limit reached` (R162) with its message, `started: false` for a run that
  * never started, and `resets` when the message says. It never writes the model's reply, and a run the baseline arm skips writes nothing.
  */
 export const promptfooHookSource = String.raw`import fs from 'node:fs'

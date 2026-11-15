@@ -86,7 +86,7 @@ export type TestOptions = {
 	/** How the test checks that every plugin a run loads does load before it runs a case; without it, it does not check. */
 	listPlugins?: PluginList | undefined
 	/**
-	 * Resume an incomplete result (R162): run only the runs it has `left`, and merge them with the `rows` it finished.
+	 * Resume an incomplete result (R163): run only the runs it has `left`, and merge them with the `rows` it finished.
 	 * `from` is its `at`, and `durationMs` how long it took.
 	 */
 	resume?: { rows: Row[]; left: RunSlot[]; from: string; durationMs?: number | undefined } | undefined
@@ -105,7 +105,7 @@ export function resumeSlots(left: RunSlot[]): { case: string; run: number; arms:
 }
 
 /**
- * What a resume checks has not changed since the incomplete result (R162): the plan, apart from how many runs go at
+ * What a resume checks has not changed since the incomplete result (R163): the plan, apart from how many runs go at
  * once, and every file of the skill's folder but its expected and accepted results.
  */
 export function testFingerprint(plan: TestPlan, skillFolder: string): string {
@@ -376,7 +376,7 @@ export function saveResult(
 		saved.replies = `${stem(result.at)}.replies.json`
 		writeFileSync(join(folder, saved.replies), `${JSON.stringify(replies, null, '\t')}\n`)
 	}
-	// An incomplete result keeps the runs it finished beside it, for a resume to merge with its own (R162).
+	// An incomplete result keeps the runs it finished beside it, for a resume to merge with its own (R163).
 	if (saved.incomplete && rows) {
 		saved.incomplete = { ...saved.incomplete, runs: `${stem(result.at)}.runs.json` }
 		writeFileSync(join(folder, saved.incomplete.runs as string), `${JSON.stringify(rows)}\n`)
@@ -392,7 +392,7 @@ export const keptPastResults = 5
 
 /**
  * Deletes all but the most recent past results of one skill, and the replies of every result it no longer keeps. Only
- * the latest result's runs file stays: a resume reads no other (R162).
+ * the latest result's runs file stays: a resume reads no other (R163).
  */
 export function pruneHistory(folder: string): void {
 	const names = readdirSync(folder)

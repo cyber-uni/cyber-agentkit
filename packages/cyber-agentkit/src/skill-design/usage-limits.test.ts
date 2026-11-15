@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { recognizeUsageLimit } from './usage-limits.js'
 
-describe('recognizeUsageLimit (R161)', () => {
+describe('recognizeUsageLimit (R162)', () => {
 	it('recognizes the 5-hour limit and when it resets, inside the Agent SDK wrapping', () => {
 		expect(
 			recognizeUsageLimit(

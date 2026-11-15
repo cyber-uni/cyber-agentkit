@@ -1,5 +1,5 @@
 /**
- * The messages a harness ends a run with when the account's usage limit is reached (R161). A run that ends with one is
+ * The messages a harness ends a run with when the account's usage limit is reached (R162). A run that ends with one is
  * limit reached: it counts toward no pass rate, and no new run starts after it. Add an entry here for each new one,
  * with the research claim that names it.
  */

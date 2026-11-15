@@ -11,7 +11,7 @@ export type ProgressLine = {
 	/** 1-based. */
 	run: number
 	kind?: string
-	/** On `end`: `pass`, `fail`, `fired`, `not fired`, `not run`, `sandbox failure` (R154), or `limit reached` (R161). */
+	/** On `end`: `pass`, `fail`, `fired`, `not fired`, `not run`, `sandbox failure` (R154), or `limit reached` (R162). */
 	outcome?: string
 	/** On `end` with `not run`: why; with `sandbox failure`: the fault's text; with `limit reached`: the limit's message. */
 	reason?: string
@@ -83,7 +83,7 @@ export type ProgressWatch = {
 /**
  * Reads the progress file as promptfoo appends to it: one line per finished run, and a heartbeat while none finishes
  * (R98, R99). Once a run reaches the usage limit it says so once, with when it resets, and each run that then never
- * starts is counted without a line of its own (R161). `stop` reads what is left, says how many runs the limit left,
+ * starts is counted without a line of its own (R162). `stop` reads what is left, says how many runs the limit left,
  * and ends.
  */
 export function watchProgress(options: ProgressWatch): { stop: () => void } {

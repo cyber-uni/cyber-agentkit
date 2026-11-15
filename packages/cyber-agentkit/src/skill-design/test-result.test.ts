@@ -621,7 +621,7 @@ describe('guard cases (R160)', () => {
 	})
 })
 
-describe('the usage limit (R161)', () => {
+describe('the usage limit (R162)', () => {
 	const limitText = "You've hit your 5-hour limit · resets 4:40am (America/Los_Angeles)"
 	const reached = (spec: RowSpec, started = true) => {
 		const made = row({ ...spec, error: started ? `Claude Code returned an error result: ${limitText}` : undefined })
@@ -692,7 +692,7 @@ describe('the usage limit (R161)', () => {
 		expect(replies[2]).toMatchObject({ outcome: 'limit reached', reason: limitText })
 	})
 
-	it('keeps the fields a result is read from in the rows it saves for a resume (R162)', () => {
+	it('keeps the fields a result is read from in the rows it saves for a resume (R163)', () => {
 		const kept = readRows({ results: { results: rows().map((item) => ({ ...item, extra: 'dropped' })) } })
 		expect(kept[0]).not.toHaveProperty('extra')
 		expect(readPromptfooOutput({ results: { results: kept } }, plan, meta)).toEqual(

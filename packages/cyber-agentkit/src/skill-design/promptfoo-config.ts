@@ -38,10 +38,10 @@ export type ConfigOptions = {
 	 * instruction file. `skillFolder`, `baselineFolder`, and `plugin` are then not used.
 	 */
 	arms?: { label: string; arm: string; instruction: string }[] | undefined
-	/** The file the first run that reaches the usage limit writes, so no later run starts (R161); absolute. */
+	/** The file the first run that reaches the usage limit writes, so no later run starts (R162); absolute. */
 	limitFile?: string | undefined
 	/**
-	 * Only these runs, for a resume (R162): each is one run of a case, by its number, in the arms named (`skill`,
+	 * Only these runs, for a resume (R163): each is one run of a case, by its number, in the arms named (`skill`,
 	 * `baseline`). Each becomes a test of its own that runs once, and the provider skips the arms it does not name.
 	 */
 	slots?: { case: string; run: number; arms: string[] }[] | undefined
@@ -77,7 +77,7 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 			timeout: plan.timeout,
 			// The errors the provider watches each shell command's output for (R154).
 			sandboxFaults: sandboxFaults.map(({ id, pattern }) => ({ id, pattern })),
-			// The usage-limit messages that end a run as limit reached, and stop the runs after it (R161).
+			// The usage-limit messages that end a run as limit reached, and stop the runs after it (R162).
 			usageLimits: usageLimits.map(({ id, pattern }) => ({ id, pattern })),
 			...(options.limitFile ? { limitFile: options.limitFile } : {}),
 			harness: options.harness.id,

@@ -62,11 +62,11 @@ export type SandboxFailure = {
 	text: string
 }
 
-/** One run of a case in one arm: what a result has left when it is incomplete (R161). */
+/** One run of a case in one arm: what a result has left when it is incomplete (R162). */
 export type RunSlot = { case: string; arm: 'skill' | 'baseline'; run: number }
 
 /**
- * Set when the account's usage limit ended the test before every run finished (R161): the limit's message, when it
+ * Set when the account's usage limit ended the test before every run finished (R162): the limit's message, when it
  * resets when the message says, and each run left, both those the limit ended and those it never started.
  */
 export type Incomplete = {
@@ -74,7 +74,7 @@ export type Incomplete = {
 	text: string
 	resets?: string
 	left: RunSlot[]
-	/** Set by `skill test` on a result it can resume (R162): what the skill and plan were, so a change refuses it. */
+	/** Set by `skill test` on a result it can resume (R163): what the skill and plan were, so a change refuses it. */
 	fingerprint?: string
 	/** The options the run was made with, which a resume uses again. */
 	options?: ResumeOptions
@@ -82,7 +82,7 @@ export type Incomplete = {
 	runs?: string
 }
 
-/** The options of a test that a resume of it runs with again (R162). */
+/** The options of a test that a resume of it runs with again (R163). */
 export type ResumeOptions = {
 	harness: string
 	backend: string
@@ -119,9 +119,9 @@ export type TestResult = {
 	blocked?: Blocked[]
 	/** The runs, in either arm, that the test sandbox broke (R154); they count toward no pass rate. Left out when none was. */
 	sandboxFailures?: SandboxFailure[]
-	/** Set when the usage limit stopped the test before every run finished (R161); never the expected result. */
+	/** Set when the usage limit stopped the test before every run finished (R162); never the expected result. */
 	incomplete?: Incomplete
-	/** Set on a result a resume made (R162): the `at` of the incomplete result whose runs it holds. */
+	/** Set on a result a resume made (R163): the `at` of the incomplete result whose runs it holds. */
 	resumedFrom?: string
 	changed?: { case: string; from: Status; to: Status }[]
 	/**
@@ -187,7 +187,7 @@ export type Row = {
 			checks?: Record<string, { pass: boolean; detail?: string }>
 			blocked?: { what: Blocked['what']; target: string }[]
 			sandboxFault?: { fault: string; text: string }
-			/** The usage limit ended the run, or it found the limit reached and never started (R161). */
+			/** The usage limit ended the run, or it found the limit reached and never started (R162). */
 			limitReached?: { text: string; resets?: string; started?: boolean }
 			/** The case's setup script failed before the model started (R156): its output. */
 			setupFailed?: { text: string }
@@ -239,7 +239,7 @@ function sandboxFaultOf(row: Row): { fault: string; text: string } | undefined {
 	return error ? recognizeSandboxFault(error) : undefined
 }
 
-/** The usage limit a run reached (R161): recorded by the provider, or found in its error. */
+/** The usage limit a run reached (R162): recorded by the provider, or found in its error. */
 function limitOf(row: Row): { text: string; resets?: string } | undefined {
 	const recorded = row.response?.metadata?.limitReached
 	if (recorded) return { text: recorded.text, ...(recorded.resets ? { resets: recorded.resets } : {}) }
@@ -249,7 +249,7 @@ function limitOf(row: Row): { text: string; resets?: string } | undefined {
 
 /**
  * The rows of promptfoo's output JSON, cut to the fields `skill test` reads, so a resume can merge the runs an
- * incomplete result finished with its own (R162).
+ * incomplete result finished with its own (R163).
  */
 export function readRows(output: unknown): Row[] {
 	const rows = ((output as { results?: { results?: Row[] } })?.results?.results ?? []) as Row[]
@@ -274,7 +274,7 @@ export function readRows(output: unknown): Row[] {
 	})
 }
 
-/** Whether a row is a run the usage limit ended or never started (R161). */
+/** Whether a row is a run the usage limit ended or never started (R162). */
 export function limitReached(row: Row): boolean {
 	return !row.response?.metadata?.skipped && limitOf(row) !== undefined
 }
@@ -342,7 +342,7 @@ export function readPromptfooOutput(
 			})
 	}
 	// A run that errored, that the sandbox broke, or that the usage limit ended, never counts toward a pass rate (R32,
-	// R154, R161).
+	// R154, R162).
 	const ok = (row: Row) => runError(row) === undefined && sandboxFaultOf(row) === undefined
 	const limited = (id: string) => left.filter((item) => item.case === id && item.arm === 'skill').length
 	const broken = (id: string) =>

@@ -1261,7 +1261,7 @@ function acceptLatest(skillFolder: string): void {
 	acceptResult(saved, skillFolder)
 }
 
-describe('skill test and the usage limit (R161, R162)', () => {
+describe('skill test and the usage limit (R162, R163)', () => {
 	const limitText = "You've hit your 5-hour limit · resets 4:40am (America/Los_Angeles)"
 	const gitRepo = () => {
 		const root = repo()

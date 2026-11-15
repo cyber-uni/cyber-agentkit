@@ -863,7 +863,7 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify
 	)
 })
 
-describe('promptfooProviderSource usage limit (R161)', () => {
+describe('promptfooProviderSource usage limit (R162)', () => {
 	const limitText = "You've hit your 5-hour limit · resets 4:40am (America/Los_Angeles)"
 	/** A fake inner provider that counts its calls in a file and answers the usage-limit error each time. */
 	const limited = (calls: string) => String.raw`
@@ -928,7 +928,7 @@ console.log(JSON.stringify(responses))
 		])
 	})
 
-	it('runs only the arms a resumed run names, under the run number it stands for (R162)', () => {
+	it('runs only the arms a resumed run names, under the run number it stands for (R163)', () => {
 		const root = mkdtempSync(join(tmpdir(), 'provider-resume-'))
 		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
 		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')

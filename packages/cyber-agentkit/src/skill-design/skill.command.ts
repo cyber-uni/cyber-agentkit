@@ -275,7 +275,7 @@ function testText(result: TestResult, folder?: string): string {
 				`sandbox failure: ${id} — ${counts.skill} with the skill, ${counts.baseline} without — ${sandbox.find((item) => item.case === id)?.text}`,
 			)
 	}
-	// A reached usage limit comes first too: the runs it left count toward no pass rate below (R161).
+	// A reached usage limit comes first too: the runs it left count toward no pass rate below (R162).
 	const incomplete = result.incomplete
 	if (incomplete) {
 		const left = incomplete.left
@@ -481,7 +481,7 @@ function testCommand({
 				)
 				throw CliError.reported(exitCodes.usage)
 			}
-			// A resume runs again with the options the incomplete result was made with (R162).
+			// A resume runs again with the options the incomplete result was made with (R163).
 			let resume: { rows: Row[]; latest: TestResult; incomplete: Incomplete } | undefined
 			if (args.resume) {
 				const given = (['case', 'model', 'judge', 'baseline', 'harness', 'backend', 'estimate'] as const).filter(
@@ -678,7 +678,7 @@ function testCommand({
 				throw CliError.reported(exitCodes.error)
 			}
 			for (const warning of ran.warnings) process.stderr.write(`warning: ${warning}\n`)
-			// An incomplete result keeps what a resume needs: the options it ran with, and what the skill and plan were (R162).
+			// An incomplete result keeps what a resume needs: the options it ran with, and what the skill and plan were (R163).
 			const options: ResumeOptions = {
 				harness: harness.id,
 				backend,
@@ -700,7 +700,7 @@ function testCommand({
 				'rows' in ran ? (ran.rows as Row[]) : undefined,
 			)
 			const failed = [...saved.trigger, ...saved.criteria].some((item) => item.status === 'fail')
-			// The first run that passes becomes the expected result when there is none (R80); an incomplete one never does (R161).
+			// The first run that passes becomes the expected result when there is none (R80); an incomplete one never does (R162).
 			const firstPass = !failed && !saved.partial && !saved.incomplete && !existsSync(expectedPath(skill.folder))
 			// A result with sandbox failures becomes the expected one only by `skill accept`, once the author has seen it (R154).
 			const held = (args.accept || firstPass) && !!saved.sandboxFailures?.length && !saved.incomplete

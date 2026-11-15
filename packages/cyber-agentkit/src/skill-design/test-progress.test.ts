@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { watchProgress } from './test-progress.js'
 
-describe('watchProgress and the usage limit (R161)', () => {
+describe('watchProgress and the usage limit (R162)', () => {
 	const limitText = "You've hit your 5-hour limit · resets 4:40am (America/Los_Angeles)"
 	const end = (run: number, extra: Record<string, unknown>) => ({
 		event: 'end',
