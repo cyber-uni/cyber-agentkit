@@ -1,6 +1,6 @@
 ---
 title: Reference file naming
-description: The one naming rule for every reference file: the suffix says the form, a skill's copy adds .default, and an interface's document is <id>.interface.md.
+description: "The one naming rule for every reference file: the suffix says the form, a skill's copy adds .default, and an interface's document is <id>.interface.md."
 ---
 
 Every reference file is named for the reference it holds, plus a suffix that says what kind of file it is. The
