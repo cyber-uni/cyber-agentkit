@@ -4,13 +4,15 @@ Repair what `check` or `test` found, and nothing else.
 
 ## 1. Settle the autonomy level
 
-Settle it as `SKILL.md`'s Autonomy says, before anything else. Write the `Autonomy:` line now as the reply's first
-line; a run that stops before any repair, or finds nothing to repair, still opens with it.
+Settle it as `SKILL.md`'s Autonomy says, before anything else. Write the `Autonomy:` line now, and again as the first
+line of the reply that ends the run, even when an earlier message stated it; a run that stops before any repair, or
+finds nothing to repair, still opens with it.
 
 ## 2. Get the failures
 
 Use the latest `check` or `test` result in this session, or the saved `test` result (the last one `test` saved, not the expected result). With neither, run [check](check.md),
-and run [test](test.md) only when the author asks, within the test budget as `SKILL.md`'s Autonomy says. With no failures, say there is nothing to fix and change nothing.
+and decide each `read` check it lists as not checked, by its ID, as its step 3 says, before the first repair: the
+failures are every `script` and `read` check that failed. Run [test](test.md) only when the author asks, within the test budget as `SKILL.md`'s Autonomy says. With no failures, say there is nothing to fix and change nothing.
 
 ## 3. Repair each one
 
@@ -45,5 +47,5 @@ and file none unless the author accepts.
 
 ## Report
 
-Open with the `Autonomy:` line, then each failure: repaired, with the change, or not repaired, with the reason; each decision made on
+Open with the `Autonomy:` line, then each failure `check` or `test` found: repaired, with the change, or not repaired, with the reason; each decision made on
 the author's behalf; and the result of the checks run again.
