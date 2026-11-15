@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { goodEvals, goodSkill, goodSkillMd, makeSkill } from './skill-design.fixtures.js'
-import { planTest } from './test-plan.js'
+import { planScripts, planTest, withoutScripts } from './test-plan.js'
 
 describe('planTest', () => {
 	it('plans each trigger and outcome case, with the default runs and threshold', () => {
@@ -129,5 +129,44 @@ describe('planTest --case and concurrency (R102, R103)', () => {
 			expect(
 				planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': `concurrency: ${bad}\n${goodEvals}` })),
 			).toMatchObject({ code: 'evals-invalid' })
+	})
+})
+
+describe('setup scripts in the plan (R155, R158)', () => {
+	const skill = () =>
+		goodSkill({
+			'evals/evals.yaml':
+				'outcome:\n  - { id: two-prs, prompt: write the notes, setup: setup/two-prs.sh }\n  - { id: plain, prompt: write them again }\nrubrics:\n  C1:\n    - contains: x\n  C2:\n    - script: test -f NOTES.md\n',
+		})
+
+	it("resolves a case's setup script against evals/, and lists every script the plan runs", () => {
+		const planned = planTest(skill(), { threads: 8 })
+		if ('problem' in planned) throw new Error(planned.problem)
+		expect(planned.plan.cases.find((item) => item.id === 'two-prs')?.setup).toMatch(/evals[\\/]setup[\\/]two-prs\.sh$/)
+		expect(
+			planScripts(planned.plan).map(({ case: id, kind, script }) => [id, kind, kind === 'check' ? script : '']),
+		).toEqual([
+			['two-prs', 'setup', ''],
+			['two-prs', 'check', 'test -f NOTES.md'],
+			['plain', 'check', 'test -f NOTES.md'],
+		])
+	})
+
+	it('moves each case that runs a script to the cases not run, with the reason', () => {
+		const planned = planTest(skill(), { threads: 8 })
+		if ('problem' in planned) throw new Error(planned.problem)
+		const kept = withoutScripts(planned.plan, 'untrusted')
+		expect(kept.cases.filter((item) => item.kind === 'outcome')).toEqual([])
+		expect(kept.notRun).toEqual([
+			{ case: 'two-prs', reason: 'untrusted' },
+			{ case: 'plain', reason: 'untrusted' },
+		])
+	})
+
+	it('refuses a setup that is not a path', () => {
+		const planned = planTest(
+			goodSkill({ 'evals/evals.yaml': 'outcome:\n  - { id: two-prs, prompt: write the notes, setup: 3 }\n' }),
+		)
+		expect(planned).toMatchObject({ code: 'evals-invalid', problem: expect.stringContaining('`setup` is not a path') })
 	})
 })

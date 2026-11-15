@@ -7,7 +7,7 @@ import { parse } from 'yaml'
 import type { PluginEvalRun } from './plugin-eval-backend.js'
 import type { PluginList } from './plugin-load.js'
 import { createSkillCommand } from './skill.command.js'
-import { goodSkill } from './skill-design.fixtures.js'
+import { goodEvals, goodSkill } from './skill-design.fixtures.js'
 import { acceptResult, keptAcceptedResults, type PromptfooRun } from './skill-test.js'
 import type { TestResult } from './test-result.js'
 
@@ -1068,5 +1068,58 @@ describe('skill test --harness and --backend (#163)', () => {
 		expect(errors()).toContain('error: unsupported-harness: the plugin-eval backend drives claude-code only, not codex')
 		expect(await run(goodSkill().folder, repo(), {}, '--backend', 'inspect')).toBe(2)
 		expect(errors()).toContain('error: unknown-backend: no backend inspect')
+	})
+})
+
+describe('skill test scripts from outside the repository (R158)', () => {
+	const scripted = () =>
+		goodSkill({
+			'evals/evals.yaml': `${goodEvals.replace(
+				'  - { id: two-prs, prompt: write the notes, files: files/two-prs }',
+				'  - { id: two-prs, prompt: write the notes, files: files/two-prs, setup: setup/two-prs.sh }\n  - { id: plain, prompt: write the notes again, files: files/two-prs }',
+			)}`.replace(
+				'    - not-regex: "Merge (pull request|branch)"',
+				'    - not-regex: "Merge (pull request|branch)"\n    - script: test -f NOTES.md',
+			),
+			'evals/setup/two-prs.sh': 'git checkout -q -b release\n',
+		})
+	const said = () => stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+
+	it('lists the scripts of a skill outside the repository and runs no case that needs one', async () => {
+		const skill = scripted()
+		const seen: { config?: Record<string, unknown> } = {}
+		await test(skill.folder, fakeRun(seen), repo())
+		expect(said()).toContain('warning: untrusted-scripts:')
+		expect(said()).toContain(`case two-prs: setup script ${join(skill.folder, 'evals', 'setup', 'two-prs.sh')}`)
+		expect(said()).toContain('case two-prs: script check `test -f NOTES.md`')
+		expect(said()).toContain('case plain: script check `test -f NOTES.md`')
+		const tests = seen.config?.['tests'] as { description: string }[]
+		expect(tests.map((item) => item.description)).not.toContain('two-prs')
+		expect(tests.map((item) => item.description)).not.toContain('plain')
+		const report = JSON.parse(printed())
+		expect(report.notRun).toContainEqual({
+			case: 'two-prs',
+			reason: 'it runs a script from outside this repository; read it, then pass --trust-scripts',
+		})
+	})
+
+	it('runs them with --trust-scripts, and still lists them', async () => {
+		const skill = scripted()
+		const seen: { config?: Record<string, unknown> } = {}
+		await test(skill.folder, fakeRun(seen), repo(), '--trust-scripts')
+		expect(said()).toContain('running its scripts, as --trust-scripts asks')
+		const tests = seen.config?.['tests'] as { description: string; vars: Record<string, string> }[]
+		expect(tests.find((item) => item.description === 'two-prs')?.vars['setup']).toBe(
+			join(skill.folder, 'evals', 'setup', 'two-prs.sh'),
+		)
+	})
+
+	it('runs the scripts of a skill inside the repository without asking', async () => {
+		const skill = scripted()
+		const seen: { config?: Record<string, unknown> } = {}
+		await test(skill.folder, fakeRun(seen), join(skill.folder, '..', '..'))
+		expect(said()).not.toContain('untrusted-scripts')
+		const tests = seen.config?.['tests'] as { description: string }[]
+		expect(tests.map((item) => item.description)).toContain('two-prs')
 	})
 })

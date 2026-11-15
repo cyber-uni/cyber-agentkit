@@ -1,6 +1,6 @@
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { cli } from 'clibuilder'
 import { command, exitCodes, t } from 'clibuilder'
 import { type Answer, CliError, type Format, printAnswer, result } from 'clibuilder/axi'
@@ -36,7 +36,7 @@ import {
 import { skillTestHarness, skillTestHarnesses } from './skill-test-harness.js'
 import { type SkillVetReport, vetSkill } from './skill-vet.js'
 import { defaultTestBudget, estimateTest, estimateText } from './test-estimate.js'
-import { planTest } from './test-plan.js'
+import { planScripts, planTest, withoutScripts } from './test-plan.js'
 import { planLine } from './test-progress.js'
 import type { TestResult } from './test-result.js'
 import { type GitHubGet, githubGet, type JsonGet, jsonGet, type SupplyChainSignals } from './vet-signals.js'
@@ -207,6 +207,19 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 	})
 }
 
+/** Whether `folder` is `root` or inside it, following links, so a link cannot pass a folder from elsewhere as inside. */
+function isInside(root: string, folder: string): boolean {
+	const real = (path: string) => {
+		try {
+			return realpathSync(path)
+		} catch {
+			return resolve(path)
+		}
+	}
+	const path = relative(real(root), real(folder))
+	return path === '' || (!path.startsWith('..') && !isAbsolute(path))
+}
+
 /** The folder results live under: the repository root, or the home folder outside a repository. */
 function resultsBase(rootOption: string | undefined, home: string): string {
 	const root = rootOption === undefined ? findRoot(process.cwd()) : resolve(rootOption)
@@ -325,6 +338,11 @@ function testCommand({
 					'Run only the case with this ID, an outcome case ID or `trigger-<n>`; repeat it for more. The result is marked partial, is compared for those cases only, and is never saved as the expected result.',
 				type: t.array(t.string()).optional(),
 			},
+			'trust-scripts': {
+				description:
+					"Run the setup scripts and `script` checks of a skill whose folder is outside the repository (`--root`, else the one holding the current directory). Without it, test lists them and reports the cases that need them as not run. Read them first: they run on this machine, contained to each run's folder with no network.",
+				type: t.boolean().optional(),
+			},
 			accept: {
 				description:
 					"After the run, also write its result to the skill's `evals/expected.json`, the expected result that later runs compare with. A result with sandbox failures is held back: accept it with `skill accept` once you have seen it.",
@@ -379,6 +397,7 @@ function testCommand({
 				plugin?: string[] | undefined
 				root?: string | undefined
 				accept?: boolean | undefined
+				'trust-scripts'?: boolean | undefined
 				case?: string[] | undefined
 				estimate?: boolean | undefined
 				'budget-cost'?: number | undefined
@@ -425,6 +444,30 @@ function testCommand({
 				throw CliError.reported(planned.code === 'unknown-case' ? exitCodes.usage : exitCodes.error)
 			}
 			for (const warning of planned.warnings) process.stderr.write(`warning: ${warning}\n`)
+			// The scripts of a skill from outside the repository are listed, and run only when the author trusts them (R158).
+			const repository = args.root === undefined ? findRoot(process.cwd()) : resolve(args.root)
+			const scripts = planScripts(planned.plan)
+			if (scripts.length && !isInside(repository, skill.folder)) {
+				const listed = scripts
+					.map(
+						(item) =>
+							`case ${item.case}: ${item.kind === 'setup' ? `setup script ${item.script}` : `script check \`${item.script}\``}`,
+					)
+					.join('; ')
+				if (args['trust-scripts'])
+					process.stderr.write(
+						`warning: untrusted-scripts: ${skill.folder} is outside ${repository}; running its scripts, as --trust-scripts asks: ${listed}\n`,
+					)
+				else {
+					process.stderr.write(
+						`warning: untrusted-scripts: ${skill.folder} is outside ${repository}, so its scripts run only with --trust-scripts; read them first: ${listed}\n`,
+					)
+					planned.plan = withoutScripts(
+						planned.plan,
+						'it runs a script from outside this repository; read it, then pass --trust-scripts',
+					)
+				}
+			}
 			const home = homedir()
 			if (args.estimate) {
 				const skillName =

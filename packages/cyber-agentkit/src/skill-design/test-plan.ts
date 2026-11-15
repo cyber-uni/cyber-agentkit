@@ -217,3 +217,31 @@ export function planEvals(
 		warnings,
 	}
 }
+
+/** A script a case runs: its setup script (`setup`, a path) or a `script` check (`check`, a command). */
+export type CaseScript = { case: string; kind: 'setup' | 'check'; script: string }
+
+/** Every setup script and `script` check the plan's cases run, in plan order (R158). */
+export function planScripts(plan: TestPlan): CaseScript[] {
+	return plan.cases.flatMap((item) => [
+		...(item.setup ? [{ case: item.id, kind: 'setup' as const, script: item.setup }] : []),
+		...[
+			...new Set(
+				Object.values(item.rubrics).flatMap((list) =>
+					list.flatMap((check) => ('script' in check ? [String(check['script'])] : [])),
+				),
+			),
+		].map((script) => ({ case: item.id, kind: 'check' as const, script })),
+	])
+}
+
+/** The plan with every case that runs a script moved to the cases not run, with the reason (R158). */
+export function withoutScripts(plan: TestPlan, reason: string): TestPlan {
+	const scripted = new Set(planScripts(plan).map((item) => item.case))
+	if (!scripted.size) return plan
+	return {
+		...plan,
+		cases: plan.cases.filter((item) => !scripted.has(item.id)),
+		notRun: [...plan.notRun, ...[...scripted].map((id) => ({ case: id, reason }))],
+	}
+}
