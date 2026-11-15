@@ -234,9 +234,11 @@ rubrics:
     - regex: "Check:\\W{0,4}(pass|fail)"
     - regex: "Test budget:\\W{0,4}within"
     - not-regex: "\\?\\s*$"
-  # create writes the skill's evals; without the skill the work writes a SKILL.md alone.
+  # create writes the skill's evals and README's Research section, and reports `check`'s result. Without the skill,
+  # the work may copy release-notes' layout, but it reports only its own checks ("all four checks passed").
   C12:
     - script: "test -f .agents/skills/oncall-handoff/SKILL.md && test -f .agents/skills/oncall-handoff/evals/evals.yaml"
-    - regex: "\\bcheck\\b"
+    - script: "grep -q '^## Research' .agents/skills/oncall-handoff/README.md"
+    - regex: "`check`|\\b(static|automatic) checks?\\b"
   C17:
     - regex: "[Rr]esearch"
