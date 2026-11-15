@@ -86,6 +86,17 @@ describe('classify, one section', () => {
 		expect(tied.parts[0]?.tied).toEqual([0, 1])
 	})
 
+	it('breaks a tie on shared count by the fewest base sentences the found text lacks', () => {
+		const offered = '## S\n\nAlpha. Beta. Gamma.'
+		const history = ['## S\n\nAlpha. Beta.', '## S\n\nAlpha.']
+		const exact = classify({ found: '## S\n\nAlpha.', offered, history })
+		expect(exact).toMatchObject({ outcome: 'update', base: { index: 1 }, text: offered })
+		const edited = classify({ found: '## S\n\nAlpha. Owner note.', offered, history })
+		expect(edited).toMatchObject({ outcome: 'update', base: { index: 1 } })
+		expect(edited.text).toContain('Owner note.')
+		expect(edited.text).toContain('Gamma.')
+	})
+
 	it('is undetermined with no-base when no wording matches but the found text shares with the offered one', () => {
 		const result = classify({ found: 'Alpha is first. Mine.', offered: V2, history: ['Unrelated.'] })
 		expect(result).toMatchObject({ outcome: 'undetermined', reason: 'no-base' })

@@ -31,7 +31,8 @@ Part of [prose-update](../README.md); its terms (K1 to K10) and actors apply her
 - **Extensions:**
   - UC1.1 The history is empty: `undetermined`, reason `no-history`.
   - UC1.2 The found text or a part is empty: `undetermined`, reason `empty-section`.
-  - UC1.3 Two retired wordings share the most: `undetermined`, reason `tied-base`.
+  - UC1.3 Two retired wordings share the most and the found text lacks as many sentences of each: `undetermined`,
+    reason `tied-base`.
   - UC1.4 No retired wording shares a sentence with the found text, and a part shares sentences with the offered wording
     without being up to date: `undetermined`, reason `no-base`.
   - UC1.5 The offered wording is empty: refused (R33).
@@ -47,8 +48,10 @@ Part of [prose-update](../README.md); its terms (K1 to K10) and actors apply her
   retired wording; or the part is one the owner deleted (R22). Sentences the owner added around or between them do not
   change this.
 - R3 `owners`: the found part shares no sentence with the base or the offered wording. Nothing is offered.
-- R4 The base is the retired wording with the largest shared count (K10) with the whole found text, at least 1. Equal
-  largest counts for two wordings give `undetermined` with reason `tied-base`, naming both, for every part.
+- R4 The base is the retired wording with the largest shared count (K10) with the whole found text, at least 1. Among
+  wordings with equal largest counts, the one with the fewest sentences the found text lacks is the base, so a found
+  text that matches an older wording is not tied with a newer one that only adds sentences. Wordings still equal give
+  `undetermined` with reason `tied-base`, naming them, for every part.
 - R10 Every outcome except `owners` and `up-to-date` reports the base (when it has one), the shared count, the base's
   sentence count, and the revision kind (K6).
 
