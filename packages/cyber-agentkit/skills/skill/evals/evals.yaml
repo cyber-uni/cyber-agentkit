@@ -183,8 +183,10 @@ outcome:
     files: files/samples
     guard: true
     criteria: [C21]
+  # The prompt names the skill: "which commands can I use" alone reads as a question about the session, which lists
+  # its skills instead of loading this one (#238).
   - id: help
-    prompt: I want to create, check, test, or fix an agent skill. Which commands can I use? List them all.
+    prompt: I want to create, check, test, or fix an agent skill. Which commands does the skill skill have? List them all.
     files: files/samples
     criteria: [C8]
   - id: customize-show
