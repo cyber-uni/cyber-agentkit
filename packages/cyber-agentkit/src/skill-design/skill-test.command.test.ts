@@ -8,7 +8,8 @@ import type { PluginEvalRun } from './plugin-eval-backend.js'
 import type { PluginList } from './plugin-load.js'
 import { createSkillCommand } from './skill.command.js'
 import { goodSkill } from './skill-design.fixtures.js'
-import type { PromptfooRun } from './skill-test.js'
+import { acceptResult, keptAcceptedResults, type PromptfooRun } from './skill-test.js'
+import type { TestResult } from './test-result.js'
 
 const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
@@ -415,6 +416,61 @@ describe('skill test', () => {
 			await test(skill.folder, fakeRun({}, false), root) // previous: all fail, expected: all pass
 			expect(latest().comparedWith).toBe('expected')
 			expect(latest().changed).toContainEqual({ case: 'two-prs', from: 'pass', to: 'fail' })
+		})
+
+		it('keeps the expected result it replaces in evals/accepted, up to the limit, dropping the oldest', () => {
+			const skill = goodSkill()
+			const accepted = join(skill.folder, 'evals', 'accepted')
+			const at = (n: number) => `2026-11-0${n}T00:00:00.000Z`
+			const accept = (n: number) => acceptResult({ at: at(n), cases: [] } as unknown as TestResult, skill.folder)
+			accept(1)
+			expect(existsSync(accepted)).toBe(false) // the first accepted result is the expected one alone
+			accept(1) // accepting the same run again keeps no copy of it
+			expect(existsSync(accepted)).toBe(false)
+			for (const n of [2, 3, 4, 5]) accept(n)
+			expect(keptAcceptedResults).toBe(3)
+			expect(readdirSync(accepted).sort()).toEqual([
+				'2026-11-02T00-00-00.000Z.json',
+				'2026-11-03T00-00-00.000Z.json',
+				'2026-11-04T00-00-00.000Z.json',
+			])
+			expect(JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')).at).toBe(at(5))
+		})
+
+		it('keeps an expected result saved before the history as the newest entry, and names the cases that moved', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			const expected = join(skill.folder, 'evals', 'expected.json')
+			await test(skill.folder, fakeRun({}), root) // the first pass becomes expected.json
+			// an expected result written before cases carried counts, in which trigger-1 fired once in 3 runs
+			const old = JSON.parse(readFileSync(expected, 'utf8')) as TestResult
+			old.at = '2026-01-01T00:00:00.000Z'
+			old.cases = old.cases.map(({ case: id, status }) => ({ case: id, status }))
+			old.trigger = old.trigger.map((item) => (item.case === 'trigger-1' ? { ...item, fired: 1 } : item))
+			writeFileSync(expected, `${JSON.stringify(old, null, '\t')}\n`)
+
+			await test(skill.folder, fakeRun({}), root, '--accept')
+			const latest = JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'))
+			expect(latest.moved).toEqual([
+				{
+					case: 'trigger-1',
+					rates: [
+						{ at: old.at, passed: 1, ran: 3 },
+						{ at: latest.at, passed: 3, ran: 3 },
+					],
+				},
+			])
+			expect(
+				JSON.parse(readFileSync(join(skill.folder, 'evals', 'accepted', '2026-01-01T00-00-00.000Z.json'), 'utf8')),
+			).toEqual(old)
+			expect(JSON.parse(readFileSync(expected, 'utf8')).at).toBe(latest.at)
+
+			// the text report names it too, its rate in each result, this run last
+			const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
+				createSkillCommand({ runPromptfoo: fakeRun({}) }),
+			)
+			await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root])
+			expect(printed()).toContain('moved across accepted results: trigger-1 1 of 3 → 3 of 3 → now 3 of 3')
 		})
 
 		it('compares with the previous result when there is no expected one', async () => {

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { goodSkill } from './skill-design.fixtures.js'
 import { planTest, type TestPlan } from './test-plan.js'
-import { compareWithPrevious, readPromptfooOutput, readReplies, shortReason, type TestResult } from './test-result.js'
+import {
+	caseRates,
+	compareWithHistory,
+	compareWithPrevious,
+	readPromptfooOutput,
+	readReplies,
+	shortReason,
+	type TestResult,
+} from './test-result.js'
 
 const plan = (() => {
 	const planned = planTest(goodSkill())
@@ -84,7 +92,9 @@ describe('readPromptfooOutput', () => {
 				],
 			},
 		])
-		expect(result.cases.at(-1)).toEqual({ case: 'two-prs', status: 'fail' })
+		// a case counts the runs that went right: every criterion it tests passed, or the trigger went as expected
+		expect(result.cases.at(-1)).toEqual({ case: 'two-prs', status: 'fail', passed: 1, ran: 3 })
+		expect(result.cases[0]).toEqual({ case: 'trigger-1', status: 'pass', passed: 3, ran: 3 })
 		expect(result.cost).toBe(0.024)
 	})
 
@@ -253,6 +263,90 @@ describe('compareWithPrevious', () => {
 
 	it('says when there is no previous result', () => {
 		expect(compareWithPrevious(result([]), undefined)).toMatchObject({ noPrevious: true })
+	})
+})
+
+describe('compareWithHistory', () => {
+	const base = readPromptfooOutput(output([]), plan as TestPlan, meta)
+	const at = (n: number) => `2026-11-0${n}T00:00:00.000Z`
+	const result = (n: number, cases: TestResult['cases'], trigger: TestResult['trigger'] = []): TestResult => ({
+		...base,
+		at: at(n),
+		cases,
+		trigger,
+	})
+
+	it('names each case whose pass rate moved across the kept accepted results and this run, oldest first', () => {
+		const history = [
+			result(1, [{ case: 'a', status: 'pass', passed: 3, ran: 3 }]),
+			result(2, [{ case: 'a', status: 'pass', passed: 3, ran: 3 }]),
+		]
+		const now = compareWithHistory(
+			result(3, [
+				{ case: 'a', status: 'pass', passed: 2, ran: 3 },
+				{ case: 'b', status: 'pass', passed: 3, ran: 3 },
+			]),
+			history,
+		)
+		expect(now.moved).toEqual([
+			{
+				case: 'a',
+				rates: [
+					{ at: at(1), passed: 3, ran: 3 },
+					{ at: at(2), passed: 3, ran: 3 },
+					{ at: at(3), passed: 2, ran: 3 },
+				],
+			},
+		])
+	})
+
+	it('names a case that moved and came back, and treats equal rates over different run counts as unmoved', () => {
+		const now = compareWithHistory(result(3, [{ case: 'a', status: 'pass', passed: 2, ran: 2 }]), [
+			result(1, [{ case: 'a', status: 'pass', passed: 3, ran: 3 }]),
+		])
+		expect(now).not.toHaveProperty('moved')
+		const back = compareWithHistory(result(3, [{ case: 'a', status: 'pass', passed: 3, ran: 3 }]), [
+			result(1, [{ case: 'a', status: 'pass', passed: 3, ran: 3 }]),
+			result(2, [{ case: 'a', status: 'fail', passed: 1, ran: 3 }]),
+		])
+		expect(back.moved?.map((item) => item.case)).toEqual(['a'])
+	})
+
+	it('reads a trigger case from an older result whose cases carry no counts', () => {
+		const old = result(
+			1,
+			[{ case: 'trigger-1', status: 'pass' }],
+			[{ case: 'trigger-1', prompt: 'p', expect: 'skip', fired: 0, ran: 3, status: 'pass' }],
+		)
+		expect(caseRates(old).get('trigger-1')).toEqual({ passed: 3, ran: 3 })
+		const now = compareWithHistory(result(2, [{ case: 'trigger-1', status: 'fail', passed: 1, ran: 3 }]), [old])
+		expect(now.moved?.[0]?.rates.map((rate) => rate.passed)).toEqual([3, 1])
+	})
+
+	it('skips results that hold no count for a case, and leaves moved out with no history', () => {
+		const now = result(2, [{ case: 'a', status: 'pass', passed: 3, ran: 3 }])
+		expect(compareWithHistory(now, [])).not.toHaveProperty('moved')
+		expect(compareWithHistory(now, [result(1, [{ case: 'a', status: 'fail' }])])).not.toHaveProperty('moved')
+	})
+
+	it('compares a partial run for its own cases alone', () => {
+		const history = [
+			result(1, [
+				{ case: 'a', status: 'pass', passed: 3, ran: 3 },
+				{ case: 'b', status: 'pass', passed: 3, ran: 3 },
+			]),
+		]
+		const now = compareWithHistory(
+			{
+				...result(2, [
+					{ case: 'a', status: 'pass', passed: 1, ran: 3 },
+					{ case: 'b', status: 'pass', passed: 1, ran: 3 },
+				]),
+				partial: { cases: ['b'] },
+			},
+			history,
+		)
+		expect(now.moved?.map((item) => item.case)).toEqual(['b'])
 	})
 })
 
