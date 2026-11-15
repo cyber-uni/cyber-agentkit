@@ -41,7 +41,7 @@ jobs:
             ^packages/cyber-agentkit/src/skill-design/promptfoo-provider-source(\.test)?\.ts$|^packages/cyber-agentkit/src/headless/headless-invocation\.ts$|^\.github/workflows/pull-request\.yml$
           # The script sandbox code and its test.
           SANDBOX: >-
-            ^packages/cyber-agentkit/src/skill-design/promptfoo-provider-source(\.test)?\.ts$|^packages/cyber-agentkit/package\.json$|^\.github/workflows/pull-request\.yml$
+            ^packages/cyber-agentkit/src/skill-design/(promptfoo-provider-source|plugin-eval-backend)(\.test)?\.ts$|^packages/cyber-agentkit/package\.json$|^\.github/workflows/pull-request\.yml$
           # What the prebuilt scripts bundle: library source, the plugin manifest, the lockfile, and the
           # build tooling (package manifests, build and format config, the drift check), plus the scripts.
           BUNDLE: >-
@@ -103,7 +103,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y bubblewrap socat
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec vitest run src/skill-design/promptfoo-provider-source.test.ts -t "setup scripts and script checks"
+      - run: pnpm exec vitest run src/skill-design/promptfoo-provider-source.test.ts src/skill-design/plugin-eval-backend.test.ts -t "setup scripts"
         working-directory: packages/cyber-agentkit
         env:
           SKILL_TEST_REQUIRE_SANDBOX: '1'

@@ -11,7 +11,12 @@ import { findRoot, type ReferencePlugin, referenceLayers } from '../references/r
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
 import { doneWhenCriteria, type EvalReport, readEvalReport, reportMarkdown } from './eval-report.js'
-import { type PluginEvalRun, runPluginEval, runPluginEvalTest } from './plugin-eval-backend.js'
+import {
+	type PluginEvalRun,
+	runPluginEval,
+	runPluginEvalTest,
+	type ScriptSandboxInstall,
+} from './plugin-eval-backend.js'
 import { listPlugins, type PluginList } from './plugin-load.js'
 import { runCheckScript } from './run-check-script.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
@@ -44,6 +49,8 @@ export type SkillCommandOptions = {
 	runPromptfoo?: PromptfooRun | undefined
 	/** How `claude plugin eval` runs; tests pass a fake. */
 	runPluginEval?: PluginEvalRun | undefined
+	/** How the plugin-eval backend gets the sandbox a setup script runs in; tests pass a fake. */
+	scriptSandbox?: ScriptSandboxInstall | undefined
 	/** How `skill test` lists the plugins a run loads, to check each one does; tests pass a fake. */
 	listPlugins?: PluginList | undefined
 	/** The plugins Claude Code has installed, where a plugin's dependencies are found; tests pass a fake. */
@@ -269,6 +276,7 @@ function testCommand({
 	plugin,
 	runPromptfoo: run = runPromptfoo,
 	runPluginEval: pluginEval = runPluginEval,
+	scriptSandbox,
 	listPlugins: list = listPlugins,
 	installedPlugins: installed = async () => (await installedPlugins('claude-code')).plugins,
 	progress,
@@ -461,7 +469,7 @@ function testCommand({
 			}
 			const ran =
 				backend === 'plugin-eval'
-					? await runPluginEvalTest({ ...common, run: pluginEval, progress: report, listPlugins: list })
+					? await runPluginEvalTest({ ...common, run: pluginEval, progress: report, listPlugins: list, scriptSandbox })
 					: await runTest({
 							...common,
 							harness,

@@ -239,3 +239,8 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
   commands. With `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR` set, no scripted `cd` into the plugin copy broke a run. The
   bwrap failures in the second full run came from a script built before E-CC-D17's fix.
 - Corrected E-CC-D17: the hidden paths are in the session's working folder, not the shell's current one.
+
+## 2026-11-15 (claude plugin eval scaffold failures)
+
+- Added E-CC-H12: a failing `scaffold_script` ends the run before any model call, with the error
+  `scaffold failed (exit <code>): <stderr>`; the scaffold runs unsandboxed in the workspace with a temporary home.
