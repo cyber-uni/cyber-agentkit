@@ -1,5 +1,5 @@
 // Generates the skill and CLI pages of every package under `packages/` from the package's own
-// sources (`plugin.json`, `skills/*/SKILL.md`, and the built CLI's `--help --format json`), so the
+// sources (`plugin.json`, `skills/*/SKILL.md`, each skill's saved `evals/expected.json`, and the built CLI's `--help --format json`), so the
 // pages cannot drift from what the package ships. Editorial text that no source holds (example
 // prompts, expected results, CLI examples) lives in `docs-data/<package>.json`.
 //
@@ -9,6 +9,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { doneWhenCriteria, renderEvals } from './eval-results.mjs'
 
 const web = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repo = resolve(web, '../..')
@@ -80,6 +81,9 @@ function skillPage(pkg, dir, skill, data) {
 	if (invocations) {
 		out.push('## How to type it in each harness', '', invocations[1], '')
 	}
+	const expectedPath = join(skillDir, 'evals', 'expected.json')
+	const expected = existsSync(expectedPath) ? readJson(expectedPath) : undefined
+	out.push(renderEvals(expected, { criteria: doneWhenCriteria(body) }))
 	out.push('## Source', '', `[\`packages/${pkg}/skills/${skill}\`](${repoUrl}/packages/${pkg}/skills/${skill})`, '')
 	write(join(docs, pkg, 'skills', `${skill}.md`), out.join('\n'))
 	return { skill, description: meta.description ?? '' }
