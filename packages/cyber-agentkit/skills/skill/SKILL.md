@@ -23,13 +23,12 @@ works through the aspects below.
 | `customize [aspect]` | the author wants to see or change which implementation each aspect uses, or how much each command applies on its own | [references/customize.md](references/customize.md) |
 
 Take an explicit command first. When the request describes a skill to write but names no command, as in `/skill a
-skill that drafts release notes`, follow `create`, which carries on into `check` and `test`. Otherwise read the intent
+skill that drafts release notes`, follow `create`. Otherwise read the intent
 from the request; if it fits two commands, ask which. With no request, follow `help`.
 
-When other work adds a skill or edits one, such as implementing an issue, the work is the approval to apply; `test`'s
-runs go by the test budget (see Autonomy). For a new skill, follow `create`. For a change to an existing skill, make the change the work calls for, and add a
-trigger or outcome case for each behavior it adds. Then run `check` and `test`, follow `fix` for what they find, and
-report the result with the work. Stop only as Autonomy's Stops says.
+When other work adds or edits a skill, such as implementing an issue, follow `create` for a new skill. For an existing
+one, make the change, add a trigger or outcome case for each behavior it adds, then run `check` and `test`, follow
+`fix` for what they find, and report the result with the work.
 
 ## Aspects
 
@@ -43,8 +42,7 @@ swap. Load `skill-design.aspects.criteria` and `skill-design.aspects.verificatio
 `cyber-agentkit`. For the open aspects, use that skill's Find mode to list `skill-design.aspects.*`, and load each name
 it lists other than `criteria`, `verification`, and names ending `.interface`.
 
-When the load reports that a chosen implementation is missing and the default answered instead, tell the author which
-aspect fell back and which implementation was missing.
+When the load reports that a chosen implementation is missing, tell the author which aspect fell back to its default.
 
 Each aspect's checks are listed as `- **<ID>** [<how>] <statement>`, or `- **<ID>** [<how>, warning] <statement>`.
 `script` means a script decides it from the files alone, `read` means you decide it by reading the skill, and `run`
@@ -55,11 +53,9 @@ means only running the skill decides it: `check` reports it as not checked and p
 
 Produces the opening paragraph of the skill's `README.md`, right under its `#` title: the one job the skill does, who
 asks for it, and the result it hands back. It may also name the nearest job the skill does not do, when readers are
-likely to confuse the two. It is for the people who keep the skill.
-`SKILL.md` carries no Intent paragraph: its description, steps, and `## Done when` already tell the agent the job and
-the result.
+likely to confuse the two. It is for the people who keep the skill; `SKILL.md` carries no Intent paragraph.
 
-**Draft.** From the author's description (which `/skillify` may have written from work already done), write the
+**Draft.** From the author's description, write the
 paragraph in four sentences or fewer. Ask the author when the job could be read two ways, and when the result is
 not named.
 
@@ -77,8 +73,7 @@ Produces the skill's folder layout: what stays in `SKILL.md`, and what moves to 
 
 **Draft.** Keep everything in `SKILL.md` while its body stays under 500 lines. Move to `references/` text read only on
 some paths, such as one command's steps, and link each file from the step that needs it. Move to `scripts/` any step a
-program does the same way every time, such as parsing or validating a file. Write only what the agent would not do
-on its own, and give each step one way to do it. At `ask`, propose the layout to the author.
+program does the same way every time, such as parsing or validating a file. At `ask`, propose the layout to the author.
 
 - **SHP-1** [script, warning] The `SKILL.md` body is at most 500 lines and about 5,000 tokens, at four characters a
   token.
@@ -118,12 +113,23 @@ on its own, and give each step one way to do it. At `ask`, propose the layout to
 - **SHP-18** [read, warning] Each script or command the body runs writes machine output to stdout, in the format the
   body asks for, and prints prose only behind `--verbose`.
 
-**Fix.** Move the text or the step as Draft says, and update the links. For SHP-5, propose the reference and the
-interface the skill should depend on (a new host, tracker, or workflow is then an implementation, not an edit to the
-skill), and the author decides each move. Apply an approved one with the `reference` skill: Create the default, then
+**Fix.** Move the text or the step as Draft says, and update the links. For SHP-1, before changing anything, estimate
+what each way to trim that applies saves, at four characters a token, naming the sections it touches:
+
+1. **Drop dead text**: text for a command, option, or case the skill no longer has.
+2. **Move to a reference**: a section only one command or case reads moves to its own file under `references/`, and
+   the body says when to load it. It saves the most when the skill serves several commands.
+3. **Tighten the prose**: cut what SHP-15 names, repeats, and explanations of reasons, and shorten sentences without
+   changing what the agent does. Never cut or weaken a `## Done when` criterion.
+4. **Move checkable detail to a script**: a rule a script or test can decide moves there, and the prose keeps a
+   one-line pointer to it.
+
+At `ask`, offer each one, lettered, with its estimate, and apply only what the author picks. At `apply-safe` and
+`apply`, apply them in that order until SHP-1 passes, keeping each only when `test` is no worse. For SHP-5, propose the reference and the
+interface the skill should depend on, and the author decides each move. Apply an approved one with the `reference` skill: Create the default, then
 Wire a skill. For SHP-6, ship the default. For SHP-7 to SHP-11, move the file or folder the check names, and update
 what links or names it. For SHP-12, write the body as steps or sections. For SHP-13, make the script print what the
-step needs, and point the step at that. For SHP-14, add the flag so a run need never wait at a prompt. For SHP-15 and SHP-16, delete the text. For SHP-17, keep
+step needs, and point the step at that. For SHP-14, add the flag. For SHP-15 and SHP-16, delete the text. For SHP-17, keep
 as the default the option most runs need, and name the condition under which the step does otherwise. For SHP-18, move
 the prose to stderr or behind `--verbose`.
 
@@ -131,17 +137,14 @@ the prose to stderr or behind `--verbose`.
 
 Produces the `description` in the skill's front matter, and the near misses Verification turns into `skip` cases.
 
-**Draft.** Name the job in the words users type, with two or three phrasings. The agent reads the description to decide
-whether to load the skill, so keep it to the point: open with the job, not a lead-in such as "Use this skill when" or
+**Draft.** Name the job in the words users type, with two or three phrasings. Open with the job, not a lead-in such as "Use this skill when" or
 "Use when", and add no filler words. Say nothing about when not to use it. List three or more near misses: requests a
-user could plausibly make that belong to the nearest other jobs. They go to Verification as `skip` cases, not into the
-description. Two kinds of skill are exempt from this, because the agent never picks them by their description: a
+user could plausibly make that belong to the nearest other jobs. Two kinds of skill are exempt from this: a
 name-only skill (a direct-invocation skill), whose description is a fixed marker as below, and a user-only skill, which
 stays user-invocable but turns model invocation off (in Claude Code, `disable-model-invocation: true`).
 
 **Name-only skill.** A skill that another skill loads by name, and that no user request should match, is name-only. Its
-description declares it: exactly `By name only`, or `Partial Skill: ` followed by text. The description is the only text
-the model matches against, so for a name-only skill write exactly `By name only`, and put what the skill is, who calls
+description declares it: exactly `By name only`, or `Partial Skill: ` followed by text. Write exactly `By name only`, and put what the skill is, who calls
 it, and what it returns in the body and `README.md`. Its near misses still go to Verification as `skip` cases. TRG-1,
 TRG-4, TRG-7, and TRG-9 do not apply to a name-only skill, and TRG-5 and TRG-6 apply only to one: report a check that
 does not apply as skipped.
@@ -171,16 +174,14 @@ TRG-9, add an `argument-hint` that lists what the user types, such as `"<command
 node <this skill's folder>/scripts/skill.mjs <subcommand> ...
 ```
 
-Run it from the working folder, by the script's path, and never `cd` into this skill's folder: it may be read-only,
-and a shell left there can fail every later command. `scripts/skill.mjs` is the package's `skill` command bundled into
-one file. When it is missing or cannot run, use
+Run it from the working folder, by the script's path, and never `cd` into this skill's folder, not even for one command: it
+may be read-only, and a shell left there fails every later command. When the script is missing or cannot run, use
 `pnpm exec cyber-agentkit skill` when the package is a direct dependency, else `npx -y cyber-agentkit@2.6.1 skill`,
 with the same arguments.
 
 ## Autonomy
 
-Every run behaves the same way, whoever is or is not watching: the leash decides where it stops. Never decide whether
-an author is present.
+Never decide whether an author is present: the level decides where a run stops.
 
 `create`, `fix`, and `enhance` each run at one level:
 
@@ -196,8 +197,8 @@ Before the first change, settle the level, take the first that answers, and stat
    Other work that adds or edits a skill, as Commands says, is the approval to apply: take `apply`, or `apply-safe` on
    a skill from an installed plugin.
 2. `reference`: load `skill-design.autonomy` with the `reference` skill of `cyber-agentkit`; the level it sets for the
-   command answers. Its shipped default is `apply` for `create`, `apply-safe` for `fix`, and `ask` for `enhance`. A
-   level that names no known value, such as `derive` from an older version, is ignored: say so, and take the shipped
+   command answers. Its shipped default is `apply` for `create`, `apply-safe` for `fix`, and `ask` for `enhance`. An
+   unknown level, such as `derive` from an older version, is ignored: say so, and take the shipped
    default.
 
 A level set for `check` or `test` has no effect: say so.
@@ -215,10 +216,8 @@ was applied on that reason alone.
 node <this skill's folder>/scripts/skill.mjs test <skill folder> --estimate --budget-cost <cost> --budget-runs <runs> --format json
 ```
 
-It makes no run, and prints `runs`, `estimate` (US dollars, or `null` when no cost is known), `basis`, `last` (the last
-saved result's `runs`, `cost`, and `durationMs`, when there is one), and `within`. The estimate scales the last saved
-result to the planned runs, or uses a default per-run cost with none; with no cost known, the run count is held to the
-budget. State it as one line, `Test budget: <within|over> (<runs> runs, <estimate or "no cost known">; budget <cost>
+It makes no run, and prints `runs`, `estimate` (US dollars, or `null` when no cost is known), `last` (the last saved
+result's `runs`, `cost`, and `durationMs`), and `within`. State it as one line, `Test budget: <within|over> (<runs> runs, <estimate or "no cost known">; budget <cost>
 or <runs> runs)`. When `within` is true, start `test` without asking. When it is false, stop.
 
 ### Stops
@@ -235,14 +234,9 @@ A stop is the same every time:
 3. End with the question and its options, each lettered. For a `test` over the budget, give the run count, the
    estimate, and how long the last run took, with the options to run it all, run some cases (`--case`), or not run it.
 
-Whoever reads the reply answers it: someone in the session, or, from a dispatched agent's report of being blocked, the
-one who dispatched it.
-
 ## Rules
 
 - When the skill named cannot be found, stop, say where you looked, and write nothing.
-- A skill that `create` writes meets the Agent Skills specification: `name` is 1 to 64 lowercase letters,
-  digits, and hyphens and matches the folder; `description` is 1 to 1024 characters.
 - Run no judge unless the author names one.
 - When `check` or `test`, run as the command asked, finds failures, end by offering `fix`, and change nothing unless the
   author accepts. When another command runs them, it goes on as its own steps say.
@@ -279,3 +273,5 @@ Before reporting done, check each of these against the result. Report any that f
   and the run stopped only where Autonomy's Stops says.
 - **C17.** `create` ran Research before it wrote Criteria: the skill's `README.md` has a `## Research` section, or,
   when an existing skill covers the job, the run wrote no `SKILL.md`, named that skill, and asked whether to adopt it.
+- **C18.** When SHP-1 failed, `fix` named each way to trim that applies with the tokens it saves, and at `ask` changed
+  no file before the author picked.
