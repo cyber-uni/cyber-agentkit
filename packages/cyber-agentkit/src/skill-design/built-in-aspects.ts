@@ -226,6 +226,14 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 					'A skill whose body documents the arguments it takes (a command table whose commands take arguments, an `Arguments:` line or heading, or `$ARGUMENTS`) declares an `argument-hint` in its front matter.',
 				appliesTo: 'matched',
 			},
+			{
+				id: 'TRG-10',
+				how: 'script',
+				severity: 'warning',
+				statement:
+					"The description's first sentence is at most 100 characters and opens with what the skill does, not a lead-in.",
+				appliesTo: 'matched',
+			},
 		],
 	},
 ]
