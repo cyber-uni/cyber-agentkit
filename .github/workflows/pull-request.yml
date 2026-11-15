@@ -101,7 +101,11 @@ jobs:
           node-version: '24'
           cache: pnpm
       - run: sudo apt-get update && sudo apt-get install -y bubblewrap socat ripgrep
-      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      # Ubuntu's AppArmor limits unprivileged user namespaces, and the capabilities inside a nested one, which
+      # bubblewrap and srt's seccomp helper need.
+      - run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec vitest run src/skill-design/promptfoo-provider-source.test.ts src/skill-design/plugin-eval-backend.test.ts -t "setup scripts"
         working-directory: packages/cyber-agentkit
