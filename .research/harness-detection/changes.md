@@ -260,3 +260,9 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
 - Added E-CC-D20: the paths the Bash sandbox mounts over in each folder, and that a plugin copy holding each of them
   ahead, with its git folder outside it, keeps the shell working after a `cd` into it without
   `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR`.
+
+## 2026-11-15 (documented login for skill test runs)
+
+- Added E-CC-D21: the vendor docs still name no setting that keeps a claude.ai login apart from the config folder, and
+  Claude Code 2.1.325 still reads `CLAUDE_SECURESTORAGE_CONFIG_DIR`. `skill test` keeps the variable and names it when a
+  run cannot log in ([cyber-agentkit#199](https://github.com/cyber-uni/cyber-agentkit/issues/199)).
