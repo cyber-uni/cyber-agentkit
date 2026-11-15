@@ -266,3 +266,9 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
 - Added E-CC-D21: the vendor docs still name no setting that keeps a claude.ai login apart from the config folder, and
   Claude Code 2.1.325 still reads `CLAUDE_SECURESTORAGE_CONFIG_DIR`. `skill test` keeps the variable and names it when a
   run cannot log in ([cyber-agentkit#199](https://github.com/cyber-uni/cyber-agentkit/issues/199)).
+
+## 2026-11-15 (skill test dependency copies hold the sandbox mount points)
+
+- Added E-CC-D22: a dependency copy without `.mcp.json` made the Bash sandbox fail every command with `bwrap: Can't find
+  source path`. `skill test` now makes each mount point ahead in every dependency copy, and counts a run that hits the
+  error as a sandbox failure ([cyber-agentkit#289](https://github.com/cyber-uni/cyber-agentkit/issues/289)).

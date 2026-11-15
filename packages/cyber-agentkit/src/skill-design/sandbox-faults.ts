@@ -20,6 +20,13 @@ export const sandboxFaults: readonly SandboxFault[] = [
 		pattern: String.raw`bwrap: Can't create file at [^\n]*?: Read-only file system`,
 		cause: "the shell's sandbox could not mount a path inside a read-only folder, so every later command failed",
 	},
+	{
+		// E-CC-D22: the Bash sandbox binds a mount point of a loaded plugin's dependency copy that the copy does not
+		// have, and every command fails before it starts.
+		id: 'bwrap-missing-source',
+		pattern: String.raw`bwrap: Can't find source path [^\n]*?: No such file or directory`,
+		cause: "the shell's sandbox could not mount a path a loaded plugin does not have, so every command failed",
+	},
 ]
 
 /** The fault a run hit, and the text of it, cut at 300 characters. */
