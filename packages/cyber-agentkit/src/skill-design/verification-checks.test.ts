@@ -10,6 +10,7 @@ describe('checkVerification', () => {
 			'pass',
 			'pass',
 			'pass',
+			'pass',
 		])
 	})
 
@@ -115,5 +116,33 @@ describe('checkVerification', () => {
 		})
 		expect(outcomes['VER-4']).toMatchObject({ status: 'fail', message: expect.stringContaining('evals/files/none') })
 		expect(outcomes['VER-5']).toMatchObject({ status: 'fail' })
+	})
+	it('fails a setup script that does not exist (VER-4)', () => {
+		const evals = goodEvals.replace('files: files/two-prs', 'files: files/two-prs, setup: setup/none.sh')
+		expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': evals })))['VER-4']).toMatchObject({
+			status: 'fail',
+			message: 'case two-prs: setup script evals/setup/none.sh does not exist',
+		})
+		const present = goodSkill({ 'evals/evals.yaml': evals, 'evals/setup/none.sh': 'true\n' })
+		expect(byId(checkVerification(present))['VER-4']).toEqual({ id: 'VER-4', status: 'pass' })
+	})
+
+	it('flags a prompt that tells the model to run a setup script, and passes a plain request (VER-9)', () => {
+		for (const prompt of [
+			'Run `sh setup.sh` once; it prepares this repository. Then commit the parser change.',
+			'First execute ./prepare-repo.sh, then commit',
+			'source scaffold.bash and write the notes',
+		]) {
+			const evals = goodEvals.replace('prompt: write the notes', `prompt: ${JSON.stringify(prompt)}`)
+			expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': evals })))['VER-9']).toMatchObject({
+				status: 'fail',
+				message: "case two-prs: the prompt tells the model to run a setup script; move it to the case's `setup`",
+			})
+		}
+		const plain = goodEvals.replace('prompt: write the notes', 'prompt: "run the tests, then commit the setup changes"')
+		expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': plain })))['VER-9']).toEqual({
+			id: 'VER-9',
+			status: 'pass',
+		})
 	})
 })

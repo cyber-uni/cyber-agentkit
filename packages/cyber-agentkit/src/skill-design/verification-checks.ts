@@ -41,6 +41,7 @@ export type EvalsFile = {
 }
 
 const file = 'evals/evals.yaml'
+const isFile = (path: string) => existsSync(path) && statSync(path).isFile()
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	!!value && typeof value === 'object' && !Array.isArray(value)
 
@@ -125,9 +126,16 @@ export function evalsProblems(value: unknown): string[] {
 	return problems
 }
 
-/** VER-1 to VER-5, the default Verification aspect's script checks. */
+/**
+ * A prompt that tells the model to run a setup script (VER-9): "run `sh setup.sh` first", "execute ./prepare.sh",
+ * "source setup.bash". The setup belongs in the case's `setup`, so the prompt holds only the request.
+ */
+const setupStep =
+	/\b(?:run|execute|source|invoke)\b[^\n]{0,40}?[\w./-]*(?:setup|scaffold|prepare|bootstrap|init)[\w.-]*\.(?:sh|bash|zsh|mjs|js|py)\b/i
+
+/** VER-1 to VER-5 and VER-9, the default Verification aspect's script checks. */
 export function checkVerification(skill: SkillFiles): CheckOutcome[] {
-	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5']
+	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9']
 	const blocked = (message: string): CheckOutcome[] => [
 		{ id: 'VER-1', status: 'fail', message, file },
 		...later.map((id): CheckOutcome => ({ id, status: 'not-checked', message: 'VER-1 failed' })),
@@ -186,17 +194,17 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 		outcomes.push(message ? { id: 'VER-3', status: 'fail', message, file } : { id: 'VER-3', status: 'pass' })
 	}
 
-	const missing = (evals.outcome ?? []).filter(
-		(item) => item.files !== undefined && !existsSync(join(skill.folder, 'evals', item.files)),
-	)
+	const missing = (evals.outcome ?? []).flatMap((item) => [
+		...(item.files !== undefined && !existsSync(join(skill.folder, 'evals', item.files))
+			? [`case ${item.id}: evals/${item.files} does not exist`]
+			: []),
+		...(item.setup !== undefined && !isFile(join(skill.folder, 'evals', item.setup))
+			? [`case ${item.id}: setup script evals/${item.setup} does not exist`]
+			: []),
+	])
 	outcomes.push(
 		missing.length
-			? {
-					id: 'VER-4',
-					status: 'fail',
-					message: missing.map((item) => `case ${item.id}: evals/${item.files} does not exist`).join('; '),
-					file,
-				}
+			? { id: 'VER-4', status: 'fail', message: missing.join('; '), file }
 			: { id: 'VER-4', status: 'pass' },
 	)
 
@@ -206,6 +214,18 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 		threshold <= runs
 			? { id: 'VER-5', status: 'pass' }
 			: { id: 'VER-5', status: 'fail', message: `\`threshold\` ${threshold} is more than \`runs\` ${runs}`, file },
+	)
+
+	const preamble = (evals.outcome ?? []).filter((item) => setupStep.test(item.prompt))
+	outcomes.push(
+		preamble.length
+			? {
+					id: 'VER-9',
+					status: 'fail',
+					message: `${preamble.map((item) => `case ${item.id}`).join(', ')}: the prompt tells the model to run a setup script; move it to the case's \`setup\``,
+					file,
+				}
+			: { id: 'VER-9', status: 'pass' },
 	)
 	return outcomes
 }
