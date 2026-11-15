@@ -176,7 +176,7 @@ node <this skill's folder>/scripts/skill.mjs <subcommand> ...
 
 Run it from the working folder, by the script's path, and never `cd` into this skill's folder, not even for one command: it
 may be read-only, and a shell left there fails every later command. When the script is missing or cannot run, use
-`pnpm exec cyber-agentkit skill` when the package is a direct dependency, else `npx -y cyber-agentkit@2.6.1 skill`,
+`pnpm exec cyber-agentkit skill` when the package is a direct dependency, else `npx -y cyber-agentkit@2.7.0 skill`,
 with the same arguments.
 
 ## Autonomy

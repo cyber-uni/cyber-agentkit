@@ -1,5 +1,34 @@
 # cyber-agentkit
 
+## 2.7.0
+
+### Minor Changes
+
+- 7c058c6: `/skill create` researches a skill's job before its Intent is final, through a new open aspect,
+  `skill-design.aspects.research`. The default delegates to `research-workbench:deep-research`, sizes the research to
+  the skill (full, a quick prior-art search, or a recorded skip), and stops to ask whether to adopt an existing skill
+  that already does the job. `check` reports its checks RES-1 to RES-3; a skill written before this step passes RES-1
+  by recording `Skipped: written before the research step` under `## Research` in its README.
+- 5c40c7c: `skill test` now loads the plugins a skill's plugin declares in `dependencies`, and theirs, in both arms. Claude Code
+  does not start a plugin whose dependency is missing, so before this every run of such a plugin loaded no skill and
+  was still scored. Each dependency comes from a folder passed with the new `--plugin <folder>` option, else from Claude
+  Code's installed plugins. The test stops before any run with `error: dependency-missing:` when a dependency is found
+  in neither, and with `error: plugin-load:` when Claude Code reports that a plugin a run loads does not load.
+  `--backend plugin-eval` cannot load a second plugin, so it stops with `error: dependency-unsupported:` for a plugin
+  that declares dependencies.
+
+### Patch Changes
+
+- 28d8cc1: `prose-update classify` no longer reports `tied-base` when one retired wording contains another. Among wordings that
+  share the most sentences with the found text, the base is the one with the fewest sentences the found text lacks, so a
+  section that still holds an older wording updates from it. `tied-base` remains for wordings still equal after that.
+- 4e8cba3: The `reference`, `skillify`, `asset`, `instruction`, and `prose-update` skills record `## Research` in their README
+  as `Skipped: written before the research step`, so `/skill check` passes RES-1 on them.
+- 7ed5a05: `/skill fix` gives SHP-1 (the `SKILL.md` body is too long) ways to trim instead of "shorten it": drop dead text, move
+  a section one command reads to a reference, tighten the prose, or move checkable detail to a script. It estimates
+  what each saves before changing anything, offers them at `ask`, and at `apply-safe` and `apply` keeps each only when
+  `test` is no worse. The `skill` skill's own `SKILL.md` now passes SHP-1.
+
 ## 2.6.1
 
 ### Patch Changes
