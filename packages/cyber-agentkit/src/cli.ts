@@ -67,7 +67,7 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 }
 
 /**
- * `load`, `create`, `customize`, and `delete`, and `asset show`, `update`, and `select`, answer in `text` unless
+ * `load`, `create`, `customize`, and `delete`, `asset show`, `update`, and `select`, and `skill report` answer in `text` unless
  * `--format` says otherwise; the other subcommands answer in `toon`. clibuilder 12 has one global `--format` default, so it is chosen
  * from the subcommand the argv names.
  */
@@ -77,7 +77,9 @@ function defaultFormat(argv: string[]): 'toon' | 'text' {
 	const subcommand = ['reference', 'asset', 'prose-update', 'skill', 'instruction'].includes(args[0] ?? '')
 		? args[1]
 		: undefined
-	return ['show', 'load', 'create', 'customize', 'update', 'select', 'delete', 'retire'].includes(subcommand ?? '')
+	return ['show', 'load', 'create', 'customize', 'update', 'select', 'delete', 'retire', 'report'].includes(
+		subcommand ?? '',
+	)
 		? 'text'
 		: 'toon'
 }
