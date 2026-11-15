@@ -169,6 +169,17 @@ outcome:
       it tested.
     files: files/samples
     criteria: [C20]
+  # A case that needs git history gets a setup script through `skill case add --setup`, not a setup step in its
+  # prompt (#251). The script's header is the one `skill case` writes, so a script written by hand does not pass. The
+  # baseline passes too: it loads the plugin without this skill, and the plugin's Verification reference and CLI teach
+  # `skill case` on their own, so the case guards the behavior rather than showing what the skill adds.
+  - id: case-with-history
+    prompt: >-
+      Add an eval case named squash-merge to the skill in .agents/skills/release-notes. Each run should start from a
+      repository with a start commit and an uncommitted change to CHANGELOG.md, and the request is "Write the release
+      notes." I approve writing it; don't ask again, and don't run the test.
+    files: files/samples
+    criteria: [C21]
   - id: help
     prompt: I want to create, check, test, or fix an agent skill. Which commands can I use? List them all.
     files: files/samples
@@ -262,6 +273,13 @@ rubrics:
     - regex: "`check`|\\b(static|automatic) checks?\\b"
   C17:
     - regex: "[Rr]esearch"
+  C21:
+    - script: >-
+        d=.agents/skills/release-notes/evals; f=$d/evals.yaml;
+        grep -q 'squash-merge' $f && grep -qE 'setup: *setup/squash-merge\.sh' $f
+        && grep -q 'The setup of case squash-merge' $d/setup/squash-merge.sh && grep -q 'CHANGELOG' $d/setup/squash-merge.sh
+        && ! grep -iqE '(run|execute).{0,40}[.]sh' $f
+        && git diff --quiet HEAD -- $d/files .agents/skills/release-notes-flawed
   C19:
     - regex: "[Ss]andbox[ -]failures?"
     - regex: "[Nn]o pass rate|not (be )?counted|(doesn't|does not|don't|do not|didn't|did not|never) count|count(s|ed)? (toward|against) (no|none)|excluded|left out"

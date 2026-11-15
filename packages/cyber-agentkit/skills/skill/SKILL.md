@@ -24,7 +24,7 @@ works through the aspects below.
 | `customize [aspect]` | the author wants to see or change which implementation each aspect uses, or how much each command applies on its own | [customize.md](references/customize.md) |
 
 Take an explicit command first. When the request describes a skill to write but names no command, as in `/skill a
-skill that drafts release notes`, follow `create`. Otherwise read the intent
+skill for release notes`, follow `create`. Otherwise read the intent
 from the request; if it fits two commands, ask which. With no request, follow `help`.
 
 When other work adds or edits a skill, such as implementing an issue, follow `create` for a new skill. For an existing
@@ -175,8 +175,8 @@ TRG-9, add an `argument-hint` that lists what the user types, such as `"<command
 node <this skill's folder>/scripts/skill.mjs <subcommand> ...
 ```
 
-Run it from the working folder, by the script's path, and never `cd` into this skill's folder or its plugin's,
-not even for one command: either may be read-only, and a shell left there fails every later command. When the
+Run it from the working folder, by the script's path. Never `cd` into this skill's folder or its plugin's, not even
+for one command: either may be read-only, and a shell left there fails every later command. When the
 script is missing or cannot run, use
 `pnpm exec cyber-agentkit skill` when the package is a direct dependency, else `npx -y cyber-agentkit@2.6.1 skill`,
 with the same arguments.
@@ -202,10 +202,10 @@ Before the first change, settle the level, take the first that answers, and stat
    command answers. Its shipped default is `apply` for `create`, `apply-safe` for `fix`, and `ask` for `enhance`. An
    unknown level, such as `derive`, is ignored: say so, and take the shipped default.
 
-A level set for `check` or `test` has no effect: say so.
+A level set for `check` or `test` does nothing: say so.
 
-At `apply`, `fix` and `enhance` undo a change after which `check` fails. Report each decision made on the author's
-behalf, such as a name, a place, or a draft: what was chosen, why, and whether `check` and `test` showed it safe or it
+At `apply`, `fix` and `enhance` undo a change after which `check` fails. Report each decision made for the author,
+such as a name or a place: what was chosen, why, and whether `check` and `test` showed it safe or it
 was applied on that reason alone.
 
 ### Test budget
@@ -241,12 +241,11 @@ A stop is the same every time:
 - Run no judge unless the author names one.
 - When `check` or `test`, run as the command asked, finds failures, end by offering `fix`, and change nothing unless the
   author accepts. When another command runs them, it goes on as its own steps say.
-- Never edit a skill that came from an installed plugin without saying first that a plugin update will overwrite the
-  change.
+- Before editing a skill from an installed plugin, say that a plugin update will overwrite the change.
 
 ## Done when
 
-Before reporting done, check each of these against the result. Report any that fails.
+Before reporting done, check each against the result, and report any that fails.
 
 - **C1.** When the skill named cannot be found, the reply says where it looked, and no file changed.
 - **C2.** `check` changed no file, and reported each check only a run can decide as not checked.
@@ -278,3 +277,4 @@ Before reporting done, check each of these against the result. Report any that f
   no file before the author picked.
 - **C19.** Sandbox failures were reported as uncounted, a held result as unsaved until `skill accept`, with no `fix`.
 - **C20.** `report` wrote the results as `skill report` printed them, and changed no other file.
+- **C21.** A new case came from `skill case`, its history in a setup script.
