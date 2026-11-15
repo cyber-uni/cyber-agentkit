@@ -26,5 +26,3 @@ minimumReleaseAgeStrict: true
 minimumReleaseAgeExclude:
   # Renovate security update: astro@7.2.8
   - astro@7.2.8
-  # min-release-age: lift universal-plugin@0.20.0 until 2026-11-14T11:00:00Z
-  - 'universal-plugin@0.20.0'
