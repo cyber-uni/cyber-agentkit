@@ -30,6 +30,10 @@ describe('addCase (R159)', () => {
 		addCase(skill.folder, 'red-check', { prompt: 'commit the parser change', setup: true })
 		const script = join(skill.folder, 'evals', 'setup', 'red-check.sh')
 		expect(readFileSync(script, 'utf8')).toMatch(/^#!\/bin\/sh\n/)
+		// It says which paths a run cannot write and how to install a git hook anyway (#290).
+		expect(readFileSync(script, 'utf8')).toContain('.git/hooks and .git/config are read-only')
+		expect(readFileSync(script, 'utf8')).toContain('git config --global core.hooksPath "$PWD/hooks"')
+		expect(readFileSync(script, 'utf8')).toContain('skill case try <skill folder> red-check')
 		expect(existsSync(join(skill.folder, 'evals', 'files', 'red-check'))).toBe(false)
 		expect(parse(evalsOf(skill.folder)).outcome[1]).toEqual({
 			id: 'red-check',
@@ -55,6 +59,122 @@ describe('addCase (R159)', () => {
 			expect(addCase(skill.folder, id, { prompt: 'x' })).toMatchObject({ code: 'bad-case-id' })
 		expect(evalsOf(skill.folder)).toBe(before)
 		expect(existsSync(join(skill.folder, 'escape'))).toBe(false)
+	})
+
+	it('edits evals.yaml in place, leaving every other entry as its author wrote it (#290)', () => {
+		const written = [
+			'runs: 3',
+			'outcome:',
+			'  - id: two-prs',
+			'    prompt: >-',
+			'      write the release notes for the two merged pull requests, grouped by label, one line',
+			'      each, without the bots',
+			'    files: files/two-prs',
+			'    criteria: [C4]',
+			'    checks:',
+			'      C4:',
+			'        - script: >-',
+			'            test -z "$(git status --porcelain)"',
+			'  # the rubrics below are shared',
+			'rubrics:',
+			'  C4:',
+			'    - regex: "notes"',
+			'',
+		].join('\n')
+		const skill = goodSkill({ 'evals/evals.yaml': written })
+		addCase(skill.folder, 'one-pr', { prompt: 'write the notes for one PR' })
+		const lines = written.split('\n')
+		expect(evalsOf(skill.folder)).toBe(
+			[
+				...lines.slice(0, 12),
+				'  - id: one-pr',
+				'    prompt: write the notes for one PR',
+				'    files: files/one-pr',
+				...lines.slice(12),
+			].join('\n'),
+		)
+		expect(removeCase(skill.folder, 'one-pr')).toMatchObject({ case: 'one-pr' })
+		expect(evalsOf(skill.folder)).toBe(written)
+	})
+
+	it('writes --criteria and each --check into the entry (#290)', () => {
+		const skill = goodSkill()
+		const added = addCase(skill.folder, 'clean', {
+			prompt: 'x',
+			criteria: ['C1', 'C2'],
+			checks: [
+				{ criterion: 'C2', script: 'test -z "$(git status --porcelain)"' },
+				{ criterion: 'C3', script: 'test -f out.md' },
+				{ criterion: 'C2', script: 'git log -1' },
+			],
+		})
+		expect(added).toMatchObject({ case: 'clean' })
+		expect(evalsOf(skill.folder)).toContain('criteria: [C1, C2, C3]')
+		expect(parse(evalsOf(skill.folder)).outcome[1]).toEqual({
+			id: 'clean',
+			prompt: 'x',
+			files: 'files/clean',
+			criteria: ['C1', 'C2', 'C3'],
+			checks: {
+				C2: [{ script: 'test -z "$(git status --porcelain)"' }, { script: 'git log -1' }],
+				C3: [{ script: 'test -f out.md' }],
+			},
+		})
+	})
+
+	it('refuses a criterion that is not an ID, and changes nothing', () => {
+		const skill = goodSkill()
+		const before = evalsOf(skill.folder)
+		expect(addCase(skill.folder, 'a', { prompt: 'x', criteria: ['C 1'] })).toMatchObject({ code: 'bad-criterion' })
+		expect(addCase(skill.folder, 'a', { prompt: 'x', checks: [{ criterion: '', script: 'true' }] })).toMatchObject({
+			code: 'bad-criterion',
+		})
+		expect(evalsOf(skill.folder)).toBe(before)
+		expect(existsSync(join(skill.folder, 'evals', 'files', 'a'))).toBe(false)
+	})
+
+	it('still adds the case to an outcome list written in flow style', () => {
+		const skill = goodSkill({ 'evals/evals.yaml': 'outcome: [{ id: two-prs, prompt: a, files: files/two-prs }]\n' })
+		addCase(skill.folder, 'b', { prompt: 'b' })
+		expect(parse(evalsOf(skill.folder)).outcome.map((item: { id: string }) => item.id)).toEqual(['two-prs', 'b'])
+	})
+
+	it('adds an outcome list at the end of an evals.yaml with only trigger cases', () => {
+		const written = 'trigger:\n  - { prompt: "write the notes", expect: fire }\n'
+		const skill = goodSkill({ 'evals/evals.yaml': written })
+		addCase(skill.folder, 'first', { prompt: 'x' })
+		expect(evalsOf(skill.folder)).toBe(`${written}outcome:\n  - id: first\n    prompt: x\n    files: files/first\n`)
+	})
+
+	it("starts a case from another case's setup with from (#290)", () => {
+		const skill = goodSkill({
+			'evals/evals.yaml': 'outcome:\n  - { id: base, prompt: a, files: files/two-prs, setup: setup/base.sh }\n',
+			'evals/setup/base.sh': '#!/bin/sh\nset -e\ngit commit -q --allow-empty -m start\n',
+		})
+		const added = addCase(skill.folder, 'more', { prompt: 'b', from: 'base' })
+		expect(added).toMatchObject({ paths: [join('evals', 'setup', 'more.sh')] })
+		expect(readFileSync(join(skill.folder, 'evals', 'setup', 'more.sh'), 'utf8')).toBe(
+			'#!/bin/sh\nset -e\ngit commit -q --allow-empty -m start\n',
+		)
+		expect(statSync(join(skill.folder, 'evals', 'setup', 'more.sh')).mode & 0o111).not.toBe(0)
+		expect(existsSync(join(skill.folder, 'evals', 'files', 'more'))).toBe(false)
+		expect(parse(evalsOf(skill.folder)).outcome[1]).toEqual({
+			id: 'more',
+			prompt: 'b',
+			files: 'files/two-prs',
+			setup: 'setup/more.sh',
+		})
+		addCase(skill.folder, 'own', { prompt: 'c', from: 'base', files: true })
+		expect(parse(evalsOf(skill.folder)).outcome[2]).toMatchObject({ files: 'files/own', setup: 'setup/own.sh' })
+	})
+
+	it('refuses from a case that is missing or has no setup script, and changes nothing', () => {
+		const skill = goodSkill()
+		const before = evalsOf(skill.folder)
+		expect(addCase(skill.folder, 'a', { prompt: 'x', from: 'nope' })).toMatchObject({ code: 'unknown-case' })
+		expect(addCase(skill.folder, 'a', { prompt: 'x', from: 'two-prs' })).toMatchObject({ code: 'no-setup' })
+		expect(evalsOf(skill.folder)).toBe(before)
+		expect(existsSync(join(skill.folder, 'evals', 'setup', 'a.sh'))).toBe(false)
 	})
 
 	it('refuses to write through a files folder linked outside the evals folder', () => {

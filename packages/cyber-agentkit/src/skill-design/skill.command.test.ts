@@ -1,7 +1,8 @@
-import { cpSync, mkdirSync, mkdtempSync, realpathSync, symlinkSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { parse } from 'yaml'
 import { run } from '../cli.js'
 import { goodSkill, goodSkillMd, makeSkill } from './skill-design.fixtures.js'
 
@@ -220,6 +221,39 @@ describe('skill case (R159)', () => {
 		stdout.mockClear()
 		expect(await kase('remove', skill.folder, 'red-check')).toBe(0)
 		expect(JSON.parse(printed())).toMatchObject({ case: 'red-check', paths: [join('evals', 'setup', 'red-check.sh')] })
+	})
+
+	it('adds a case with --criteria and --check (#290)', async () => {
+		const skill = goodSkill()
+		const code = await kase(
+			'add',
+			skill.folder,
+			'clean',
+			'--prompt',
+			'x',
+			'--criteria',
+			'C1, C2',
+			'--check',
+			'C2=test -z "$(git status --porcelain)"',
+		)
+		expect(code).toBe(0)
+		expect(parse(readFileSync(join(skill.folder, 'evals', 'evals.yaml'), 'utf8')).outcome[1]).toMatchObject({
+			criteria: ['C1', 'C2'],
+			checks: { C2: [{ script: 'test -z "$(git status --porcelain)"' }] },
+		})
+	})
+
+	it("adds a case from another case's setup with --from (#290)", async () => {
+		const skill = goodSkill()
+		await kase('add', skill.folder, 'base', '--prompt', 'a', '--setup')
+		stdout.mockClear()
+		expect(await kase('add', skill.folder, 'more', '--prompt', 'b', '--from', 'base')).toBe(0)
+		expect(JSON.parse(printed())).toMatchObject({ case: 'more', paths: [join('evals', 'setup', 'more.sh')] })
+	})
+
+	it('refuses a --check that is not <ID>=<script>, as a usage error', async () => {
+		expect(await kase('add', goodSkill().folder, 'a', '--prompt', 'x', '--check', 'test -f a')).toBe(2)
+		expect(stderr.mock.calls.join('')).toContain('error: bad-check:')
 	})
 
 	it('refuses an ID that would reach outside the evals folder, as a usage error', async () => {

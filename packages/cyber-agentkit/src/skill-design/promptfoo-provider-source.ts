@@ -8,6 +8,11 @@
  * need no judge in that folder, records whether the skill fired, and removes the folder. Each run also gets an empty home folder.
  * It resolves promptfoo from the npx install running it.
  *
+ * Setup only (#290): with the config's `keep`, a run (`skill case try`) needs no login and ends after the case's setup
+ * script, before any skill or plugin is copied in or a model is called. It copies the run's folder and home, as the
+ * setup left them, to `keep/folder` and `keep/home`, and answers the folder's `git status --porcelain`, with
+ * `metadata.tried` ({ status, said, failed }).
+ *
  * Usage limit (R162): a run whose error carries one of the config's `usageLimits` writes its message to the config's
  * `limitFile`, and every run that starts after that file exists ends before it does anything, as limit reached.
  *
@@ -476,11 +481,22 @@ function watchCost(costCap) {
   return { hooks: costCap ? [{ hooks: [before] }] : [], over: () => over }
 }
 
+// A setup-only run (skill case try): the run's folder and home, as the setup left them, are copied to keep/folder and
+// keep/home, and the answer is the folder's git status, what the setup printed, and whether it failed.
+function keepTried(keep, dir, home, { said, failed = false }, arm) {
+  let status
+  try { status = execFileSync('git', ['status', '--porcelain'], { cwd: dir, encoding: 'utf8', stdio: 'pipe' }) }
+  catch (error) { status = String(error.stderr || error.message) }
+  fs.cpSync(dir, path.join(keep, 'folder'), { recursive: true, verbatimSymlinks: true })
+  fs.cpSync(home, path.join(keep, 'home'), { recursive: true, verbatimSymlinks: true })
+  return { output: status, metadata: { arm, tried: { status, said, failed } } }
+}
+
 export default class SkillRun {
   constructor(options) { this.options = options; this.config = options.config }
   id() { return this.options.id || 'skill-run' }
   async callApi(prompt, context) {
-    const { arm, skillDir, skillName, pluginDir, pluginName, dependencyDirs = [], instruction, inner, timeout = 300, harness = 'claude-code', isolation, command, sandboxFaults = [], usageLimits = [], limitFile, costCap } = this.config
+    const { arm, skillDir, skillName, pluginDir, pluginName, dependencyDirs = [], instruction, inner, timeout = 300, harness = 'claude-code', isolation, command, sandboxFaults = [], usageLimits = [], limitFile, costCap, keep } = this.config
     // A skill loaded from a plugin is called <plugin>:<skill> (research E21).
     const names = pluginName ? [skillName, pluginName + ':' + skillName] : [skillName]
     const vars = context.vars
@@ -493,7 +509,8 @@ export default class SkillRun {
     if (reached) return { error: 'limit reached: ' + reached.text, metadata: { arm, limitReached: { ...reached, started: false } } }
     if (this.config.progressFile)
       try { fs.appendFileSync(this.config.progressFile, JSON.stringify({ event: 'start', case: context.test?.description ?? '', arm, run: vars.__run ? Number(vars.__run) : (context.repeatIndex ?? vars.__repeatIndex ?? 0) + 1, kind: vars.kind, t: Date.now() }) + '\n') } catch {}
-    if (harness === 'claude-code') {
+    // A setup-only run (skill case try) makes no model call, so it needs no login.
+    if (harness === 'claude-code' && !keep) {
       const login = await loginProblem(isolation)
       if (login) return { error: login, metadata: { arm } }
     }
@@ -544,12 +561,16 @@ export default class SkillRun {
         fs.copyFileSync(vars.setup, script)
         fs.chmodSync(script, 0o755)
         try {
-          runContained(scriptSandbox().cli, "'" + script.replace(/'/g, "'\''") + "'", { cwd: dir, own: [dir, home], env: { ...process.env, ...env }, timeout: 120000 })
+          const said = runContained(scriptSandbox().cli, "'" + script.replace(/'/g, "'\''") + "'", { cwd: dir, own: [dir, home], env: { ...process.env, ...env }, timeout: 120000 })
+          if (keep) return keepTried(keep, dir, home, { said: cap(String(said ?? '').trim()) }, arm)
         } catch (error) {
           const said = String([error.stdout, error.stderr].filter(Boolean).join('\n') || error.message).trim()
-          return { error: 'setup script failed: ' + (said.split('\n').filter(Boolean).slice(-1)[0] ?? 'it exited ' + error.status), metadata: { arm, setupFailed: { text: cap(said || 'it exited ' + error.status) } } }
+          const failed = { error: 'setup script failed: ' + (said.split('\n').filter(Boolean).slice(-1)[0] ?? 'it exited ' + error.status), metadata: { arm, setupFailed: { text: cap(said || 'it exited ' + error.status) } } }
+          if (keep) failed.metadata.tried = keepTried(keep, dir, home, { said: cap(said), failed: true }, arm).metadata.tried
+          return failed
         }
       }
+      if (keep) return keepTried(keep, dir, home, { said: '' }, arm)
       if (plugin) {
         fs.cpSync(pluginDir, plugin, { recursive: true })
         commit(plugin, 'plugin', { gitDir: pluginGit, force: isolation.containment?.mountPoints ? makeMountPoints(plugin, isolation.containment.mountPoints) : [] })

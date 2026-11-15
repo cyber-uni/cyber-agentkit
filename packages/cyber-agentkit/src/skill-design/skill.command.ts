@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { cli } from 'clibuilder'
@@ -11,7 +11,7 @@ import { findRoot, type ReferencePlugin, referenceLayers } from '../references/r
 import { resolveReference } from '../references/resolve-reference.js'
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
-import { addCase, type CaseChange, removeCase } from './eval-case.js'
+import { addCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
 import { doneWhenCriteria, type EvalReport, readEvalReport, reportMarkdown } from './eval-report.js'
 import {
 	type PluginEvalRun,
@@ -21,6 +21,7 @@ import {
 } from './plugin-eval-backend.js'
 import { listPlugins, type PluginList } from './plugin-load.js'
 import { runCheckScript } from './run-check-script.js'
+import { type TriedSetup, trySetup } from './setup-try.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
 import { checkSkill } from './skill-check.js'
 import { readSkill } from './skill-files.js'
@@ -1003,14 +1004,26 @@ function caseText(verb: 'added' | 'removed', change: CaseChange): string {
 	return `${lines.join('\n')}\n`
 }
 
+function triedText(tried: TriedSetup): string {
+	const lines = [
+		`${tried.failed ? 'setup failed' : 'setup ran'} for case ${tried.case}; kept the run's folder at ${tried.folder} and its home at ${tried.home}`,
+		'git status --porcelain:',
+		tried.status.trimEnd() || '(clean)',
+	]
+	if (tried.said) lines.push('the setup printed:', tried.said)
+	return `${lines.join('\n')}\n`
+}
+
 function caseFailure(failed: { code: string; problem: string }): never {
 	process.stderr.write(`error: ${failed.code}: ${failed.problem}\n`)
 	throw CliError.reported(
-		failed.code === 'bad-case-id' || failed.code === 'outside-evals' ? exitCodes.usage : exitCodes.error,
+		['bad-case-id', 'bad-criterion', 'bad-check', 'outside-evals'].includes(failed.code)
+			? exitCodes.usage
+			: exitCodes.error,
 	)
 }
 
-function caseCommand(_options: SkillCommandOptions): cli.Command {
+function caseCommand({ runPromptfoo: run = runPromptfoo }: SkillCommandOptions): cli.Command {
 	const skillOf = (folder: string) => {
 		const skill = readSkill(folder)
 		if (!skill) {
@@ -1022,7 +1035,7 @@ function caseCommand(_options: SkillCommandOptions): cli.Command {
 	const add = command({
 		name: 'add',
 		description:
-			"Add an outcome case to a skill: its entry in `evals/evals.yaml`, its files folder `evals/files/<case>/`, and with `--setup` a setup script `evals/setup/<case>.sh` that each run runs before the model starts. Touches nothing outside the skill's `evals/` folder, and changes nothing when the case exists.",
+			"Add an outcome case to a skill: its entry in `evals/evals.yaml`, its files folder `evals/files/<case>/`, and with `--setup` a setup script `evals/setup/<case>.sh` that each run runs before the model starts, or with `--from` a copy of another case's. The entry goes after the last case, and every other entry keeps its formatting. Touches nothing outside the skill's `evals/` folder, and changes nothing when the case exists.",
 		arguments: [
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() },
 			{
@@ -1039,8 +1052,22 @@ function caseCommand(_options: SkillCommandOptions): cli.Command {
 				type: t.boolean().optional(),
 			},
 			files: {
-				description: 'Make the files folder too when `--setup` is given.',
+				description: 'Make the files folder too when `--setup` or `--from` is given.',
 				type: t.boolean().optional(),
+			},
+			from: {
+				description:
+					"Start from another outcome case's setup: the new setup script `evals/setup/<case>.sh` is a copy of that case's, to edit, and the new case names that case's files folder unless `--files` is given. Implies `--setup`.",
+				type: t.string().optional(),
+			},
+			criteria: {
+				description: "The criteria the case tests, as comma-separated IDs from the skill's Criteria, such as `C1,C2`.",
+				type: t.string().optional(),
+			},
+			check: {
+				description:
+					"A `script` check on a criterion, as `<ID>=<script>`: a shell command run in the run's folder that exits 0 to pass. Repeat it for more; its criterion joins the case's criteria.",
+				type: t.array(t.string()).optional(),
 			},
 		},
 		examples: [
@@ -1054,16 +1081,51 @@ function caseCommand(_options: SkillCommandOptions): cli.Command {
 					"cyber-agentkit skill case add .agents/skills/commit red-check --prompt 'commit the parser change' --setup",
 				description: 'Add a case whose setup script makes its git history',
 			},
+			{
+				command:
+					"cyber-agentkit skill case add .agents/skills/commit clean-tree --prompt 'commit my change' --criteria C1 --check 'C2=test -z \"$(git status --porcelain)\"'",
+				description: 'Add a case with its criteria and a script check',
+			},
+			{
+				command:
+					"cyber-agentkit skill case add .agents/skills/commit red-check-amend --prompt 'amend the last commit' --from red-check",
+				description: "Add a case that starts from another case's setup script",
+			},
 		],
 		async run(
 			this: { format: Format },
-			args: { folder: string; case: string; prompt: string; setup?: boolean | undefined; files?: boolean | undefined },
+			args: {
+				folder: string
+				case: string
+				prompt: string
+				setup?: boolean | undefined
+				files?: boolean | undefined
+				from?: string | undefined
+				criteria?: string | undefined
+				check?: string[] | undefined
+			},
 		) {
 			const skill = skillOf(args.folder)
+			const checks: CaseCheck[] = []
+			for (const given of args.check ?? []) {
+				const at = given.indexOf('=')
+				if (at < 1 || at === given.length - 1)
+					caseFailure({
+						code: 'bad-check',
+						problem: `--check ${JSON.stringify(given)} is not <ID>=<script>, such as C2='test -f notes.md'`,
+					})
+				checks.push({ criterion: given.slice(0, at).trim(), script: given.slice(at + 1) })
+			}
 			const added = addCase(skill.folder, args.case, {
 				prompt: args.prompt,
-				setup: args.setup,
-				files: args.files === true || !args.setup,
+				from: args.from,
+				setup: args.setup || args.from !== undefined,
+				files: args.files === true || (!args.setup && args.from === undefined),
+				criteria: args.criteria
+					?.split(',')
+					.map((id) => id.trim())
+					.filter(Boolean),
+				checks,
 			})
 			if ('problem' in added) caseFailure(added)
 			return result(added, { render: { text: () => caseText('added', added) } })
@@ -1090,11 +1152,98 @@ function caseCommand(_options: SkillCommandOptions): cli.Command {
 			return result(removed, { render: { text: () => caseText('removed', removed) } })
 		},
 	})
+	const tryIt = command({
+		name: 'try',
+		description:
+			"Run one outcome case's setup script alone, as `skill test` runs it: in a git repository holding the case's files, in the same script sandbox and empty home, with no model call. Prints the folder's `git status --porcelain` and what the setup printed, and keeps the run's folder and home under the skill's results path (`try/<case>/folder` and `try/<case>/home`, replaced by the next try), so nothing needs deleting. Exits 1 when the setup script fails.",
+		arguments: [
+			{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() },
+			{ name: 'case', description: 'The outcome case whose setup to try.', type: t.string() },
+		],
+		options: {
+			harness: {
+				description: `The harness whose isolation the run takes, which sets where its home and config live: ${skillTestHarnesses.join(', ')}. Defaults to claude-code.`,
+				type: t.string().optional(),
+			},
+			root: {
+				description:
+					'The repository root, where the results path is and which decides whether the skill is inside the repository. Defaults to the one holding the current directory.',
+				type: t.string().optional(),
+			},
+			'trust-scripts': {
+				description:
+					"Run the setup script of a skill whose folder is outside the repository. Read it first: it runs on this machine, contained to the run's folder with no network.",
+				type: t.boolean().optional(),
+			},
+		},
+		examples: [
+			{
+				command: 'cyber-agentkit skill case try .agents/skills/commit red-check',
+				description: 'See the state the setup of red-check makes, without a model run',
+			},
+		],
+		async run(
+			this: { format: Format },
+			args: {
+				folder: string
+				case: string
+				harness?: string | undefined
+				root?: string | undefined
+				'trust-scripts'?: boolean | undefined
+			},
+		) {
+			const skill = skillOf(args.folder)
+			const harnessId = args.harness ?? 'claude-code'
+			const harness = (harnessIds as readonly string[]).includes(harnessId)
+				? skillTestHarness(harnessId as HarnessId)
+				: undefined
+			if (!harness || 'problem' in harness) {
+				process.stderr.write(
+					`error: unknown-harness: no harness ${harnessId}; skill case try takes ${skillTestHarnesses.join(', ')}\n`,
+				)
+				throw CliError.reported(exitCodes.usage)
+			}
+			const planned = planTest(skill, { cases: [args.case] })
+			if ('problem' in planned) {
+				process.stderr.write(`error: ${planned.code}: ${planned.problem}\n`)
+				throw CliError.reported(planned.code === 'unknown-case' ? exitCodes.usage : exitCodes.error)
+			}
+			const repository = args.root === undefined ? findRoot(process.cwd()) : resolve(args.root)
+			if (!isInside(repository, skill.folder) && !args['trust-scripts']) {
+				process.stderr.write(
+					`error: untrusted-scripts: ${skill.folder} is outside ${repository}, so its setup script runs only with --trust-scripts; read it first\n`,
+				)
+				throw CliError.reported(exitCodes.error)
+			}
+			const name =
+				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+			const results = resultsFolder(resultsBase(args.root, homedir()), name)
+			// The try folder sits beside the skill's results, which ignore themselves.
+			const ignore = join(results, '..', '.gitignore')
+			mkdirSync(join(results, '..'), { recursive: true })
+			if (!existsSync(ignore)) writeFileSync(ignore, '*\n')
+			const tried = await trySetup({
+				plan: planned.plan,
+				skillFolder: skill.folder,
+				skillName: name,
+				harness,
+				keep: join(results, 'try', args.case),
+				run,
+			})
+			if ('problem' in tried) {
+				process.stderr.write(`error: ${tried.code}: ${tried.problem}\n`)
+				throw CliError.reported(tried.code === 'no-setup' ? exitCodes.usage : exitCodes.error)
+			}
+			const answer = result(tried, { render: { text: () => triedText(tried) } })
+			if (tried.failed) answerThenFail(answer, this.format)
+			return answer
+		},
+	})
 	return command({
 		name: 'case',
 		description:
-			"Add or remove one outcome case of a skill, its files and its `evals/evals.yaml` entry, without touching anything outside the skill's `evals/` folder.",
-		commands: [add, remove],
+			"Add, remove, or try one outcome case of a skill: add and remove change its files and its `evals/evals.yaml` entry, without touching anything outside the skill's `evals/` folder; try runs its setup alone.",
+		commands: [add, remove, tryIt],
 	})
 }
 

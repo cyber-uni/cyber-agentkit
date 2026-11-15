@@ -933,10 +933,12 @@ describe('promptfooProviderSource setup scripts and script checks (R155, R156, R
 		setup,
 		rubrics = {},
 		writes,
+		keep,
 	}: {
 		setup?: string
 		rubrics?: Record<string, Record<string, unknown>[]>
 		writes?: string
+		keep?: string
 	}): {
 		response: Record<string, any>
 		outside: string
@@ -960,7 +962,7 @@ describe('promptfooProviderSource setup scripts and script checks (R155, R156, R
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {} } })
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}${keep ? `, keep: ${JSON.stringify(keep)}` : ''} } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify(vars)} })))
 `,
 		)
@@ -986,6 +988,36 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify
 			)
 			expect(report.status).toBe('M notes.txt')
 			expect(report.tracked).toBe('notes.txt\nstart.txt')
+		},
+	)
+
+	it.skipIf(!sandboxStarts)(
+		'with keep, stops after the setup, answers git status, and keeps the folder and home without a model call (#290)',
+		() => {
+			const keep = mkdtempSync(join(tmpdir(), 'provider-keep-'))
+			const { response } = scripted({
+				keep,
+				setup:
+					'#!/bin/sh\nset -e\nmkdir hooks\ngit config --global core.hooksPath "$PWD/hooks"\necho changed >> notes.txt\necho set up\n',
+			})
+			// An empty hooks folder is not in git status; the change to notes.txt is.
+			expect(response.output).toBe(' M notes.txt\n')
+			expect(response.metadata.tried).toEqual({ status: ' M notes.txt\n', said: 'set up', failed: false })
+			expect(readFileSync(join(keep, 'folder', 'notes.txt'), 'utf8')).toBe('hello\nchanged\n')
+			expect(existsSync(join(keep, 'folder', '.git', 'HEAD'))).toBe(true)
+			expect(readFileSync(join(keep, 'home', '.gitconfig'), 'utf8')).toContain('hooksPath')
+		},
+	)
+
+	it.skipIf(!sandboxStarts)(
+		'with keep, keeps the folder of a setup that fails, writing under .git/hooks (#290)',
+		() => {
+			const keep = mkdtempSync(join(tmpdir(), 'provider-keep-'))
+			const { response } = scripted({ keep, setup: '#!/bin/sh\nset -e\necho hi > .git/hooks/commit-msg\n' })
+			expect(response.error).toMatch(/^setup script failed: /)
+			expect(response.metadata.tried).toMatchObject({ failed: true, status: '' })
+			expect(response.metadata.tried.said).toMatch(/Read-only file system|Operation not permitted|Permission denied/)
+			expect(existsSync(join(keep, 'folder', 'notes.txt'))).toBe(true)
 		},
 	)
 
