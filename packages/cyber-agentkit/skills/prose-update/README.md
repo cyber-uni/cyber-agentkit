@@ -22,3 +22,7 @@ It ships in the `cyber-agentkit` plugin:
 /plugin marketplace add cyber-uni/marketplace
 /plugin install cyber-agentkit@cyber-uni
 ```
+
+## Research
+
+Skipped: written before the research step.

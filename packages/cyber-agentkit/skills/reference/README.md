@@ -22,6 +22,10 @@ It ships in the `cyber-agentkit` plugin:
 /plugin install cyber-agentkit@cyber-uni
 ```
 
+## Research
+
+Skipped: written before the research step.
+
 ## Loading a reference from a skill
 
 A calling skill names the references it needs in one line:

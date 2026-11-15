@@ -15,3 +15,7 @@ plan the implementation: tasks and stack choices go to the project tracker.
 The bar a spec is judged against is in [references/criteria.md](references/criteria.md), and the decision graph format
 is in [references/decision-graph.md](references/decision-graph.md). The rationale is in
 `.research/design-spec-criteria`. This skill lives in `.agents/skills/` and is used in this repository only.
+
+## Research
+
+Skipped: written before the research step.
