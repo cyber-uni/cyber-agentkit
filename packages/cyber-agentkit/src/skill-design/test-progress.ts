@@ -11,10 +11,14 @@ export type ProgressLine = {
 	/** 1-based. */
 	run: number
 	kind?: string
-	/** On `end`: `pass`, `fail`, `fired`, `not fired`, `not run`, or `sandbox failure` (R154). */
+	/** On `end`: `pass`, `fail`, `fired`, `not fired`, `not run`, `sandbox failure` (R154), or `limit reached` (R161). */
 	outcome?: string
-	/** On `end` with `not run`: why; with `sandbox failure`: the fault's text. */
+	/** On `end` with `not run`: why; with `sandbox failure`: the fault's text; with `limit reached`: the limit's message. */
 	reason?: string
+	/** On `end` with `limit reached`: false for a run that found the limit reached and never started. */
+	started?: boolean
+	/** On `end` with `limit reached`: when the limit resets, when its message says. */
+	resets?: string
 	durationMs?: number
 	/** When the line was written, in epoch milliseconds. */
 	t: number
@@ -76,7 +80,12 @@ export type ProgressWatch = {
 	now?: (() => number) | undefined
 }
 
-/** Reads the progress file as promptfoo appends to it: one line per finished run, and a heartbeat while none finishes (R98, R99). `stop` reads what is left and ends. */
+/**
+ * Reads the progress file as promptfoo appends to it: one line per finished run, and a heartbeat while none finishes
+ * (R98, R99). Once a run reaches the usage limit it says so once, with when it resets, and each run that then never
+ * starts is counted without a line of its own (R161). `stop` reads what is left, says how many runs the limit left,
+ * and ends.
+ */
 export function watchProgress(options: ProgressWatch): { stop: () => void } {
 	const { file, total, write } = options
 	const heartbeatMs = options.heartbeatMs ?? 30_000
@@ -85,6 +94,8 @@ export function watchProgress(options: ProgressWatch): { stop: () => void } {
 	let offset = 0
 	let done = 0
 	let quiet = now()
+	let limit: { text: string; resets?: string | undefined } | undefined
+	let left = 0
 
 	const key = (line: ProgressLine) => `${line.case}|${line.arm}|${line.run}`
 	function handle(line: ProgressLine): void {
@@ -95,9 +106,19 @@ export function watchProgress(options: ProgressWatch): { stop: () => void } {
 		running.delete(key(line))
 		done++
 		quiet = now()
+		if (line.outcome === 'limit reached') {
+			left++
+			if (!limit) {
+				limit = { text: line.reason ?? 'the usage limit', resets: line.resets }
+				write(
+					`usage limit reached: ${limit.text}; no new run starts${limit.resets ? `, and the runs left can run after it resets (${limit.resets})` : ''}`,
+				)
+			}
+			if (line.started === false) return
+		}
 		const arm = line.arm === 'skill' ? 'with skill' : 'without skill'
 		const outcome =
-			line.outcome === 'not run' || line.outcome === 'sandbox failure'
+			line.outcome === 'not run' || line.outcome === 'sandbox failure' || line.outcome === 'limit reached'
 				? `${line.outcome}: ${line.reason ?? 'no reason'}`
 				: line.outcome
 		const took = line.durationMs === undefined ? '' : `, ${clock(line.durationMs)}`
@@ -138,6 +159,10 @@ export function watchProgress(options: ProgressWatch): { stop: () => void } {
 		stop: () => {
 			clearInterval(timer)
 			poll(false)
+			if (limit)
+				write(
+					`limit reached: ${left} of ${total} runs left; run \`skill test --resume\`${limit.resets ? ` after it resets (${limit.resets})` : ' after it resets'} to run only them`,
+				)
 		},
 	}
 }

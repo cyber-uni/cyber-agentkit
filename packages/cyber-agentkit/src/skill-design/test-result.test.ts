@@ -5,8 +5,10 @@ import {
 	caseRates,
 	compareWithHistory,
 	compareWithPrevious,
+	limitReached,
 	readPromptfooOutput,
 	readReplies,
+	readRows,
 	shortReason,
 	type TestResult,
 } from './test-result.js'
@@ -616,5 +618,86 @@ describe('guard cases (R160)', () => {
 		expect(plain.criteria.some((item) => item.guard)).toBe(false)
 		const alone = readPromptfooOutput(output(both(true, true)), guarded, { ...meta, baselineRan: false })
 		expect(alone.cases.find((item) => item.case === 'two-prs')).not.toHaveProperty('baseline')
+	})
+})
+
+describe('the usage limit (R161)', () => {
+	const limitText = "You've hit your 5-hour limit · resets 4:40am (America/Los_Angeles)"
+	const reached = (spec: RowSpec, started = true) => {
+		const made = row({ ...spec, error: started ? `Claude Code returned an error result: ${limitText}` : undefined })
+		const meta = made.response.metadata as Record<string, unknown>
+		meta['limitReached'] = { text: limitText, resets: '4:40am (America/Los_Angeles)', started }
+		if (!started) (made.response as Record<string, unknown>)['error'] = `limit reached: ${limitText}`
+		return made
+	}
+	const rows = () => [
+		row({ case: 'two-prs', run: 0, checks: { C1: true, C2: true } }),
+		reached({ case: 'two-prs', run: 1 }),
+		reached({ case: 'two-prs', run: 2 }, false),
+		row({ case: 'two-prs', label: 'baseline', run: 0, checks: { C1: false, C2: false } }),
+		reached({ case: 'two-prs', label: 'baseline', run: 1 }, false),
+	]
+
+	it('marks the result incomplete, with the message, when it resets, and every run left', () => {
+		const result = readPromptfooOutput({ results: { results: rows() } }, plan, meta)
+		expect(result.incomplete).toEqual({
+			reason: 'limit reached',
+			text: limitText,
+			resets: '4:40am (America/Los_Angeles)',
+			left: [
+				{ case: 'two-prs', arm: 'skill', run: 2 },
+				{ case: 'two-prs', arm: 'skill', run: 3 },
+				{ case: 'two-prs', arm: 'baseline', run: 2 },
+			],
+		})
+		expect(result.notRun).toEqual([])
+		expect(result.sandboxFailures).toBeUndefined()
+	})
+
+	it('leaves the runs the limit ended or never started out of every pass rate', () => {
+		const result = readPromptfooOutput({ results: { results: rows() } }, plan, meta)
+		expect(result.criteria[0]).toMatchObject({ id: 'C1', passed: 1, ran: 1, baseline: { passed: 0, ran: 1 } })
+		expect(result.cases.find((item) => item.case === 'two-prs')).toEqual({
+			case: 'two-prs',
+			status: 'pass',
+			passed: 1,
+			ran: 1,
+		})
+	})
+
+	it('reports a case none of whose runs finished as not run, never as a fail', () => {
+		const result = readPromptfooOutput(
+			{ results: { results: [0, 1, 2].map((run) => reached({ case: 'two-prs', run }, run > 0)) } },
+			plan,
+			meta,
+		)
+		expect(result.cases.find((item) => item.case === 'two-prs')).toEqual({ case: 'two-prs', status: 'not-run' })
+		expect(result.criteria[0]).toMatchObject({ status: 'not-run', ran: 0 })
+	})
+
+	it('recognizes the message in a run error the provider did not mark, as from another engine', () => {
+		const result = readPromptfooOutput(output([{ case: 'two-prs', run: 0, error: `Error: ${limitText}` }]), plan, meta)
+		expect(result.incomplete).toMatchObject({ text: limitText, left: [{ case: 'two-prs', arm: 'skill', run: 1 }] })
+		expect(result.notRun).toEqual([])
+	})
+
+	it('leaves incomplete out when no run reached the limit', () => {
+		const result = readPromptfooOutput(output([{ case: 'two-prs', run: 0, error: 'time limit' }]), plan, meta)
+		expect(result).not.toHaveProperty('incomplete')
+	})
+
+	it('gives the reply of such a run that outcome, with the message as its reason', () => {
+		const replies = readReplies({ results: { results: rows() } })
+		expect(replies[1]).toMatchObject({ outcome: 'limit reached', reason: limitText })
+		expect(replies[2]).toMatchObject({ outcome: 'limit reached', reason: limitText })
+	})
+
+	it('keeps the fields a result is read from in the rows it saves for a resume (R162)', () => {
+		const kept = readRows({ results: { results: rows().map((item) => ({ ...item, extra: 'dropped' })) } })
+		expect(kept[0]).not.toHaveProperty('extra')
+		expect(readPromptfooOutput({ results: { results: kept } }, plan, meta)).toEqual(
+			readPromptfooOutput({ results: { results: rows() } }, plan, meta),
+		)
+		expect(kept.map(limitReached)).toEqual([false, true, true, false, true])
 	})
 })

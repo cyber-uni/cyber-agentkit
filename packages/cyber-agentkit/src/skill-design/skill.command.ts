@@ -1,4 +1,4 @@
-import { existsSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { cli } from 'clibuilder'
@@ -33,6 +33,7 @@ import {
 	runPromptfoo,
 	runTest,
 	saveResult,
+	testFingerprint,
 } from './skill-test.js'
 import {
 	harnessDefault,
@@ -46,7 +47,7 @@ import { type SkillVetReport, vetSkill } from './skill-vet.js'
 import { defaultTestBudget, estimateTest, estimateText } from './test-estimate.js'
 import { planScripts, planTest, withoutScripts } from './test-plan.js'
 import { planLine } from './test-progress.js'
-import type { CaseStatus, TestResult } from './test-result.js'
+import type { CaseStatus, Incomplete, ResumeOptions, Row, TestResult } from './test-result.js'
 import { type GitHubGet, githubGet, type JsonGet, jsonGet, type SupplyChainSignals } from './vet-signals.js'
 import { cloneSource, type FetchSource, parseVetSource } from './vet-source.js'
 import { readTrustList, trustListName } from './vet-trust.js'
@@ -274,6 +275,16 @@ function testText(result: TestResult, folder?: string): string {
 				`sandbox failure: ${id} — ${counts.skill} with the skill, ${counts.baseline} without — ${sandbox.find((item) => item.case === id)?.text}`,
 			)
 	}
+	// A reached usage limit comes first too: the runs it left count toward no pass rate below (R161).
+	const incomplete = result.incomplete
+	if (incomplete) {
+		const left = incomplete.left
+			.map((item) => `${item.case} (${item.arm === 'skill' ? 'with skill' : 'without skill'}, run ${item.run})`)
+			.join(', ')
+		lines.push(
+			`warning: incomplete: the usage limit was reached (${incomplete.text})${incomplete.resets && !incomplete.text.includes(incomplete.resets) ? `; it resets ${incomplete.resets}` : ''}; ${incomplete.left.length} ${incomplete.left.length === 1 ? 'run is' : 'runs are'} left and count toward no pass rate: ${left}`,
+		)
+	}
 	for (const item of result.trigger)
 		lines.push(
 			`trigger ${item.case} (${item.expect}): ${item.status}, fired ${item.fired} of ${item.ran} — ${item.prompt}`,
@@ -298,6 +309,11 @@ function testText(result: TestResult, folder?: string): string {
 	if (result.replies) lines.push(`replies of every run: ${folder ? join(folder, result.replies) : result.replies}`)
 	if (result.partial)
 		lines.push(`partial: only ${result.partial.cases.join(', ')} ran; not saved as the expected result`)
+	if (incomplete)
+		lines.push(
+			`incomplete: not saved as the expected result; run \`skill test --resume\` on the skill${incomplete.resets ? ` after the limit resets (${incomplete.resets})` : ' after the limit resets'} to run only the runs left`,
+		)
+	if (result.resumedFrom) lines.push(`resumed: holds the runs of ${result.resumedFrom} and the runs it had left`)
 	if (result.savedAsExpected) lines.push('no expected result yet: saved this passing result as evals/expected.json')
 	if (result.expectedHeld)
 		lines.push(
@@ -383,6 +399,11 @@ function testCommand({
 					"Run the setup scripts and `script` checks of a skill whose folder is outside the repository (`--root`, else the one holding the current directory). Without it, test lists them and reports the cases that need them as not run. Read them first: they run on this machine, contained to each run's folder with no network.",
 				type: t.boolean().optional(),
 			},
+			resume: {
+				description:
+					'Run only the runs the last result left when the usage limit stopped it, with the options that run had, and merge them into it. Refused when the last result is not incomplete, or when the skill or its eval cases changed since; takes no --case, --model, --judge, --baseline, --harness, or --backend.',
+				type: t.boolean().optional(),
+			},
 			accept: {
 				description:
 					"After the run, also write its result to the skill's `evals/expected.json`, the expected result that later runs compare with. A result with sandbox failures is held back: accept it with `skill accept` once you have seen it.",
@@ -417,6 +438,10 @@ function testCommand({
 				description: 'Test it on `claude plugin eval`',
 			},
 			{
+				command: 'cyber-agentkit skill test .agents/skills/release-notes --resume',
+				description: 'Finish a test the usage limit stopped, once the limit resets',
+			},
+			{
 				command: 'cyber-agentkit skill test .agents/skills/release-notes --accept',
 				description: "Test it and keep the result as the skill's expected result",
 			},
@@ -437,6 +462,7 @@ function testCommand({
 				plugin?: string[] | undefined
 				root?: string | undefined
 				accept?: boolean | undefined
+				resume?: boolean | undefined
 				'trust-scripts'?: boolean | undefined
 				case?: string[] | undefined
 				estimate?: boolean | undefined
@@ -454,6 +480,52 @@ function testCommand({
 					'error: partial-accept: --accept cannot be used with --case; a partial result is never the expected result\n',
 				)
 				throw CliError.reported(exitCodes.usage)
+			}
+			// A resume runs again with the options the incomplete result was made with (R162).
+			let resume: { rows: Row[]; latest: TestResult; incomplete: Incomplete } | undefined
+			if (args.resume) {
+				const given = (['case', 'model', 'judge', 'baseline', 'harness', 'backend', 'estimate'] as const).filter(
+					(key) => args[key] !== undefined,
+				)
+				if (given.length) {
+					process.stderr.write(
+						`error: resume-options: --resume runs with the options of the result it resumes; drop ${given.map((key) => `--${key}`).join(', ')}\n`,
+					)
+					throw CliError.reported(exitCodes.usage)
+				}
+				const name =
+					typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+				const folder = resultsFolder(resultsBase(args.root, homedir()), name)
+				const latest = readLatest(folder)
+				const incomplete = latest?.incomplete
+				if (!latest || !incomplete) {
+					process.stderr.write(
+						`error: nothing-to-resume: the last test of ${name} is ${latest ? 'not incomplete' : 'not saved'}; run \`skill test\` without --resume\n`,
+					)
+					throw CliError.reported(exitCodes.error)
+				}
+				let rows: Row[] | undefined
+				try {
+					rows = incomplete.runs
+						? (JSON.parse(readFileSync(join(folder, incomplete.runs), 'utf8')) as Row[])
+						: undefined
+				} catch {
+					rows = undefined
+				}
+				if (!rows || !incomplete.options || !incomplete.fingerprint) {
+					process.stderr.write(
+						`error: resume-unavailable: the last test of ${name} kept no runs to resume from; run the whole test again\n`,
+					)
+					throw CliError.reported(exitCodes.error)
+				}
+				resume = { rows, latest, incomplete }
+				args.harness = incomplete.options.harness
+				args.backend = incomplete.options.backend
+				args.case = incomplete.options.cases
+				args.model = incomplete.options.model
+				args.judge = incomplete.options.judge
+				args.baseline = incomplete.options.baseline
+				args['trust-scripts'] = incomplete.options.trustScripts
 			}
 			const harnessId = args.harness ?? 'claude-code'
 			if (!(harnessIds as readonly string[]).includes(harnessId)) {
@@ -528,6 +600,13 @@ function testCommand({
 					)
 				}
 			}
+			const fingerprint = backend === 'promptfoo' ? testFingerprint(planned.plan, skill.folder) : undefined
+			if (resume && resume.incomplete.fingerprint !== fingerprint) {
+				process.stderr.write(
+					`error: resume-changed: the skill or its eval cases changed since the test ${resume.latest.at} stopped, so its runs cannot be merged; run the whole test again\n`,
+				)
+				throw CliError.reported(exitCodes.error)
+			}
 			const home = homedir()
 			if (args.estimate) {
 				const skillName =
@@ -559,7 +638,11 @@ function testCommand({
 			const report =
 				this.ui?.displayLevel === 'none' ? undefined : (line: string) => void process.stderr.write(`${line}\n`)
 			const resultFolder = resultsFolder(resultsBase(args.root, home), name)
-			report?.(planLine(planned.plan, lastResult(resultFolder, skill.folder)))
+			if (resume)
+				report?.(
+					`skill test: resuming ${resume.latest.at}: ${resume.incomplete.left.length} runs left of ${resume.latest.totalRuns ?? 'an unknown number'}; ${planned.plan.concurrency} at once`,
+				)
+			else report?.(planLine(planned.plan, lastResult(resultFolder, skill.folder)))
 			const common = {
 				plan: planned.plan,
 				skill,
@@ -583,26 +666,52 @@ function testCommand({
 								installed: await installed(),
 							},
 							progress: report ? { ...progress, write: report } : undefined,
+							resume: resume && {
+								rows: resume.rows,
+								left: resume.incomplete.left,
+								from: resume.latest.at,
+								durationMs: resume.latest.durationMs,
+							},
 						})
 			if ('problem' in ran) {
 				process.stderr.write(`error: ${('code' in ran && ran.code) || `${backend}-failed`}: ${ran.problem}\n`)
 				throw CliError.reported(exitCodes.error)
 			}
 			for (const warning of ran.warnings) process.stderr.write(`warning: ${warning}\n`)
-			const saved = saveResult(resultFolder, ran.result, skill.folder, ran.replies)
+			// An incomplete result keeps what a resume needs: the options it ran with, and what the skill and plan were (R162).
+			const options: ResumeOptions = {
+				harness: harness.id,
+				backend,
+				...(args.case?.length ? { cases: args.case } : {}),
+				...(args.model !== undefined ? { model: args.model } : {}),
+				...(args.judge !== undefined ? { judge: args.judge } : {}),
+				...(args.baseline !== undefined ? { baseline: args.baseline } : {}),
+				...(args['trust-scripts'] ? { trustScripts: true } : {}),
+			}
+			const toSave: TestResult =
+				ran.result.incomplete && fingerprint
+					? { ...ran.result, incomplete: { ...ran.result.incomplete, fingerprint, options } }
+					: ran.result
+			const saved = saveResult(
+				resultFolder,
+				toSave,
+				skill.folder,
+				ran.replies,
+				'rows' in ran ? (ran.rows as Row[]) : undefined,
+			)
 			const failed = [...saved.trigger, ...saved.criteria].some((item) => item.status === 'fail')
-			// The first run that passes becomes the expected result when there is none (R80).
-			const firstPass = !failed && !saved.partial && !existsSync(expectedPath(skill.folder))
+			// The first run that passes becomes the expected result when there is none (R80); an incomplete one never does (R161).
+			const firstPass = !failed && !saved.partial && !saved.incomplete && !existsSync(expectedPath(skill.folder))
 			// A result with sandbox failures becomes the expected one only by `skill accept`, once the author has seen it (R154).
-			const held = (args.accept || firstPass) && !!saved.sandboxFailures?.length
-			if ((args.accept || firstPass) && !held) acceptResult(saved, skill.folder)
+			const held = (args.accept || firstPass) && !!saved.sandboxFailures?.length && !saved.incomplete
+			if ((args.accept || firstPass) && !held && !saved.incomplete) acceptResult(saved, skill.folder)
 			const reported: TestResult = held
 				? { ...saved, expectedHeld: true }
 				: !args.accept && firstPass
 					? { ...saved, savedAsExpected: true }
 					: saved
 			const answer = result(reported, { render: { text: () => testText(reported, resultFolder) } })
-			if (failed) answerThenFail(answer, this.format)
+			if (failed || saved.incomplete) answerThenFail(answer, this.format)
 			return answer
 		},
 	})
@@ -642,6 +751,12 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 			if (latest.partial) {
 				process.stderr.write(
 					`error: partial-result: the last test of ${name} ran only ${latest.partial.cases.join(', ')}; run the whole test to accept it\n`,
+				)
+				throw CliError.reported(exitCodes.error)
+			}
+			if (latest.incomplete) {
+				process.stderr.write(
+					`error: incomplete-result: the usage limit stopped the last test of ${name} with ${latest.incomplete.left.length} runs left; run \`skill test --resume\` to finish it, then accept it\n`,
 				)
 				throw CliError.reported(exitCodes.error)
 			}

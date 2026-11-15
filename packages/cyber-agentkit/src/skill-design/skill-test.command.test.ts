@@ -1260,3 +1260,174 @@ function acceptLatest(skillFolder: string): void {
 	) as TestResult
 	acceptResult(saved, skillFolder)
 }
+
+describe('skill test and the usage limit (R161, R162)', () => {
+	const limitText = "You've hit your 5-hour limit · resets 4:40am (America/Los_Angeles)"
+	const gitRepo = () => {
+		const root = repo()
+		mkdirSync(join(root, '.git'))
+		return root
+	}
+	const latestOf = (root: string): TestResult =>
+		JSON.parse(readFileSync(join(root, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'), 'utf8'))
+	/** The fake promptfoo, with every third run in each arm ended by the usage limit, the first of them started. */
+	const limited =
+		(seen: { config?: Record<string, unknown> } = {}): PromptfooRun =>
+		async (folder, config, out) => {
+			const ran = await fakeRun(seen)(folder, config, out)
+			if (!('output' in ran)) return ran
+			let first = true
+			// a trigger case runs with the skill only: the provider skips its baseline before anything else
+			for (const item of (ran.output as { results: { results: Record<string, any>[] } }).results.results)
+				if (String(item['testCase'].description).startsWith('trigger') && item['provider'].label === 'baseline')
+					item['response'].metadata.skipped = true
+				else if (item['repeatIndex'] === 2) {
+					item['response'].error = first
+						? `Claude Code returned an error result: ${limitText}`
+						: `limit reached: ${limitText}`
+					item['response'].metadata.limitReached = {
+						text: limitText,
+						resets: '4:40am (America/Los_Angeles)',
+						started: first,
+					}
+					first = false
+				}
+			return ran
+		}
+	/** The fake promptfoo for a resume: one row per test and arm it names, each passing, with the run it stands for. */
+	const resuming =
+		(seen: { config?: Record<string, unknown> }): PromptfooRun =>
+		async (folder, config) => {
+			const parsed: Record<string, unknown> = parse(readFileSync(join(folder, config), 'utf8'))
+			seen.config = parsed
+			const tests = parsed['tests'] as { description: string; vars: Record<string, string> }[]
+			const results = tests.flatMap((test) =>
+				(JSON.parse(test.vars['__arms'] ?? '[]') as string[]).map((arm) => {
+					const ids = Object.keys(JSON.parse(test.vars['rubrics'] ?? '{}'))
+					return {
+						provider: { label: arm === 'skill' ? 'with-skill' : 'baseline' },
+						testCase: { description: test.description, vars: test.vars },
+						repeatIndex: 0,
+						response: {
+							output: 'x',
+							metadata: { fired: true, checks: Object.fromEntries(ids.map((id) => [id, { pass: true }])) },
+						},
+						gradingResult: { componentResults: ids.map((metric) => ({ pass: true, assertion: { metric } })) },
+					}
+				}),
+			)
+			return { output: { results: { results } } }
+		}
+
+	it('passes the provider the usage-limit messages and a file to stop the runs after one', async () => {
+		const seen: { config?: Record<string, unknown> } = {}
+		await test(goodSkill().folder, fakeRun(seen), gitRepo())
+		const providers = (seen.config?.['providers'] ?? []) as { config: Record<string, unknown> }[]
+		const config = providers[0]?.config
+		expect(config?.['usageLimits']).toEqual([expect.objectContaining({ id: 'claude-code-usage-limit' })])
+		expect(String(config?.['limitFile'])).toMatch(/usage-limit\.json$/)
+	})
+
+	it('saves an incomplete result with the runs left, never as expected, and exits 1', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		expect(await test(skill.folder, limited(), root, '--accept')).toBe(1)
+		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+		const latest = latestOf(root)
+		expect(latest.incomplete).toMatchObject({
+			reason: 'limit reached',
+			text: limitText,
+			resets: '4:40am (America/Los_Angeles)',
+			options: { harness: 'claude-code', backend: 'promptfoo' },
+		})
+		// 6 trigger cases with the skill, 1 outcome case in both arms: one run each left
+		expect(latest.incomplete?.left).toHaveLength(8)
+		expect(latest.incomplete?.runs).toMatch(/\.runs\.json$/)
+		expect(latest).not.toHaveProperty('savedAsExpected')
+		expect(await sub('accept', skill.folder, root)).toBe(1)
+		expect(stderr.mock.calls.join('')).toContain('error: incomplete-result:')
+		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+	})
+
+	it('says at the top of the text report that the limit was reached, when it resets, and which runs are left', async () => {
+		const root = gitRepo()
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
+			createSkillCommand({ ...offline, runPromptfoo: limited() }),
+		)
+		await app.parse(['node', 'cyber-agentkit', 'skill', 'test', goodSkill().folder, '--root', root])
+		const lines = printed().split('\n')
+		expect(lines[1]).toMatch(
+			/^warning: incomplete: the usage limit was reached \(You've hit your 5-hour limit .*\); 8 runs are left and count toward no pass rate: .*two-prs \(with skill, run 3\), two-prs \(without skill, run 3\)/,
+		)
+		expect(printed()).toContain('incomplete: not saved as the expected result; run `skill test --resume`')
+	})
+
+	it('resumes only the runs left, with the options the run had, and merges them into one complete result', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, limited(), root)
+		const stopped = latestOf(root)
+		const seen: { config?: Record<string, unknown> } = {}
+		expect(await test(skill.folder, resuming(seen), root, '--resume')).toBe(0)
+		const tests = seen.config?.['tests'] as { description: string; vars: Record<string, string> }[]
+		expect(tests.map((item) => [item.description, item.vars['__run'], item.vars['__arms']])).toContainEqual([
+			'two-prs',
+			'3',
+			'["skill","baseline"]',
+		])
+		expect(tests).toHaveLength(7)
+		expect(seen.config?.['evaluateOptions']).toMatchObject({ repeat: 1 })
+		const merged = latestOf(root)
+		expect(merged).not.toHaveProperty('incomplete')
+		expect(merged.resumedFrom).toBe(stopped.at)
+		expect(merged.cases.find((item) => item.case === 'two-prs')).toMatchObject({ status: 'pass', passed: 3, ran: 3 })
+		expect(merged.criteria.every((item) => item.status !== 'fail')).toBe(true)
+		// the first full pass is saved as expected, as an unbroken run would be
+		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(true)
+		const replies = JSON.parse(
+			readFileSync(join(root, '.agents', 'skill-design', 'results', 'release-notes', merged.replies as string), 'utf8'),
+		) as { case: string; arm: string; run: number; outcome: string }[]
+		expect(
+			replies
+				.filter((item) => item.case === 'two-prs' && item.arm === 'with-skill')
+				.map((item) => item.run)
+				.sort(),
+		).toEqual([1, 2, 3])
+		expect(replies.some((item) => item.outcome === 'limit reached')).toBe(false)
+		// the runs file is kept only while a resume can need it
+		expect(
+			readdirSync(join(root, '.agents', 'skill-design', 'results', 'release-notes')).some((name) =>
+				name.endsWith('.runs.json'),
+			),
+		).toBe(false)
+	})
+
+	it('refuses a resume when the last result is complete, and runs nothing', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}), root)
+		const run = vi.fn(fakeRun({}))
+		expect(await test(skill.folder, run, root, '--resume')).toBe(1)
+		expect(stderr.mock.calls.join('')).toContain('error: nothing-to-resume:')
+		expect(run).not.toHaveBeenCalled()
+	})
+
+	it('refuses a resume when the skill changed since, and runs nothing', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, limited(), root)
+		appendFileSync(join(skill.folder, 'SKILL.md'), '\nA new line.\n')
+		const run = vi.fn(fakeRun({}))
+		expect(await test(skill.folder, run, root, '--resume')).toBe(1)
+		expect(stderr.mock.calls.join('')).toContain('error: resume-changed:')
+		expect(run).not.toHaveBeenCalled()
+	})
+
+	it('refuses options a resume takes from the result it resumes', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, limited(), root)
+		expect(await test(skill.folder, fakeRun({}), root, '--resume', '--model', 'x')).toBe(2)
+		expect(stderr.mock.calls.join('')).toContain('error: resume-options:')
+	})
+})
