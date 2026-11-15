@@ -1,6 +1,6 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
-import { isMap, isSeq, parseDocument, YAMLMap, YAMLSeq } from 'yaml'
+import { Document, isMap, isSeq, parseDocument, type YAMLMap, type YAMLSeq } from 'yaml'
 import { evalsProblems } from './verification-checks.js'
 
 /**
@@ -9,7 +9,13 @@ import { evalsProblems } from './verification-checks.js'
  */
 
 /** Why a case command changed nothing. */
-export type CaseProblemCode = 'bad-case-id' | 'case-exists' | 'unknown-case' | 'evals-invalid' | 'outside-evals'
+export type CaseProblemCode =
+	| 'bad-case-id'
+	| 'bad-criterion'
+	| 'case-exists'
+	| 'unknown-case'
+	| 'evals-invalid'
+	| 'outside-evals'
 
 export type CaseChange = {
 	skill: string
@@ -47,9 +53,12 @@ function strictlyInside(root: string, path: string): boolean {
 
 function readEvals(
 	skillFolder: string,
-): { file: string; doc: ReturnType<typeof parseDocument> } | { problem: { code: 'evals-invalid'; problem: string } } {
+):
+	| { file: string; source: string; doc: ReturnType<typeof parseDocument> }
+	| { problem: { code: 'evals-invalid'; problem: string } } {
 	const file = join(skillFolder, 'evals', 'evals.yaml')
-	const doc = parseDocument(existsSync(file) ? readFileSync(file, 'utf8') : '')
+	const source = existsSync(file) ? readFileSync(file, 'utf8') : ''
+	const doc = parseDocument(source)
 	if (doc.errors.length)
 		return {
 			problem: {
@@ -61,7 +70,80 @@ function readEvals(
 	const problems = evalsProblems(value)
 	if (problems.length)
 		return { problem: { code: 'evals-invalid' as const, problem: `evals/evals.yaml: ${problems.join('; ')}` } }
-	return { file, doc }
+	return { file, source, doc }
+}
+
+/** Where the line holding `offset` starts. */
+const lineStart = (source: string, offset: number) => source.lastIndexOf('\n', offset - 1) + 1
+/** Where the line after the one `offset` ends on starts: `offset` itself when it already starts a line. */
+const nextLine = (source: string, offset: number) => {
+	if (offset === 0 || source[offset - 1] === '\n') return offset
+	const end = source.indexOf('\n', offset)
+	return end < 0 ? source.length : end + 1
+}
+
+/**
+ * The column of the `-` that opens a block sequence item, or undefined when the item does not open its line with one
+ * (a flow sequence, or an item on the line of another).
+ */
+function dashColumn(source: string, item: { range?: [number, number, number] | null }): number | undefined {
+	if (!item.range) return undefined
+	const start = lineStart(source, item.range[0])
+	const match = /^( *)- +$/.exec(source.slice(start, item.range[0]))
+	return match ? (match[1] as string).length : undefined
+}
+
+/** The text of a one-item block sequence holding `entry`, its `-` at `column`. */
+function entryText(entry: Record<string, unknown>, column: number): string {
+	const doc = new Document([entry])
+	const item = (doc.contents as YAMLSeq).items[0] as YAMLMap
+	for (const pair of item.items) if (isSeq(pair.value)) pair.value.flow = true
+	const text = doc.toString({ flowCollectionPadding: false })
+	return text
+		.split('\n')
+		.map((line) => (line ? ' '.repeat(column) + line : line))
+		.join('\n')
+}
+
+/**
+ * `evals.yaml` with its text edited where the change is, so every other entry keeps the formatting its author gave
+ * it, or undefined when the edit cannot be placed in the text. `expected` is the value the edit must leave; text that
+ * reads back as anything else is not used.
+ */
+function inPlace(expected: unknown, edited: string | undefined): string | undefined {
+	if (edited === undefined) return undefined
+	const read = parseDocument(edited)
+	return !read.errors.length && JSON.stringify(read.toJS()) === JSON.stringify(expected) ? edited : undefined
+}
+
+/** The text with `entry` added after the last outcome case, or a new `outcome` list at the end. */
+function addedText(source: string, doc: ReturnType<typeof parseDocument>, entry: Record<string, unknown>) {
+	const outcome = doc.get('outcome', true)
+	if (outcome === undefined) {
+		if (!isMap(doc.contents) && doc.contents !== null) return undefined
+		const head = source === '' || source.endsWith('\n') ? source : `${source}\n`
+		return `${head}outcome:\n${entryText(entry, 2)}`
+	}
+	if (!isSeq(outcome) || outcome.flow || !outcome.items.length) return undefined
+	const last = outcome.items[outcome.items.length - 1] as YAMLMap
+	const column = dashColumn(source, last)
+	if (column === undefined || !last.range) return undefined
+	const at = nextLine(source, last.range[2])
+	const before = source.slice(0, at)
+	return `${before}${before.endsWith('\n') ? '' : '\n'}${entryText(entry, column)}${source.slice(at)}`
+}
+
+/** The text with the outcome case at `index` cut out, from its `-` to the next case's. */
+function removedText(source: string, doc: ReturnType<typeof parseDocument>, index: number) {
+	const outcome = doc.get('outcome', true)
+	if (!isSeq(outcome) || outcome.flow || outcome.items.length < 2) return undefined
+	const item = outcome.items[index] as YAMLMap
+	const next = outcome.items[index + 1] as YAMLMap | undefined
+	if (dashColumn(source, item) === undefined || !item.range) return undefined
+	if (next && dashColumn(source, next) === undefined) return undefined
+	const start = lineStart(source, item.range[0])
+	const end = next?.range ? lineStart(source, next.range[0]) : nextLine(source, item.range[2])
+	return source.slice(0, start) + source.slice(end)
 }
 
 /** What a new setup script holds: a shell script with the rules it runs under. */
@@ -75,10 +157,18 @@ set -e
 `
 }
 
+/** A `script` check on a criterion, as `--check <ID>=<script>` gives it. */
+export type CaseCheck = { criterion: string; script: string }
+
+/** A criterion ID, as a case's `criteria` and `checks` name it. */
+const criterionId = /^[A-Za-z][A-Za-z0-9._-]*$/
+
 /**
  * Adds an outcome case: its entry in `evals/evals.yaml` (made when missing), its files folder `evals/files/<id>/`,
  * and, with `setup`, its setup script `evals/setup/<id>.sh`. With `setup`, the files folder is made only when `files`
- * is also set. Changes nothing when the ID is taken or not a plain name.
+ * is also set. `criteria` and the criteria of `checks` become the case's `criteria`, and each check a `script` check
+ * of its criterion. The entry goes after the last case in the file's own text, so no other entry is rewritten.
+ * Changes nothing when the ID is taken or not a plain name.
  */
 export function addCase(
 	skillFolder: string,
@@ -87,15 +177,29 @@ export function addCase(
 		prompt,
 		setup = false,
 		files = !setup,
-	}: { prompt: string; setup?: boolean | undefined; files?: boolean | undefined },
+		criteria = [],
+		checks = [],
+	}: {
+		prompt: string
+		setup?: boolean | undefined
+		files?: boolean | undefined
+		criteria?: string[] | undefined
+		checks?: CaseCheck[] | undefined
+	},
 ): CaseChange | { code: CaseProblemCode; problem: string } {
 	const bad = idProblem(id)
 	if (bad) return bad
+	for (const criterion of [...criteria, ...checks.map((check) => check.criterion)])
+		if (!criterionId.test(criterion))
+			return {
+				code: 'bad-criterion',
+				problem: `${JSON.stringify(criterion)} is not a criterion ID, such as C1: use letters, digits, '.', '_', and '-', starting with a letter`,
+			}
 	const read = readEvals(skillFolder)
 	if ('problem' in read) return read.problem
-	const { file, doc } = read
-	const outcome = doc.get('outcome')
-	if ((doc.toJS()?.outcome ?? []).some((item: { id?: string }) => item.id === id))
+	const { file, source, doc } = read
+	const before = (doc.toJS() ?? {}) as { outcome?: { id?: string }[] }
+	if ((before.outcome ?? []).some((item) => item.id === id))
 		return { code: 'case-exists', problem: `evals/evals.yaml already has a case ${id}` }
 	const evals = join(skillFolder, 'evals')
 	const filesPath = join('files', id)
@@ -106,18 +210,28 @@ export function addCase(
 		if (existsSync(join(evals, path)))
 			return { code: 'case-exists', problem: `evals/${path} already exists; remove it or pick another ID` }
 	}
-	const entry = new YAMLMap()
-	entry.set('id', id)
-	entry.set('prompt', prompt)
-	if (files) entry.set('files', filesPath.split('\\').join('/'))
-	if (setup) entry.set('setup', setupPath.split('\\').join('/'))
-	if (isSeq(outcome)) outcome.add(entry)
-	else {
-		const list = new YAMLSeq()
-		list.add(entry)
-		if (!isMap(doc.contents)) doc.contents = doc.createNode({}) as never
-		doc.set('outcome', list)
+	const named = [...new Set([...criteria, ...checks.map((check) => check.criterion)])]
+	const scripts: Record<string, { script: string }[]> = {}
+	for (const check of checks) (scripts[check.criterion] ??= []).push({ script: check.script })
+	const entry: Record<string, unknown> = {
+		id,
+		prompt,
+		...(files ? { files: filesPath.split('\\').join('/') } : {}),
+		...(setup ? { setup: setupPath.split('\\').join('/') } : {}),
+		...(named.length ? { criteria: named } : {}),
+		...(checks.length ? { checks: scripts } : {}),
 	}
+	const expected = { ...before, outcome: [...(before.outcome ?? []), entry] }
+	const problems = evalsProblems(expected)
+	if (problems.length) return { code: 'evals-invalid', problem: `the new case: ${problems.join('; ')}` }
+	// Text the edit cannot be placed in, such as a flow `outcome: [...]`, is written back whole.
+	const text =
+		inPlace(expected, addedText(source, doc, entry)) ??
+		(() => {
+			if (!isMap(doc.contents)) doc.contents = doc.createNode({}) as never
+			doc.set('outcome', doc.createNode(expected.outcome))
+			return doc.toString()
+		})()
 	const paths: string[] = []
 	if (files) {
 		mkdirSync(join(evals, filesPath), { recursive: true })
@@ -130,7 +244,7 @@ export function addCase(
 		paths.push(join('evals', setupPath))
 	}
 	mkdirSync(evals, { recursive: true })
-	writeFileSync(file, doc.toString())
+	writeFileSync(file, text)
 	return { skill: skillFolder, case: id, evals: file, paths }
 }
 
@@ -143,7 +257,7 @@ export function removeCase(skillFolder: string, id: string): CaseChange | { code
 	if (bad) return bad
 	const read = readEvals(skillFolder)
 	if ('problem' in read) return read.problem
-	const { file, doc } = read
+	const { file, source, doc } = read
 	const outcome = doc.get('outcome')
 	const items = (doc.toJS()?.outcome ?? []) as { id: string; files?: string; setup?: string }[]
 	const index = items.findIndex((item) => item.id === id)
@@ -175,7 +289,13 @@ export function removeCase(skillFolder: string, id: string): CaseChange | { code
 		rmSync(target, { recursive: true, force: true })
 		paths.push(relative(skillFolder, target))
 	}
-	outcome.delete(index)
-	writeFileSync(file, doc.toString())
+	const value = doc.toJS()
+	const text =
+		inPlace({ ...value, outcome: others }, removedText(source, doc, index)) ??
+		(() => {
+			outcome.delete(index)
+			return doc.toString()
+		})()
+	writeFileSync(file, text)
 	return { skill: skillFolder, case: id, evals: file, paths }
 }

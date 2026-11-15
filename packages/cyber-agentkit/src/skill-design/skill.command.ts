@@ -11,7 +11,7 @@ import { findRoot, type ReferencePlugin, referenceLayers } from '../references/r
 import { resolveReference } from '../references/resolve-reference.js'
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
-import { addCase, type CaseChange, removeCase } from './eval-case.js'
+import { addCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
 import { doneWhenCriteria, type EvalReport, readEvalReport, reportMarkdown } from './eval-report.js'
 import {
 	type PluginEvalRun,
@@ -1006,7 +1006,9 @@ function caseText(verb: 'added' | 'removed', change: CaseChange): string {
 function caseFailure(failed: { code: string; problem: string }): never {
 	process.stderr.write(`error: ${failed.code}: ${failed.problem}\n`)
 	throw CliError.reported(
-		failed.code === 'bad-case-id' || failed.code === 'outside-evals' ? exitCodes.usage : exitCodes.error,
+		['bad-case-id', 'bad-criterion', 'bad-check', 'outside-evals'].includes(failed.code)
+			? exitCodes.usage
+			: exitCodes.error,
 	)
 }
 
@@ -1042,6 +1044,15 @@ function caseCommand(_options: SkillCommandOptions): cli.Command {
 				description: 'Make the files folder too when `--setup` is given.',
 				type: t.boolean().optional(),
 			},
+			criteria: {
+				description: "The criteria the case tests, as comma-separated IDs from the skill's Criteria, such as `C1,C2`.",
+				type: t.string().optional(),
+			},
+			check: {
+				description:
+					"A `script` check on a criterion, as `<ID>=<script>`: a shell command run in the run's folder that exits 0 to pass. Repeat it for more; its criterion joins the case's criteria.",
+				type: t.array(t.string()).optional(),
+			},
 		},
 		examples: [
 			{
@@ -1054,16 +1065,44 @@ function caseCommand(_options: SkillCommandOptions): cli.Command {
 					"cyber-agentkit skill case add .agents/skills/commit red-check --prompt 'commit the parser change' --setup",
 				description: 'Add a case whose setup script makes its git history',
 			},
+			{
+				command:
+					"cyber-agentkit skill case add .agents/skills/commit clean-tree --prompt 'commit my change' --criteria C1 --check 'C2=test -z \"$(git status --porcelain)\"'",
+				description: 'Add a case with its criteria and a script check',
+			},
 		],
 		async run(
 			this: { format: Format },
-			args: { folder: string; case: string; prompt: string; setup?: boolean | undefined; files?: boolean | undefined },
+			args: {
+				folder: string
+				case: string
+				prompt: string
+				setup?: boolean | undefined
+				files?: boolean | undefined
+				criteria?: string | undefined
+				check?: string[] | undefined
+			},
 		) {
 			const skill = skillOf(args.folder)
+			const checks: CaseCheck[] = []
+			for (const given of args.check ?? []) {
+				const at = given.indexOf('=')
+				if (at < 1 || at === given.length - 1)
+					caseFailure({
+						code: 'bad-check',
+						problem: `--check ${JSON.stringify(given)} is not <ID>=<script>, such as C2='test -f notes.md'`,
+					})
+				checks.push({ criterion: given.slice(0, at).trim(), script: given.slice(at + 1) })
+			}
 			const added = addCase(skill.folder, args.case, {
 				prompt: args.prompt,
 				setup: args.setup,
 				files: args.files === true || !args.setup,
+				criteria: args.criteria
+					?.split(',')
+					.map((id) => id.trim())
+					.filter(Boolean),
+				checks,
 			})
 			if ('problem' in added) caseFailure(added)
 			return result(added, { render: { text: () => caseText('added', added) } })
