@@ -8,6 +8,9 @@
  * need no judge in that folder, records whether the skill fired, and removes the folder. Each run also gets an empty home folder.
  * It resolves promptfoo from the npx install running it.
  *
+ * Usage limit (R162): a run whose error carries one of the config's `usageLimits` writes its message to the config's
+ * `limitFile`, and every run that starts after that file exists ends before it does anything, as limit reached.
+ *
  * Progress (R98, R99): when its config names a `progressFile`, the provider appends one JSON line when a run starts
  * ({ event: 'start', case, arm, run, kind, t }); `promptfooHookSource` appends the line when it ends.
  */
@@ -272,7 +275,7 @@ function spawnInGroup(children) {
 // A script check finds the run's own plugin copy at SKILL_TEST_PLUGIN.
 // A script check runs contained (R157), with the run's own environment; a run that needs one when the script sandbox
 // cannot start never reaches here (callApi answers the sandbox error first).
-function finish(response, { arm, vars, dir, home, plugin, dependencies = [], env: runEnv = {}, fired, blocked, sandboxFault }) {
+function finish(response, { arm, vars, dir, home, plugin, dependencies = [], env: runEnv = {}, fired, blocked, sandboxFault, limits }) {
   const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')
   const checks = {}
   const env = { ...process.env, ...runEnv, ...(plugin ? { SKILL_TEST_PLUGIN: plugin } : {}) }
@@ -287,8 +290,32 @@ function finish(response, { arm, vars, dir, home, plugin, dependencies = [], env
       const failed = results.find((result) => !result.pass)
       checks[id] = failed ? { pass: false, detail: failed.detail } : { pass: true }
     }
-  response.metadata = { ...response.metadata, arm, fired, checks, ...(blocked ? { blocked } : {}), ...(sandboxFault ? { sandboxFault } : {}) }
+  const limitReached = limits?.hit(response.error)
+  response.metadata = { ...response.metadata, arm, fired, checks, ...(blocked ? { blocked } : {}), ...(sandboxFault ? { sandboxFault } : {}), ...(limitReached ? { limitReached } : {}) }
   return response
+}
+
+// The account's usage limit (R162): the config's usageLimits, from usage-limits.ts, matched against a run's error. The
+// first run that hits one writes { text, resets? } to limitFile; a run that finds that file starts nothing.
+function usageLimit(limits, file) {
+  return {
+    reached() {
+      if (!file) return undefined
+      try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return undefined }
+    },
+    hit(error) {
+      if (!error) return undefined
+      for (const limit of limits) {
+        const match = new RegExp(limit.pattern, 'm').exec(String(error))
+        if (!match) continue
+        const resets = match.groups?.resets?.trim()
+        const found = { text: match[0].trim().slice(0, 160), ...(resets ? { resets } : {}) }
+        if (file) try { fs.writeFileSync(file, JSON.stringify(found), { flag: 'wx' }) } catch {}
+        return { ...found, started: true }
+      }
+      return undefined
+    },
+  }
 }
 
 // A harness driven through its own CLI: the command from headlessCommand(), with the prompt last, its JSON lines
@@ -381,13 +408,19 @@ export default class SkillRun {
   constructor(options) { this.options = options; this.config = options.config }
   id() { return this.options.id || 'skill-run' }
   async callApi(prompt, context) {
-    const { arm, skillDir, skillName, pluginDir, pluginName, dependencyDirs = [], instruction, inner, timeout = 300, harness = 'claude-code', isolation, command, sandboxFaults = [] } = this.config
+    const { arm, skillDir, skillName, pluginDir, pluginName, dependencyDirs = [], instruction, inner, timeout = 300, harness = 'claude-code', isolation, command, sandboxFaults = [], usageLimits = [], limitFile } = this.config
     // A skill loaded from a plugin is called <plugin>:<skill> (research E21).
     const names = pluginName ? [skillName, pluginName + ':' + skillName] : [skillName]
     const vars = context.vars
     if (vars.kind === 'trigger' && arm !== 'skill') return { output: '', metadata: { arm, skipped: true } }
+    // A resume runs only the arms a run has left (R163); vars.__run is then the run's number.
+    if (vars.__arms && !JSON.parse(vars.__arms).includes(arm)) return { output: '', metadata: { arm, skipped: true } }
+    // Once a run reached the usage limit, no run starts (R162).
+    const limits = usageLimit(usageLimits, limitFile)
+    const reached = limits.reached()
+    if (reached) return { error: 'limit reached: ' + reached.text, metadata: { arm, limitReached: { ...reached, started: false } } }
     if (this.config.progressFile)
-      try { fs.appendFileSync(this.config.progressFile, JSON.stringify({ event: 'start', case: context.test?.description ?? '', arm, run: (context.repeatIndex ?? vars.__repeatIndex ?? 0) + 1, kind: vars.kind, t: Date.now() }) + '\n') } catch {}
+      try { fs.appendFileSync(this.config.progressFile, JSON.stringify({ event: 'start', case: context.test?.description ?? '', arm, run: vars.__run ? Number(vars.__run) : (context.repeatIndex ?? vars.__repeatIndex ?? 0) + 1, kind: vars.kind, t: Date.now() }) + '\n') } catch {}
     if (harness === 'claude-code') {
       const login = await loginProblem(isolation)
       if (login) return { error: login, metadata: { arm } }
@@ -456,7 +489,7 @@ export default class SkillRun {
       const children = []
       if (harness !== 'claude-code') {
         const response = await runCli({ command, isolation, prompt, names, vars, dir, env, timeout, marker, callLog })
-        return finish(response, { arm, vars, dir, home, plugin, dependencies: dependencyDirs, env, fired: response.metadata?.fired ?? false })
+        return finish(response, { arm, vars, dir, home, plugin, dependencies: dependencyDirs, env, fired: response.metadata?.fired ?? false, limits })
       }
       // A trigger case only needs to know which skill the request chose. A hook records each Skill call and ends a trigger run at the first
       // one, counting it as fired when it is the skill under test; a turn cap of three backs it up for a run that calls none. The SDK
@@ -509,7 +542,7 @@ export default class SkillRun {
       watch?.review(response.metadata?.toolCalls)
       const calls = response.metadata?.skillCalls ?? []
       const fired = hookFired || calls.some((call) => names.includes(call.name) || names.includes(call.input?.skill))
-      return finish(response, { arm, vars, dir, home, plugin, dependencies: dependencyDirs, env, fired, blocked: contained ? blocked : undefined, sandboxFault: faults.hit() })
+      return finish(response, { arm, vars, dir, home, plugin, dependencies: dependencyDirs, env, fired, blocked: contained ? blocked : undefined, sandboxFault: faults.hit(), limits })
     } finally {
       for (const folder of [dir, home, plugin].filter(Boolean)) try { fs.rmSync(folder, { recursive: true, force: true }) } catch {}
     }
@@ -521,8 +554,9 @@ export default class SkillRun {
  * The promptfoo `afterEach` extension `skill test` writes beside its config. promptfoo calls it once each run is
  * graded, so it knows what the provider cannot: whether the run met its criteria. It appends the run's end line to
  * `progress.jsonl` next to itself ({ event: 'end', case, arm, run, kind, outcome, reason?, durationMs, t }), where
- * `outcome` is `pass` or `fail` (every assertion of the run), `fired` or `not fired` for a trigger run, or
- * `not run` with the reason. It never writes the model's reply, and a run the baseline arm skips writes nothing.
+ * `outcome` is `pass` or `fail` (every assertion of the run), `fired` or `not fired` for a trigger run, `not run`
+ * with the reason, `sandbox failure`, or `limit reached` (R162) with its message, `started: false` for a run that
+ * never started, and `resets` when the message says. It never writes the model's reply, and a run the baseline arm skips writes nothing.
  */
 export const promptfooHookSource = String.raw`import fs from 'node:fs'
 import path from 'node:path'
@@ -536,9 +570,10 @@ export async function afterEach({ result }) {
     if (response?.metadata?.skipped) return
     const kind = result.vars?.kind ?? result.testCase?.vars?.kind
     const error = response?.error ?? (response === undefined ? result.error ?? 'no response' : undefined)
-    const line = { event: 'end', case: result.testCase?.description ?? '', arm: result.provider?.label === 'with-skill' ? 'skill' : 'baseline', run: (result.repeatIndex ?? 0) + 1, kind, durationMs: result.latencyMs, t: Date.now() }
+    const line = { event: 'end', case: result.testCase?.description ?? '', arm: result.provider?.label === 'with-skill' ? 'skill' : 'baseline', run: (result.vars?.__run ?? result.testCase?.vars?.__run) ? Number(result.vars?.__run ?? result.testCase?.vars?.__run) : (result.repeatIndex ?? 0) + 1, kind, durationMs: result.latencyMs, t: Date.now() }
     // The same short reason the saved result gives (R137): the first line, without the Agent SDK provider's wrappers.
-    if (response?.metadata?.sandboxFault) { line.outcome = 'sandbox failure'; line.reason = String(response.metadata.sandboxFault.text).slice(0, 160) }
+    if (response?.metadata?.limitReached) { line.outcome = 'limit reached'; line.reason = String(response.metadata.limitReached.text).slice(0, 160); line.started = response.metadata.limitReached.started !== false; if (response.metadata.limitReached.resets) line.resets = String(response.metadata.limitReached.resets) }
+    else if (response?.metadata?.sandboxFault) { line.outcome = 'sandbox failure'; line.reason = String(response.metadata.sandboxFault.text).slice(0, 160) }
     else if (error) { line.outcome = 'not run'; line.reason = String(error).trim().split('\n')[0].replace(/^(?:\s*(?:Error calling Claude Agent SDK|Error|Claude Code returned an error result):)+\s*/i, '').slice(0, 160) || 'no reason given' }
     else if (kind === 'trigger') line.outcome = response?.metadata?.fired ? 'fired' : 'not fired'
     else line.outcome = result.success ? 'pass' : 'fail'

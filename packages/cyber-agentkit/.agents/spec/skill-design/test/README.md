@@ -35,7 +35,7 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC6.3** The skill has no eval cases. `/skill` proposes cases from the Intent and Criteria, and the author approves
     them before any run. With no author present, nothing is tested and the missing cases are reported.
   - **UC6.4** A run errors or hits a limit, such as time or token budget. That case is reported as not run, with the
-    reason, and never as a pass.
+    reason, and never as a pass. The account's usage limit is UC6.22.
   - **UC6.5** A case gives different results on different runs. That is expected: the pass rate over the runs is the
     result.
   - **UC6.6** The selected implementation for an aspect cannot be found. The default is used, as in UC1.3.
@@ -77,6 +77,9 @@ contract apply here; IDs are shared across the parent and its children.
     which wins over both, for a case known to need a stronger or a cheaper model. The judge's model is set apart. The
     result names the model each case ran on, and a comparison with a result taken on another model says so. A harness
     whose tiers are not known runs on its own default, and the report says so.
+  - **UC6.22** The account's usage limit is reached partway through. No new run starts; the result says the limit was
+    reached, when it resets, and which runs are left, and it is incomplete, so it never becomes the expected result.
+    After the reset, the author runs only the runs left and they join the incomplete result.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -104,6 +107,7 @@ contract apply here; IDs are shared across the parent and its children.
 - R31 (UC6.3): A skill with no eval cases gets cases proposed from its Intent and Criteria, and none runs before the
   author approves them. With no author present, nothing runs and the missing cases are reported.
 - R32 (UC6.4): A run that errors or hits a limit is reported as not run, with the reason, and never counts as a pass.
+  The account's usage limit is the exception R162 names.
 - R33 (UC6.7): A criterion with no rubric is reported as not tested, pointing to `fix`.
 - R34 (UC6.8): A case that would cause an outside effect the run cannot contain is not run, and is reported as such.
 - R35 (UC6.10): When the baseline cannot be run, results are reported without it, and the report says so.
@@ -179,3 +183,12 @@ contract apply here; IDs are shared across the parent and its children.
   the harness's definition does not map to a model is an error before any run, and with no model named on such a
   harness the runs use its default and the report says so. The result names the model each case ran on, and the
   cases whose model differs from the result they are compared with are listed with both models.
+- R162 (UC6.22): A run that the harness ends with its usage-limit message, recognized by the message's fixed text, is
+  reported as limit reached, not as a pass, a fail, or not run. Once one is, no new run starts, and each run left is
+  reported as limit reached too. Those runs count toward no pass rate, and a case with none of its runs finished is not
+  run. The result is marked incomplete, is never saved as the expected result, and an accept of it is refused. The
+  report and the progress say the limit was reached, when it resets when the message says, and which runs are left.
+  The messages recognized are kept in one list that more can be added to.
+- R163 (UC6.22): `test` asked to resume runs only the runs an incomplete result has left, and the result holds the
+  runs it had and the new ones, as one run of the whole test would. It refuses, and runs nothing, when the last result
+  is not incomplete, or when the skill or its eval cases changed since that result.

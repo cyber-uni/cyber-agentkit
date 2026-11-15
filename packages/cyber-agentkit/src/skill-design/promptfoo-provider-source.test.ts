@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { headlessInvocation } from '../headless/headless-invocation.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
 import { sandboxFaults } from './sandbox-faults.js'
+import { usageLimits } from './usage-limits.js'
 
 /** The script sandbox's CLI, which the provider resolves from the npx install it runs in. */
 const srt = join(dirname(createRequire(import.meta.url).resolve('@anthropic-ai/sandbox-runtime')), 'cli.js')
@@ -860,4 +861,102 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify
 			expect(existsSync(join(outside, 'escaped.txt'))).toBe(false)
 		},
 	)
+})
+
+describe('promptfooProviderSource usage limit (R162)', () => {
+	const limitText = "You've hit your 5-hour limit · resets 4:40am (America/Los_Angeles)"
+	/** A fake inner provider that counts its calls in a file and answers the usage-limit error each time. */
+	const limited = (calls: string) => String.raw`
+const fs = require('node:fs')
+exports.loadApiProvider = async () => ({
+  callApi: async () => {
+    fs.appendFileSync(${JSON.stringify(calls)}, 'x')
+    return { error: 'Error calling Claude Agent SDK: Error: Claude Code returned an error result: ' + ${JSON.stringify(limitText)} }
+  },
+})
+`
+
+	it('ends the run that hits the limit as limit reached, and starts no run after it', () => {
+		const root = mkdtempSync(join(tmpdir(), 'provider-limit-'))
+		const calls = join(root, 'calls.txt')
+		const limitFile = join(root, 'usage-limit.json')
+		const progressFile = join(root, 'progress.jsonl')
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), limited(calls))
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(join(root, 'hook.mjs'), promptfooHookSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+import { afterEach } from './hook.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, usageLimits: ${JSON.stringify(usageLimits)}, limitFile: ${JSON.stringify(limitFile)}, progressFile: ${JSON.stringify(progressFile)} } })
+const responses = []
+for (const repeatIndex of [0, 1, 2]) {
+  const response = await provider.callApi('hi', { test: { description: 'case-a' }, repeatIndex, vars: { kind: 'outcome', rubrics: '{}' } })
+  await afterEach({ result: { response, vars: { kind: 'outcome' }, testCase: { description: 'case-a' }, provider: { label: 'with-skill' }, repeatIndex } })
+  responses.push(response)
+}
+console.log(JSON.stringify(responses))
+`,
+		)
+		const responses = JSON.parse(execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' }))
+		expect(readFileSync(calls, 'utf8')).toBe('x')
+		expect(JSON.parse(readFileSync(limitFile, 'utf8'))).toEqual({
+			text: limitText,
+			resets: '4:40am (America/Los_Angeles)',
+		})
+		expect(responses[0].metadata.limitReached).toEqual({
+			text: limitText,
+			resets: '4:40am (America/Los_Angeles)',
+			started: true,
+		})
+		for (const later of responses.slice(1)) {
+			expect(later.error).toBe(`limit reached: ${limitText}`)
+			expect(later.metadata.limitReached).toMatchObject({ text: limitText, started: false })
+		}
+		const lines = readFileSync(progressFile, 'utf8')
+			.split('\n')
+			.filter(Boolean)
+			.map((line) => JSON.parse(line))
+		// only the run that started has a start line
+		expect(lines.filter((line) => line.event === 'start')).toHaveLength(1)
+		expect(lines.filter((line) => line.event === 'end')).toMatchObject([
+			{ run: 1, outcome: 'limit reached', reason: limitText, started: true, resets: '4:40am (America/Los_Angeles)' },
+			{ run: 2, outcome: 'limit reached', started: false },
+			{ run: 3, outcome: 'limit reached', started: false },
+		])
+	})
+
+	it('runs only the arms a resumed run names, under the run number it stands for (R163)', () => {
+		const root = mkdtempSync(join(tmpdir(), 'provider-resume-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(
+			join(root, 'node_modules', 'promptfoo', 'index.js'),
+			"exports.loadApiProvider = async () => ({ callApi: async () => ({ output: 'ok', metadata: {} }) })",
+		)
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		const progressFile = join(root, 'progress.jsonl')
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const vars = { kind: 'outcome', rubrics: '{}', __run: '3', __arms: '["skill"]' }
+const out = []
+for (const arm of ['skill', 'baseline']) {
+  const provider = new Provider({ config: { arm, skillName: 'demo', isolation: ${isolation}, inner: {}, progressFile: ${JSON.stringify(progressFile)} } })
+  out.push(await provider.callApi('hi', { test: { description: 'case-a' }, repeatIndex: 0, vars }))
+}
+console.log(JSON.stringify(out))
+`,
+		)
+		const [skill, baseline] = JSON.parse(execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' }))
+		expect(skill.output).toBe('ok')
+		expect(baseline.metadata).toMatchObject({ skipped: true })
+		expect(JSON.parse(readFileSync(progressFile, 'utf8').trim())).toMatchObject({
+			event: 'start',
+			arm: 'skill',
+			run: 3,
+		})
+	})
 })

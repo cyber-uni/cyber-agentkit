@@ -1,6 +1,7 @@
 import { sandboxFaults } from './sandbox-faults.js'
 import type { SkillTestHarness } from './skill-test-harness.js'
 import type { TestPlan } from './test-plan.js'
+import { usageLimits } from './usage-limits.js'
 
 /** The sandbox runtime version that contains a case's setup script and `script` checks (research E22). */
 export const scriptSandboxPackage = '@anthropic-ai/sandbox-runtime@0.0.81'
@@ -37,6 +38,13 @@ export type ConfigOptions = {
 	 * instruction file. `skillFolder`, `baselineFolder`, and `plugin` are then not used.
 	 */
 	arms?: { label: string; arm: string; instruction: string }[] | undefined
+	/** The file the first run that reaches the usage limit writes, so no later run starts (R162); absolute. */
+	limitFile?: string | undefined
+	/**
+	 * Only these runs, for a resume (R163): each is one run of a case, by its number, in the arms named (`skill`,
+	 * `baseline`). Each becomes a test of its own that runs once, and the provider skips the arms it does not name.
+	 */
+	slots?: { case: string; run: number; arms: string[] }[] | undefined
 	/** The config's description; `skill test: <skill name>` when absent. */
 	description?: string | undefined
 }
@@ -69,6 +77,9 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 			timeout: plan.timeout,
 			// The errors the provider watches each shell command's output for (R154).
 			sandboxFaults: sandboxFaults.map(({ id, pattern }) => ({ id, pattern })),
+			// The usage-limit messages that end a run as limit reached, and stop the runs after it (R162).
+			usageLimits: usageLimits.map(({ id, pattern }) => ({ id, pattern })),
+			...(options.limitFile ? { limitFile: options.limitFile } : {}),
 			harness: options.harness.id,
 			isolation: options.harness.isolation,
 			...(options.harness.command ? { command: options.harness.command } : {}),
@@ -87,7 +98,7 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 			inner: inner(options.model),
 		},
 	})
-	const tests = plan.cases.map((item) => {
+	const testOf = (item: TestPlan['cases'][number]) => {
 		const assert: Record<string, unknown>[] = []
 		if (item.kind === 'trigger') {
 			const fired = 'context.providerResponse.metadata.skipped || context.providerResponse.metadata.fired'
@@ -130,12 +141,20 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 			},
 			assert,
 		}
-	})
+	}
+	const tests = options.slots
+		? options.slots.flatMap((slot) => {
+				const item = plan.cases.find((planned) => planned.id === slot.case)
+				if (!item) return []
+				const test = testOf(item)
+				return [{ ...test, vars: { ...test.vars, __run: String(slot.run), __arms: JSON.stringify(slot.arms) } }]
+			})
+		: plan.cases.map(testOf)
 	return {
 		description: options.description ?? `skill test: ${options.skillName}`,
 		prompts: ['{{prompt}}'],
 		...(options.progress ? { extensions: [`file://${options.progress.hook}:afterEach`] } : {}),
-		evaluateOptions: { maxConcurrency: plan.concurrency, repeat: plan.runs },
+		evaluateOptions: { maxConcurrency: plan.concurrency, repeat: options.slots ? 1 : plan.runs },
 		providers: options.arms
 			? options.arms.map((item) => provider(item.label, item.arm, undefined, item.instruction))
 			: [

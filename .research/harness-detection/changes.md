@@ -249,3 +249,8 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
 
 - Added E-CC-H13: the `haiku`, `sonnet`, and `opus` aliases name a small, a mid, and a top tier, each following the
   vendor's latest model of its line. `skill test` maps its tiers to them.
+
+## 2026-11-15 (skill test usage limit)
+
+- Added E-CC-D19: the error text a Claude Code run ends with when the account's usage limit is reached, from the saved
+  replies of three full `skill test` runs. `skill test` recognizes it as limit reached and starts no new run.

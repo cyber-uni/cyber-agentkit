@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import {
 	existsSync,
 	mkdirSync,
@@ -10,7 +11,7 @@ import {
 	writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, join, relative } from 'node:path'
 import { stringify } from 'yaml'
 import { checkPluginsLoad, type DependencySources, type PluginList, resolveDependencyPlugins } from './plugin-load.js'
 import { promptfooConfig, promptfooPackages } from './promptfoo-config.js'
@@ -24,9 +25,13 @@ import { type ProgressWatch, plannedRuns, watchProgress } from './test-progress.
 import {
 	compareWithHistory,
 	compareWithPrevious,
+	limitReached,
 	type Reply,
+	type Row,
+	type RunSlot,
 	readPromptfooOutput,
 	readReplies,
+	readRows,
 	type TestResult,
 } from './test-result.js'
 
@@ -80,6 +85,48 @@ export type TestOptions = {
 	dependencies?: DependencySources | undefined
 	/** How the test checks that every plugin a run loads does load before it runs a case; without it, it does not check. */
 	listPlugins?: PluginList | undefined
+	/**
+	 * Resume an incomplete result (R163): run only the runs it has `left`, and merge them with the `rows` it finished.
+	 * `from` is its `at`, and `durationMs` how long it took.
+	 */
+	resume?: { rows: Row[]; left: RunSlot[]; from: string; durationMs?: number | undefined } | undefined
+}
+
+/** The runs an incomplete result has left, as one slot per case and run, with the arms that run is left in. */
+export function resumeSlots(left: RunSlot[]): { case: string; run: number; arms: string[] }[] {
+	const slots = new Map<string, { case: string; run: number; arms: string[] }>()
+	for (const item of left) {
+		const key = `${item.case}|${item.run}`
+		const slot = slots.get(key) ?? { case: item.case, run: item.run, arms: [] }
+		if (!slot.arms.includes(item.arm)) slot.arms.push(item.arm)
+		slots.set(key, slot)
+	}
+	return [...slots.values()]
+}
+
+/**
+ * What a resume checks has not changed since the incomplete result (R163): the plan, apart from how many runs go at
+ * once, and every file of the skill's folder but its expected and accepted results.
+ */
+export function testFingerprint(plan: TestPlan, skillFolder: string): string {
+	const hash = createHash('sha256')
+	const { concurrency: _concurrency, ...rest } = plan
+	hash.update(JSON.stringify(rest))
+	const walk = (folder: string): string[] =>
+		readdirSync(folder, { withFileTypes: true })
+			.flatMap((entry) => {
+				const path = join(folder, entry.name)
+				if (entry.isDirectory()) return walk(path)
+				return entry.isFile() ? [path] : []
+			})
+			.sort()
+	for (const path of walk(skillFolder)) {
+		const name = relative(skillFolder, path).split('\\').join('/')
+		if (name === 'evals/expected.json' || name.startsWith('evals/accepted/')) continue
+		hash.update(`\0${name}\0`)
+		hash.update(readFileSync(path))
+	}
+	return hash.digest('hex')
 }
 
 /** Why a test stopped before any run: a cause every run would share. */
@@ -88,7 +135,10 @@ export type TestProblemCode = 'login' | 'sandbox' | 'dependency-missing' | 'plug
 /** Runs a plan and reads the result; the baseline falls back to a run without the skill when its folder holds no skill (R35). */
 export async function runTest(
 	options: TestOptions,
-): Promise<{ result: TestResult; replies: Reply[]; warnings: string[] } | { problem: string; code?: TestProblemCode }> {
+): Promise<
+	| { result: TestResult; replies: Reply[]; rows: Row[]; warnings: string[] }
+	| { problem: string; code?: TestProblemCode }
+> {
 	const warnings: string[] = []
 	let baselineFolder = options.baselineFolder
 	if (baselineFolder !== undefined && !readSkill(baselineFolder)) {
@@ -100,6 +150,7 @@ export async function runTest(
 		writeFileSync(join(folder, 'provider.mjs'), promptfooProviderSource)
 		writeFileSync(join(folder, 'progress-hook.mjs'), promptfooHookSource)
 		const progressFile = join(folder, 'progress.jsonl')
+		const slots = options.resume ? resumeSlots(options.resume.left) : undefined
 		// A skill developed in a plugin runs inside a copy of that plugin, with its references and other skills (R91).
 		const found = findSkillPlugin(options.skill.folder)
 		const harness = options.harness ?? (skillTestHarness('claude-code') as SkillTestHarness)
@@ -150,11 +201,17 @@ export async function runTest(
 			judge: options.judge,
 			provider: './provider.mjs',
 			progress: { file: progressFile, hook: './progress-hook.mjs' },
+			limitFile: join(folder, 'usage-limit.json'),
+			slots,
 		})
 		writeFileSync(join(folder, 'promptfooconfig.yaml'), stringify(config))
 		const started = Date.now()
 		const watch = options.progress
-			? watchProgress({ ...options.progress, file: progressFile, total: plannedRuns(options.plan) })
+			? watchProgress({
+					...options.progress,
+					file: progressFile,
+					total: options.resume ? options.resume.left.length : plannedRuns(options.plan),
+				})
 			: undefined
 		let ran: Awaited<ReturnType<PromptfooRun>>
 		try {
@@ -162,12 +219,25 @@ export async function runTest(
 		} finally {
 			watch?.stop()
 		}
-		const durationMs = Date.now() - started
+		const durationMs = Date.now() - started + (options.resume?.durationMs ?? 0)
 		if ('problem' in ran) return { problem: `promptfoo did not run: ${ran.problem}` }
 		const setup = setupProblem(ran.output)
 		if (setup) return setup
 		const dropped = options.baselineFolder !== undefined && baselineFolder === undefined
-		const result = readPromptfooOutput(ran.output, options.plan, {
+		// A resume's runs take the numbers of the runs they stand for, beside the runs the incomplete result finished.
+		let rows = readRows(ran.output)
+		if (options.resume)
+			rows = [
+				...options.resume.rows.filter((row) => !limitReached(row)),
+				...rows
+					.filter((row) => !row.response?.metadata?.skipped)
+					.map((row) => {
+						const run = Number(row.testCase?.vars?.__run)
+						return Number.isInteger(run) && run > 0 ? { ...row, repeatIndex: run - 1 } : row
+					}),
+			]
+		const output = { results: { results: rows } }
+		const result = readPromptfooOutput(output, options.plan, {
 			skill: options.skillName,
 			at: options.at,
 			verification: options.verification,
@@ -185,8 +255,10 @@ export async function runTest(
 				durationMs,
 				totalRuns: plannedRuns(options.plan),
 				...(typeof evalId === 'string' && evalId ? { evalId } : {}),
+				...(options.resume ? { resumedFrom: options.resume.from } : {}),
 			},
-			replies: readReplies(ran.output),
+			replies: readReplies(output),
+			rows,
 			warnings,
 		}
 	} finally {
@@ -276,7 +348,13 @@ export function stem(at: string): string {
  * changed since the skill's expected result, else the previous one. Every run's reply goes beside it in
  * `<its at>.replies.json`, which the result names (R138).
  */
-export function saveResult(folder: string, result: TestResult, skillFolder: string, replies?: Reply[]): TestResult {
+export function saveResult(
+	folder: string,
+	result: TestResult,
+	skillFolder: string,
+	replies?: Reply[],
+	rows?: Row[],
+): TestResult {
 	mkdirSync(folder, { recursive: true })
 	// Each run's result stays local: the results folder ignores itself.
 	const ignore = join(folder, '..', '.gitignore')
@@ -298,6 +376,11 @@ export function saveResult(folder: string, result: TestResult, skillFolder: stri
 		saved.replies = `${stem(result.at)}.replies.json`
 		writeFileSync(join(folder, saved.replies), `${JSON.stringify(replies, null, '\t')}\n`)
 	}
+	// An incomplete result keeps the runs it finished beside it, for a resume to merge with its own (R163).
+	if (saved.incomplete && rows) {
+		saved.incomplete = { ...saved.incomplete, runs: `${stem(result.at)}.runs.json` }
+		writeFileSync(join(folder, saved.incomplete.runs as string), `${JSON.stringify(rows)}\n`)
+	}
 	writeFileSync(latest, `${JSON.stringify(saved, null, '\t')}\n`)
 	pruneHistory(folder)
 	removeVanished(join(folder, '..'), basename(folder))
@@ -307,20 +390,31 @@ export function saveResult(folder: string, result: TestResult, skillFolder: stri
 /** How many past results (`<at>.json`) a skill keeps beside `latest.json`. */
 export const keptPastResults = 5
 
-/** Deletes all but the most recent past results of one skill, and the replies of every result it no longer keeps. */
+/**
+ * Deletes all but the most recent past results of one skill, and the replies of every result it no longer keeps. Only
+ * the latest result's runs file stays: a resume reads no other (R163).
+ */
 export function pruneHistory(folder: string): void {
 	const names = readdirSync(folder)
 	const past = names
-		.filter((name) => name.endsWith('.json') && !name.endsWith('.replies.json') && name !== 'latest.json')
+		.filter(
+			(name) =>
+				name.endsWith('.json') &&
+				!name.endsWith('.replies.json') &&
+				!name.endsWith('.runs.json') &&
+				name !== 'latest.json',
+		)
 		.sort()
 	const dropped = past.slice(0, Math.max(0, past.length - keptPastResults))
 	for (const name of dropped) rmSync(join(folder, name), { force: true })
 	const kept = new Set(past.slice(dropped.length).map((name) => name.slice(0, -'.json'.length)))
 	const latest = readLatest(folder)
 	if (latest?.at) kept.add(stem(latest.at))
-	for (const name of names)
+	for (const name of names) {
 		if (name.endsWith('.replies.json') && !kept.has(name.slice(0, -'.replies.json'.length)))
 			rmSync(join(folder, name), { force: true })
+		if (name.endsWith('.runs.json') && name !== latest?.incomplete?.runs) rmSync(join(folder, name), { force: true })
+	}
 }
 
 /**
