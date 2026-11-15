@@ -1,7 +1,7 @@
 # Skill
 
 Designs an agent skill through aspects a team can swap one at a time. `/skill` creates a skill from a described job, checks it without running it, tests it by running its evals, fixes what check
-or test found, enhances it beyond that, customizes which implementation each aspect uses, and vets a third-party skill before it is installed. Intent, Shape, and Trigger are built in. Criteria, Verification, and every
+or test found, enhances it beyond that, customizes which implementation each aspect uses, vets a third-party skill before it is installed, and reports a skill's accepted eval results for its docs. Intent, Shape, and Trigger are built in. Criteria, Verification, and every
 open aspect, such as Security and Research, are references (`skill-design.aspects.<aspect>`) that another plugin can replace through
 the `reference` skill's Customize mode. The default Verification runs each case several times in a sandbox, on
 promptfoo, beside a run without the skill. Type `/skill` to run it yourself. Installed as a Claude Code plugin, it is
@@ -16,6 +16,7 @@ promptfoo, beside a run without the skill. Type `/skill` to run it yourself. Ins
 | `fix` | repairs what check or test found |
 | `enhance` | suggests improvements one at a time, from use or a request |
 | `vet` | fetches a third-party skill, runs every Security check, and gives an install verdict with supply-chain signals |
+| `report` | prints the accepted eval results as Markdown for docs or a README, or as JSON for a site generator |
 | `customize` | shows which implementation each aspect uses and each command's autonomy, and changes them through the `reference` skill |
 
 ## Research

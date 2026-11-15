@@ -10,6 +10,7 @@ import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plu
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
+import { doneWhenCriteria, type EvalReport, readEvalReport, reportMarkdown } from './eval-report.js'
 import { type PluginEvalRun, runPluginEval, runPluginEvalTest } from './plugin-eval-backend.js'
 import { listPlugins, type PluginList } from './plugin-load.js'
 import { runCheckScript } from './run-check-script.js'
@@ -546,6 +547,52 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 	})
 }
 
+function reportCommand(_options: SkillCommandOptions): cli.Command {
+	return command({
+		name: 'report',
+		description:
+			"Report a skill's accepted eval results for its docs: the summary and cost, the gap over the no-skill baseline, the trigger cases, each criterion with the skill and without, the outcome cases, runs the sandbox broke, and the trend over the kept accepted results. Reads `evals/expected.json` and `evals/accepted/` and runs nothing. Prints Markdown ready to paste into a docs page or README by default, or JSON for a site generator with `--format json`. Says so plainly when the skill has no accepted result.",
+		arguments: [
+			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
+		],
+		options: {
+			'test-link': {
+				description: 'Where the Markdown links `skill test`. Defaults to its page on the cyber-agentkit docs site.',
+				type: t.string().optional(),
+			},
+		},
+		examples: [
+			{
+				command: 'cyber-agentkit skill report .agents/skills/release-notes',
+				description: "Print the skill's eval results as Markdown",
+			},
+			{
+				command: 'cyber-agentkit skill report .agents/skills/release-notes --format json',
+				description: 'Print them as JSON for a site generator',
+			},
+		],
+		async run(this: { format: Format }, args: { folder: string; 'test-link'?: string | undefined }) {
+			const skill = readSkill(args.folder)
+			if (!skill) {
+				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			const name =
+				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+			let report: EvalReport
+			try {
+				report = readEvalReport(name, skill.folder, doneWhenCriteria(skill.body))
+			} catch (error) {
+				process.stderr.write(`error: result-unreadable: ${(error as Error).message}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			return result(report, {
+				render: { text: () => reportMarkdown(report, args['test-link'] ? { testLink: args['test-link'] } : {}) },
+			})
+		},
+	})
+}
+
 function signalLines(signals: SupplyChainSignals): string[] {
 	const lines: string[] = []
 	const { publisher, maintenance, license } = signals
@@ -720,7 +767,13 @@ export function createSkillCommand(options: SkillCommandOptions = {}): cli.Comma
 	return command({
 		name: 'skill',
 		description:
-			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, accept a test result as its expected result, or vet a third-party skill before installing it.',
-		commands: [checkCommand(options), testCommand(options), acceptCommand(options), vetCommand(options)],
+			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, accept a test result as its expected result, report its accepted results for docs, or vet a third-party skill before installing it.',
+		commands: [
+			checkCommand(options),
+			testCommand(options),
+			acceptCommand(options),
+			reportCommand(options),
+			vetCommand(options),
+		],
 	})
 }

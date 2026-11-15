@@ -1,7 +1,7 @@
 ---
 name: skill
-description: Create, check, test, fix, enhance, customize, or vet an agent skill (a SKILL.md and its folder), whether it stands alone or ships inside a plugin or npm package, as in "write a skill for X", "add a skill", "add an X skill to this plugin", "teach agents to use our library", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", "improve this skill", or "is this skill from GitHub safe to install", and before handing skill writing to a subagent. Take it for general skill authoring and review over aced:define-skill and aced:improve-skill. Also load it before adding, editing, or linking any file of a skill (its SKILL.md, or a file under its references/, scripts/, assets/, or evals/) while doing other work, such as implementing an issue that adds a skill or changes one, even when the request never says "skill".
-argument-hint: "<description> | help | create [description] | check [skill] | test [skill] | fix [skill] | enhance [skill] [prompt] | vet <source> | customize [aspect]"
+description: Create, check, test, fix, enhance, customize, vet, or report on an agent skill (a SKILL.md and its folder), whether it stands alone or ships inside a plugin or npm package, as in "write a skill for X", "add a skill", "add an X skill to this plugin", "teach agents to use our library", "is this skill any good", "run the skill's evals", "publish the skill's eval results in its docs", "my skill doesn't trigger", "improve this skill", or "is this skill from GitHub safe to install", and before handing skill writing to a subagent. Take it for general skill authoring and review over aced:define-skill and aced:improve-skill. Also load it before adding, editing, or linking any file of a skill (its SKILL.md, or a file under its references/, scripts/, assets/, or evals/) while doing other work, such as implementing an issue that adds a skill or changes one, even when the request never says "skill".
+argument-hint: "<description> | help | create [description] | check [skill] | test [skill] | fix [skill] | enhance [skill] [prompt] | vet <source> | report [skill] | customize [aspect]"
 ---
 
 # Skill
@@ -13,14 +13,15 @@ works through the aspects below.
 
 | Command | Use it when | Instructions |
 | --- | --- | --- |
-| `help` | the author wants to know what each command does, or which one fits | [references/help.md](references/help.md) |
-| `create [description]` | the author wants a new skill for a job they describe | [references/create.md](references/create.md) |
-| `check [skill]` | the author wants to know whether a skill as written meets each aspect, without running it | [references/check.md](references/check.md) |
-| `test [skill]` | the author wants the skill's evals run: does it fire on the right requests, and does its result meet its Criteria | [references/test.md](references/test.md) |
-| `fix [skill]` | `check` or `test` found failures to repair | [references/fix.md](references/fix.md) |
-| `enhance [skill] [prompt]` | the skill passes `check`, and the author wants it better, from its use or their own request | [references/enhance.md](references/enhance.md) |
-| `vet <source>` | the author wants a third-party skill vetted before installing it: its Security checks, an install verdict, and who publishes it | [references/vet.md](references/vet.md) |
-| `customize [aspect]` | the author wants to see or change which implementation each aspect uses, or how much each command applies on its own | [references/customize.md](references/customize.md) |
+| `help` | the author wants to know what each command does, or which one fits | [help.md](references/help.md) |
+| `create [description]` | the author wants a new skill for a job they describe | [create.md](references/create.md) |
+| `check [skill]` | the author wants to know whether a skill as written meets each aspect, without running it | [check.md](references/check.md) |
+| `test [skill]` | the author wants the skill's evals run: does it fire on the right requests, and does its result meet its Criteria | [test.md](references/test.md) |
+| `fix [skill]` | `check` or `test` found failures to repair | [fix.md](references/fix.md) |
+| `enhance [skill] [prompt]` | the skill passes `check`, and the author wants it better, from its use or their own request | [enhance.md](references/enhance.md) |
+| `vet <source>` | the author wants a third-party skill vetted before installing it: its Security checks, an install verdict, and who publishes it | [vet.md](references/vet.md) |
+| `report [skill]` | the author wants a skill's eval results in its docs or README, or as JSON | [report.md](references/report.md) |
+| `customize [aspect]` | the author wants to see or change which implementation each aspect uses, or how much each command applies on its own | [customize.md](references/customize.md) |
 
 Take an explicit command first. When the request describes a skill to write but names no command, as in `/skill a
 skill that drafts release notes`, follow `create`. Otherwise read the intent
@@ -42,18 +43,18 @@ swap. Load `skill-design.aspects.criteria` and `skill-design.aspects.verificatio
 `cyber-agentkit`. For the open aspects, use that skill's Find mode to list `skill-design.aspects.*`, and load each name
 it lists other than `criteria`, `verification`, and names ending `.interface`.
 
-When the load reports that a chosen implementation is missing, tell the author which aspect fell back to its default.
+When a load reports a chosen implementation missing, tell the author which aspect fell back to its default.
 
-Each aspect's checks are listed as `- **<ID>** [<how>] <statement>`, or `- **<ID>** [<how>, warning] <statement>`.
-`script` means a script decides it from the files alone, `read` means you decide it by reading the skill, and `run`
-means only running the skill decides it: `check` reports it as not checked and points to `test`. A check marked
+Each aspect lists its checks as `- **<ID>** [<how>] <statement>`; a warning check adds `, warning` after `<how>`.
+`script`: a script decides it from the files alone; `read`: you decide it by reading the skill; `run`: only running
+the skill decides it, so `check` reports it as not checked and points to `test`. A check marked
 `warning` may wait; every other check is `critical`, and a failure of it must be fixed before a commit.
 
 ### Intent
 
 Produces the opening paragraph of the skill's `README.md`, right under its `#` title: the one job the skill does, who
-asks for it, and the result it hands back. It may also name the nearest job the skill does not do, when readers are
-likely to confuse the two. It is for the people who keep the skill; `SKILL.md` carries no Intent paragraph.
+asks for it, and the result it hands back. It may also name the nearest job it does not do, when readers
+could confuse the two. It is for the people who keep the skill; `SKILL.md` carries no Intent paragraph.
 
 **Draft.** From the author's description, write the
 paragraph in four sentences or fewer. Ask the author when the job could be read two ways, and when the result is
@@ -199,8 +200,7 @@ Before the first change, settle the level, take the first that answers, and stat
    a skill from an installed plugin.
 2. `reference`: load `skill-design.autonomy` with the `reference` skill of `cyber-agentkit`; the level it sets for the
    command answers. Its shipped default is `apply` for `create`, `apply-safe` for `fix`, and `ask` for `enhance`. An
-   unknown level, such as `derive` from an older version, is ignored: say so, and take the shipped
-   default.
+   unknown level, such as `derive`, is ignored: say so, and take the shipped default.
 
 A level set for `check` or `test` has no effect: say so.
 
@@ -218,15 +218,15 @@ node <this skill's folder>/scripts/skill.mjs test <skill folder> --estimate --bu
 ```
 
 It makes no run, and prints `runs`, `estimate` (US dollars, or `null` when no cost is known), `last` (the last saved
-result's `runs`, `cost`, and `durationMs`), and `within`. State it as one line, `Test budget: <within|over> (<runs> runs, <estimate or "no cost known">; budget <cost>
+result), and `within`. State it as one line, `Test budget: <within|over> (<runs> runs, <estimate or "no cost known">; budget <cost>
 or <runs> runs)`. When `within` is true, start `test` without asking. When it is false, stop.
 
 ### Stops
 
 A run stops only where its level says to ask, for a `test` over the budget, and for a decision only the author can
 make: changing the Intent (such as adopting or extending an existing skill that Research found), what a skill
-generalizes over, an aspect the description says nothing about, or removing or weakening a `## Done when` criterion. Rewriting a criterion so it can be checked, as a Criteria fix does, keeps what it
-asks for and is not weakening it. A request that names such a change still stops: say what it changes, and ask.
+generalizes over, an aspect the description says nothing about, or removing or weakening a `## Done when` criterion. A Criteria fix that makes a criterion checkable keeps what it asks for: it is
+not weakening it. A request that names such a change still stops: say what it changes, and ask.
 
 A stop is the same every time:
 
@@ -277,3 +277,4 @@ Before reporting done, check each of these against the result. Report any that f
 - **C18.** When SHP-1 failed, `fix` named each way to trim that applies with the tokens it saves, and at `ask` changed
   no file before the author picked.
 - **C19.** Sandbox failures were reported as uncounted, a held result as unsaved until `skill accept`, with no `fix`.
+- **C20.** `report` wrote the results as `skill report` printed them, and changed no other file.
