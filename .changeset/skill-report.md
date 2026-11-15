@@ -6,3 +6,5 @@
 page or README, or as JSON with `--format json`: the summary and cost, the gap over the no-skill baseline, the trigger
 cases, each criterion with the skill and without, the outcome cases, runs the sandbox broke, and the trend over the
 kept accepted results. It says so plainly when the skill has no accepted result.
+
+`/skill report` runs it and puts the output where the author asks, instead of writing the tables by hand.

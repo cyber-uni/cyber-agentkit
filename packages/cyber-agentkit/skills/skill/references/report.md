@@ -1,0 +1,29 @@
+# Report a skill's eval results
+
+Publish a skill's accepted eval results, the `evals/expected.json` that `test` saves when its author accepts a run,
+where readers see them: its docs page, its README, or a site generator. Run no test, and change no file but the one
+the author names.
+
+## 1. Find it
+
+Find the skill as [check](check.md) does.
+
+## 2. Print the report
+
+Run the command; it reads the results, so never write the tables by hand:
+
+```sh
+node <this skill's folder>/scripts/skill.mjs report <skill folder>
+```
+
+It prints the Evals section as Markdown, starting at its `## Evals` heading: the summary line and cost, the gap over
+the no-skill baseline, the trigger cases, each criterion with the skill and without, the outcome cases, runs the
+sandbox broke, and the trend over the kept accepted results. Add `--format json` when a site generator will read it,
+and `--test-link <url>` when the page should link `skill test` somewhere other than the cyber-agentkit docs site.
+
+When it prints `This skill has no saved eval result yet`, say so plainly, and point to `test`; write nothing.
+
+## 3. Put it where the author asked
+
+Put the output into the file the author named, as printed, replacing an earlier Evals section from the command if the
+file has one. With no file named, show it in the reply. Say that a rerun after the next accepted result refreshes it.

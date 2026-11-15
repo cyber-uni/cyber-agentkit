@@ -10,6 +10,7 @@ trigger:
   # The work itself changes a skill, though the request does not ask about skills (#205).
   - { prompt: "Implement issue #42: the description in .agents/skills/release-notes/SKILL.md should also fire on 'changelog'. Open a PR when done.", expect: fire }
   - { prompt: "Work on issue #57: add a references/labels.md to the release-notes skill folder that lists how to group notes by label, and link it from its steps.", expect: fire }
+  - { prompt: "Publish the eval results of the release-notes skill on its docs page.", expect: fire }
   - { prompt: "Turn what we just did into a skill.", expect: skip }
   - { prompt: "Load our style reference and tell me what it says about tone.", expect: skip }
   - { prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
@@ -161,6 +162,13 @@ outcome:
       test-report.json, so don't run it again. Tell me what to do next.
     files: files/sandbox-report
     criteria: [C19]
+  # Only `skill report` writes the gap line and the trigger rows this way, so a README that has them came from the command.
+  - id: report-readme
+    prompt: >-
+      Add the eval results of the skill in .agents/skills/release-notes to the end of its README, so readers see how
+      it tested.
+    files: files/samples
+    criteria: [C20]
   - id: help
     prompt: I want to create, check, test, or fix an agent skill. Which commands can I use? List them all.
     files: files/samples
@@ -212,6 +220,7 @@ rubrics:
     - regex: "\\benhance\\b"
     - regex: "\\bcustomize\\b"
     - regex: "\\bvet\\b"
+    - regex: "\\breport\\b"
     - regex: "skillify"
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
   C9:
@@ -260,3 +269,10 @@ rubrics:
     - regex: "skill(\\.mjs)? accept\\b"
     - not-regex: "(run|use|try|want me to|shall I|should I|I can|offer)[^\\n]{0,30}`?/?(skill )?fix`?\\b"
     - script: "test ! -e .agents/skills/release-notes/evals/expected.json && test -z \"$(git status --porcelain --untracked-files=all)\""
+  C20:
+    - script: >-
+        f=.agents/skills/release-notes/README.md;
+        grep -qF 'with the skill, 12 of 12 criterion checks pass; without it, 4 of 12.' $f
+        && grep -qF '| Draft the changelog for 2.0 from the merged PRs. | fire | 3 of 3 | pass |' $f
+        && grep -q '^## Research' $f
+    - script: "test -z \"$(git status --porcelain --untracked-files=all | grep -v ' .agents/skills/release-notes/README.md$')\""
