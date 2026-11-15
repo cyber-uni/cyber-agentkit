@@ -28,7 +28,7 @@ runs, the last result was saved before the run count was recorded and may have c
 can, so the author can keep working, and watch its progress lines on stderr: one per finished run (`[n/total] <case>
 run <k> (<arm>): <outcome>`) and a `still running` line when none has finished for 30 seconds. Pass them on at most once
 a minute, in one short update that sums up the lines since the last one: the count so far (`n/total`), each run with
-the skill that failed or was not run, and the latest `still running` line when no run finished. Send nothing when no
+the skill that failed, was not run, or was a sandbox failure, and the latest `still running` line when no run finished. Send nothing when no
 line has come since the last update. A run without the skill that fails is the baseline doing worse, not news. Never
 quote the model's replies in an update.
 
@@ -68,10 +68,20 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
   ],
   "cases": [
     { "case": "trigger-1", "status": "pass", "passed": 3, "ran": 3 },
-    { "case": "two-prs", "status": "fail", "passed": 1, "ran": 3 }
+    { "case": "two-prs", "status": "fail", "passed": 1, "ran": 3 },
+    { "case": "fix-flawed", "status": "pass", "passed": 2, "ran": 2, "sandboxFailed": 1 }
   ],
   "notRun": [{ "case": "post-to-github", "reason": "outside effect" }],
   "blocked": [{ "case": "two-prs", "arm": "skill", "run": 1, "what": "network", "target": "api.github.com" }],
+  "sandboxFailures": [
+    {
+      "case": "fix-flawed",
+      "arm": "skill",
+      "run": 3,
+      "fault": "bwrap-read-only-mount",
+      "text": "bwrap: Can't create file at /tmp/skill-test-plugin-x/references/.claude/launch.json: Read-only file system"
+    }
+  ],
   "comparedWith": "expected",
   "changed": [{ "case": "two-prs", "from": "pass", "to": "fail" }],
   "moved": [
@@ -96,6 +106,12 @@ limit is in `notRun` and never counts as a pass; its `reason` is one short line,
 `Error calling Claude Agent SDK: Error: Claude Code returned an error result:` wrapping (for example `Not logged in`). When the baseline cannot run, `baseline` holds the reason and no
 criterion has a `baseline` field.
 
+`sandboxFailures`, left out when there is none, lists each run, in either arm, whose tool output or error carries an
+error `skill test` knows the test sandbox caused, such as `bwrap: Can't create file at …: Read-only file system`: `fault`
+names it and `text` is what the run printed. Such a run is a **sandbox failure**: it counts toward no pass rate, and
+a case's threshold holds over its other runs. A case's `sandboxFailed`, left out when none was, counts its runs with
+the skill that were. A run that broke for a reason `skill test` cannot name is in `notRun` instead.
+
 `blocked`, left out when nothing was, lists what a run tried that its containment refused: `what` is `read`, `write`,
 or `network`, and `target` the path or host. A refused attempt does not by itself fail a criterion.
 
@@ -112,9 +128,9 @@ for an outcome case. `totalRuns` is how many runs the test planned; a result sav
 
 `replies` names a file beside the result, in the same results folder, that holds the reply of every run, passed,
 failed, or not run, with the skill and without it. Each entry has `case`, `arm` (`with-skill` or `baseline`), `run`
-(from 1), `outcome` (`pass`, `fail`, `fired`, `not fired`, or `not run`), the whole `reply`, each criterion the run
-decided under `criteria` with the `detail` of a failure, and, for a run that did not run, its short `reason` and full
-`error`. Read it to see why a run passed or failed; `failures` keeps only the start of a failed reply. The file goes
+(from 1), `outcome` (`pass`, `fail`, `fired`, `not fired`, `not run`, or `sandbox failure`), the whole `reply`, each
+criterion the run decided under `criteria` with the `detail` of a failure, for a run that did not run, its short
+`reason` and full `error`, and for a sandbox failure, the fault's text as its `reason`. Read it to see why a run passed or failed; `failures` keeps only the start of a failed reply. The file goes
 when its result is pruned. `evalId` is promptfoo's own ID for the run, for `promptfoo view` when its database is kept.
 Results saved before these fields were added lack them.
 
@@ -122,7 +138,8 @@ Results saved before these fields were added lack them.
 
 When the skill has no expected result yet and every case and criterion passes, `skill test` saves that result as the
 expected one and its report carries `savedAsExpected: true`: tell the author it was saved. A first run with a fail saves
-none. Otherwise only the author's request makes a result the expected result, and nothing else writes into the skill's
+none. A result with sandbox failures is saved as expected by neither that rule nor `--accept`: the report carries
+`expectedHeld: true`, and only `skill accept <folder>`, run after the author has seen it, saves it. Otherwise only the author's request makes a result the expected result, and nothing else writes into the skill's
 folder. `skill test <folder> --accept` runs the test as usual, then writes that result to `<skill folder>/evals/expected.json`,
 in the same shape as `latest.json` but without `folder`, `replies`, or `evalId`, since the file is committed and those name
 this machine's files. `skill accept <folder>` writes the last saved result there without running the
@@ -136,7 +153,9 @@ history grows from the next accept.
 
 ## Report
 
-Each trigger case beside what was expected; each criterion's pass rate, threshold, and baseline; each failure with its
+When the result has sandbox failures, say so first, before any pass rate, give each case's `sandboxFailed` beside it,
+and say the result was not saved as expected when it carries `expectedHeld`. Then each
+trigger case beside what was expected; each criterion's pass rate, threshold, and baseline; each failure with its
 case and the output that broke it; what the runs with the skill tried and were refused, if anything; and the cases that changed between pass and fail since the expected result, or, with
 none, the previous result, saying which. With neither, say there is none to compare. Name each case in `moved` with
 its rate in each accepted result and in this run. Say when the result was saved as the

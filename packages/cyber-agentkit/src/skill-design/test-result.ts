@@ -1,3 +1,4 @@
+import { recognizeSandboxFault } from './sandbox-faults.js'
 import type { TestPlan } from './test-plan.js'
 
 export type Status = 'pass' | 'fail' | 'not-tested' | 'not-run'
@@ -20,8 +21,11 @@ export type CriterionResult = {
 	baseline?: { passed: number; ran: number }
 	failures?: Failure[]
 }
-/** A case's status, with how many of its runs went right; results saved before the counts were recorded lack them. */
-export type CaseStatus = { case: string; status: Status; passed?: number; ran?: number }
+/**
+ * A case's status, with how many of its runs went right; results saved before the counts were recorded lack them.
+ * `sandboxFailed` counts its runs with the skill that were sandbox failures (R154), left out when none was.
+ */
+export type CaseStatus = { case: string; status: Status; passed?: number; ran?: number; sandboxFailed?: number }
 /** One point of a case's pass rate: the result it comes from (its `at`), and how many runs went right of how many ran. */
 export type RatePoint = { at: string; passed: number; ran: number }
 /** One thing a run tried that its containment refused, with the run that tried it. */
@@ -31,6 +35,14 @@ export type Blocked = {
 	run: number
 	what: 'read' | 'write' | 'network'
 	target: string
+}
+/** A run the test sandbox broke (R154): `fault` names the known error (`sandbox-faults.ts`), `text` is its text. */
+export type SandboxFailure = {
+	case: string
+	arm: 'skill' | 'baseline'
+	run: number
+	fault: string
+	text: string
 }
 
 /** The saved result of `skill test`, the shape every Verification implementation writes (`test.md`). */
@@ -52,6 +64,8 @@ export type TestResult = {
 	notRun: { case: string; reason: string }[]
 	/** What the runs' containment refused (R107): a read or write outside the run's folder, or a host the case does not list. */
 	blocked?: Blocked[]
+	/** The runs, in either arm, that the test sandbox broke (R154); they count toward no pass rate. Left out when none was. */
+	sandboxFailures?: SandboxFailure[]
 	changed?: { case: string; from: Status; to: Status }[]
 	/** Which result `changed` compares with: the skill's expected result, else the previous saved one. */
 	comparedWith?: 'expected' | 'previous'
@@ -61,6 +75,8 @@ export type TestResult = {
 	noPrevious?: true
 	/** In a `test` report only: this run passed with no expected result, and was saved as it (R80). */
 	savedAsExpected?: true
+	/** In a `test` report only: the result would have been saved as the expected one, but it has sandbox failures (R154). */
+	expectedHeld?: true
 	cost?: number
 	/** How long the run took, in milliseconds; results saved before it was recorded lack it. */
 	durationMs?: number
@@ -79,8 +95,8 @@ export type Reply = {
 	arm: string
 	/** 1-based. */
 	run: number
-	outcome: 'pass' | 'fail' | 'fired' | 'not fired' | 'not run'
-	/** For a run that did not run: its short reason, and the full error promptfoo gave. */
+	outcome: 'pass' | 'fail' | 'fired' | 'not fired' | 'not run' | 'sandbox failure'
+	/** For a run that did not run: its short reason, and the full error promptfoo gave. For a sandbox failure: the fault's text. */
 	reason?: string
 	error?: string
 	/** The model's whole reply. */
@@ -105,6 +121,7 @@ type Row = {
 			fired?: boolean
 			checks?: Record<string, { pass: boolean; detail?: string }>
 			blocked?: { what: Blocked['what']; target: string }[]
+			sandboxFault?: { fault: string; text: string }
 		}
 	}
 	gradingResult?: {
@@ -145,6 +162,14 @@ function runError(row: Row): string | undefined {
 	return undefined
 }
 
+/** The known sandbox fault a run hit (R154): recorded from its tool output by the provider, or found in its error. */
+function sandboxFaultOf(row: Row): { fault: string; text: string } | undefined {
+	const recorded = row.response?.metadata?.sandboxFault
+	if (recorded) return recorded
+	const error = runError(row)
+	return error ? recognizeSandboxFault(error) : undefined
+}
+
 function criterionPassed(row: Row, id: string): { pass: boolean; output: string } {
 	const parts = row.gradingResult?.componentResults?.filter((part) => part.assertion?.metric === id) ?? []
 	const check = row.response?.metadata?.checks?.[id]
@@ -178,17 +203,32 @@ export function readPromptfooOutput(
 	const byCase = (id: string, label: string) =>
 		rows.filter((row) => row.testCase?.description === id && row.provider?.label === label)
 	const notRun = [...plan.notRun]
+	const sandboxFailures: SandboxFailure[] = []
 	for (const row of rows) {
+		if (row.response?.metadata?.skipped) continue
+		const fault = sandboxFaultOf(row)
 		const error = runError(row)
-		if (error && !(row.response?.metadata?.skipped ?? false))
+		if (fault)
+			sandboxFailures.push({
+				case: row.testCase?.description ?? '?',
+				arm: row.provider?.label === main ? 'skill' : 'baseline',
+				run: (row.repeatIndex ?? 0) + 1,
+				...fault,
+			})
+		else if (error)
 			notRun.push({
 				case: `${row.testCase?.description ?? '?'} (${row.provider?.label ?? '?'}, run ${(row.repeatIndex ?? 0) + 1})`,
 				reason: shortReason(error),
 			})
 	}
-	const ok = (row: Row) => runError(row) === undefined
-	const statusOf = (count: number, ran: number): Status =>
-		ran === 0 ? 'not-run' : count >= Math.min(plan.threshold, plan.runs) ? 'pass' : 'fail'
+	// A run that errored, or that the sandbox broke, never counts toward a pass rate (R32, R154).
+	const ok = (row: Row) => runError(row) === undefined && sandboxFaultOf(row) === undefined
+	const broken = (id: string) => sandboxFailures.filter((item) => item.case === id && item.arm === 'skill').length
+	const sandboxFailed = (id: string) => (broken(id) ? { sandboxFailed: broken(id) } : {})
+	// The threshold holds over the runs the sandbox did not break, so a sandbox failure never fails a case (R154); a run
+	// that errored still counts against it (R32).
+	const statusOf = (count: number, ran: number, id: string): Status =>
+		ran === 0 ? 'not-run' : count >= Math.min(plan.threshold, plan.runs - broken(id)) ? 'pass' : 'fail'
 
 	const trigger: TriggerResult[] = plan.cases
 		.filter((item) => item.kind === 'trigger')
@@ -202,7 +242,7 @@ export function readPromptfooOutput(
 				expect: item.expect as 'fire' | 'skip',
 				fired,
 				ran: runs.length,
-				status: statusOf(right, runs.length),
+				status: statusOf(right, runs.length, item.id),
 			}
 		})
 
@@ -231,7 +271,7 @@ export function readPromptfooOutput(
 			}
 			passed += casePassed
 			ran += runs.length
-			statuses.push(statusOf(casePassed, runs.length))
+			statuses.push(statusOf(casePassed, runs.length, item.id))
 		}
 		const status: Status = statuses.includes('fail')
 			? 'fail'
@@ -254,16 +294,30 @@ export function readPromptfooOutput(
 		const ids = [...new Set([...Object.keys(item.rubrics), ...Object.keys(item.judged)])]
 		if (!ids.length) return { case: item.id, status: 'not-tested' }
 		const runs = byCase(item.id, main).filter(ok)
-		if (!runs.length) return { case: item.id, status: 'not-run' }
-		const each = ids.map((id) => statusOf(runs.filter((row) => criterionPassed(row, id).pass).length, runs.length))
+		if (!runs.length) return { case: item.id, status: 'not-run', ...sandboxFailed(item.id) }
+		const each = ids.map((id) =>
+			statusOf(runs.filter((row) => criterionPassed(row, id).pass).length, runs.length, item.id),
+		)
 		const passed = runs.filter((row) => ids.every((id) => criterionPassed(row, id).pass)).length
-		return { case: item.id, status: each.includes('fail') ? 'fail' : 'pass', passed, ran: runs.length }
+		return {
+			case: item.id,
+			status: each.includes('fail') ? 'fail' : 'pass',
+			passed,
+			ran: runs.length,
+			...sandboxFailed(item.id),
+		}
 	}
 	const cases: CaseStatus[] = [
 		...trigger.map((item) =>
 			item.ran
-				? { case: item.case, status: item.status, passed: triggerRight(item), ran: item.ran }
-				: { case: item.case, status: item.status },
+				? {
+						case: item.case,
+						status: item.status,
+						passed: triggerRight(item),
+						ran: item.ran,
+						...sandboxFailed(item.case),
+					}
+				: { case: item.case, status: item.status, ...sandboxFailed(item.case) },
 		),
 		...outcomes.map(outcomeStatus),
 		...plan.notRun.map((item) => ({ case: item.case, status: 'not-run' as Status })),
@@ -292,6 +346,7 @@ export function readPromptfooOutput(
 		...(plan.only ? { partial: { cases: plan.only } } : {}),
 		notRun,
 		...(blocked.length ? { blocked } : {}),
+		...(sandboxFailures.length ? { sandboxFailures } : {}),
 		...(cost ? { cost: Math.round(cost * 10000) / 10000 } : {}),
 	}
 }
@@ -315,6 +370,7 @@ export function readReplies(
 			reply: String(row.response?.output ?? ''),
 		}
 		const error = runError(row)
+		const fault = sandboxFaultOf(row)
 		const ids = [
 			...new Set(
 				(row.gradingResult?.componentResults ?? [])
@@ -322,7 +378,11 @@ export function readReplies(
 					.filter((id): id is string => !!id && id !== 'fired'),
 			),
 		]
-		if (error) {
+		if (fault) {
+			entry.outcome = 'sandbox failure'
+			entry.reason = fault.text
+			if (error) entry.error = error
+		} else if (error) {
 			entry.outcome = 'not run'
 			entry.reason = shortReason(error)
 			entry.error = error

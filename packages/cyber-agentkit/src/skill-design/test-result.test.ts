@@ -381,3 +381,127 @@ describe('a partial result (R102)', () => {
 		])
 	})
 })
+
+describe('sandbox failures (R154)', () => {
+	const bwrap =
+		"bwrap: Can't create file at /tmp/skill-test-plugin-Xa1b2C/references/.claude/launch.json: Read-only file system"
+	const broke = (spec: RowSpec) => {
+		const made = row(spec) as ReturnType<typeof row> & { response: { metadata: Record<string, unknown> } }
+		made.response.metadata['sandboxFault'] = { fault: 'bwrap-read-only-mount', text: bwrap }
+		return made
+	}
+	const rows = () => [
+		row({ case: 'two-prs', run: 0, checks: { C1: true, C2: true } }),
+		broke({ case: 'two-prs', run: 1, checks: { C1: false, C2: false } }),
+		broke({ case: 'two-prs', run: 2, checks: { C1: false, C2: false } }),
+		broke({ case: 'two-prs', label: 'baseline', run: 0, checks: { C1: false, C2: false } }),
+		row({ case: 'two-prs', label: 'baseline', run: 1, checks: { C1: false, C2: true } }),
+	]
+
+	it('leaves a run the sandbox broke out of every pass rate, and lists it with its arm and fault', () => {
+		const result = readPromptfooOutput({ results: { results: rows() } }, plan, meta)
+		// the one run the sandbox left whole passed: the threshold holds over that run alone
+		expect(result.criteria[0]).toMatchObject({
+			id: 'C1',
+			status: 'pass',
+			passed: 1,
+			ran: 1,
+			baseline: { passed: 0, ran: 1 },
+		})
+		expect(result.criteria[0]?.failures).toBeUndefined()
+		expect(result.cases.find((item) => item.case === 'two-prs')).toEqual({
+			case: 'two-prs',
+			status: 'pass',
+			passed: 1,
+			ran: 1,
+			sandboxFailed: 2,
+		})
+		expect(result.sandboxFailures).toEqual([
+			{ case: 'two-prs', arm: 'skill', run: 2, fault: 'bwrap-read-only-mount', text: bwrap },
+			{ case: 'two-prs', arm: 'skill', run: 3, fault: 'bwrap-read-only-mount', text: bwrap },
+			{ case: 'two-prs', arm: 'baseline', run: 1, fault: 'bwrap-read-only-mount', text: bwrap },
+		])
+		expect(result.notRun).toEqual([])
+	})
+
+	it('reports a case whose every run the sandbox broke as not run, never as a fail', () => {
+		const all = [0, 1, 2].map((run) => broke({ case: 'two-prs', run, checks: { C1: false, C2: false } }))
+		const result = readPromptfooOutput({ results: { results: all } }, plan, meta)
+		expect(result.cases.find((item) => item.case === 'two-prs')).toEqual({
+			case: 'two-prs',
+			status: 'not-run',
+			sandboxFailed: 3,
+		})
+		expect(result.criteria[0]).toMatchObject({ status: 'not-run', passed: 0, ran: 0 })
+	})
+
+	it('recognizes the fault in a run error too, as a sandbox failure rather than a run not run', () => {
+		const result = readPromptfooOutput(
+			output([{ case: 'two-prs', run: 0, error: `Error calling Claude Agent SDK: Error: ${bwrap}` }]),
+			plan,
+			meta,
+		)
+		expect(result.sandboxFailures).toMatchObject([{ case: 'two-prs', arm: 'skill', run: 1, text: bwrap }])
+		expect(result.notRun).toEqual([])
+	})
+
+	it('still fails a case on its other runs when the sandbox broke one of them', () => {
+		const result = readPromptfooOutput(
+			{
+				results: {
+					results: [
+						row({ case: 'two-prs', run: 0, checks: { C1: true, C2: false } }),
+						row({ case: 'two-prs', run: 1, checks: { C1: true, C2: false } }),
+						broke({ case: 'two-prs', run: 2, checks: { C1: true, C2: true } }),
+					],
+				},
+			},
+			plan,
+			meta,
+		)
+		expect(result.criteria.map((item) => [item.id, item.status, item.passed, item.ran])).toEqual([
+			['C1', 'pass', 2, 2],
+			['C2', 'fail', 0, 2],
+		])
+	})
+
+	it('still counts a run that errored for a reason it cannot name as not run (R32)', () => {
+		const result = readPromptfooOutput(output([{ case: 'two-prs', run: 0, error: 'socket hang up' }]), plan, meta)
+		expect(result.sandboxFailures).toBeUndefined()
+		expect(result.notRun).toContainEqual({ case: 'two-prs (with-skill, run 1)', reason: 'socket hang up' })
+	})
+
+	it('leaves the fields out when no run was a sandbox failure', () => {
+		const result = readPromptfooOutput(
+			output([{ case: 'two-prs', run: 0, checks: { C1: true, C2: true } }]),
+			plan,
+			meta,
+		)
+		expect(result).not.toHaveProperty('sandboxFailures')
+		expect(result.cases.find((item) => item.case === 'two-prs')).not.toHaveProperty('sandboxFailed')
+	})
+
+	it('gives the reply of a sandbox failure that outcome, with the fault text as its reason', () => {
+		const replies = readReplies({ results: { results: rows() } })
+		expect(replies[1]).toMatchObject({
+			case: 'two-prs',
+			arm: 'with-skill',
+			run: 2,
+			outcome: 'sandbox failure',
+			reason: bwrap,
+		})
+		expect(replies[1]).not.toHaveProperty('criteria')
+		expect(replies[0]?.outcome).toBe('pass')
+	})
+
+	it('compares a result saved before sandbox failures were recorded with one that has them', () => {
+		const old: TestResult = {
+			...readPromptfooOutput(output([{ case: 'two-prs', run: 0, checks: { C1: true, C2: true } }]), plan, meta),
+			at: '2026-11-01T00:00:00Z',
+		}
+		const now = readPromptfooOutput({ results: { results: rows() } }, plan, { ...meta, at: '2026-11-12T00:00:00Z' })
+		expect(caseRates(old).get('two-prs')).toEqual({ passed: 1, ran: 1 })
+		expect(compareWithHistory(now, [old]).moved).toBeUndefined()
+		expect(compareWithPrevious(now, old, 'expected').changed).toEqual([{ case: 'two-prs', from: 'fail', to: 'pass' }])
+	})
+})

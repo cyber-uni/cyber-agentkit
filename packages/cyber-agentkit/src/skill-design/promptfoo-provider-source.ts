@@ -223,7 +223,7 @@ function spawnInGroup(children) {
 
 // Decides the rubric checks that need no judge in the run's folder, and records whether the skill fired.
 // A script check finds the run's own plugin copy at SKILL_TEST_PLUGIN.
-function finish(response, { arm, vars, dir, plugin, fired, blocked }) {
+function finish(response, { arm, vars, dir, plugin, fired, blocked, sandboxFault }) {
   const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')
   const checks = {}
   const env = { ...process.env, ...(plugin ? { SKILL_TEST_PLUGIN: plugin } : {}) }
@@ -233,7 +233,7 @@ function finish(response, { arm, vars, dir, plugin, fired, blocked }) {
       const failed = results.find((result) => !result.pass)
       checks[id] = failed ? { pass: false, detail: failed.detail } : { pass: true }
     }
-  response.metadata = { ...response.metadata, arm, fired, checks, ...(blocked ? { blocked } : {}) }
+  response.metadata = { ...response.metadata, arm, fired, checks, ...(blocked ? { blocked } : {}), ...(sandboxFault ? { sandboxFault } : {}) }
   return response
 }
 
@@ -294,11 +294,28 @@ function runCli({ command, isolation, prompt, names, vars, dir, env, timeout, ma
   })
 }
 
+// Watches each shell command's output for an error the test sandbox, not the skill, caused (R154): the config's
+// sandboxFaults, from sandbox-faults.ts. The first one a run hits is kept as { fault, text }, and the run counts toward
+// no pass rate.
+function watchSandboxFaults(faults) {
+  const found = {}
+  const after = async (input) => {
+    if (found.fault || input.tool_name !== 'Bash') return {}
+    const said = (typeof input.tool_response === 'string' ? input.tool_response : JSON.stringify(input.tool_response ?? input.error ?? '')).replace(/\\n/g, '\n')
+    for (const fault of faults) {
+      const match = new RegExp(fault.pattern).exec(said)
+      if (match) { found.fault = fault.id; found.text = match[0].slice(0, 300); break }
+    }
+    return {}
+  }
+  return { hooks: { PostToolUse: [{ hooks: [after] }], PostToolUseFailure: [{ hooks: [after] }] }, hit: () => (found.fault ? { ...found } : undefined) }
+}
+
 export default class SkillRun {
   constructor(options) { this.options = options; this.config = options.config }
   id() { return this.options.id || 'skill-run' }
   async callApi(prompt, context) {
-    const { arm, skillDir, skillName, pluginDir, pluginName, dependencyDirs = [], instruction, inner, timeout = 300, harness = 'claude-code', isolation, command } = this.config
+    const { arm, skillDir, skillName, pluginDir, pluginName, dependencyDirs = [], instruction, inner, timeout = 300, harness = 'claude-code', isolation, command, sandboxFaults = [] } = this.config
     // A skill loaded from a plugin is called <plugin>:<skill> (research E21).
     const names = pluginName ? [skillName, pluginName + ':' + skillName] : [skillName]
     const vars = context.vars
@@ -367,14 +384,19 @@ export default class SkillRun {
         return { continue: false, stopReason: names.includes(name) ? 'the skill fired' : 'another skill fired' }
       }
       const skillHook = { matcher: 'Skill', hooks: [watchSkill] }
-      let hooks = { PreToolUse: [skillHook] }
+      const faults = watchSandboxFaults(sandboxFaults)
+      let hooks = { PreToolUse: [skillHook], ...faults.hooks }
       let contained
       let watch
       const blocked = []
       if (isolation.containment) {
         contained = containment({ dir, home, plugin, dependencies: dependencyDirs, network: vars.network ? JSON.parse(vars.network) : undefined })
         watch = watchContainment({ dir, ...contained, fileTools: isolation.containment.fileTools, network: contained.sandbox.network.allowedDomains }, blocked)
-        hooks = { ...watch.hooks, PreToolUse: [skillHook, ...watch.hooks.PreToolUse] }
+        hooks = {
+          PreToolUse: [skillHook, ...watch.hooks.PreToolUse],
+          PostToolUse: [...watch.hooks.PostToolUse, ...faults.hooks.PostToolUse],
+          PostToolUseFailure: [...watch.hooks.PostToolUseFailure, ...faults.hooks.PostToolUseFailure],
+        }
       }
       // The plugin loads beside the plugins it depends on: Claude Code does not start it without them (E-CC-H10).
       const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(plugin ? { plugins: [plugin, ...dependencyDirs].map((p) => ({ type: 'local', path: p })) } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3 } : {}), hooks, env, working_dir: dir, ...(contained ? { sandbox: contained.sandbox, settings: contained.settings, ...(plugin ? { additional_directories: [plugin, ...dependencyDirs] } : {}) } : {}), spawn_claude_code_process: spawnInGroup(children) } } })
@@ -390,7 +412,7 @@ export default class SkillRun {
       const answer = provider.callApi(prompt, context, { abortSignal: controller.signal }).catch((error) => ({ error: String(error?.message ?? error) }))
       const first = await Promise.race([answer, timedOut])
       clearTimeout(limit)
-      if (first === 'time limit') return { error: 'time limit', metadata: { arm, timedOut: true, ...(contained ? { blocked } : {}) } }
+      if (first === 'time limit') return { error: 'time limit', metadata: { arm, timedOut: true, ...(contained ? { blocked } : {}), ...(faults.hit() ? { sandboxFault: faults.hit() } : {}) } }
       const response = first
       // A trigger case only needs to know whether the skill fired, so it ends there or at the turn cap; running out of turns is its normal end.
       if (vars.kind === 'trigger' && /maximum number of turns/.test(response.error ?? '')) {
@@ -400,7 +422,7 @@ export default class SkillRun {
       watch?.review(response.metadata?.toolCalls)
       const calls = response.metadata?.skillCalls ?? []
       const fired = hookFired || calls.some((call) => names.includes(call.name) || names.includes(call.input?.skill))
-      return finish(response, { arm, vars, dir, plugin, fired, blocked: contained ? blocked : undefined })
+      return finish(response, { arm, vars, dir, plugin, fired, blocked: contained ? blocked : undefined, sandboxFault: faults.hit() })
     } finally {
       for (const folder of [dir, home, plugin].filter(Boolean)) try { fs.rmSync(folder, { recursive: true, force: true }) } catch {}
     }
@@ -429,7 +451,8 @@ export async function afterEach({ result }) {
     const error = response?.error ?? (response === undefined ? result.error ?? 'no response' : undefined)
     const line = { event: 'end', case: result.testCase?.description ?? '', arm: result.provider?.label === 'with-skill' ? 'skill' : 'baseline', run: (result.repeatIndex ?? 0) + 1, kind, durationMs: result.latencyMs, t: Date.now() }
     // The same short reason the saved result gives (R137): the first line, without the Agent SDK provider's wrappers.
-    if (error) { line.outcome = 'not run'; line.reason = String(error).trim().split('\n')[0].replace(/^(?:\s*(?:Error calling Claude Agent SDK|Error|Claude Code returned an error result):)+\s*/i, '').slice(0, 160) || 'no reason given' }
+    if (response?.metadata?.sandboxFault) { line.outcome = 'sandbox failure'; line.reason = String(response.metadata.sandboxFault.text).slice(0, 160) }
+    else if (error) { line.outcome = 'not run'; line.reason = String(error).trim().split('\n')[0].replace(/^(?:\s*(?:Error calling Claude Agent SDK|Error|Claude Code returned an error result):)+\s*/i, '').slice(0, 160) || 'no reason given' }
     else if (kind === 'trigger') line.outcome = response?.metadata?.fired ? 'fired' : 'not fired'
     else line.outcome = result.success ? 'pass' : 'fail'
     fs.appendFileSync(file, JSON.stringify(line) + '\n')

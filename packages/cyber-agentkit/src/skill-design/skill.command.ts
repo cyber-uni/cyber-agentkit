@@ -210,6 +210,23 @@ function testText(result: TestResult, folder?: string): string {
 	const lines = [
 		`${result.skill}: ${result.runs} runs per case, threshold ${result.threshold}, baseline ${result.baseline}`,
 	]
+	// Sandbox failures come first, so the pass rates below are not read as the skill's (R154).
+	const sandbox = result.sandboxFailures ?? []
+	if (sandbox.length) {
+		lines.push(
+			`warning: ${sandbox.length} ${sandbox.length === 1 ? 'run was a sandbox failure' : 'runs were sandbox failures'}: the test sandbox broke ${sandbox.length === 1 ? 'its' : 'their'} shell, so no pass rate counts ${sandbox.length === 1 ? 'it' : 'them'}`,
+		)
+		const byCase = new Map<string, { skill: number; baseline: number }>()
+		for (const item of sandbox) {
+			const counts = byCase.get(item.case) ?? { skill: 0, baseline: 0 }
+			counts[item.arm]++
+			byCase.set(item.case, counts)
+		}
+		for (const [id, counts] of byCase)
+			lines.push(
+				`sandbox failure: ${id} — ${counts.skill} with the skill, ${counts.baseline} without — ${sandbox.find((item) => item.case === id)?.text}`,
+			)
+	}
 	for (const item of result.trigger)
 		lines.push(
 			`trigger ${item.case} (${item.expect}): ${item.status}, fired ${item.fired} of ${item.ran} — ${item.prompt}`,
@@ -232,6 +249,10 @@ function testText(result: TestResult, folder?: string): string {
 	if (result.partial)
 		lines.push(`partial: only ${result.partial.cases.join(', ')} ran; not saved as the expected result`)
 	if (result.savedAsExpected) lines.push('no expected result yet: saved this passing result as evals/expected.json')
+	if (result.expectedHeld)
+		lines.push(
+			'not saved as evals/expected.json: it has sandbox failures; review it, then run `skill accept` on the skill to accept it anyway',
+		)
 	if (result.noPrevious) lines.push('no expected or previous result to compare with')
 	else
 		for (const item of result.changed ?? [])
@@ -297,7 +318,7 @@ function testCommand({
 			},
 			accept: {
 				description:
-					"After the run, also write its result to the skill's `evals/expected.json`, the expected result that later runs compare with.",
+					"After the run, also write its result to the skill's `evals/expected.json`, the expected result that later runs compare with. A result with sandbox failures is held back: accept it with `skill accept` once you have seen it.",
 				type: t.boolean().optional(),
 			},
 			estimate: {
@@ -460,8 +481,14 @@ function testCommand({
 			const failed = [...saved.trigger, ...saved.criteria].some((item) => item.status === 'fail')
 			// The first run that passes becomes the expected result when there is none (R80).
 			const firstPass = !failed && !saved.partial && !existsSync(expectedPath(skill.folder))
-			if (args.accept || firstPass) acceptResult(saved, skill.folder)
-			const reported: TestResult = !args.accept && firstPass ? { ...saved, savedAsExpected: true } : saved
+			// A result with sandbox failures becomes the expected one only by `skill accept`, once the author has seen it (R154).
+			const held = (args.accept || firstPass) && !!saved.sandboxFailures?.length
+			if ((args.accept || firstPass) && !held) acceptResult(saved, skill.folder)
+			const reported: TestResult = held
+				? { ...saved, expectedHeld: true }
+				: !args.accept && firstPass
+					? { ...saved, savedAsExpected: true }
+					: saved
 			const answer = result(reported, { render: { text: () => testText(reported, resultFolder) } })
 			if (failed) answerThenFail(answer, this.format)
 			return answer
@@ -506,6 +533,10 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 				)
 				throw CliError.reported(exitCodes.error)
 			}
+			if (latest.sandboxFailures?.length)
+				process.stderr.write(
+					`warning: sandbox-failures: ${latest.sandboxFailures.length} runs of this result were sandbox failures and count toward no pass rate; accepted as you asked\n`,
+				)
 			const path = acceptResult(latest, skill.folder)
 			return result(
 				{ skill: name, accepted: latest.at, expected: path },

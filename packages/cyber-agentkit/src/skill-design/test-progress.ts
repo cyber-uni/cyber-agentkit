@@ -11,9 +11,9 @@ export type ProgressLine = {
 	/** 1-based. */
 	run: number
 	kind?: string
-	/** On `end`: `pass`, `fail`, `fired`, `not fired`, or `not run`. */
+	/** On `end`: `pass`, `fail`, `fired`, `not fired`, `not run`, or `sandbox failure` (R154). */
 	outcome?: string
-	/** On `end` with `not run`: why. */
+	/** On `end` with `not run`: why; with `sandbox failure`: the fault's text. */
 	reason?: string
 	durationMs?: number
 	/** When the line was written, in epoch milliseconds. */
@@ -96,7 +96,10 @@ export function watchProgress(options: ProgressWatch): { stop: () => void } {
 		done++
 		quiet = now()
 		const arm = line.arm === 'skill' ? 'with skill' : 'without skill'
-		const outcome = line.outcome === 'not run' ? `not run: ${line.reason ?? 'no reason'}` : line.outcome
+		const outcome =
+			line.outcome === 'not run' || line.outcome === 'sandbox failure'
+				? `${line.outcome}: ${line.reason ?? 'no reason'}`
+				: line.outcome
 		const took = line.durationMs === undefined ? '' : `, ${clock(line.durationMs)}`
 		write(`[${done}/${total}] ${line.case} run ${line.run} (${arm}): ${outcome}${took}`)
 	}

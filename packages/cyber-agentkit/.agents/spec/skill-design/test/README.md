@@ -135,3 +135,8 @@ contract apply here; IDs are shared across the parent and its children.
 - R138 (UC6): From a saved result, the author can reach the whole reply of every run, passed, failed, or not run, in
   both arms, without opening the engine's own store. The reply stays local: an expected result never carries it, nor
   anything that names the author's machine.
+- R154 (UC6.4): A run that a known fault of the test sandbox broke, recognized by the error's fixed text in the run's
+  tool output or error, is reported as a sandbox failure, not as a pass, a fail, or not run. It counts toward no pass
+  rate, the report warns of it before any pass rate and counts it per case, and a result holding one becomes the
+  expected result only by the author accepting it after seeing it. The faults recognized are kept in one list that
+  more can be added to.
