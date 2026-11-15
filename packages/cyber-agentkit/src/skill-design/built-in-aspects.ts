@@ -155,6 +155,13 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				statement:
 					'Each script or command the body runs writes machine output to stdout, in the format the body asks for, and prints prose only behind `--verbose`.',
 			},
+			{
+				id: 'SHP-19',
+				how: 'read',
+				severity: 'warning',
+				statement:
+					"Where the body loads a reference the `reference` skill composes, it says to load it with that skill, and reads the reference's bundled `<name>.default.md` directly only as the fallback for when the command cannot run.",
+			},
 		],
 	},
 	{

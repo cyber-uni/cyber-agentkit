@@ -113,6 +113,9 @@ program does the same way every time, such as parsing or validating a file. At `
   not a menu of options to choose from.
 - **SHP-18** [read, warning] Each script or command the body runs writes machine output to stdout, in the format the
   body asks for, and prints prose only behind `--verbose`.
+- **SHP-19** [read, warning] Where the body loads a reference the `reference` skill composes, it says to load it with
+  that skill, and reads the reference's bundled `<name>.default.md` directly only as the fallback for when the command
+  cannot run.
 
 **Fix.** Move the text or the step as Draft says, and update the links. For SHP-1, before changing anything, estimate
 what each way to trim that applies saves, at four characters a token, naming the sections it touches:
@@ -132,7 +135,8 @@ Wire a skill. For SHP-6, ship the default. For SHP-7 to SHP-11, move the file or
 what links or names it. For SHP-12, write the body as steps or sections. For SHP-13, make the script print what the
 step needs, and point the step at that. For SHP-14, add the flag. For SHP-15 and SHP-16, delete the text. For SHP-17, keep
 as the default the option most runs need, and name the condition under which the step does otherwise. For SHP-18, move
-the prose to stderr or behind `--verbose`.
+the prose to stderr or behind `--verbose`. For SHP-19, make the step load the reference through the `reference` skill,
+and keep the default only as the fallback; `fix` and `enhance` never replace a reference load with a direct read.
 
 ### Trigger
 
