@@ -101,10 +101,12 @@ outcome:
         - regex: "\\?"
         - script: "test ! -e .agents/skills/pr-release-notes/SKILL.md"
   # Other work adds a skill (#205): the work is the approval, so the skill is written without asking about each aspect.
+  # Its job is one no skill in files/samples covers, so research finds nothing to adopt and does not stop the run.
   - id: work-adds-skill
     prompt: >-
-      Implement issue #61: add a changelog-entry skill in .agents/skills that drafts a changelog entry for each merged
-      pull request. Report what you did when done.
+      Implement issue #61: add an oncall-handoff skill in .agents/skills that drafts this team's weekly on-call handoff
+      note from incidents.json, a list of incidents each with an id, title, severity, and status (open or resolved).
+      Report what you did when done.
     files: files/samples
     criteria: [C12]
   # files/low-budget sets a budget of $0.01 or 1 run, so the test of the new skill is over it: the run keeps the skill,
@@ -232,9 +234,11 @@ rubrics:
     - regex: "Check:\\W{0,4}(pass|fail)"
     - regex: "Test budget:\\W{0,4}within"
     - not-regex: "\\?\\s*$"
-  # create writes the skill's evals; without the skill the work writes a SKILL.md alone.
+  # create writes the skill's evals and README's Research section, and reports `check`'s result. Without the skill,
+  # the work may copy release-notes' layout, but it reports only its own checks ("all four checks passed").
   C12:
-    - script: "test -f .agents/skills/changelog-entry/SKILL.md && test -f .agents/skills/changelog-entry/evals/evals.yaml"
-    - regex: "\\bcheck\\b"
+    - script: "test -f .agents/skills/oncall-handoff/SKILL.md && test -f .agents/skills/oncall-handoff/evals/evals.yaml"
+    - script: "grep -q '^## Research' .agents/skills/oncall-handoff/README.md"
+    - regex: "`check`|\\b(static|automatic) checks?\\b"
   C17:
     - regex: "[Rr]esearch"
