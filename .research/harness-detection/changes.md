@@ -232,3 +232,10 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
 - Added E-CC-D17: `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR` and why a `cd` into a loaded plugin's folder breaks the
   Bash sandbox, from the vendor docs and bubblewrap arguments logged from live runs. `skill test` sets the variable so a
   run's shell keeps working after such a `cd`.
+
+## 2026-11-14 (skill test shell after a cd, second look)
+
+- Added E-CC-D18: the sandbox's per-folder mounts follow the session's working folder, which lags the shell's by a few
+  commands. With `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR` set, no scripted `cd` into the plugin copy broke a run. The
+  bwrap failures in the second full run came from a script built before E-CC-D17's fix.
+- Corrected E-CC-D17: the hidden paths are in the session's working folder, not the shell's current one.
