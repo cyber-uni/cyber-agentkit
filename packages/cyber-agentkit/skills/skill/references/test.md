@@ -67,13 +67,22 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
     }
   ],
   "cases": [
-    { "case": "trigger-1", "status": "pass" },
-    { "case": "two-prs", "status": "fail" }
+    { "case": "trigger-1", "status": "pass", "passed": 3, "ran": 3 },
+    { "case": "two-prs", "status": "fail", "passed": 1, "ran": 3 }
   ],
   "notRun": [{ "case": "post-to-github", "reason": "outside effect" }],
   "blocked": [{ "case": "two-prs", "arm": "skill", "run": 1, "what": "network", "target": "api.github.com" }],
   "comparedWith": "expected",
   "changed": [{ "case": "two-prs", "from": "pass", "to": "fail" }],
+  "moved": [
+    {
+      "case": "two-prs",
+      "rates": [
+        { "at": "2026-10-01T09:00:00Z", "passed": 3, "ran": 3 },
+        { "at": "2026-11-10T21:00:00Z", "passed": 1, "ran": 3 }
+      ]
+    }
+  ],
   "cost": 0.06,
   "durationMs": 252000,
   "totalRuns": 18,
@@ -91,10 +100,15 @@ criterion has a `baseline` field.
 or `network`, and `target` the path or host. A refused attempt does not by itself fail a criterion.
 
 `cases` holds each case's status: an outcome case passes when every criterion it tests meets the threshold in it.
+`passed` and `ran` count its runs that went right: for an outcome case, the runs in which every criterion it tests
+passed; for a trigger case, the runs that fired or skipped as expected.
 `changed` lists the cases that went between `pass` and `fail` since the skill's expected result
 (`<skill folder>/evals/expected.json`) when it exists, else since the previous saved result; `comparedWith` says which
 (`expected` or `previous`). With neither, `changed` is left out and `noPrevious` is `true`. `cost` is the runs' total in US dollars, when the engine reports it.
-`totalRuns` is how many runs the test planned; a result saved before it was recorded lacks it, and its count is unknown.
+`moved` lists the cases whose pass rate differs between any two of the kept accepted results (see Accept a result)
+and this run, each with its rate in each result that holds one, oldest first and this run last; it is left out when no
+case moved. A result saved before cases carried counts gives a trigger case's rate from its `trigger` entry, and none
+for an outcome case. `totalRuns` is how many runs the test planned; a result saved before it was recorded lacks it, and its count is unknown.
 
 `replies` names a file beside the result, in the same results folder, that holds the reply of every run, passed,
 failed, or not run, with the skill and without it. Each entry has `case`, `arm` (`with-skill` or `baseline`), `run`
@@ -115,9 +129,15 @@ this machine's files. `skill accept <folder>` writes the last saved result there
 test, so it spends nothing, and fails with `no-result` when there is none saved. The expected result is kept in version
 control with the skill, so the team compares with the same result.
 
+Accepting a result moves the expected result it replaces to `<skill folder>/evals/accepted/<its at>.json`, unless it is
+the same run, and keeps the 3 newest there, deleting older ones. Commit them with `expected.json`: together they are the
+history `moved` compares across. A skill with only `expected.json` needs no step: it is the newest entry, and the
+history grows from the next accept.
+
 ## Report
 
 Each trigger case beside what was expected; each criterion's pass rate, threshold, and baseline; each failure with its
 case and the output that broke it; what the runs with the skill tried and were refused, if anything; and the cases that changed between pass and fail since the expected result, or, with
-none, the previous result, saying which. With neither, say there is none to compare. Say when the result was saved as the
+none, the previous result, saying which. With neither, say there is none to compare. Name each case in `moved` with
+its rate in each accepted result and in this run. Say when the result was saved as the
 expected result. With failures, offer `fix` as `SKILL.md`'s Rules say.

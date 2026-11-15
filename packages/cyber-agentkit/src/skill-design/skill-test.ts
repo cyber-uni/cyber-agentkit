@@ -20,7 +20,14 @@ import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
 import { type SkillTestHarness, skillTestHarness } from './skill-test-harness.js'
 import type { TestPlan } from './test-plan.js'
 import { type ProgressWatch, plannedRuns, watchProgress } from './test-progress.js'
-import { compareWithPrevious, type Reply, readPromptfooOutput, readReplies, type TestResult } from './test-result.js'
+import {
+	compareWithHistory,
+	compareWithPrevious,
+	type Reply,
+	readPromptfooOutput,
+	readReplies,
+	type TestResult,
+} from './test-result.js'
 
 /** Runs promptfoo on a config in a folder and answers its output JSON, or why it could not. */
 export type PromptfooRun = (
@@ -218,6 +225,38 @@ export function expectedPath(skillFolder: string): string {
 	return join(skillFolder, 'evals', 'expected.json')
 }
 
+/** Where the skill's past accepted results live, each as `<its at>.json`, beside the expected result. */
+export function acceptedFolder(skillFolder: string): string {
+	return join(skillFolder, 'evals', 'accepted')
+}
+
+/** How many past accepted results a skill keeps in `evals/accepted/` beside `evals/expected.json`, the newest. */
+export const keptAcceptedResults = 3
+
+/** The skill's kept accepted results, oldest first, the expected result last; a file that cannot be read is skipped. */
+export function acceptedHistory(skillFolder: string): TestResult[] {
+	const folder = acceptedFolder(skillFolder)
+	const past = existsSync(folder)
+		? readdirSync(folder)
+				.filter((name) => name.endsWith('.json'))
+				.sort()
+				.map((name) => join(folder, name))
+		: []
+	return [...past, expectedPath(skillFolder)].flatMap((path) => {
+		const read = readResult(path)
+		return read ? [read] : []
+	})
+}
+
+function readResult(path: string): TestResult | undefined {
+	try {
+		const value = JSON.parse(readFileSync(path, 'utf8')) as TestResult
+		return typeof value?.at === 'string' ? value : undefined
+	} catch {
+		return undefined
+	}
+}
+
 /** The file name a result saved at `at` is kept under once a newer one replaces it. */
 export function stem(at: string): string {
 	return at.replace(/[:]/g, '-')
@@ -245,7 +284,7 @@ export function saveResult(folder: string, result: TestResult, skillFolder: stri
 	const compared = expected
 		? compareWithPrevious(result, expected, 'expected')
 		: compareWithPrevious(result, previous, 'previous')
-	const saved: TestResult = { ...compared, folder: skillFolder }
+	const saved: TestResult = { ...compareWithHistory(compared, acceptedHistory(skillFolder)), folder: skillFolder }
 	if (replies) {
 		saved.replies = `${stem(result.at)}.replies.json`
 		writeFileSync(join(folder, saved.replies), `${JSON.stringify(replies, null, '\t')}\n`)
@@ -297,14 +336,32 @@ function removeVanished(resultsRoot: string, current: string): void {
 /**
  * Writes a saved result as the skill's expected result, the same shape as `latest.json`. It leaves out `folder`: the
  * file is committed, and an absolute path names the author's machine. It leaves out `replies` and `evalId` too: they
- * point at files and a database on that machine alone.
+ * point at files and a database on that machine alone. The expected result it replaces moves to
+ * `evals/accepted/<its at>.json`, unless it is the same run, and only the newest `keptAcceptedResults` stay there.
  */
 export function acceptResult(result: TestResult, skillFolder: string): string {
 	const path = expectedPath(skillFolder)
 	mkdirSync(join(skillFolder, 'evals'), { recursive: true })
+	const replaced = existsSync(path) ? readResult(path) : undefined
+	if (replaced && replaced.at !== result.at) {
+		mkdirSync(acceptedFolder(skillFolder), { recursive: true })
+		renameSync(path, join(acceptedFolder(skillFolder), `${stem(replaced.at)}.json`))
+	}
 	const { folder: _folder, replies: _replies, evalId: _evalId, ...shared } = result
 	writeFileSync(path, `${JSON.stringify(shared, null, '\t')}\n`)
+	pruneAccepted(skillFolder)
 	return path
+}
+
+/** Deletes all but the newest `keptAcceptedResults` past accepted results; the expected result is never one of them. */
+function pruneAccepted(skillFolder: string): void {
+	const folder = acceptedFolder(skillFolder)
+	if (!existsSync(folder)) return
+	const past = readdirSync(folder)
+		.filter((name) => name.endsWith('.json'))
+		.sort()
+	for (const name of past.slice(0, Math.max(0, past.length - keptAcceptedResults)))
+		rmSync(join(folder, name), { force: true })
 }
 
 /** The last saved result of a skill, if there is one. */

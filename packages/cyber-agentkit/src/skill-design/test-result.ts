@@ -20,7 +20,10 @@ export type CriterionResult = {
 	baseline?: { passed: number; ran: number }
 	failures?: Failure[]
 }
-export type CaseStatus = { case: string; status: Status }
+/** A case's status, with how many of its runs went right; results saved before the counts were recorded lack them. */
+export type CaseStatus = { case: string; status: Status; passed?: number; ran?: number }
+/** One point of a case's pass rate: the result it comes from (its `at`), and how many runs went right of how many ran. */
+export type RatePoint = { at: string; passed: number; ran: number }
 /** One thing a run tried that its containment refused, with the run that tried it. */
 export type Blocked = {
 	case: string
@@ -52,6 +55,8 @@ export type TestResult = {
 	changed?: { case: string; from: Status; to: Status }[]
 	/** Which result `changed` compares with: the skill's expected result, else the previous saved one. */
 	comparedWith?: 'expected' | 'previous'
+	/** The cases whose pass rate moved across the kept accepted results and this run, each with its rate in each, oldest first. */
+	moved?: { case: string; rates: RatePoint[] }[]
 	/** Set when there is neither an expected nor a previous result to compare with. */
 	noPrevious?: true
 	/** In a `test` report only: this run passed with no expected result, and was saved as it (R80). */
@@ -241,18 +246,26 @@ export function readPromptfooOutput(
 		if (failures.length) result.failures = failures
 		return result
 	})
-	/** An outcome case passes when every criterion it tests meets the threshold in its runs. */
-	const outcomeStatus = (item: (typeof outcomes)[number]): Status => {
+	/**
+	 * An outcome case passes when every criterion it tests meets the threshold in its runs. Its count is the runs in
+	 * which every criterion it tests passed.
+	 */
+	const outcomeStatus = (item: (typeof outcomes)[number]): CaseStatus => {
 		const ids = [...new Set([...Object.keys(item.rubrics), ...Object.keys(item.judged)])]
-		if (!ids.length) return 'not-tested'
+		if (!ids.length) return { case: item.id, status: 'not-tested' }
 		const runs = byCase(item.id, main).filter(ok)
-		if (!runs.length) return 'not-run'
+		if (!runs.length) return { case: item.id, status: 'not-run' }
 		const each = ids.map((id) => statusOf(runs.filter((row) => criterionPassed(row, id).pass).length, runs.length))
-		return each.includes('fail') ? 'fail' : 'pass'
+		const passed = runs.filter((row) => ids.every((id) => criterionPassed(row, id).pass)).length
+		return { case: item.id, status: each.includes('fail') ? 'fail' : 'pass', passed, ran: runs.length }
 	}
 	const cases: CaseStatus[] = [
-		...trigger.map((item) => ({ case: item.case, status: item.status })),
-		...outcomes.map((item) => ({ case: item.id, status: outcomeStatus(item) })),
+		...trigger.map((item) =>
+			item.ran
+				? { case: item.case, status: item.status, passed: triggerRight(item), ran: item.ran }
+				: { case: item.case, status: item.status },
+		),
+		...outcomes.map(outcomeStatus),
 		...plan.notRun.map((item) => ({ case: item.case, status: 'not-run' as Status })),
 	]
 	const cost = rows.reduce((sum, row) => sum + (row.cost ?? 0), 0)
@@ -327,6 +340,44 @@ export function readReplies(
 		replies.push(entry)
 	}
 	return replies
+}
+
+/** How many of a trigger case's runs went the way it expects. */
+function triggerRight(item: TriggerResult): number {
+	return item.expect === 'fire' ? item.fired : item.ran - item.fired
+}
+
+/**
+ * Each case's pass rate in one result: the case's own count, else, for a result saved before cases carried one, its
+ * trigger entry's. A case that did not run, or whose count the result does not hold, has none.
+ */
+export function caseRates(result: TestResult): Map<string, { passed: number; ran: number }> {
+	const rates = new Map<string, { passed: number; ran: number }>()
+	for (const item of result.trigger ?? [])
+		if (item.ran) rates.set(item.case, { passed: triggerRight(item), ran: item.ran })
+	for (const item of result.cases ?? [])
+		if (item.ran && item.passed !== undefined) rates.set(item.case, { passed: item.passed, ran: item.ran })
+	return rates
+}
+
+/**
+ * Adds the cases whose pass rate moved across `history` (the kept accepted results, oldest first, the expected one
+ * last) and this run. A case is named when its rate differs between any two results that hold one for it; each point
+ * is a result's `at` and count. A partial run is compared for its cases alone. With no such case, `moved` is left out.
+ */
+export function compareWithHistory(result: TestResult, history: TestResult[]): TestResult {
+	const { moved: _moved, ...rest } = result
+	const points = [...history, result].map((item) => ({ at: item.at, rates: caseRates(item) }))
+	const moved = result.cases.flatMap((item) => {
+		if (result.partial && !result.partial.cases.includes(item.case)) return []
+		const rates = points.flatMap((point) => {
+			const rate = point.rates.get(item.case)
+			return rate ? [{ at: point.at, ...rate }] : []
+		})
+		const differs = rates.some((rate) => rate.passed * rates[0]!.ran !== rates[0]!.passed * rate.ran)
+		return rates.length > 1 && differs ? [{ case: item.case, rates }] : []
+	})
+	return moved.length ? { ...rest, moved } : rest
 }
 
 /** Adds the cases that changed between pass and fail since `compared` (the expected result, else the previous one), or marks that there is none (R26). */

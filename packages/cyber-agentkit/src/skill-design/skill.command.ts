@@ -236,6 +236,10 @@ function testText(result: TestResult, folder?: string): string {
 	else
 		for (const item of result.changed ?? [])
 			lines.push(`changed since ${result.comparedWith}: ${item.case} ${item.from} → ${item.to}`)
+	for (const item of result.moved ?? [])
+		lines.push(
+			`moved across accepted results: ${item.case} ${item.rates.map((rate, index) => `${index === item.rates.length - 1 ? 'now ' : ''}${rate.passed} of ${rate.ran}`).join(' → ')}`,
+		)
 	return `${lines.join('\n')}\n`
 }
 
@@ -469,7 +473,7 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'accept',
 		description:
-			"Write the skill's last saved test result to its `evals/expected.json` as the expected result, without running the test or spending anything. Fails when there is no saved result.",
+			"Write the skill's last saved test result to its `evals/expected.json` as the expected result, without running the test or spending anything. The expected result it replaces moves to `evals/accepted/`, which keeps the 3 newest. Fails when there is no saved result.",
 		arguments: [{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() }],
 		options: {
 			root: {
