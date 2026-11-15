@@ -197,6 +197,12 @@ outcome:
     files: files/samples
     network: [github.com, api.github.com, codeload.github.com, skills.sh]
     criteria: [C10]
+# The spec criteria each rubric tests, in the skill-design spec and its children. A rubric checks the outcome those
+# criteria state; for a stop, the Stop outcome of the spec's decision graph (R167) on edge E1, E2, or E3.
+#   C1 R1 | C2 R18, R21 | C3 R17, R19 | C4 R7 | C5 R6 (E1) | C6 R39 | C7 R37, R38 | C8 R94, R96 | C9 R92, R93
+#   C10 R142 to R147, R149 | C11 R5, R166 (E4) | C12 none yet | C13 R150 | C14 R166, R167 (E2)
+#   C15 R74, R167 (E3) | C16 R150, R167 (E1 to E3) | C17 R152, R153 (E3) | C18 none yet | C19 R154 | C20 none yet
+#   C21 R155, R159
 rubrics:
   C1:
     - regex: "deploy-notes"
