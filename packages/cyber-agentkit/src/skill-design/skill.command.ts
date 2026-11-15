@@ -6,10 +6,12 @@ import { command, exitCodes, t } from 'clibuilder'
 import { type Answer, CliError, type Format, printAnswer, result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
 import { type HarnessId, harnessIds } from '../harness/harness-id.js'
+import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plugins.js'
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
 import { type PluginEvalRun, runPluginEval, runPluginEvalTest } from './plugin-eval-backend.js'
+import { listPlugins, type PluginList } from './plugin-load.js'
 import { runCheckScript } from './run-check-script.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
 import { checkSkill } from './skill-check.js'
@@ -41,6 +43,10 @@ export type SkillCommandOptions = {
 	runPromptfoo?: PromptfooRun | undefined
 	/** How `claude plugin eval` runs; tests pass a fake. */
 	runPluginEval?: PluginEvalRun | undefined
+	/** How `skill test` lists the plugins a run loads, to check each one does; tests pass a fake. */
+	listPlugins?: PluginList | undefined
+	/** The plugins Claude Code has installed, where a plugin's dependencies are found; tests pass a fake. */
+	installedPlugins?: (() => Promise<readonly InstalledPlugin[]>) | undefined
 	/** How `skill test` polls the progress file and spaces its "still running" lines; tests shorten them. */
 	progress?: { heartbeatMs?: number | undefined; pollMs?: number | undefined } | undefined
 	/** The machine's hardware threads, which bound how many runs go at once (R103); tests set it. */
@@ -237,6 +243,8 @@ function testCommand({
 	plugin,
 	runPromptfoo: run = runPromptfoo,
 	runPluginEval: pluginEval = runPluginEval,
+	listPlugins: list = listPlugins,
+	installedPlugins: installed = async () => (await installedPlugins('claude-code')).plugins,
 	progress,
 	threads,
 }: SkillCommandOptions): cli.Command {
@@ -268,6 +276,11 @@ function testCommand({
 			baseline: {
 				description: 'Another version of the skill to compare with, instead of a run without the skill.',
 				type: t.string().optional(),
+			},
+			plugin: {
+				description:
+					"A plugin folder to load a dependency from, instead of the installed one: when the skill's plugin declares `dependencies`, each run loads them, and theirs, from these folders or else from Claude Code's installed plugins. Repeat it for more.",
+				type: t.array(t.string()).optional(),
 			},
 			root: {
 				description: 'The repository root the result is saved under. Defaults to the nearest folder holding `.git`.',
@@ -329,6 +342,7 @@ function testCommand({
 				model?: string
 				judge?: string
 				baseline?: string
+				plugin?: string[] | undefined
 				root?: string | undefined
 				accept?: boolean | undefined
 				case?: string[] | undefined
@@ -421,11 +435,16 @@ function testCommand({
 			}
 			const ran =
 				backend === 'plugin-eval'
-					? await runPluginEvalTest({ ...common, run: pluginEval, progress: report })
+					? await runPluginEvalTest({ ...common, run: pluginEval, progress: report, listPlugins: list })
 					: await runTest({
 							...common,
 							harness,
 							run,
+							listPlugins: list,
+							dependencies: {
+								folders: (args.plugin ?? []).map((folder) => resolve(folder)),
+								installed: await installed(),
+							},
 							progress: report ? { ...progress, write: report } : undefined,
 						})
 			if ('problem' in ran) {

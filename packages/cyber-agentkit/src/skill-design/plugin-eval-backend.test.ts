@@ -197,6 +197,46 @@ describe('runPluginEvalTest', () => {
 		expect(ran.result.criteria[0]?.baseline).toEqual({ passed: 0, ran: 3 })
 	})
 
+	it('stops before any run when the plugin declares dependencies, which claude plugin eval cannot load (E-CC-H11)', async () => {
+		const skill = goodSkill()
+		const { mkdirSync, writeFileSync } = await import('node:fs')
+		const pluginRoot = join(skill.folder, '..')
+		mkdirSync(join(pluginRoot, '.claude-plugin'), { recursive: true })
+		writeFileSync(
+			join(pluginRoot, '.claude-plugin', 'plugin.json'),
+			'{"name":"notes-kit","skills":"./","dependencies":["cyber-agentkit"]}',
+		)
+		const calls: string[][] = []
+		const ran = await runPluginEvalTest({
+			plan: plan(),
+			skill,
+			skillName: 'release-notes',
+			verification: 'v',
+			at: 'now',
+			run: fakePluginEval(calls),
+		})
+		expect(ran).toMatchObject({ code: 'dependency-unsupported' })
+		expect('problem' in ran && ran.problem).toContain('notes-kit depends on cyber-agentkit')
+		expect(calls).toEqual([])
+	})
+
+	it('stops before any run when the plugin does not load', async () => {
+		const calls: string[][] = []
+		const ran = await runPluginEvalTest({
+			plan: plan(),
+			skill: goodSkill(),
+			skillName: 'release-notes',
+			verification: 'v',
+			at: 'now',
+			run: fakePluginEval(calls),
+			listPlugins: async (folders) => ({
+				plugins: folders.map((installPath) => ({ installPath, enabled: false, errors: ['broken manifest'] })),
+			}),
+		})
+		expect(ran).toEqual({ code: 'plugin-load', problem: 'skill-test does not load: broken manifest' })
+		expect(calls).toEqual([])
+	})
+
 	it('answers the problem when claude plugin eval writes no result', async () => {
 		const ran = await runPluginEvalTest({
 			plan: plan(),

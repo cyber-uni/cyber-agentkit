@@ -17,9 +17,10 @@ export type ConfigOptions = {
 	progress?: { file: string; hook: string } | undefined
 	/**
 	 * The plugin the skill is developed in (R91): each arm loads its own copy of it, `withSkill` holding the skill and
-	 * `baseline` holding the baseline's version or none. The skill is then not copied into the run folder.
+	 * `baseline` holding the baseline's version or none. The skill is then not copied into the run folder. Both arms
+	 * also load `dependencies`, the folders of the plugins it depends on (E-CC-H10).
 	 */
-	plugin?: { name: string; withSkill: string; baseline: string } | undefined
+	plugin?: { name: string; withSkill: string; baseline: string; dependencies?: string[] | undefined } | undefined
 	/** The harness each run drives, with where it keeps its config, skills, plugins, and login. */
 	harness: SkillTestHarness
 	/**
@@ -65,7 +66,11 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 			...(instruction !== undefined
 				? { instruction }
 				: plugin
-					? { pluginName: plugin.name, pluginDir: arm === 'skill' ? plugin.withSkill : plugin.baseline }
+					? {
+							pluginName: plugin.name,
+							pluginDir: arm === 'skill' ? plugin.withSkill : plugin.baseline,
+							...(plugin.dependencies?.length ? { dependencyDirs: plugin.dependencies } : {}),
+						}
 					: skillDir
 						? { skillDir }
 						: {}),

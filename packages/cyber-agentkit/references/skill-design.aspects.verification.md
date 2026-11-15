@@ -102,6 +102,14 @@ say so before the first run in a session.
   The copy leaves out `node_modules` and `.git`. Each run gets a copy of its own, committed in a git repository, and a
   `script` check finds it at `$SKILL_TEST_PLUGIN`: `git -C "$SKILL_TEST_PLUGIN" status --porcelain` tells whether the
   run changed the installed plugin, and `node "$SKILL_TEST_PLUGIN/skills/<skill>/scripts/<script>"` runs its scripts.
+- When that plugin declares `dependencies` in its `plugin.json`, both arms load each plugin it depends on, and each one
+  those depend on, since Claude Code does not start a plugin without them. Each comes from a folder passed with
+  `--plugin <folder>` (repeatable, matched by the folder's manifest `name`), else from Claude Code's installed plugins,
+  a user-scope install first. A run reads a dependency's copy but cannot write it. When one is found in neither, `test`
+  stops with `error: dependency-missing:` and names it. Before the first run, `test` also asks Claude Code whether each
+  plugin a run loads does load (`claude plugin list`, which spends nothing), and stops with `error: plugin-load:` and
+  Claude Code's reason when one does not, so no case is scored on a run that loaded no skill. When that check cannot
+  run, such as with no `claude` on `PATH`, the test warns and goes on.
 - Each run records every skill it calls in `.skill-test/skill-calls.jsonl`, one JSON line `{"skill", "args"}` per call,
   excluded from `git status`. A `script` check reads it to decide what a skill handed to another, such as the
   description a skill passed to `/skill create`.
@@ -161,7 +169,9 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   skill in a plugin or with `--baseline`, a second run on a copy of the plugin without the skill or with that
   version. It drives Claude Code only. `claude plugin eval` runs each case itself, so skill test's containment does
   not reach it: a run may read outside its folder, `network` does not apply, and the result lists nothing as
-  blocked. The test warns about it.
+  blocked. The test warns about it. `claude plugin eval` loads no plugin but the one it tests, so for a skill whose
+  plugin declares `dependencies` the test stops with `error: dependency-unsupported:` before any run; test it on the
+  default backend. It stops with `error: plugin-load:` when the plugin does not load, as the default backend does.
 
 ## Criteria
 

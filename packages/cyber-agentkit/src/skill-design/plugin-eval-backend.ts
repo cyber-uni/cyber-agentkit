@@ -3,6 +3,8 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, write
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { stringify } from 'yaml'
+import { readPluginDependencies } from '../dependencies/plugin-dependencies.js'
+import { checkPluginsLoad, type PluginList } from './plugin-load.js'
 import { readSkill, type SkillFiles } from './skill-files.js'
 import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
 import type { TestPlan } from './test-plan.js'
@@ -231,6 +233,8 @@ export type PluginEvalTestOptions = {
 	at: string
 	run: PluginEvalRun
 	progress?: ((line: string) => void) | undefined
+	/** How the test checks that the plugin loads before it runs a case; without it, it does not check. */
+	listPlugins?: PluginList | undefined
 }
 
 /** A plugin holding just the skill, for a skill not developed in one. */
@@ -250,8 +254,21 @@ function makePlugin(target: string, skillName: string, skillFolder: string): voi
  */
 export async function runPluginEvalTest(
 	options: PluginEvalTestOptions,
-): Promise<{ result: TestResult; replies: Reply[]; warnings: string[] } | { problem: string }> {
+): Promise<
+	| { result: TestResult; replies: Reply[]; warnings: string[] }
+	| { problem: string; code?: 'dependency-unsupported' | 'plugin-load' }
+> {
 	const warnings: string[] = []
+	const found = findSkillPlugin(options.skill.folder)
+	// claude plugin eval loads the target plugin alone, so a plugin that needs another loads no skill (E-CC-H11).
+	if (found) {
+		const read = await readPluginDependencies(found.root)
+		if (read.dependencies.length)
+			return {
+				code: 'dependency-unsupported',
+				problem: `${found.name} depends on ${read.dependencies.map((dependency) => dependency.name).join(', ')}, and claude plugin eval loads no plugin but the one it tests, so none of its skills would load; run skill test without --backend plugin-eval`,
+			}
+	}
 	let baselineFolder = options.baselineFolder
 	if (baselineFolder !== undefined && !readSkill(baselineFolder)) {
 		warnings.push(`the baseline ${baselineFolder} holds no SKILL.md; results are reported without it`)
@@ -264,7 +281,6 @@ export async function runPluginEvalTest(
 	const plan = pluginEvalPlan(options.plan)
 	const folder = mkdtempSync(join(tmpdir(), 'skill-test-'))
 	try {
-		const found = findSkillPlugin(options.skill.folder)
 		const withSkill = join(folder, 'plugin-with')
 		const baseline = join(folder, 'plugin-baseline')
 		if (found) {
@@ -274,6 +290,15 @@ export async function runPluginEvalTest(
 			makePlugin(withSkill, options.skillName, options.skill.folder)
 			if (baselineFolder) makePlugin(baseline, options.skillName, baselineFolder)
 		}
+		if (options.listPlugins)
+			for (const path of found ? [withSkill, baseline] : [withSkill]) {
+				const checked = await checkPluginsLoad([{ name: found?.name ?? madePlugin, path }], options.listPlugins)
+				if (checked && 'problem' in checked) return { code: 'plugin-load', problem: checked.problem }
+				if (checked) {
+					warnings.push(checked.warning)
+					break
+				}
+			}
 		const dropped = options.baselineFolder !== undefined && baselineFolder === undefined
 		// The run's own no-plugin arm is the baseline only when that is a run without the skill.
 		const ownArm = !found && !baselineFolder && !dropped

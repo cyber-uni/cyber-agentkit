@@ -85,18 +85,20 @@ function isolatedEnv(isolation, home) {
 // folders that hold programs stay readable. Writes go only to the run's own folders. The network is closed but for
 // the hosts the case lists (allowedDomains with strictAllowlist), and the sandbox notes each host it denied in the
 // command's output (<sandbox_violations>).
-function containment({ dir, home, plugin, network }) {
+function containment({ dir, home, plugin, dependencies = [], network }) {
   const real = (p) => { try { return fs.realpathSync(p) } catch { return p } }
   const nodeInstall = path.dirname(path.dirname(real(process.execPath)))
   const own = [...new Set([dir, home, plugin].filter(Boolean).flatMap((p) => [p, real(p)]))]
+  // The plugins the plugin under test depends on are read, never written.
+  const needed = [...new Set(dependencies.flatMap((p) => [p, real(p)]))]
   return {
-    readable: own,
+    readable: [...own, ...needed],
     writable: own,
     settings: { permissions: { blockReadsOutsideWorkingDirectories: true, blockWritesOutsideWorkingDirectories: true } },
     sandbox: {
       enabled: true, failIfUnavailable: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
       network: { allowedDomains: network ?? [], strictAllowlist: true },
-      filesystem: { denyRead: [...new Set([os.tmpdir(), real(os.tmpdir()), os.homedir()])], allowRead: [...own, nodeInstall], allowWrite: own },
+      filesystem: { denyRead: [...new Set([os.tmpdir(), real(os.tmpdir()), os.homedir()])], allowRead: [...own, ...needed, nodeInstall], allowWrite: own },
     },
   }
 }
@@ -296,7 +298,7 @@ export default class SkillRun {
   constructor(options) { this.options = options; this.config = options.config }
   id() { return this.options.id || 'skill-run' }
   async callApi(prompt, context) {
-    const { arm, skillDir, skillName, pluginDir, pluginName, instruction, inner, timeout = 300, harness = 'claude-code', isolation, command } = this.config
+    const { arm, skillDir, skillName, pluginDir, pluginName, dependencyDirs = [], instruction, inner, timeout = 300, harness = 'claude-code', isolation, command } = this.config
     // A skill loaded from a plugin is called <plugin>:<skill> (research E21).
     const names = pluginName ? [skillName, pluginName + ':' + skillName] : [skillName]
     const vars = context.vars
@@ -370,11 +372,12 @@ export default class SkillRun {
       let watch
       const blocked = []
       if (isolation.containment) {
-        contained = containment({ dir, home, plugin, network: vars.network ? JSON.parse(vars.network) : undefined })
+        contained = containment({ dir, home, plugin, dependencies: dependencyDirs, network: vars.network ? JSON.parse(vars.network) : undefined })
         watch = watchContainment({ dir, ...contained, fileTools: isolation.containment.fileTools, network: contained.sandbox.network.allowedDomains }, blocked)
         hooks = { ...watch.hooks, PreToolUse: [skillHook, ...watch.hooks.PreToolUse] }
       }
-      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(plugin ? { plugins: [{ type: 'local', path: plugin }] } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3 } : {}), hooks, env, working_dir: dir, ...(contained ? { sandbox: contained.sandbox, settings: contained.settings, ...(plugin ? { additional_directories: [plugin] } : {}) } : {}), spawn_claude_code_process: spawnInGroup(children) } } })
+      // The plugin loads beside the plugins it depends on: Claude Code does not start it without them (E-CC-H10).
+      const provider = await loadApiProvider('anthropic:claude-agent-sdk', { options: { config: { ...inner, ...(plugin ? { plugins: [plugin, ...dependencyDirs].map((p) => ({ type: 'local', path: p })) } : {}), ...(vars.kind === 'trigger' ? { max_turns: 3 } : {}), hooks, env, working_dir: dir, ...(contained ? { sandbox: contained.sandbox, settings: contained.settings, ...(plugin ? { additional_directories: [plugin, ...dependencyDirs] } : {}) } : {}), spawn_claude_code_process: spawnInGroup(children) } } })
       const controller = new AbortController()
       let limit
       const timedOut = new Promise((resolve) => {

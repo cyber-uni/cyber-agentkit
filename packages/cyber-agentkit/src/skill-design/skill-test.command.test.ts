@@ -5,6 +5,7 @@ import { cli } from 'clibuilder'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
 import type { PluginEvalRun } from './plugin-eval-backend.js'
+import type { PluginList } from './plugin-load.js'
 import { createSkillCommand } from './skill.command.js'
 import { goodSkill } from './skill-design.fixtures.js'
 import type { PromptfooRun } from './skill-test.js'
@@ -23,6 +24,11 @@ afterEach(() => {
 	stderr.mockClear()
 	vi.unstubAllEnvs()
 })
+/** Every plugin a run loads loads, and Claude Code has none installed: no test reaches the real `claude`. */
+const loaded: PluginList = async (folders) => ({
+	plugins: folders.map((installPath) => ({ installPath, enabled: true })),
+})
+const offline = { listPlugins: loaded, installedPlugins: async () => [] }
 const printed = () => stdout.mock.calls.map(([chunk]) => String(chunk)).join('')
 
 /** A fake promptfoo: every run fires and passes every check, and the config it was given is kept. */
@@ -56,7 +62,7 @@ function fakeRun(seen: { config?: Record<string, unknown>; provider?: string }, 
 
 async function sub(name: string, folder: string, root: string, run: PromptfooRun = fakeRun({})) {
 	const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
-		createSkillCommand({ runPromptfoo: run }),
+		createSkillCommand({ ...offline, runPromptfoo: run }),
 	)
 	return app
 		.parse<number | undefined>(['node', 'cyber-agentkit', 'skill', name, folder, '--root', root, '--format', 'json'])
@@ -64,8 +70,17 @@ async function sub(name: string, folder: string, root: string, run: PromptfooRun
 }
 
 async function test(folder: string, run: PromptfooRun, root: string, ...extra: string[]) {
+	return testWithOptions({ runPromptfoo: run }, folder, root, ...extra)
+}
+
+async function testWithOptions(
+	options: Parameters<typeof createSkillCommand>[0],
+	folder: string,
+	root: string,
+	...extra: string[]
+) {
 	const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
-		createSkillCommand({ runPromptfoo: run }),
+		createSkillCommand({ ...offline, ...options }),
 	)
 	return app
 		.parse<number | undefined>([
@@ -162,7 +177,7 @@ describe('skill test', () => {
 			return { output: { evalId: 'eval-abc', ...answer.output } }
 		}
 		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
-			createSkillCommand({ runPromptfoo: run }),
+			createSkillCommand({ ...offline, runPromptfoo: run }),
 		)
 		const skill = goodSkill()
 		await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root])
@@ -212,6 +227,94 @@ describe('skill test', () => {
 		expect(providers.map((p) => p.config['skillDir'])).toEqual([undefined, undefined])
 		expect(copies).toEqual([true, true, false])
 		expect(readFileSync(join(folder, 'SKILL.md'), 'utf8')).toContain('name: release-notes')
+	})
+
+	describe('a plugin that declares dependencies (#231)', () => {
+		/** The skill moved into a plugin `kit` that depends on `cyber-agentkit`; answers the skill's folder. */
+		async function inKit(): Promise<string> {
+			const skill = goodSkill()
+			const pluginRoot = join(skill.folder, '..')
+			mkdirSync(join(pluginRoot, '.claude-plugin'), { recursive: true })
+			writeFileSync(
+				join(pluginRoot, '.claude-plugin', 'plugin.json'),
+				JSON.stringify({ name: 'kit', dependencies: ['cyber-agentkit'] }),
+			)
+			const { renameSync } = await import('node:fs')
+			mkdirSync(join(pluginRoot, 'skills'), { recursive: true })
+			renameSync(skill.folder, join(pluginRoot, 'skills', 'release-notes'))
+			return join(pluginRoot, 'skills', 'release-notes')
+		}
+		function agentkit(): string {
+			const root = mkdtempSync(join(tmpdir(), 'skill-test-agentkit-'))
+			mkdirSync(join(root, '.claude-plugin'))
+			writeFileSync(join(root, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'cyber-agentkit' }))
+			return root
+		}
+		const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+		/** A fake promptfoo that keeps each arm's dependency folders and whether each held the dependency's manifest. */
+		function watching(seen: { config?: Record<string, unknown>; loaded?: boolean[] }): PromptfooRun {
+			return async (dir, config, output) => {
+				const answer = await fakeRun(seen)(dir, config, output)
+				const providers = seen.config?.['providers'] as { config: { dependencyDirs?: string[] } }[]
+				seen.loaded = providers.flatMap((p) =>
+					(p.config.dependencyDirs ?? []).map((path) => existsSync(join(path, '.claude-plugin', 'plugin.json'))),
+				)
+				return answer
+			}
+		}
+
+		it('loads the installed dependency in both arms', async () => {
+			const folder = await inKit()
+			const seen: { config?: Record<string, unknown>; loaded?: boolean[] } = {}
+			const installed = async () => [
+				{ id: 'cyber-agentkit@cyber-uni', path: agentkit(), scope: 'user' as const, research: ['E-CC-P2'] },
+			]
+			expect(await testWithOptions({ runPromptfoo: watching(seen), installedPlugins: installed }, folder, repo())).toBe(
+				0,
+			)
+			const providers = seen.config?.['providers'] as { config: { dependencyDirs?: string[] } }[]
+			expect(providers.map((p) => p.config.dependencyDirs?.length)).toEqual([1, 1])
+			expect(providers[0]?.config.dependencyDirs).toEqual(providers[1]?.config.dependencyDirs)
+			expect(seen.loaded).toEqual([true, true])
+		})
+
+		it('loads a dependency from a folder passed with --plugin', async () => {
+			const folder = await inKit()
+			const seen: { config?: Record<string, unknown>; loaded?: boolean[] } = {}
+			expect(await testWithOptions({ runPromptfoo: watching(seen) }, folder, repo(), '--plugin', agentkit())).toBe(0)
+			expect(seen.loaded).toEqual([true, true])
+		})
+
+		it('stops with dependency-missing before any run when a dependency is not found', async () => {
+			const run = vi.fn()
+			expect(await testWithOptions({ runPromptfoo: run }, await inKit(), repo())).toBe(1)
+			expect(run).not.toHaveBeenCalled()
+			expect(errors()).toContain(
+				'error: dependency-missing: kit depends on cyber-agentkit, which is not installed; install it (claude plugin install cyber-agentkit) or pass its folder with --plugin <folder>',
+			)
+			expect(printed()).toBe('')
+		})
+
+		it('stops with plugin-load before any run when a plugin does not load, so no case scores an empty run', async () => {
+			const run = vi.fn()
+			const listPlugins: PluginList = async (folders) => ({
+				plugins: folders.map((installPath, index) => ({
+					installPath,
+					enabled: index !== 0,
+					...(index === 0 ? { errors: ['Dependency "cyber-agentkit" is not installed'] } : {}),
+				})),
+			})
+			const code = await testWithOptions(
+				{ runPromptfoo: run, listPlugins },
+				await inKit(),
+				repo(),
+				'--plugin',
+				agentkit(),
+			)
+			expect(code).toBe(1)
+			expect(run).not.toHaveBeenCalled()
+			expect(errors()).toContain('error: plugin-load: kit does not load: Dependency "cyber-agentkit" is not installed')
+		})
 	})
 
 	it('stops with no-cases before any run when the skill has no evals (R31)', async () => {
@@ -400,7 +503,7 @@ describe('skill test progress (UC6)', () => {
 
 	async function testWith(folder: string, run: PromptfooRun, root: string, ...extra: string[]) {
 		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
-			createSkillCommand({ runPromptfoo: run, progress: { heartbeatMs: 60, pollMs: 10 }, threads: 16 }),
+			createSkillCommand({ ...offline, runPromptfoo: run, progress: { heartbeatMs: 60, pollMs: 10 }, threads: 16 }),
 		)
 		return app.parse<number | undefined>([
 			'node',
@@ -724,7 +827,7 @@ describe('skill test concurrency (R103)', () => {
 		const root = repo()
 		mkdirSync(join(root, '.git'))
 		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
-			createSkillCommand({ runPromptfoo: fakeRun(seen), threads }),
+			createSkillCommand({ ...offline, runPromptfoo: fakeRun(seen), threads }),
 		)
 		await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root, '--format', 'json'])
 		return seen.config?.['evaluateOptions'] as { maxConcurrency: number }
@@ -770,7 +873,7 @@ describe('skill test --harness and --backend (#163)', () => {
 		...extra: string[]
 	) {
 		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
-			createSkillCommand(options),
+			createSkillCommand({ ...offline, ...options }),
 		)
 		return app
 			.parse<number | undefined>([
