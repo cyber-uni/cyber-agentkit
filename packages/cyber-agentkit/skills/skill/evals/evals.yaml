@@ -185,7 +185,8 @@ rubrics:
         && grep -qE 'scripts/[A-Za-z0-9_-]+\.(mjs|js|cjs|sh|py)' $f
   C7:
     - contains: TRG-3
-    - contains: CRI-3
+    # The criteria fault by its ID, or in words: the criterion it names, or C5 called a Criteria fault (#238).
+    - regex: "CRI-3|[Nn]otes are clear|\\bC5\\b\\W{0,4}\\(?Criteria"
     - contains: SHP-3
     - script: >-
         test -z "$(git status --porcelain --untracked-files=all | grep -v ' .agents/skills/release-notes-flawed/')"
