@@ -11,6 +11,7 @@ describe('checkVerification', () => {
 			'pass',
 			'pass',
 			'pass',
+			'pass',
 		])
 	})
 
@@ -162,6 +163,30 @@ describe('checkVerification', () => {
 		const plain = goodEvals.replace('prompt: write the notes', 'prompt: "run the tests, then commit the setup changes"')
 		expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': plain })))['VER-9']).toEqual({
 			id: 'VER-9',
+			status: 'pass',
+		})
+	})
+
+	it('flags a text check that is a punctuation mark alone, in a rubric or a case, and passes one with words (VER-11)', () => {
+		const rubric = goodEvals.replace('- contains: "## Release notes"', '- regex: "\\\\?\\\\s*$"')
+		expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': rubric })))['VER-11']).toMatchObject({
+			status: 'fail',
+			message: 'rubric C1: `regex: \\?\\s*$` tests a punctuation mark alone; test what the outcome left behind',
+		})
+		const perCase = goodEvals.replace(
+			'files: files/two-prs',
+			'files: files/two-prs, checks: { C2: [{ not-contains: "?" }] }',
+		)
+		expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': perCase })))['VER-11']).toMatchObject({
+			status: 'fail',
+			message: expect.stringContaining('case two-prs: checks C2: `not-contains: ?`'),
+		})
+		const options = goodEvals.replace(
+			'- contains: "## Release notes"',
+			'- regex: "\\\\?|(^|\\\\n)[ \\\\t]*\\\\(?[Aa][.)]"',
+		)
+		expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': options })))['VER-11']).toEqual({
+			id: 'VER-11',
 			status: 'pass',
 		})
 	})
