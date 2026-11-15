@@ -494,7 +494,7 @@ function finish(response, { arm, vars, dir, home, plugin, dependencies = [], env
   return response
 }
 
-// The account's usage limit (R161): the config's usageLimits, from usage-limits.ts, matched against a run's error. The
+// The account's usage limit (R162): the config's usageLimits, from usage-limits.ts, matched against a run's error. The
 // first run that hits one writes { text, resets? } to limitFile; a run that finds that file starts nothing.
 function usageLimit(limits, file) {
   return {
@@ -612,9 +612,9 @@ export default class SkillRun {
     const names = pluginName ? [skillName, pluginName + ':' + skillName] : [skillName]
     const vars = context.vars
     if (vars.kind === 'trigger' && arm !== 'skill') return { output: '', metadata: { arm, skipped: true } }
-    // A resume runs only the arms a run has left (R162); vars.__run is then the run's number.
+    // A resume runs only the arms a run has left (R163); vars.__run is then the run's number.
     if (vars.__arms && !JSON.parse(vars.__arms).includes(arm)) return { output: '', metadata: { arm, skipped: true } }
-    // Once a run reached the usage limit, no run starts (R161).
+    // Once a run reached the usage limit, no run starts (R162).
     const limits = usageLimit(usageLimits, limitFile)
     const reached = limits.reached()
     if (reached) return { error: 'limit reached: ' + reached.text, metadata: { arm, limitReached: { ...reached, started: false } } }
