@@ -10,6 +10,25 @@ export const defaultCostPerRun: Partial<Record<string, number>> = { 'claude-code
 
 export type TestBudget = { cost: number; runs: number }
 
+/** Where the budget came from: `--budget-cost`/`--budget-runs`, the loaded `skill-design.autonomy`, or neither (#238). */
+export type BudgetSource = 'flags' | 'reference' | 'default'
+
+/**
+ * The budget under a `## test budget` heading, written as `$<cost> or <runs> runs`. Either half alone keeps the
+ * shipped default for the other; no heading, or neither half, is no budget.
+ */
+export function parseTestBudget(content: string | undefined): TestBudget | undefined {
+	const section = /^##[ \t]+test budget[ \t]*$([\s\S]*?)(?=^#{1,2}[ \t]|(?![\s\S]))/im.exec(content ?? '')?.[1]
+	if (section === undefined) return undefined
+	const cost = /\$[ \t]*(\d+(?:\.\d+)?)/.exec(section)?.[1]
+	const runs = /(\d+)[ \t]+runs?\b/i.exec(section)?.[1]
+	if (cost === undefined && runs === undefined) return undefined
+	return {
+		cost: cost === undefined ? defaultTestBudget.cost : Number(cost),
+		runs: runs === undefined ? defaultTestBudget.runs : Number(runs),
+	}
+}
+
 export type TestEstimate = {
 	skill: string
 	/** How many runs the test plans. */
@@ -20,9 +39,11 @@ export type TestEstimate = {
 	basis: 'last-result' | 'per-run-default' | 'none'
 	/** The last saved result, when there is one: how many runs it made, what they cost, and how long they took. */
 	last?: { runs?: number; cost?: number; durationMs?: number }
-	budget: TestBudget
+	budget: TestBudget & { from: BudgetSource }
 	/** The estimate is at or under the budget's cost, or, with no cost known, the run count at or under its runs. */
 	within: boolean
+	/** The line a skill reports as printed: `Test budget: <within|over> (<runs> runs, <estimate>; budget <cost> or <runs> runs)`. */
+	line: string
 }
 
 /**
@@ -36,6 +57,7 @@ export function estimateTest(
 	last: Pick<TestResult, 'cost' | 'totalRuns' | 'durationMs'> | undefined,
 	harness: string,
 	budget: TestBudget = defaultTestBudget,
+	from: BudgetSource = 'default',
 ): TestEstimate {
 	const runs = plannedRuns(plan)
 	const perRun = defaultCostPerRun[harness]
@@ -50,14 +72,18 @@ export function estimateTest(
 				...(last.durationMs ? { durationMs: last.durationMs } : {}),
 			}
 		: undefined
+	const within = rounded === null ? runs <= budget.runs : rounded <= budget.cost
+	const cost = rounded === null ? 'no cost known' : `$${rounded.toFixed(2)}`
+	const unset = from === 'default' ? '; no budget configured, default used' : ''
 	return {
 		skill,
 		runs,
 		estimate: rounded,
 		basis,
 		...(lastSeen && Object.keys(lastSeen).length ? { last: lastSeen } : {}),
-		budget,
-		within: rounded === null ? runs <= budget.runs : rounded <= budget.cost,
+		budget: { ...budget, from },
+		within,
+		line: `Test budget: ${within ? 'within' : 'over'} (${runs} runs, ${cost}; budget $${budget.cost} or ${budget.runs} runs${unset})`,
 	}
 }
 
@@ -71,5 +97,5 @@ export function estimateText(estimate: TestEstimate): string {
 	const took = estimate.last?.durationMs
 	if (took)
 		line += `; last time ${estimate.last?.runs ?? 'an unknown number of'} runs took about ${Math.max(1, Math.round(took / 60_000))} min`
-	return `${line}\n`
+	return `${line}\n${estimate.line}\n`
 }

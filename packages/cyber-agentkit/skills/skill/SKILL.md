@@ -203,16 +203,17 @@ was applied on that reason alone.
 
 ### Test budget
 
-`skill-design.autonomy` also holds the test budget, under `## test budget`: a cost in US dollars and a run count. Take both
-from the reference as loaded, never a guess; when it sets none, say so and take the shipped `$10 or 60 runs`. Before any `test` run, whichever command starts it, run
+`skill-design.autonomy` also holds the test budget, under `## test budget`: a cost in US dollars and a run count,
+`$10 or 60 runs` when it sets none. Before any `test` run, whichever command starts it, run
 
 ```sh
-node <this skill's folder>/scripts/skill.mjs test <skill folder> --estimate --budget-cost <cost> --budget-runs <runs> --format json
+node <this skill's folder>/scripts/skill.mjs test <skill folder> --estimate --format json
 ```
 
-It makes no run, and prints `runs`, `estimate` (US dollars, or `null` when no cost is known), `last` (the last saved
-result), and `within`. State it as one line, written exactly `Test budget: <within|over> (<runs> runs, <estimate or "no cost known">; budget <cost>
-or <runs> runs)`. When `within` is true, start `test` without asking. When it is false, stop.
+It makes no run, reads the budget from `skill-design.autonomy` itself, and prints `runs`, `estimate` (US dollars, or
+`null` when no cost is known), `last` (the last saved result), `within`, and `line`. State `line` exactly as printed,
+such as `Test budget: over (24 runs, $4.32; budget $0.01 or 1 runs)`; it says when no budget is configured. When
+`within` is true, start `test` without asking. When it is false, stop.
 
 ### Stops
 

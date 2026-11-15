@@ -754,8 +754,9 @@ describe('skill test progress (UC6)', () => {
 				runs: 24,
 				estimate: 4.32,
 				basis: 'per-run-default',
-				budget: { cost: 10, runs: 60 },
+				budget: { cost: 10, runs: 60, from: 'default' },
 				within: true,
+				line: 'Test budget: within (24 runs, $4.32; budget $10 or 60 runs; no budget configured, default used)',
 			})
 			expect(existsSync(join(root, '.agents', 'skill-design', 'results'))).toBe(false)
 		})
@@ -774,8 +775,24 @@ describe('skill test progress (UC6)', () => {
 				estimate: 6,
 				basis: 'last-result',
 				last: { runs: 12, cost: 3, durationMs: 120_000 },
-				budget: { cost: 5, runs: 20 },
+				budget: { cost: 5, runs: 20, from: 'flags' },
 				within: false,
+			})
+		})
+
+		it('takes the budget skill-design.autonomy sets when no option gives one, and prints the Test budget line (#238)', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			mkdirSync(join(root, '.agents', 'references'), { recursive: true })
+			writeFileSync(
+				join(root, '.agents', 'references', 'skill-design.autonomy.md'),
+				"---\ndescription: This repository's test budget.\n---\n\n## test budget\n\n$0.01 or 1 runs\n",
+			)
+			await test(skill.folder, fakeRun({}), root, '--estimate')
+			expect(JSON.parse(printed())).toMatchObject({
+				budget: { cost: 0.01, runs: 1, from: 'reference' },
+				within: false,
+				line: 'Test budget: over (24 runs, $4.32; budget $0.01 or 1 runs)',
 			})
 		})
 	})
