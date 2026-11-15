@@ -254,3 +254,9 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
 
 - Added E-CC-D19: the error text a Claude Code run ends with when the account's usage limit is reached, from the saved
   replies of three full `skill test` runs. `skill test` recognizes it as limit reached and starts no new run.
+
+## 2026-11-15 (skill test plugin copy made safe to cd into)
+
+- Added E-CC-D20: the paths the Bash sandbox mounts over in each folder, and that a plugin copy holding each of them
+  ahead, with its git folder outside it, keeps the shell working after a `cd` into it without
+  `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR`.

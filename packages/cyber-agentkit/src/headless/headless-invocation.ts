@@ -130,6 +130,14 @@ export interface HeadlessContainment {
 	readonly settings: 'claude-code'
 	/** The file tools, each with whether it reads or writes the path it is given. */
 	readonly fileTools: Readonly<Record<string, 'read' | 'write'>>
+	/**
+	 * The paths, relative to a folder, that the harness's sandbox mounts over in the folder the shell is in and in each
+	 * folder above it, when they do not exist yet. In a folder the harness holds read-only (a loaded plugin) a missing
+	 * one cannot be mounted over, and every shell command fails, so a run makes each of them ahead in every folder of
+	 * such a copy. The sandbox does the same in a git repository's folder there, so such a copy keeps its git folder
+	 * outside itself. Absent when the harness's sandbox mounts over nothing of the kind.
+	 */
+	readonly mountPoints?: { readonly files: readonly string[]; readonly folders: readonly string[] }
 	readonly research: readonly string[]
 }
 
@@ -258,7 +266,27 @@ export function headlessInvocation(harness: HarnessId): HeadlessInvocation {
 							MultiEdit: 'write',
 							NotebookEdit: 'write',
 						},
-						research: ['E-CC-D15'],
+						// What the Bash sandbox mounts over in the shell's folder and each one above it (E-CC-D20).
+						mountPoints: {
+							files: [
+								'.mcp.json',
+								'.claude/launch.json',
+								'.claude/scheduled_tasks.json',
+								'.claude/loop.md',
+								'.claude/settings.json',
+								'.claude/settings.local.json',
+							],
+							folders: [
+								'.claude/workflows',
+								'.claude/routines',
+								'.claude/output-styles',
+								'.claude/skills',
+								'.claude/commands',
+								'.claude/agents',
+								'.claude/hooks',
+							],
+						},
+						research: ['E-CC-D15', 'E-CC-D20'],
 					},
 					research: [
 						'E-CC-D7',

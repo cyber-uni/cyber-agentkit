@@ -768,6 +768,85 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 	it.skipIf(!sandboxStarts)('passes that check when the run left the plugin alone', () => {
 		expect(pluginRun(false).response.metadata.checks.C2).toEqual({ pass: true })
 	})
+
+	/** A fake inner provider that reports what the plugin copy holds when the model would start. */
+	const inspecting = String.raw`
+const { execFileSync } = require('node:child_process')
+const fs = require('node:fs')
+const path = require('node:path')
+exports.loadApiProvider = async (_id, { options }) => ({
+  callApi: async () => {
+    const plugin = options.config.plugins[0].path
+    const at = (p) => path.join(plugin, p)
+    const gitFile = fs.readFileSync(at('.git'), 'utf8').trim()
+    const report = {
+      plugin,
+      gitFile,
+      status: execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: plugin, encoding: 'utf8' }),
+      tracked: execFileSync('git', ['ls-files'], { cwd: plugin, encoding: 'utf8' }).trim().split(/\r?\n/),
+      sandbox: options.config.sandbox,
+      exists: Object.fromEntries(
+        ['.mcp.json', '.claude/launch.json', '.claude/workflows', 'skills/demo/.claude/launch.json', 'skills/demo/.mcp.json', 'skills/demo/references/.claude/settings.json', 'skills/demo/.claude/hooks']
+          .map((p) => [p, fs.existsSync(at(p)) ? (fs.statSync(at(p)).isDirectory() ? 'folder' : fs.readFileSync(at(p), 'utf8')) : null]),
+      ),
+      nested: fs.existsSync(at('.claude/.claude')),
+    }
+    return { output: JSON.stringify(report), metadata: {} }
+  },
+})
+`
+
+	/** Runs one outcome run of a plugin whose root already holds an .mcp.json, through the inspecting provider. */
+	function inspectCopy(): Record<string, any> {
+		const root = mkdtempSync(join(tmpdir(), 'provider-plugin-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), inspecting)
+		const source = join(root, 'plugin')
+		mkdirSync(join(source, 'skills', 'demo', 'references'), { recursive: true })
+		writeFileSync(join(source, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\n---\n')
+		writeFileSync(join(source, '.mcp.json'), '{"mcpServers":{"own":{"command":"x"}}}\n')
+		// A file the author's own git ignore rules would leave out, so the placeholder is committed despite them.
+		writeFileSync(join(source, '.gitignore'), 'settings.json\n')
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', pluginName: 'kit', pluginDir: ${JSON.stringify(source)}, isolation: ${isolation}, inner: {} } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome' } })))
+`,
+		)
+		return JSON.parse(JSON.parse(execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' })).output)
+	}
+
+	it('makes ahead, in every folder of the copy, each path the shell sandbox mounts over, so a cd into the copy keeps the shell working (E-CC-D20)', () => {
+		const { exists, nested } = inspectCopy()
+		expect(exists).toEqual({
+			'.mcp.json': '{"mcpServers":{"own":{"command":"x"}}}\n',
+			'.claude/launch.json': '{}\n',
+			'.claude/workflows': 'folder',
+			'skills/demo/.claude/launch.json': '{}\n',
+			'skills/demo/.mcp.json': '{}\n',
+			'skills/demo/references/.claude/settings.json': '{}\n',
+			'skills/demo/.claude/hooks': 'folder',
+		})
+		expect(nested).toBe(false)
+	})
+
+	it('commits those paths, so the copy starts clean, even when ignore rules would leave them out', () => {
+		const { status, tracked } = inspectCopy()
+		expect(status).toBe('')
+		expect(tracked).toEqual(expect.arrayContaining(['.claude/settings.json', 'skills/demo/.claude/settings.json']))
+	})
+
+	it("keeps the copy's git folder outside it, readable by the shell but not writable (E-CC-D20)", () => {
+		const { plugin, gitFile, sandbox } = inspectCopy()
+		const gitDir = gitFile.replace(/^gitdir: /, '')
+		expect(gitDir).toMatch(/skill-test-plugin-git-/)
+		expect(gitDir.startsWith(plugin)).toBe(false)
+		expect(sandbox.filesystem.allowRead).toContain(gitDir)
+		expect(sandbox.filesystem.allowWrite).not.toContain(gitDir)
+	})
 })
 
 describe('promptfooProviderSource setup scripts and script checks (R155, R156, R157)', () => {
