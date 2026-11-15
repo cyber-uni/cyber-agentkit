@@ -2,7 +2,7 @@
  * The promptfoo provider `skill test` writes beside its config. promptfoo's Claude Agent SDK provider
  * (0.125.1) runs in a temp folder it deletes and has no `copy_working_dir` (research E20), so this
  * wrapper makes each run's folder: a fresh copy of the case's files committed in a new git repository, plus the
- * skill under the harness's project skills folder (`.claude/skills/<name>/` for Claude Code) in the arm that has it (excluded from git status), or, for a skill developed in a plugin, a fresh copy of that arm's plugin loaded as a local plugin (R91), committed in a git repository of its own and named to script checks by `SKILL_TEST_PLUGIN`, or its skills copied into the project skills folder for a harness with no local-plugin flag. Claude Code runs through promptfoo's Agent SDK provider; another harness (`config.harness`) runs through its own CLI (`config.command`). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. A case's setup script (`vars.setup`) runs in the
+ * skill under the harness's project skills folder (`.claude/skills/<name>/` for Claude Code) in the arm that has it (excluded from git status), or, for a skill developed in a plugin, a fresh copy of that arm's plugin loaded as a local plugin (R91), committed in a git repository of its own whose git folder is kept outside it, holding ahead each path the harness's shell sandbox mounts over (E-CC-D20), and named to script checks by `SKILL_TEST_PLUGIN`, or its skills copied into the project skills folder for a harness with no local-plugin flag. Claude Code runs through promptfoo's Agent SDK provider; another harness (`config.harness`) runs through its own CLI (`config.command`). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. A case's setup script (`vars.setup`) runs in the
  * folder after the files are committed and before the model starts, and it and each `script` check run in the script
  * sandbox (R155, R157). After the run it decides the rubric checks that
  * need no judge in that folder, records whether the skill fired, and removes the folder. Each run also gets an empty home folder.
@@ -94,7 +94,7 @@ function containment({ dir, home, plugin, dependencies = [], network }) {
   const real = (p) => { try { return fs.realpathSync(p) } catch { return p } }
   const nodeInstall = path.dirname(path.dirname(real(process.execPath)))
   const own = [...new Set([dir, home, plugin].filter(Boolean).flatMap((p) => [p, real(p)]))]
-  // The plugins the plugin under test depends on are read, never written.
+  // The plugins the plugin under test depends on, and the plugin copy's git folder, are read, never written.
   const needed = [...new Set(dependencies.flatMap((p) => [p, real(p)]))]
   return {
     readable: [...own, ...needed],
@@ -281,6 +281,28 @@ function spawnInGroup(children) {
   }
 }
 
+// The harness's sandbox mounts over the declaration's mountPoints in the shell's folder and in each folder above it,
+// and in a folder it holds read-only, as it holds a loaded plugin, a path that does not exist cannot be mounted over:
+// every later shell command fails (E-CC-D17, E-CC-D20). So each folder of the plugin copy gets each one the copy
+// does not have, a JSON file holding {} or an empty one, made ahead. Answers the files made, relative to root.
+function makeMountPoints(root, { files, folders }) {
+  const made = []
+  const walk = (at) => {
+    const here = fs.readdirSync(path.join(root, at), { withFileTypes: true }).filter((entry) => entry.isDirectory() && entry.name !== '.git')
+    for (const folder of folders) if (!fs.existsSync(path.join(root, at, folder))) fs.mkdirSync(path.join(root, at, folder), { recursive: true })
+    for (const file of files) {
+      const full = path.join(root, at, file)
+      if (fs.existsSync(full)) continue
+      fs.mkdirSync(path.dirname(full), { recursive: true })
+      fs.writeFileSync(full, file.endsWith('.json') ? '{}\n' : '')
+      made.push(path.join(at, file))
+    }
+    for (const entry of here) walk(path.join(at, entry.name))
+  }
+  walk('')
+  return made
+}
+
 // Decides the rubric checks that need no judge in the run's folder, and records whether the skill fired.
 // A script check finds the run's own plugin copy at SKILL_TEST_PLUGIN.
 // A script check runs contained (R157), with the run's own environment; a run that needs one when the script sandbox
@@ -445,8 +467,11 @@ export default class SkillRun {
     const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-run-')))
     const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-home-')))
     // A run loads a copy of its arm's plugin of its own, committed in a git repository, so a script check can tell
-    // whether the run changed it: SKILL_TEST_PLUGIN names that copy.
+    // whether the run changed it: SKILL_TEST_PLUGIN names that copy. The repository's git folder is kept outside the
+    // copy, where the run reads it but never writes it (E-CC-D20).
     const plugin = pluginDir ? fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-plugin-'))) : undefined
+    const pluginGit = plugin ? fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-plugin-git-'))) : undefined
+    const readOnly = [...dependencyDirs, ...(pluginGit ? [pluginGit] : [])]
     try {
       if (vars.files) fs.cpSync(vars.files, dir, { recursive: true })
       // An instruction under measure goes in the project instruction file the harness loads, committed with the case files
@@ -456,13 +481,15 @@ export default class SkillRun {
         const before = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').replace(/\s*$/, '\n\n') : ''
         fs.writeFileSync(file, before + instruction)
       }
-      const commit = (cwd, message) => {
+      // A repository whose git folder is gitDir, when given; the files in force are committed even when ignored.
+      const commit = (cwd, message, { gitDir, force = [] } = {}) => {
         const git = (args) => execFileSync('git', args, { cwd, stdio: 'pipe' })
-        git(['init', '-q'])
+        git(['init', '-q', ...(gitDir ? ['--separate-git-dir=' + gitDir] : [])])
         git(['config', 'user.name', 'skill-test'])
         git(['config', 'user.email', 'skill-test@example.invalid'])
         git(['config', 'commit.gpgsign', 'false'])
         git(['add', '-A'])
+        if (force.length) git(['add', '-f', '--', ...force])
         git(['commit', '-q', '-m', message, '--allow-empty'])
       }
       commit(dir, 'case files')
@@ -485,7 +512,7 @@ export default class SkillRun {
       }
       if (plugin) {
         fs.cpSync(pluginDir, plugin, { recursive: true })
-        commit(plugin, 'plugin')
+        commit(plugin, 'plugin', { gitDir: pluginGit, force: isolation.containment?.mountPoints ? makeMountPoints(plugin, isolation.containment.mountPoints) : [] })
       }
       const skills = path.join(dir, isolation.projectSkills)
       if (skillDir) fs.cpSync(skillDir, path.join(skills, skillName), { recursive: true })
@@ -499,7 +526,7 @@ export default class SkillRun {
       const children = []
       if (harness !== 'claude-code') {
         const response = await runCli({ command, isolation, prompt, names, vars, dir, env, timeout, marker, callLog })
-        return finish(response, { arm, vars, dir, home, plugin, dependencies: dependencyDirs, env, fired: response.metadata?.fired ?? false, limits })
+        return finish(response, { arm, vars, dir, home, plugin, dependencies: readOnly, env, fired: response.metadata?.fired ?? false, limits })
       }
       // A trigger case only needs to know which skill the request chose. A hook records each Skill call and ends a trigger run at the first
       // one, counting it as fired when it is the skill under test; a turn cap of three backs it up for a run that calls none. The SDK
@@ -520,7 +547,7 @@ export default class SkillRun {
       let watch
       const blocked = []
       if (isolation.containment) {
-        contained = containment({ dir, home, plugin, dependencies: dependencyDirs, network: vars.network ? JSON.parse(vars.network) : undefined })
+        contained = containment({ dir, home, plugin, dependencies: readOnly, network: vars.network ? JSON.parse(vars.network) : undefined })
         watch = watchContainment({ dir, ...contained, fileTools: isolation.containment.fileTools, network: contained.sandbox.network.allowedDomains }, blocked)
         hooks = {
           PreToolUse: [skillHook, ...watch.hooks.PreToolUse],
@@ -552,9 +579,9 @@ export default class SkillRun {
       watch?.review(response.metadata?.toolCalls)
       const calls = response.metadata?.skillCalls ?? []
       const fired = hookFired || calls.some((call) => names.includes(call.name) || names.includes(call.input?.skill))
-      return finish(response, { arm, vars, dir, home, plugin, dependencies: dependencyDirs, env, fired, blocked: contained ? blocked : undefined, sandboxFault: faults.hit(), limits })
+      return finish(response, { arm, vars, dir, home, plugin, dependencies: readOnly, env, fired, blocked: contained ? blocked : undefined, sandboxFault: faults.hit(), limits })
     } finally {
-      for (const folder of [dir, home, plugin].filter(Boolean)) try { fs.rmSync(folder, { recursive: true, force: true }) } catch {}
+      for (const folder of [dir, home, plugin, pluginGit].filter(Boolean)) try { fs.rmSync(folder, { recursive: true, force: true }) } catch {}
     }
   }
 }
