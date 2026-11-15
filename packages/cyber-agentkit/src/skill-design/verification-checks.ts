@@ -149,9 +149,22 @@ export function evalsProblems(value: unknown): string[] {
 const setupStep =
 	/\b(?:run|execute|source|invoke)\b[^\n]{0,40}?[\w./-]*(?:setup|scaffold|prepare|bootstrap|init)[\w.-]*\.(?:sh|bash|zsh|mjs|js|py)\b/i
 
-/** VER-1 to VER-5 and VER-9, the default Verification aspect's script checks. */
+/** The checks that read a run's reply as text. */
+const textChecks = ['contains', 'not-contains', 'regex', 'not-regex'] as const
+
+/**
+ * Whether a text check's value is punctuation alone (VER-11), such as `regex: "\\?"`: once a regex's escapes such as
+ * `\b`, `\s`, and `\n` are dropped, no letter or digit is left, so the check tests a mark, not what the outcome left.
+ */
+export function isPunctuationOnly(kind: string, value: unknown): boolean {
+	if (!(textChecks as readonly string[]).includes(kind) || typeof value !== 'string') return false
+	const text = kind.endsWith('regex') ? value.replace(/\\[A-Za-z]/g, '') : value
+	return !/[\p{L}\p{N}]/u.test(text)
+}
+
+/** VER-1 to VER-5, VER-9, and VER-11, the default Verification aspect's script checks. */
 export function checkVerification(skill: SkillFiles): CheckOutcome[] {
-	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9']
+	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9', 'VER-11']
 	const blocked = (message: string): CheckOutcome[] => [
 		{ id: 'VER-1', status: 'fail', message, file },
 		...later.map((id): CheckOutcome => ({ id, status: 'not-checked', message: 'VER-1 failed' })),
@@ -242,6 +255,35 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 					file,
 				}
 			: { id: 'VER-9', status: 'pass' },
+	)
+
+	const lists: [string, Record<string, unknown>[]][] = [
+		...Object.entries(evals.rubrics ?? {}).map(([id, list]): [string, Record<string, unknown>[]] => [
+			`rubric ${id}`,
+			list,
+		]),
+		...(evals.outcome ?? []).flatMap((item) =>
+			Object.entries(item.checks ?? {}).map(([id, list]): [string, Record<string, unknown>[]] => [
+				`case ${item.id}: checks ${id}`,
+				list,
+			]),
+		),
+	]
+	const marks = lists.flatMap(([where, list]) =>
+		list.flatMap((check) => {
+			const [kind, value] = Object.entries(check)[0] ?? []
+			return kind && isPunctuationOnly(kind, value) ? [`${where}: \`${kind}: ${String(value)}\``] : []
+		}),
+	)
+	outcomes.push(
+		marks.length
+			? {
+					id: 'VER-11',
+					status: 'fail',
+					message: `${marks.join('; ')} tests a punctuation mark alone; test what the outcome left behind`,
+					file,
+				}
+			: { id: 'VER-11', status: 'pass' },
 	)
 	return outcomes
 }

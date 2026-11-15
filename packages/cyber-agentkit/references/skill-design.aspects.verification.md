@@ -22,6 +22,14 @@ check-script: ../skills/skill/scripts/check-verification.mjs
    prompt, such as "I approve writing it; don't ask again".
 3. **Rubrics.** For each Criteria ID, write the checks that decide it from a run's output. Prefer a deterministic
    check. Use `judge` only when no deterministic check decides the criterion, and say so to the author.
+   A check tests what the outcome left behind: a file changed or left unchanged (a `script` on `git status`), a
+   report or section present, the options a stop listed, or a skill called (`.skill-test/skill-calls.jsonl`). It
+   never tests one exact phrasing or a punctuation mark. Where a check must read the reply's wording, it accepts the
+   ways of saying the same thing: "not counted", "uncounted", and "neither is counted"; a label in any case or
+   markup, such as `Test budget: over` and ``**`test` budget:** over``; and a path written as `~/`, `$HOME`, or the
+   run's absolute home folder. A `not-` check matches only what the criterion rules out, such as offering to run
+   `fix`, and not advice against it, such as "don't run `fix`". Where a skill has several stops or branches, describe
+   each outcome once, and have every criterion and check for that outcome test the same observable parts.
 4. Mark a case `effects: outside` when running it would reach past the sandbox, such as posting to GitHub. It is not
    run. A case that needs the network, such as one that installs a package, lists the hosts it may reach in
    `network`; every other host stays closed.
@@ -221,6 +229,11 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 - **VER-8** [read] No case holds private data, such as real names, tokens, or customer text.
 - **VER-9** [script, warning] No outcome case's prompt tells the model to run a setup script; that step is the case's
   `setup`.
+- **VER-10** [read] Each check tests what the outcome left behind (files changed or unchanged, a report present,
+  options listed, a skill called), not one exact phrasing or a punctuation mark; a check that reads the reply's
+  wording accepts the ways of saying the same thing, and a `not-` check matches only what the criterion rules out.
+- **VER-11** [script, warning] No `contains`, `not-contains`, `regex`, or `not-regex` check is a punctuation mark
+  alone: once a regex's escapes such as `\b` and `\s` are dropped, its value holds a letter or a digit.
 
 ## Fix
 
@@ -230,9 +243,15 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 - VER-8: replace the data with made-up data of the same shape.
 - VER-9: move the step into a setup script (`skill case add ... --setup` scaffolds one for a new case), name it in the
   case's `setup`, and leave only the request in the prompt.
+- VER-10 and VER-11: rewrite the check to test what the outcome left behind, as Draft's Rubrics say: a `script` on
+  the files or the skill calls, or the parts of the reply that outcome always has, such as lettered options for a
+  stop. Widen a wording check to the ways of saying the same thing, and narrow a `not-` check to what the criterion
+  rules out. Keep what the criterion asks for.
 
 ## Enhance
 
 - A trigger miss or a wrong result seen while the skill was used: add it as a case.
 - A case that passes with and without the skill alike: it does not show what the skill adds.
 - A `judge` rubric that a deterministic check could replace.
+- A check that failed a run whose reply did the right thing: rewrite it as VER-10 says, and replay the saved replies
+  (the result's `replies` file) to show the right replies now pass and a wrong one still fails.
