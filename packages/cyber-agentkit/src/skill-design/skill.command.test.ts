@@ -207,3 +207,22 @@ describe('skill check across a repository', () => {
 		expect(stderr.mock.calls.join('')).toContain('folder-and-dir')
 	})
 })
+
+describe('skill case (R159)', () => {
+	const kase = (...rest: string[]) => run(['node', 'cyber-agentkit', 'skill', 'case', ...rest, '--format', 'json'])
+
+	it('adds a case with a setup script, then removes it', async () => {
+		const skill = goodSkill()
+		expect(await kase('add', skill.folder, 'red-check', '--prompt', 'commit the parser change', '--setup')).toBe(0)
+		expect(JSON.parse(printed())).toMatchObject({ case: 'red-check', paths: [join('evals', 'setup', 'red-check.sh')] })
+		stdout.mockClear()
+		expect(await kase('remove', skill.folder, 'red-check')).toBe(0)
+		expect(JSON.parse(printed())).toMatchObject({ case: 'red-check', paths: [join('evals', 'setup', 'red-check.sh')] })
+	})
+
+	it('refuses an ID that would reach outside the evals folder, as a usage error', async () => {
+		const code = await kase('add', goodSkill().folder, '../../escape', '--prompt', 'x')
+		expect(code).toBe(2)
+		expect(stderr.mock.calls.join('')).toContain('error: bad-case-id:')
+	})
+})

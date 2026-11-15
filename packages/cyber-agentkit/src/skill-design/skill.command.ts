@@ -10,6 +10,7 @@ import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plu
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
+import { addCase, type CaseChange, removeCase } from './eval-case.js'
 import { doneWhenCriteria, type EvalReport, readEvalReport, reportMarkdown } from './eval-report.js'
 import {
 	type PluginEvalRun,
@@ -813,15 +814,117 @@ function vetCommand({
 	})
 }
 
+function caseText(verb: 'added' | 'removed', change: CaseChange): string {
+	const lines = [`${verb} case ${change.case} ${verb === 'added' ? 'to' : 'from'} ${change.evals}`]
+	for (const path of change.paths) lines.push(`${verb === 'added' ? 'made' : 'deleted'} ${path}`)
+	return `${lines.join('\n')}\n`
+}
+
+function caseFailure(failed: { code: string; problem: string }): never {
+	process.stderr.write(`error: ${failed.code}: ${failed.problem}\n`)
+	throw CliError.reported(
+		failed.code === 'bad-case-id' || failed.code === 'outside-evals' ? exitCodes.usage : exitCodes.error,
+	)
+}
+
+function caseCommand(_options: SkillCommandOptions): cli.Command {
+	const skillOf = (folder: string) => {
+		const skill = readSkill(folder)
+		if (!skill) {
+			process.stderr.write(`error: skill-missing: no SKILL.md in ${folder}\n`)
+			throw CliError.reported(exitCodes.error)
+		}
+		return skill
+	}
+	const add = command({
+		name: 'add',
+		description:
+			"Add an outcome case to a skill: its entry in `evals/evals.yaml`, its files folder `evals/files/<case>/`, and with `--setup` a setup script `evals/setup/<case>.sh` that each run runs before the model starts. Touches nothing outside the skill's `evals/` folder, and changes nothing when the case exists.",
+		arguments: [
+			{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() },
+			{
+				name: 'case',
+				description: "The case's ID: letters, digits, '.', '_', and '-'. It names its files folder and setup script.",
+				type: t.string(),
+			},
+		],
+		options: {
+			prompt: { description: "The case's request, as a user would type it.", type: t.string() },
+			setup: {
+				description:
+					'Also scaffold a setup script, for a case that needs a state plain files cannot hold, such as git history. With it, no files folder is made unless `--files` is given too.',
+				type: t.boolean().optional(),
+			},
+			files: {
+				description: 'Make the files folder too when `--setup` is given.',
+				type: t.boolean().optional(),
+			},
+		},
+		examples: [
+			{
+				command:
+					"cyber-agentkit skill case add .agents/skills/release-notes two-prs --prompt 'write the release notes'",
+				description: 'Add a case with a files folder',
+			},
+			{
+				command:
+					"cyber-agentkit skill case add .agents/skills/commit red-check --prompt 'commit the parser change' --setup",
+				description: 'Add a case whose setup script makes its git history',
+			},
+		],
+		async run(
+			this: { format: Format },
+			args: { folder: string; case: string; prompt: string; setup?: boolean | undefined; files?: boolean | undefined },
+		) {
+			const skill = skillOf(args.folder)
+			const added = addCase(skill.folder, args.case, {
+				prompt: args.prompt,
+				setup: args.setup,
+				files: args.files === true || !args.setup,
+			})
+			if ('problem' in added) caseFailure(added)
+			return result(added, { render: { text: () => caseText('added', added) } })
+		},
+	})
+	const remove = command({
+		name: 'remove',
+		description:
+			"Remove an outcome case from a skill: its entry in `evals/evals.yaml`, and the files folder and setup script it names when no other case names them. Refuses, changing nothing, when one of them is outside the skill's `evals/` folder.",
+		arguments: [
+			{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() },
+			{ name: 'case', description: "The outcome case's ID.", type: t.string() },
+		],
+		examples: [
+			{
+				command: 'cyber-agentkit skill case remove .agents/skills/release-notes two-prs',
+				description: 'Remove a case and its files',
+			},
+		],
+		async run(this: { format: Format }, args: { folder: string; case: string }) {
+			const skill = skillOf(args.folder)
+			const removed = removeCase(skill.folder, args.case)
+			if ('problem' in removed) caseFailure(removed)
+			return result(removed, { render: { text: () => caseText('removed', removed) } })
+		},
+	})
+	return command({
+		name: 'case',
+		description:
+			"Add or remove one outcome case of a skill, its files and its `evals/evals.yaml` entry, without touching anything outside the skill's `evals/` folder.",
+		commands: [add, remove],
+	})
+}
+
 /** `skill`: the commands `/skill` runs without an agent. */
 export function createSkillCommand(options: SkillCommandOptions = {}): cli.Command {
 	return command({
 		name: 'skill',
 		description:
-			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, accept a test result as its expected result, report its accepted results for docs, or vet a third-party skill before installing it.',
+			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept a test result as its expected result, report its accepted results for docs, or vet a third-party skill before installing it.',
 		commands: [
 			checkCommand(options),
 			testCommand(options),
+			caseCommand(options),
 			acceptCommand(options),
 			reportCommand(options),
 			vetCommand(options),
