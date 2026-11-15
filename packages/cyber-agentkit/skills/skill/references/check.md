@@ -22,7 +22,8 @@ step 3 for each skill in turn. When no form of the command can run, decide the `
 
 ## 3. Decide the rest
 
-For each aspect, core and open, decide each `read` check by reading the skill. Report each `run` check as not checked,
+For each aspect, core and open, decide each `read` check by reading the skill: go through every ID the script listed as
+not checked, one at a time, and leave none undecided. Report each `run` check as not checked,
 pointing to `test`, never as a pass. A skill that fails the Agent Skills specification still gets every aspect checked.
 Report a check that does not apply to the skill as skipped, such as TRG-1 on a name-only skill (Trigger says which).
 
