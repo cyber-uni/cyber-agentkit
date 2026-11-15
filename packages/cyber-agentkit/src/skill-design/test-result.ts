@@ -122,6 +122,8 @@ type Row = {
 			checks?: Record<string, { pass: boolean; detail?: string }>
 			blocked?: { what: Blocked['what']; target: string }[]
 			sandboxFault?: { fault: string; text: string }
+			/** The case's setup script failed before the model started (R156): its output. */
+			setupFailed?: { text: string }
 		}
 	}
 	gradingResult?: {
@@ -225,10 +227,16 @@ export function readPromptfooOutput(
 	const ok = (row: Row) => runError(row) === undefined && sandboxFaultOf(row) === undefined
 	const broken = (id: string) => sandboxFailures.filter((item) => item.case === id && item.arm === 'skill').length
 	const sandboxFailed = (id: string) => (broken(id) ? { sandboxFailed: broken(id) } : {})
-	// The threshold holds over the runs the sandbox did not break, so a sandbox failure never fails a case (R154); a run
-	// that errored still counts against it (R32).
+	const setupFailed = (id: string) =>
+		byCase(id, main).filter((row) => row.response?.metadata?.setupFailed && !sandboxFaultOf(row)).length
+	// The threshold holds over the runs the sandbox did not break and whose setup script did not fail, so neither fails
+	// a case (R154, R156); a run that errored otherwise still counts against it (R32).
 	const statusOf = (count: number, ran: number, id: string): Status =>
-		ran === 0 ? 'not-run' : count >= Math.min(plan.threshold, plan.runs - broken(id)) ? 'pass' : 'fail'
+		ran === 0
+			? 'not-run'
+			: count >= Math.min(plan.threshold, plan.runs - broken(id) - setupFailed(id))
+				? 'pass'
+				: 'fail'
 
 	const trigger: TriggerResult[] = plan.cases
 		.filter((item) => item.kind === 'trigger')
@@ -385,7 +393,8 @@ export function readReplies(
 		} else if (error) {
 			entry.outcome = 'not run'
 			entry.reason = shortReason(error)
-			entry.error = error
+			// A failed setup script's whole output, not only its last line (R156).
+			entry.error = meta?.setupFailed?.text ?? error
 		} else if (row.testCase?.vars?.kind === 'trigger') {
 			entry.outcome = meta?.fired ? 'fired' : 'not fired'
 		} else if (ids.length) {

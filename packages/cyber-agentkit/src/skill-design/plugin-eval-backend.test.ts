@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 import {
@@ -9,7 +10,10 @@ import {
 	type PluginEvalRun,
 	pluginEvalDir,
 	pluginEvalPlan,
+	pluginEvalRows,
 	runPluginEvalTest,
+	scriptSandboxSettings,
+	setupFailedMarker,
 	writePluginEvalSuite,
 } from './plugin-eval-backend.js'
 import { goodSkill } from './skill-design.fixtures.js'
@@ -101,6 +105,106 @@ describe('writePluginEvalSuite', () => {
 	})
 })
 
+describe('writePluginEvalSuite setup scripts (R155, R157)', () => {
+	const cli = join(dirname(createRequire(import.meta.url).resolve('@anthropic-ai/sandbox-runtime')), 'cli.js')
+	let down = ''
+	const sandboxStarts = (() => {
+		const folder = mkdtempSync(join(tmpdir(), 'plugin-eval-srt-'))
+		writeFileSync(join(folder, 's.json'), JSON.stringify(scriptSandboxSettings(folder)))
+		try {
+			execFileSync(process.execPath, [cli, '--settings', join(folder, 's.json'), '-c', 'true'], { stdio: 'pipe' })
+			return true
+		} catch (error) {
+			down = String((error as { stderr?: unknown }).stderr || (error as Error).message).trim()
+			return false
+		}
+	})()
+	if (process.env['SKILL_TEST_REQUIRE_SANDBOX'] && !sandboxStarts)
+		throw new Error(`the script sandbox does not start on this machine: ${down}`)
+
+	function scaffold(setup: string): { workspace: string; outside: string; run: () => string } {
+		const skill = goodSkill({
+			'evals/evals.yaml': `outcome:
+  - { id: two-prs, prompt: write the notes, files: files/two-prs, setup: setup/two-prs.sh }
+rubrics:
+  C1:
+    - contains: x
+  C2:
+    - contains: x
+`,
+			'evals/setup/two-prs.sh': setup,
+		})
+		const planned = planTest(skill, { threads: 8 })
+		if ('problem' in planned) throw new Error(planned.problem)
+		const target = mkdtempSync(join(tmpdir(), 'plugin-eval-suite-'))
+		writePluginEvalSuite(planned.plan, target, 'release-notes', undefined, { node: process.execPath, cli })
+		const workspace = mkdtempSync(join(tmpdir(), 'plugin-eval-workspace-'))
+		const outside = mkdtempSync(join(tmpdir(), 'plugin-eval-outside-'))
+		const run = () =>
+			execFileSync('bash', [join(target, pluginEvalDir, 'two-prs', 'setup.sh')], {
+				cwd: workspace,
+				encoding: 'utf8',
+				stdio: 'pipe',
+				env: { ...process.env, OUTSIDE: outside },
+			})
+		return { workspace, outside, run }
+	}
+
+	it.skipIf(!sandboxStarts)('runs the setup script in the workspace after the case files are committed', () => {
+		const { workspace, run } = scaffold(
+			'set -e\necho more > more.txt\ngit add more.txt\ngit commit -q -m more\necho draft > draft.txt\n',
+		)
+		run()
+		expect(execFileSync('git', ['log', '--format=%s'], { cwd: workspace, encoding: 'utf8' }).trim()).toBe(
+			'more\ncase files',
+		)
+		expect(execFileSync('git', ['status', '--porcelain'], { cwd: workspace, encoding: 'utf8' }).trim()).toBe(
+			'?? draft.txt',
+		)
+	})
+
+	it.skipIf(!sandboxStarts)(
+		'fails the scaffold, with the marker, when the setup script writes outside the workspace',
+		() => {
+			const { outside, run } = scaffold('echo escaped > "$OUTSIDE/escaped.txt"\n')
+			let said = ''
+			try {
+				run()
+			} catch (error) {
+				said = String((error as { stderr?: string }).stderr)
+			}
+			expect(said).toContain(setupFailedMarker)
+			expect(existsSync(join(outside, 'escaped.txt'))).toBe(false)
+		},
+	)
+})
+
+describe('pluginEvalRows setup failures (R156, E-CC-H12)', () => {
+	it('reads a scaffold that failed in the setup script as a setup failure, with its output', () => {
+		const rows = pluginEvalRows(
+			{
+				cases: [
+					{
+						name: 'two-prs',
+						arms: {
+							with: [
+								{
+									error: `scaffold failed (exit 3): preparing no such branch: main ${setupFailedMarker} `,
+									graders: [],
+								},
+							],
+						},
+					},
+				],
+			},
+			plan(),
+			{ with: 'with-skill' },
+		) as { response: { error: string; metadata: Record<string, unknown> } }[]
+		expect(rows[0]?.response.error).toBe('setup script failed: preparing no such branch: main')
+		expect(rows[0]?.response.metadata['setupFailed']).toEqual({ text: 'preparing no such branch: main' })
+	})
+})
+
 /** A fake `claude plugin eval` result (E-CC-H9): every case passes with the skill, and fails without it. */
 function fakePluginEval(calls: string[][]): PluginEvalRun {
 	return async (args, _output) => {
@@ -139,6 +243,28 @@ function fakePluginEval(calls: string[][]): PluginEvalRun {
 }
 
 describe('runPluginEvalTest', () => {
+	it('stops with a sandbox problem, running no case, when a setup script cannot be contained (R157)', async () => {
+		const skill = goodSkill({
+			'evals/evals.yaml':
+				'outcome:\n  - { id: two-prs, prompt: write the notes, setup: setup/two-prs.sh }\nrubrics:\n  C1:\n    - contains: x\n  C2:\n    - contains: x\n',
+			'evals/setup/two-prs.sh': 'true\n',
+		})
+		const planned = planTest(skill, { threads: 8 })
+		if ('problem' in planned) throw new Error(planned.problem)
+		const calls: string[][] = []
+		const ran = await runPluginEvalTest({
+			plan: planned.plan,
+			skill,
+			skillName: 'release-notes',
+			verification: 'v',
+			at: '2026-11-15T00:00:00.000Z',
+			run: fakePluginEval(calls),
+			scriptSandbox: async () => ({ problem: 'the script sandbox cannot start: bwrap missing' }),
+		})
+		expect(ran).toEqual({ code: 'sandbox', problem: 'the script sandbox cannot start: bwrap missing' })
+		expect(calls).toEqual([])
+	})
+
 	it('runs triggers with one arm and outcomes beside the no-plugin arm, giving the result a promptfoo run gives', async () => {
 		const skill = goodSkill()
 		const calls: string[][] = []

@@ -1,11 +1,43 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { headlessInvocation } from '../headless/headless-invocation.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
 import { sandboxFaults } from './sandbox-faults.js'
+
+/** The script sandbox's CLI, which the provider resolves from the npx install it runs in. */
+const srt = join(dirname(createRequire(import.meta.url).resolve('@anthropic-ai/sandbox-runtime')), 'cli.js')
+
+/** Puts the script sandbox beside a fake promptfoo, as the npx install holds it. */
+function linkSandbox(root: string): void {
+	mkdirSync(join(root, 'node_modules', '@anthropic-ai'), { recursive: true })
+	symlinkSync(dirname(dirname(srt)), join(root, 'node_modules', '@anthropic-ai', 'sandbox-runtime'), 'dir')
+}
+
+/** Why the script sandbox does not start on this machine (on Linux it needs bubblewrap, socat, and ripgrep), or undefined when it does. */
+const sandboxDown = (() => {
+	const settings = mkdtempSync(join(tmpdir(), 'provider-srt-'))
+	writeFileSync(
+		join(settings, 's.json'),
+		JSON.stringify({
+			network: { allowedDomains: [], deniedDomains: [] },
+			filesystem: { denyRead: [], allowWrite: [settings], denyWrite: [] },
+		}),
+	)
+	try {
+		execFileSync(process.execPath, [srt, '--settings', join(settings, 's.json'), '-c', 'true'], { stdio: 'pipe' })
+		return undefined
+	} catch (error) {
+		return String((error as { stderr?: unknown }).stderr || (error as Error).message).trim() || 'it exited non-zero'
+	}
+})()
+const sandboxStarts = sandboxDown === undefined
+// The CI job that installs the sandbox's tools sets this, so the tests that need it cannot pass by being skipped there.
+if (process.env['SKILL_TEST_REQUIRE_SANDBOX'] && sandboxDown)
+	throw new Error(`the script sandbox does not start on this machine: ${sandboxDown}`)
 
 const claude = headlessInvocation('claude-code')
 const isolation = JSON.stringify(claude.supported === true ? claude.isolation : undefined)
@@ -655,6 +687,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
 		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
 		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), editing)
+		linkSandbox(root)
 		const source = join(root, 'plugin')
 		mkdirSync(join(source, 'skills', 'demo'), { recursive: true })
 		writeFileSync(join(source, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\n---\n')
@@ -676,15 +709,112 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 		return { response: JSON.parse(out), source }
 	}
 
-	it('loads a copy of the arm plugin of its own, so a check on SKILL_TEST_PLUGIN fails when the run changed it', () => {
-		const changed = pluginRun(true)
-		expect(changed.response.output).not.toBe(changed.source)
-		expect(changed.response.metadata.checks.C2).toMatchObject({ pass: false })
-		expect(readFileSync(join(changed.source, 'skills', 'demo', 'SKILL.md'), 'utf8')).not.toContain('changed')
-		expect(existsSync(changed.response.output)).toBe(false)
-	})
+	it.skipIf(!sandboxStarts)(
+		'loads a copy of the arm plugin of its own, so a check on SKILL_TEST_PLUGIN fails when the run changed it',
+		() => {
+			const changed = pluginRun(true)
+			expect(changed.response.output).not.toBe(changed.source)
+			expect(changed.response.metadata.checks.C2).toMatchObject({ pass: false })
+			expect(readFileSync(join(changed.source, 'skills', 'demo', 'SKILL.md'), 'utf8')).not.toContain('changed')
+			expect(existsSync(changed.response.output)).toBe(false)
+		},
+	)
 
-	it('passes that check when the run left the plugin alone', () => {
+	it.skipIf(!sandboxStarts)('passes that check when the run left the plugin alone', () => {
 		expect(pluginRun(false).response.metadata.checks.C2).toEqual({ pass: true })
 	})
+})
+
+describe('promptfooProviderSource setup scripts and script checks (R155, R156, R157)', () => {
+	/** Runs one outcome run with a setup script and rubrics through the fake promptfoo; answers its whole response. */
+	function scripted({ setup, rubrics = {} }: { setup?: string; rubrics?: Record<string, Record<string, unknown>[]> }): {
+		response: Record<string, any>
+		outside: string
+	} {
+		const root = mkdtempSync(join(tmpdir(), 'provider-setup-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), fakePromptfoo)
+		linkSandbox(root)
+		mkdirSync(join(root, 'files'))
+		writeFileSync(join(root, 'files', 'notes.txt'), 'hello\n')
+		if (setup !== undefined) writeFileSync(join(root, 'setup.sh'), setup)
+		const outside = mkdtempSync(join(tmpdir(), 'provider-outside-'))
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		const vars = {
+			kind: 'outcome',
+			files: join(root, 'files'),
+			rubrics: JSON.stringify(rubrics),
+			...(setup !== undefined ? { setup: join(root, 'setup.sh') } : {}),
+		}
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {} } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify(vars)} })))
+`,
+		)
+		const response = JSON.parse(
+			execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8', env: { ...process.env, OUTSIDE: outside } }),
+		)
+		return { response, outside }
+	}
+
+	it.skipIf(!sandboxStarts)(
+		'starts the model from the state the setup script makes, after the case files are committed',
+		() => {
+			const { response } = scripted({
+				setup:
+					'#!/bin/sh\nset -e\necho start > start.txt\ngit add start.txt\ngit commit -q -m start\necho changed >> notes.txt\n',
+			})
+			const report = JSON.parse(response.output)
+			expect(report.log).toBe(
+				'start|skill-test|skill-test@example.invalid\ncase files|skill-test|skill-test@example.invalid',
+			)
+			expect(report.status).toBe('M notes.txt')
+			expect(report.tracked).toBe('notes.txt\nstart.txt')
+		},
+	)
+
+	it.skipIf(!sandboxStarts)('ends the run as not run with the output of a setup script that fails', () => {
+		const { response } = scripted({ setup: 'echo preparing\necho "no such branch: main" >&2\nexit 3\n' })
+		expect(response.output).toBeUndefined()
+		expect(response.error).toBe('setup script failed: no such branch: main')
+		expect(response.metadata.setupFailed.text).toContain('preparing')
+		expect(response.metadata.setupFailed.text).toContain('no such branch: main')
+	})
+
+	it.skipIf(!sandboxStarts)('fails a setup script that writes outside the run folder, and writes nothing there', () => {
+		const { response, outside } = scripted({ setup: 'echo escaped > "$OUTSIDE/escaped.txt"\n' })
+		expect(response.error).toMatch(/^setup script failed: /)
+		expect(existsSync(join(outside, 'escaped.txt'))).toBe(false)
+	})
+
+	it.skipIf(!sandboxStarts)('fails a setup script that opens a network connection', () => {
+		const { response } = scripted({
+			setup: `node -e "require('node:net').connect(80, '93.184.215.14').on('connect', () => process.exit(0)).on('error', (e) => { console.error(e.code); process.exit(4) })"\n`,
+		})
+		expect(response.error).toMatch(/^setup script failed: /)
+	})
+
+	it.skipIf(!sandboxStarts)(
+		'runs a script check contained: one in the run folder passes, one that writes outside or reaches the network fails',
+		() => {
+			const { response, outside } = scripted({
+				rubrics: {
+					C1: [{ script: 'test -f notes.txt' }],
+					C2: [{ script: 'echo escaped > "$OUTSIDE/escaped.txt"' }],
+					C3: [
+						{
+							script: `node -e "require('node:net').connect(80, '93.184.215.14').on('connect', () => process.exit(0)).on('error', () => process.exit(4))"`,
+						},
+					],
+				},
+			})
+			expect(response.metadata.checks.C1).toEqual({ pass: true })
+			expect(response.metadata.checks.C2.pass).toBe(false)
+			expect(response.metadata.checks.C3.pass).toBe(false)
+			expect(existsSync(join(outside, 'escaped.txt'))).toBe(false)
+		},
+	)
 })

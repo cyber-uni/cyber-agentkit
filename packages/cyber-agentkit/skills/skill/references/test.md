@@ -20,6 +20,11 @@ only for the hosts its case lists. When the test stops with `error: login:`, `er
 `error: dependency-unsupported:`, or `error: plugin-load:`, pass the reason on as it is said; no run was made. For
 `dependency-missing`, offer to rerun with `--plugin <folder>` for the plugin it names, or to install that plugin.
 
+A case's setup script and `script` checks run contained, as Verification's Run says. When the test warns
+`untrusted-scripts:`, the skill is from outside this repository: name each script it lists to the author, and pass
+`--trust-scripts` only when the author has read them and says to run them. Never pass it on your own. To add or
+remove a case, use `skill case add` and `skill case remove`, never `rm` or a rewrite of a case folder in the shell.
+
 A full test makes many runs and can take several minutes. Before starting, estimate it against the test budget as
 `SKILL.md`'s Autonomy says: within it, start without asking; over it, stop. A request that names the runs to make, such
 as "run the full test", is the answer for that run. Say how many runs it makes and, from the plan line, about how long
@@ -102,7 +107,10 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
 ```
 
 `status` is `pass`, `fail`, `not-tested` (with a `reason`), or `not-run` (with a `reason`). A run that errors or hits a
-limit is in `notRun` and never counts as a pass; its `reason` is one short line, the error without the Agent SDK's
+limit is in `notRun` and never counts as a pass. A run whose setup script failed is in `notRun` with the reason
+`setup script failed: …`, its reply's `error` holds the script's whole output, and it counts toward no pass rate; it
+is the case's setup that broke, not the skill, so offer to fix the script, not the skill. A `notRun` reason is one
+short line, the error without the Agent SDK's
 `Error calling Claude Agent SDK: Error: Claude Code returned an error result:` wrapping (for example `Not logged in`). When the baseline cannot run, `baseline` holds the reason and no
 criterion has a `baseline` field.
 

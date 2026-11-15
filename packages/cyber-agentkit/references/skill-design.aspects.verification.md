@@ -12,7 +12,12 @@ check-script: ../skills/skill/scripts/check-verification.mjs
    from the near misses Trigger listed. Keep each to what a user would type. A name-only skill (see `/skill`'s Trigger)
    is never matched to a request, so write only the near misses for it, as `skip` cases.
 2. **Outcome cases.** Write at least one case per criterion: a request and the files it works on. Put the files under
-   `evals/files/<case id>/`. Use small, made-up inputs; never copy private data into a case.
+   `evals/files/<case id>/`. Use small, made-up inputs; never copy private data into a case. Add and remove a case with
+   `skill case add <skill folder> <case id> --prompt <request>` and `skill case remove <skill folder> <case id>`,
+   never by deleting or rewriting case folders in the shell.
+   When a case needs a state plain files cannot hold, such as a git history with a start commit and uncommitted work,
+   give it a setup script (`skill case add ... --setup` scaffolds `evals/setup/<case id>.sh`) that makes that state.
+   The prompt then holds only the request: never tell the model to run a setup step.
    A run has no user to answer a question, so a case whose skill asks before it writes states the approval in its
    prompt, such as "I approve writing it; don't ask again".
 3. **Rubrics.** For each Criteria ID, write the checks that decide it from a run's output. Prefer a deterministic
@@ -40,6 +45,7 @@ outcome:
   - id: two-prs
     prompt: write release notes for the changes in this folder
     files: files/two-prs      # copied into the run's folder; optional
+    setup: setup/two-prs.sh   # optional; run in the run's folder after the files are committed, before the model starts
     criteria: [C1, C2]        # optional; every criterion by default
     effects: outside          # optional; the case is not run
     network: [registry.npmjs.org]  # optional; the hosts its runs may reach (`*.example.com` for subdomains), none by default
@@ -55,9 +61,14 @@ rubrics:
     - judge: Pass when every pull request title in the input appears exactly once.
 ```
 
+A case's `setup` names a script, relative to `evals/`, that each run runs in its folder, in both arms and on both
+backends, after the case's files are committed and before the model starts, so the model starts from the state it
+makes. The script is not copied into the run's folder. When it exits non-zero, the run is reported as not run, with the
+script's output, and counts toward no pass rate.
+
 A rubric is a list of checks; a run passes the criterion when every check passes. The checks are `contains`,
 `not-contains`, `regex`, `not-regex`, `file-exists` and `file-contains` (`{path, text}`) on the run's folder,
-`script` (a command run in the run's folder that exits 0 to pass), and `judge` (a statement a named judge decides).
+`script` (a command run in the run's folder that exits 0 to pass, contained as a setup script is), and `judge` (a statement a named judge decides).
 
 A rubric judges every outcome case that tests its criterion by the same checks. When a case needs different checks, give
 it `checks`, a mapping of criterion ID to a list of checks of the same kinds. For that case, a criterion listed in
@@ -133,6 +144,14 @@ say so before the first run in a session.
   refused (`read`, `write`, or `network`, with the path or host), naming the case, arm, and run. A file tool's refusal
   and a host the sandbox denies are always listed; a shell read is listed when the command names the path, so a path
   a command builds as it runs is still refused but may go unlisted.
+- A setup script and a `script` check are shell the case's author wrote, so each runs contained, on every harness, in
+  Anthropic's sandbox runtime (`@anthropic-ai/sandbox-runtime`, pinned and run through the same `npx` install): it
+  writes only to the run's own folders and reaches no network. When that sandbox cannot start (on Linux and WSL it
+  needs bubblewrap, socat, and ripgrep), `test` stops with `error: sandbox:` and runs no script outside it.
+- When the skill's folder is outside the repository (`--root`, else the one holding the current directory), `test`
+  lists each setup script and `script` check before the first run, with `warning: untrusted-scripts:`, and runs none of
+  them unless `--trust-scripts` is given; the cases that need them are reported as not run. Read them before passing
+  it. `vet` runs no script of a skill.
 - Each case runs twice over: once with the skill and once without it, which is the baseline.
 - At most `concurrency` runs go at once: by default the largest number below half the machine's hardware threads (7 of
   16), and at least 1. A larger `concurrency` is lowered to that.
@@ -165,7 +184,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 - `--backend plugin-eval` runs the cases on Claude Code's own `claude plugin eval` instead of promptfoo. The cases
   become an eval suite (`skill-test-evals/<case>/case.yaml`) in a copy of the skill's plugin, or in a plugin made for
   the skill, and its JSON result is read into the same result. Each run starts in a git repository holding the case's
-  files, made by a scaffold script. `claude plugin eval` has no custom-code graders, so a criterion with a `script`
+  files, made by a scaffold script, which then runs the case's setup script in the same sandbox, installed for the run.
+`claude plugin eval` has no custom-code graders, so a criterion with a `script`
   check is reported as not tested; the other checks become `regex` graders, and `judge` an `llm` grader. Trigger
   cases run with the plugin only, and stop at three turns. The baseline is the run's own no-plugin arm, or, for a
   skill in a plugin or with `--baseline`, a second run on a copy of the plugin without the skill or with that
@@ -181,12 +201,14 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 - **VER-2** [script, warning] It has at least three `skip` trigger cases, and at least three `fire` ones unless the skill is
   name-only.
 - **VER-3** [script] Every Criteria ID has a rubric, and every rubric names a Criteria ID.
-- **VER-4** [script] Every `files` folder an outcome case names exists.
+- **VER-4** [script] Every `files` folder and `setup` script an outcome case names exists.
 - **VER-5** [script] `threshold` is between 1 and `runs`.
 - **VER-6** [read, warning] Each `skip` case is a request a user could plausibly make that belongs to another job, not
   an unrelated one.
 - **VER-7** [read, warning] Each rubric decides its criterion, not something easier that happens to go with it.
 - **VER-8** [read] No case holds private data, such as real names, tokens, or customer text.
+- **VER-9** [script, warning] No outcome case's prompt tells the model to run a setup script; that step is the case's
+  `setup`.
 
 ## Fix
 
@@ -194,6 +216,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 - VER-6: replace the case with a near miss Trigger listed, or ask the author for one.
 - VER-7: rewrite the rubric, and use `judge` only when no deterministic check decides the criterion.
 - VER-8: replace the data with made-up data of the same shape.
+- VER-9: move the step into a setup script (`skill case add ... --setup` scaffolds one for a new case), name it in the
+  case's `setup`, and leave only the request in the prompt.
 
 ## Enhance
 

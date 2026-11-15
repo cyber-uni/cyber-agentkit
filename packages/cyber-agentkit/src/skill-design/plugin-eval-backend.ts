@@ -1,10 +1,21 @@
-import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFile, spawn } from 'node:child_process'
+import {
+	chmodSync,
+	copyFileSync,
+	cpSync,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { stringify } from 'yaml'
 import { readPluginDependencies } from '../dependencies/plugin-dependencies.js'
 import { checkPluginsLoad, type PluginList } from './plugin-load.js'
+import { scriptSandboxPackage } from './promptfoo-config.js'
 import { readSkill, type SkillFiles } from './skill-files.js'
 import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
 import type { TestPlan } from './test-plan.js'
@@ -53,6 +64,56 @@ export const runPluginEval: PluginEvalRun = (args, output, progress) =>
 			done({ problem: tail.join(' ') || `claude plugin eval exited ${code} and wrote no result` })
 		})
 	})
+
+/** Where the script sandbox's CLI is, run with the `node` named, for a scaffold to contain a setup script in (R157). */
+export type ScriptSandbox = { node: string; cli: string }
+
+/**
+ * Installs the script sandbox (research E22) into a folder and checks it starts, answering where its CLI is or why it
+ * cannot run. A scaffold runs with the run's own temporary home (E-CC-H12), so it calls `node` and the CLI by their
+ * absolute paths.
+ */
+export type ScriptSandboxInstall = (folder: string) => Promise<ScriptSandbox | { problem: string }>
+
+const exec = (command: string, args: string[], cwd: string) =>
+	new Promise<{ ok: true } | { ok: false; said: string }>((done) => {
+		execFile(command, args, { cwd, timeout: 300_000, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) =>
+			done(error ? { ok: false, said: `${stderr}\n${stdout}`.trim() || error.message } : { ok: true }),
+		)
+	})
+
+/** `npm install` of the pinned script sandbox, then a probe that runs `true` in it. */
+export const installScriptSandbox: ScriptSandboxInstall = async (folder) => {
+	mkdirSync(folder, { recursive: true })
+	const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+	const installed = await exec(
+		npm,
+		['install', '--prefix', folder, '--no-save', '--no-audit', '--no-fund', scriptSandboxPackage],
+		folder,
+	)
+	if (!installed.ok)
+		return { problem: `the script sandbox could not be installed: ${installed.said.split('\n').slice(-1)[0]}` }
+	const cli = join(folder, 'node_modules', '@anthropic-ai', 'sandbox-runtime', 'dist', 'cli.js')
+	const settings = join(folder, 'probe.json')
+	writeFileSync(settings, JSON.stringify(scriptSandboxSettings(folder)))
+	const probe = await exec(process.execPath, [cli, '--settings', settings, '-c', 'true'], folder)
+	if (!probe.ok)
+		return {
+			problem: `the script sandbox cannot start, so no setup script can be contained: ${probe.said.split('\n')[0]}. On Linux and WSL it needs bubblewrap, socat, and ripgrep installed.`,
+		}
+	return { node: process.execPath, cli }
+}
+
+/** The script sandbox's settings for a setup script: it writes only to `folder`, and reaches no network (E22). */
+export function scriptSandboxSettings(folder: string): Record<string, unknown> {
+	return {
+		network: { allowedDomains: [], deniedDomains: [] },
+		filesystem: { denyRead: [], allowWrite: [folder], denyWrite: [] },
+	}
+}
+
+/** The line a scaffold prints when the case's setup script failed, so its run is read as not run (R156). */
+export const setupFailedMarker = 'skill-test: setup script failed'
 
 /** A check of `evals.yaml` as a grader, or `undefined` for one `claude plugin eval` cannot run (a `script`). */
 export function checkGrader(check: Record<string, unknown>): Record<string, unknown> | undefined {
@@ -120,10 +181,18 @@ const quote = (text: string) => `'${text.replace(/'/g, `'\\''`)}'`
 /**
  * Writes the plan as a suite under `<plugin>/skill-test-evals/`: one `case.yaml` per case, tagged `trigger` or
  * `outcome`, with a scaffold script that copies the case's files and commits them in a new git repository, as a
- * promptfoo run's folder starts. A trigger case has one grader, `fired`, on the Skill tool; an outcome case has one
- * grader per check, named after its criterion.
+ * promptfoo run's folder starts. A case's setup script, copied beside the scaffold, then runs in the workspace inside
+ * the script sandbox, writing only there and reaching no network (R155, R157); its output goes to stderr, which
+ * `claude plugin eval` keeps as the run's error when it fails (E-CC-H12). A trigger case has one grader, `fired`, on
+ * the Skill tool; an outcome case has one grader per check, named after its criterion.
  */
-export function writePluginEvalSuite(plan: TestPlan, plugin: string, skillName: string, model?: string): void {
+export function writePluginEvalSuite(
+	plan: TestPlan,
+	plugin: string,
+	skillName: string,
+	model?: string,
+	sandbox?: ScriptSandbox,
+): void {
 	const root = join(plugin, pluginEvalDir)
 	rmSync(root, { recursive: true, force: true })
 	for (const item of runnableCases(plan)) {
@@ -133,9 +202,24 @@ export function writePluginEvalSuite(plan: TestPlan, plugin: string, skillName: 
 		if (item.files) script.push(`cp -R ${quote(item.files)}/. .`)
 		script.push(
 			'git init -q',
+			'git config user.name skill-test',
+			'git config user.email skill-test@example.invalid',
+			'git config commit.gpgsign false',
 			'git add -A',
-			"git -c user.name=skill-test -c user.email=skill-test@example.invalid -c commit.gpgsign=false commit -q -m 'case files' --allow-empty",
+			"git commit -q -m 'case files' --allow-empty",
 		)
+		if (item.setup) {
+			if (!sandbox) throw new Error(`case ${item.id} has a setup script, and no script sandbox was given`)
+			copyFileSync(item.setup, join(folder, 'skill-test-setup.sh'))
+			chmodSync(join(folder, 'skill-test-setup.sh'), 0o755)
+			const settings = JSON.stringify(scriptSandboxSettings('%s'))
+			script.push(
+				'settings=$(mktemp -d)',
+				`printf '${settings}' "$PWD" > "$settings/srt.json"`,
+				`${quote(sandbox.node)} ${quote(sandbox.cli)} --settings "$settings/srt.json" -c ${quote(quote(join(folder, 'skill-test-setup.sh')))} >&2 || { status=$?; echo ${quote(setupFailedMarker)} >&2; exit $status; }`,
+				'rm -rf "$settings"',
+			)
+		}
 		writeFileSync(join(folder, 'setup.sh'), `${script.join('\n')}\n`, { mode: 0o755 })
 		const graders: Record<string, unknown>[] = []
 		if (item.kind === 'trigger')
@@ -197,6 +281,15 @@ export function pluginEvalRows(output: unknown, plan: TestPlan, arms: { with?: s
 			;(item.arms?.[arm] ?? []).forEach((run, index) => {
 				const graders = run.graders ?? []
 				const error = run.error && !(kind === 'trigger' && graders.length) ? run.error : undefined
+				// A scaffold whose setup script failed (R156): `claude plugin eval` gives its stderr, lines joined by spaces
+				// (E-CC-H12), and the scaffold sends the script's stdout there too, so what comes before the marker is the
+				// script's output.
+				const setup = error?.includes(setupFailedMarker)
+					? error
+							.slice(0, error.indexOf(setupFailedMarker))
+							.replace(/^scaffold failed \(exit \d+\):\s*/, '')
+							.trim()
+					: undefined
 				const parts = graders
 					.filter((grader) => grader.name !== 'fired')
 					.map((grader) => ({
@@ -211,8 +304,13 @@ export function pluginEvalRows(output: unknown, plan: TestPlan, arms: { with?: s
 					cost: (run.costUsd ?? 0) + (run.judgeCostUsd ?? 0),
 					response: {
 						output: '',
-						...(error ? { error } : {}),
-						metadata: { fired: graders.some((grader) => grader.name === 'fired' && grader.passed) },
+						...(error
+							? { error: setup === undefined ? error : `setup script failed: ${setup || 'it exited non-zero'}` }
+							: {}),
+						metadata: {
+							fired: graders.some((grader) => grader.name === 'fired' && grader.passed),
+							...(setup === undefined ? {} : { setupFailed: { text: setup } }),
+						},
 					},
 					gradingResult: { componentResults: parts },
 				})
@@ -235,6 +333,8 @@ export type PluginEvalTestOptions = {
 	progress?: ((line: string) => void) | undefined
 	/** How the test checks that the plugin loads before it runs a case; without it, it does not check. */
 	listPlugins?: PluginList | undefined
+	/** How the test gets the script sandbox a case's setup script runs in; `installScriptSandbox` when absent. */
+	scriptSandbox?: ScriptSandboxInstall | undefined
 }
 
 /** A plugin holding just the skill, for a skill not developed in one. */
@@ -256,7 +356,7 @@ export async function runPluginEvalTest(
 	options: PluginEvalTestOptions,
 ): Promise<
 	| { result: TestResult; replies: Reply[]; warnings: string[] }
-	| { problem: string; code?: 'dependency-unsupported' | 'plugin-load' }
+	| { problem: string; code?: 'dependency-unsupported' | 'plugin-load' | 'sandbox' }
 > {
 	const warnings: string[] = []
 	const found = findSkillPlugin(options.skill.folder)
@@ -299,6 +399,13 @@ export async function runPluginEvalTest(
 					break
 				}
 			}
+		// A setup script runs only contained (R157): when the sandbox cannot start, no case runs.
+		let sandbox: ScriptSandbox | undefined
+		if (plan.cases.some((item) => item.setup)) {
+			const got = await (options.scriptSandbox ?? installScriptSandbox)(join(folder, 'script-sandbox'))
+			if ('problem' in got) return { code: 'sandbox', problem: got.problem }
+			sandbox = got
+		}
 		const dropped = options.baselineFolder !== undefined && baselineFolder === undefined
 		// The run's own no-plugin arm is the baseline only when that is a run without the skill.
 		const ownArm = !found && !baselineFolder && !dropped
@@ -340,7 +447,7 @@ export async function runPluginEvalTest(
 			ablation: string,
 			arms: Record<string, string>,
 		) => {
-			writePluginEvalSuite(plan, target, options.skillName, options.model)
+			writePluginEvalSuite(plan, target, options.skillName, options.model, sandbox)
 			const out = join(folder, `${tag}-${rows.length}.json`)
 			const ran = await options.run(
 				[...common(target, out), '--tag', tag, '--ablation', ablation],

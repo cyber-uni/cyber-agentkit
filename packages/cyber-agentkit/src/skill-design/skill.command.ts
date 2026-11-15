@@ -1,6 +1,6 @@
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { cli } from 'clibuilder'
 import { command, exitCodes, t } from 'clibuilder'
 import { type Answer, CliError, type Format, printAnswer, result } from 'clibuilder/axi'
@@ -10,8 +10,14 @@ import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plu
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
+import { addCase, type CaseChange, removeCase } from './eval-case.js'
 import { doneWhenCriteria, type EvalReport, readEvalReport, reportMarkdown } from './eval-report.js'
-import { type PluginEvalRun, runPluginEval, runPluginEvalTest } from './plugin-eval-backend.js'
+import {
+	type PluginEvalRun,
+	runPluginEval,
+	runPluginEvalTest,
+	type ScriptSandboxInstall,
+} from './plugin-eval-backend.js'
 import { listPlugins, type PluginList } from './plugin-load.js'
 import { runCheckScript } from './run-check-script.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
@@ -31,7 +37,7 @@ import {
 import { skillTestHarness, skillTestHarnesses } from './skill-test-harness.js'
 import { type SkillVetReport, vetSkill } from './skill-vet.js'
 import { defaultTestBudget, estimateTest, estimateText } from './test-estimate.js'
-import { planTest } from './test-plan.js'
+import { planScripts, planTest, withoutScripts } from './test-plan.js'
 import { planLine } from './test-progress.js'
 import type { TestResult } from './test-result.js'
 import { type GitHubGet, githubGet, type JsonGet, jsonGet, type SupplyChainSignals } from './vet-signals.js'
@@ -44,6 +50,8 @@ export type SkillCommandOptions = {
 	runPromptfoo?: PromptfooRun | undefined
 	/** How `claude plugin eval` runs; tests pass a fake. */
 	runPluginEval?: PluginEvalRun | undefined
+	/** How the plugin-eval backend gets the sandbox a setup script runs in; tests pass a fake. */
+	scriptSandbox?: ScriptSandboxInstall | undefined
 	/** How `skill test` lists the plugins a run loads, to check each one does; tests pass a fake. */
 	listPlugins?: PluginList | undefined
 	/** The plugins Claude Code has installed, where a plugin's dependencies are found; tests pass a fake. */
@@ -200,6 +208,19 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 	})
 }
 
+/** Whether `folder` is `root` or inside it, following links, so a link cannot pass a folder from elsewhere as inside. */
+function isInside(root: string, folder: string): boolean {
+	const real = (path: string) => {
+		try {
+			return realpathSync(path)
+		} catch {
+			return resolve(path)
+		}
+	}
+	const path = relative(real(root), real(folder))
+	return path === '' || (!path.startsWith('..') && !isAbsolute(path))
+}
+
 /** The folder results live under: the repository root, or the home folder outside a repository. */
 function resultsBase(rootOption: string | undefined, home: string): string {
 	const root = rootOption === undefined ? findRoot(process.cwd()) : resolve(rootOption)
@@ -269,6 +290,7 @@ function testCommand({
 	plugin,
 	runPromptfoo: run = runPromptfoo,
 	runPluginEval: pluginEval = runPluginEval,
+	scriptSandbox,
 	listPlugins: list = listPlugins,
 	installedPlugins: installed = async () => (await installedPlugins('claude-code')).plugins,
 	progress,
@@ -316,6 +338,11 @@ function testCommand({
 				description:
 					'Run only the case with this ID, an outcome case ID or `trigger-<n>`; repeat it for more. The result is marked partial, is compared for those cases only, and is never saved as the expected result.',
 				type: t.array(t.string()).optional(),
+			},
+			'trust-scripts': {
+				description:
+					"Run the setup scripts and `script` checks of a skill whose folder is outside the repository (`--root`, else the one holding the current directory). Without it, test lists them and reports the cases that need them as not run. Read them first: they run on this machine, contained to each run's folder with no network.",
+				type: t.boolean().optional(),
 			},
 			accept: {
 				description:
@@ -371,6 +398,7 @@ function testCommand({
 				plugin?: string[] | undefined
 				root?: string | undefined
 				accept?: boolean | undefined
+				'trust-scripts'?: boolean | undefined
 				case?: string[] | undefined
 				estimate?: boolean | undefined
 				'budget-cost'?: number | undefined
@@ -417,6 +445,30 @@ function testCommand({
 				throw CliError.reported(planned.code === 'unknown-case' ? exitCodes.usage : exitCodes.error)
 			}
 			for (const warning of planned.warnings) process.stderr.write(`warning: ${warning}\n`)
+			// The scripts of a skill from outside the repository are listed, and run only when the author trusts them (R158).
+			const repository = args.root === undefined ? findRoot(process.cwd()) : resolve(args.root)
+			const scripts = planScripts(planned.plan)
+			if (scripts.length && !isInside(repository, skill.folder)) {
+				const listed = scripts
+					.map(
+						(item) =>
+							`case ${item.case}: ${item.kind === 'setup' ? `setup script ${item.script}` : `script check \`${item.script}\``}`,
+					)
+					.join('; ')
+				if (args['trust-scripts'])
+					process.stderr.write(
+						`warning: untrusted-scripts: ${skill.folder} is outside ${repository}; running its scripts, as --trust-scripts asks: ${listed}\n`,
+					)
+				else {
+					process.stderr.write(
+						`warning: untrusted-scripts: ${skill.folder} is outside ${repository}, so its scripts run only with --trust-scripts; read them first: ${listed}\n`,
+					)
+					planned.plan = withoutScripts(
+						planned.plan,
+						'it runs a script from outside this repository; read it, then pass --trust-scripts',
+					)
+				}
+			}
 			const home = homedir()
 			if (args.estimate) {
 				const skillName =
@@ -461,7 +513,7 @@ function testCommand({
 			}
 			const ran =
 				backend === 'plugin-eval'
-					? await runPluginEvalTest({ ...common, run: pluginEval, progress: report, listPlugins: list })
+					? await runPluginEvalTest({ ...common, run: pluginEval, progress: report, listPlugins: list, scriptSandbox })
 					: await runTest({
 							...common,
 							harness,
@@ -762,15 +814,117 @@ function vetCommand({
 	})
 }
 
+function caseText(verb: 'added' | 'removed', change: CaseChange): string {
+	const lines = [`${verb} case ${change.case} ${verb === 'added' ? 'to' : 'from'} ${change.evals}`]
+	for (const path of change.paths) lines.push(`${verb === 'added' ? 'made' : 'deleted'} ${path}`)
+	return `${lines.join('\n')}\n`
+}
+
+function caseFailure(failed: { code: string; problem: string }): never {
+	process.stderr.write(`error: ${failed.code}: ${failed.problem}\n`)
+	throw CliError.reported(
+		failed.code === 'bad-case-id' || failed.code === 'outside-evals' ? exitCodes.usage : exitCodes.error,
+	)
+}
+
+function caseCommand(_options: SkillCommandOptions): cli.Command {
+	const skillOf = (folder: string) => {
+		const skill = readSkill(folder)
+		if (!skill) {
+			process.stderr.write(`error: skill-missing: no SKILL.md in ${folder}\n`)
+			throw CliError.reported(exitCodes.error)
+		}
+		return skill
+	}
+	const add = command({
+		name: 'add',
+		description:
+			"Add an outcome case to a skill: its entry in `evals/evals.yaml`, its files folder `evals/files/<case>/`, and with `--setup` a setup script `evals/setup/<case>.sh` that each run runs before the model starts. Touches nothing outside the skill's `evals/` folder, and changes nothing when the case exists.",
+		arguments: [
+			{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() },
+			{
+				name: 'case',
+				description: "The case's ID: letters, digits, '.', '_', and '-'. It names its files folder and setup script.",
+				type: t.string(),
+			},
+		],
+		options: {
+			prompt: { description: "The case's request, as a user would type it.", type: t.string() },
+			setup: {
+				description:
+					'Also scaffold a setup script, for a case that needs a state plain files cannot hold, such as git history. With it, no files folder is made unless `--files` is given too.',
+				type: t.boolean().optional(),
+			},
+			files: {
+				description: 'Make the files folder too when `--setup` is given.',
+				type: t.boolean().optional(),
+			},
+		},
+		examples: [
+			{
+				command:
+					"cyber-agentkit skill case add .agents/skills/release-notes two-prs --prompt 'write the release notes'",
+				description: 'Add a case with a files folder',
+			},
+			{
+				command:
+					"cyber-agentkit skill case add .agents/skills/commit red-check --prompt 'commit the parser change' --setup",
+				description: 'Add a case whose setup script makes its git history',
+			},
+		],
+		async run(
+			this: { format: Format },
+			args: { folder: string; case: string; prompt: string; setup?: boolean | undefined; files?: boolean | undefined },
+		) {
+			const skill = skillOf(args.folder)
+			const added = addCase(skill.folder, args.case, {
+				prompt: args.prompt,
+				setup: args.setup,
+				files: args.files === true || !args.setup,
+			})
+			if ('problem' in added) caseFailure(added)
+			return result(added, { render: { text: () => caseText('added', added) } })
+		},
+	})
+	const remove = command({
+		name: 'remove',
+		description:
+			"Remove an outcome case from a skill: its entry in `evals/evals.yaml`, and the files folder and setup script it names when no other case names them. Refuses, changing nothing, when one of them is outside the skill's `evals/` folder.",
+		arguments: [
+			{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() },
+			{ name: 'case', description: "The outcome case's ID.", type: t.string() },
+		],
+		examples: [
+			{
+				command: 'cyber-agentkit skill case remove .agents/skills/release-notes two-prs',
+				description: 'Remove a case and its files',
+			},
+		],
+		async run(this: { format: Format }, args: { folder: string; case: string }) {
+			const skill = skillOf(args.folder)
+			const removed = removeCase(skill.folder, args.case)
+			if ('problem' in removed) caseFailure(removed)
+			return result(removed, { render: { text: () => caseText('removed', removed) } })
+		},
+	})
+	return command({
+		name: 'case',
+		description:
+			"Add or remove one outcome case of a skill, its files and its `evals/evals.yaml` entry, without touching anything outside the skill's `evals/` folder.",
+		commands: [add, remove],
+	})
+}
+
 /** `skill`: the commands `/skill` runs without an agent. */
 export function createSkillCommand(options: SkillCommandOptions = {}): cli.Command {
 	return command({
 		name: 'skill',
 		description:
-			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, accept a test result as its expected result, report its accepted results for docs, or vet a third-party skill before installing it.',
+			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept a test result as its expected result, report its accepted results for docs, or vet a third-party skill before installing it.',
 		commands: [
 			checkCommand(options),
 			testCommand(options),
+			caseCommand(options),
 			acceptCommand(options),
 			reportCommand(options),
 			vetCommand(options),

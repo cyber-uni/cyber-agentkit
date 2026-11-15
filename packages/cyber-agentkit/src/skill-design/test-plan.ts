@@ -18,6 +18,8 @@ export type PlannedCase = {
 	expect?: 'fire' | 'skip'
 	/** The folder whose copy each run starts in. */
 	files?: string
+	/** For an outcome case: the setup script each run runs in its folder before the model starts (R155). */
+	setup?: string
 	/** For an outcome case: the hosts its runs may reach; none by default (R107). */
 	network?: string[]
 	/** For an outcome case: the criteria it tests that have a rubric, with the checks a run decides. */
@@ -165,6 +167,7 @@ export function planEvals(
 		const ids = (item.criteria ?? criteria).filter((id) => criteria.includes(id) && !untested.has(id))
 		const planned: PlannedCase = { id: item.id, kind: 'outcome', prompt: item.prompt, rubrics: {}, judged: {} }
 		if (item.files !== undefined) planned.files = resolve(folder, item.files)
+		if (item.setup !== undefined) planned.setup = resolve(folder, item.setup)
 		if (item.network?.length) planned.network = item.network
 		for (const id of ids) {
 			const list = item.checks?.[id] ?? rubrics[id]
@@ -212,5 +215,33 @@ export function planEvals(
 			notRun: skipped,
 		},
 		warnings,
+	}
+}
+
+/** A script a case runs: its setup script (`setup`, a path) or a `script` check (`check`, a command). */
+export type CaseScript = { case: string; kind: 'setup' | 'check'; script: string }
+
+/** Every setup script and `script` check the plan's cases run, in plan order (R158). */
+export function planScripts(plan: TestPlan): CaseScript[] {
+	return plan.cases.flatMap((item) => [
+		...(item.setup ? [{ case: item.id, kind: 'setup' as const, script: item.setup }] : []),
+		...[
+			...new Set(
+				Object.values(item.rubrics).flatMap((list) =>
+					list.flatMap((check) => ('script' in check ? [String(check['script'])] : [])),
+				),
+			),
+		].map((script) => ({ case: item.id, kind: 'check' as const, script })),
+	])
+}
+
+/** The plan with every case that runs a script moved to the cases not run, with the reason (R158). */
+export function withoutScripts(plan: TestPlan, reason: string): TestPlan {
+	const scripted = new Set(planScripts(plan).map((item) => item.case))
+	if (!scripted.size) return plan
+	return {
+		...plan,
+		cases: plan.cases.filter((item) => !scripted.has(item.id)),
+		notRun: [...plan.notRun, ...[...scripted].map((id) => ({ case: id, reason }))],
 	}
 }

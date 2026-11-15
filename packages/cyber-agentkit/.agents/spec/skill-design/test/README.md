@@ -60,6 +60,15 @@ contract apply here; IDs are shared across the parent and its children.
     reaches a run from the author's setup on that harness is reported.
   - **UC6.16** The author names another engine to run the cases, such as Claude Code's own plugin evals. The result
     has the same shape. A check that engine cannot run is reported as not tested.
+  - **UC6.17** A case needs a starting state that plain files cannot hold, such as a git history with uncommitted
+    work. The case names a setup script that makes it in each run's folder before the model starts, in both arms and
+    on every engine, so its prompt holds only the request. When the script fails, the run is not run and the report
+    shows the script's output.
+  - **UC6.18** The skill comes from outside the current repository, such as another author's plugin. The test lists
+    each script its cases would run and runs none until the author says to trust them; the cases that need them are
+    reported as not run.
+  - **UC6.19** The author adds or removes a case. A command makes or deletes that case's files and its entry, and
+    nothing outside the skill's eval files.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -140,3 +149,16 @@ contract apply here; IDs are shared across the parent and its children.
   rate, the report warns of it before any pass rate and counts it per case, and a result holding one becomes the
   expected result only by the author accepting it after seeing it. The faults recognized are kept in one list that
   more can be added to.
+- R155 (UC6.17): A case may name a setup script. Each run, in both arms and on every engine, starts from the state the
+  script makes in the run's folder after the case's files are committed and before the model starts. The script is
+  not part of the run's folder.
+- R156 (UC6.17): A run whose setup script fails is reported as not run, with the script's output, and counts toward no
+  pass rate.
+- R157 (UC6.17): A setup script and a `script` check run contained as a run's shell commands are: they write only to
+  the run's folders and reach no network. When that containment cannot start, no script runs outside it.
+- R158 (UC6.18): For a skill whose folder is outside the current repository, `test` lists every setup script and
+  `script` check before any run, and runs none of them unless the author passes a flag to trust them; the cases that
+  need them are reported as not run, with the reason. `vet` runs no script of a skill.
+- R159 (UC6.19): A `case` command adds a case, scaffolding its files folder, setup script when asked, and entry, and
+  removes one, deleting only its own files and entry. It refuses a case ID or a path that would reach outside the
+  skill's eval files, and changes nothing then.
