@@ -68,6 +68,8 @@ aspect with its own and keeps the rest.
   is present to answer, as SDD's leash does.
 - **K8. Check script.** The part of an aspect implementation that a script runs without an agent. Its front matter
   names it, and the script reports which of the implementation's criteria it decides.
+- **K9. Test budget.** The most a `test` may spend without asking: a cost and a run count, set in
+  `skill-design.autonomy` beside the levels. A `test` whose estimate is over either stops before any run (E2).
 
 Default, implementation, extend, selection, and interface are as in [reference](../reference/README.md). Criterion is as
 in the design-spec skill.
@@ -149,6 +151,10 @@ in the design-spec skill.
 - R78 (UC3, UC4, UC6): No judge runs unless the author names one.
 - R4 (UC3, UC6): In an interactive run that found failures, `check` and `test` end by offering `fix`. Nothing changes
   unless the author accepts. With no author present, no offer is made.
+- R167 (UC1, UC2, UC4, UC5, UC6; E1, E2, E3): A run stops only on the edges of the [decision graph](./graph.md), and
+  every stop shows the same outcome: nothing that depends on the answer was written or run, every part written
+  before the stop is kept, the reply states the run's autonomy line where the command has one and reports the work
+  done so far, and it ends with the decision and its options, each lettered.
 
 **Help (UC25)**
 
@@ -172,6 +178,8 @@ in the design-spec skill.
   one with known problems. Each eval case states what `check` must report on a sample, a pass or the problems it has;
   `check` saves nothing to compare with. A sample that passes keeps its expected `test` result, and with any
   implementation picked, `/skill test` on it reports that implementation's results beside the expected ones.
+
+Where a run stops is drawn once, in this spec's [decision graph](./graph.md); every child's criteria cite its edges.
 
 ## Open questions
 

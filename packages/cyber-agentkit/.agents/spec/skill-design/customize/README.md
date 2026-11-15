@@ -65,12 +65,12 @@ contract apply here; IDs are shared across the parent and its children. Retired 
   situation set it, and why, before its first change. With no author present and no level set, it takes `apply`
   (`apply-safe` on a skill from an installed plugin), finishes without asking, and reports each decision it made and
   whether `check` and `test` showed it safe.
-- R62 (UC10): At `apply-safe`, a command applies only the changes after which `check` and `test` pass with no
+- R62 (UC10; E1, E4): At `apply-safe`, a command applies only the changes after which `check` and `test` pass with no
   criterion worse, and asks about the rest; with no author present, it reports the rest. At `apply`, it applies every
   change except those R74 keeps for the author, and reports each one.
-- R74 (UC2, UC4.3, UC10): A decision only the author can make (R13, R41, or removing or weakening a criterion) stops
-  the run at every level, whatever else the level applies on its own. With no author present, nothing that depends on
-  it is applied, and the run reports the work done so far and the decision.
+- R74 (UC2, UC4.3, UC10; E3): A decision only the author can make (R13, R41, or removing or weakening a criterion) stops
+  the run at every level, whatever else the level applies on its own, with the Stop outcome R167 states. With no
+  author present, nothing that depends on it is applied, and the run reports the work done so far and the decision.
 - R63 (UC10.1): A level set for `check` or `test` has no effect, and `/skill` says so.
 - R64 (UC10.2): A level that names no known value leaves that command to derive its level, and `/skill` says so.
 - R151 (UC10): The `skill` test cases cover a run with an author present and a run with none.
