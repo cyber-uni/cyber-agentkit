@@ -213,9 +213,8 @@ was applied on that reason alone.
 node <this skill's folder>/scripts/skill.mjs test <skill folder> --estimate --format json
 ```
 
-It makes no run, reads that budget, and prints `runs`, `estimate`, `last` (the last saved result), `within`, and
-`line`. State `line` exactly as printed, such as `Test budget: over (24 runs, $4.32; budget
-$0.01 or 1 runs)`. When `within` is true, start `test` without asking. When it is false, stop.
+It makes no run, reads that budget, and prints `within`, `last`, and `line`. Write `line` on a line of its own,
+exactly as printed, prefix included, such as `Test budget: over (24 runs, $4.32; budget $0.01 or 1 runs)`. When `within` is true, start `test` without asking. When it is false, stop.
 
 ### Stops
 
