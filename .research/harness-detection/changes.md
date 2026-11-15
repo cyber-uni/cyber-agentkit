@@ -219,3 +219,10 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
 ## 2026-11-13 (skill vet trust list)
 
 - Added E-CC-P8: the source shapes and exact matching of Claude Code's `strictKnownMarketplaces` allowlist, which `/skill vet`'s trust list entries follow.
+
+## 2026-11-14 (skill test loads plugin dependencies)
+
+- Added E-CC-H10: a plugin whose declared dependency is not loaded is listed with a `dependency-unsatisfied` error by
+  `claude plugin list --json`, which `skill test` reads to check every plugin loads before it runs a case.
+- Added E-CC-H11: `claude plugin eval` loads only the target plugin, so `skill test --backend plugin-eval` cannot test
+  a plugin that declares dependencies.
