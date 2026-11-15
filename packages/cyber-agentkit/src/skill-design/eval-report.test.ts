@@ -147,6 +147,40 @@ describe('reportMarkdown', () => {
 	})
 })
 
+describe('guard cases in the report (R160)', () => {
+	const guarded = {
+		...result,
+		criteria: [
+			{ id: 'C1', status: 'pass', passed: 3, ran: 3, baseline: { passed: 3, ran: 3 }, guard: true },
+			{ id: 'C2', status: 'pass', passed: 3, ran: 3, baseline: { passed: 0, ran: 3 } },
+		],
+		cases: [
+			{ case: 'two-prs', status: 'pass', passed: 3, ran: 3 },
+			{ case: 'keeps-history', status: 'pass', passed: 3, ran: 3, guard: true, baseline: { passed: 3, ran: 3 } },
+			{ case: 'keeps-tags', status: 'fail', passed: 1, ran: 3, guard: true, baseline: { passed: 3, ran: 3 } },
+		],
+	} as TestResult
+
+	it('shows a pass on both sides of a guard as expected, and a guard that fails with the skill as a fail', () => {
+		const text = md(guarded)
+		expect(text).toContain('| `keeps-history` | pass, and without the skill, as a guard should |')
+		expect(text).toContain('| `keeps-tags` | fail (guard) |')
+		expect(text).toContain('| **C1** | 3 of 3 | 3 of 3 | pass, and without the skill, as a guard should |')
+		expect(text).toContain('| `two-prs` | pass |')
+	})
+
+	it('leaves guard criteria out of the gap, and says so', () => {
+		const text = md(guarded)
+		expect(text).toMatch(/with the skill, 3 of 3 criterion checks pass; without it, 0 of 3\./)
+		expect(text).toContain('The line above leaves out the criteria only guard cases test: C1.')
+		expect(evalReport('release-notes', guarded).criteria?.find((c) => c.id === 'C1')?.guard).toBe(true)
+	})
+
+	it('says nothing of guards when no case is one', () => {
+		expect(md(result)).not.toMatch(/guard/)
+	})
+})
+
 describe('doneWhenCriteria', () => {
 	it('reads each criterion and its continuation lines', () => {
 		const body = [

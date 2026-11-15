@@ -200,6 +200,30 @@ describe('skill test', () => {
 		expect(accepted).not.toHaveProperty('evalId')
 	})
 
+	it('reports a guard case that passes without the skill too as expected, and one that fails as a fail (R160)', async () => {
+		const evals = goodEvals.replace(
+			'  - { id: two-prs, prompt: write the notes, files: files/two-prs }',
+			'  - { id: two-prs, prompt: write the notes, files: files/two-prs, guard: true }',
+		)
+		const text = async (pass: boolean) => {
+			stdout.mockClear()
+			const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
+				createSkillCommand({ ...offline, runPromptfoo: fakeRun({}, pass) }),
+			)
+			const skill = goodSkill({ 'evals/evals.yaml': evals })
+			await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', repo()])
+			return printed()
+		}
+		const passing = await text(true)
+		expect(passing).toContain(
+			'guard two-prs: pass 3 of 3, baseline 3 of 3 — passes without the skill too, as a guard is expected to',
+		)
+		expect(passing).toMatch(/^C1 \(guard\): pass 3 of 3, baseline 3 of 3$/m)
+		expect(await text(false)).toContain(
+			'guard two-prs: fail 0 of 3, baseline 0 of 3 — a guard that fails with the skill is a failure',
+		)
+	})
+
 	it('loads the plugin a skill is developed in, and the baseline without the skill (R91)', async () => {
 		const skill = goodSkill()
 		const pluginRoot = join(skill.folder, '..')

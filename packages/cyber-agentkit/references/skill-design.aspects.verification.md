@@ -49,6 +49,7 @@ outcome:
     criteria: [C1, C2]        # optional; every criterion by default
     effects: outside          # optional; the case is not run
     network: [registry.npmjs.org]  # optional; the hosts its runs may reach (`*.example.com` for subdomains), none by default
+    guard: true               # optional; a regression guard, expected to pass without the skill too
     checks:                   # optional; per-case checks that replace rubrics.<ID> for this case
       C2:
         - contains: "no merge commits"
@@ -65,6 +66,11 @@ A case's `setup` names a script, relative to `evals/`, that each run runs in its
 backends, after the case's files are committed and before the model starts, so the model starts from the state it
 makes. The script is not copied into the run's folder. When it exits non-zero, the run is reported as not run, with the
 script's output, and counts toward no pass rate.
+
+Mark a case `guard: true` when it keeps a behavior that also passes without the skill, such as one the plugin's CLI
+teaches on its own. The report then shows a pass in both arms as expected, not as a skill that adds nothing, and leaves
+the criteria only guard cases test out of the gap over the baseline. A guard that fails with the skill still fails. A
+case meant to show what the skill adds is not a guard.
 
 A rubric is a list of checks; a run passes the criterion when every check passes. The checks are `contains`,
 `not-contains`, `regex`, `not-regex`, `file-exists` and `file-contains` (`{path, text}`) on the run's folder,

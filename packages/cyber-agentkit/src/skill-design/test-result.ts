@@ -19,13 +19,27 @@ export type CriterionResult = {
 	passed?: number
 	ran?: number
 	baseline?: { passed: number; ran: number }
+	/** Set when every case that tests it is a regression guard (R160): a pass without the skill too is expected. */
+	guard?: true
 	failures?: Failure[]
 }
 /**
  * A case's status, with how many of its runs went right; results saved before the counts were recorded lack them.
  * `sandboxFailed` counts its runs with the skill that were sandbox failures (R154), left out when none was.
  */
-export type CaseStatus = { case: string; status: Status; passed?: number; ran?: number; sandboxFailed?: number }
+export type CaseStatus = {
+	case: string
+	status: Status
+	passed?: number
+	ran?: number
+	sandboxFailed?: number
+	/**
+	 * Set on a regression guard (R160), an outcome case expected to pass without the skill too. With the baseline run,
+	 * `baseline` counts its baseline runs in which every criterion it tests passed.
+	 */
+	guard?: true
+	baseline?: { passed: number; ran: number }
+}
 /** One point of a case's pass rate: the result it comes from (its `at`), and how many runs went right of how many ran. */
 export type RatePoint = { at: string; passed: number; ran: number }
 /** One thing a run tried that its containment refused, with the run that tried it. */
@@ -287,6 +301,7 @@ export function readPromptfooOutput(
 				? 'not-run'
 				: 'pass'
 		const result: CriterionResult = { id, status, passed, ran }
+		if (covering.every((item) => item.guard)) result.guard = true
 		if (meta.baselineRan) {
 			const base = covering.flatMap((item) => byCase(item.id, other).filter(ok))
 			result.baseline = { passed: base.filter((row) => criterionPassed(row, id).pass).length, ran: base.length }
@@ -300,19 +315,23 @@ export function readPromptfooOutput(
 	 */
 	const outcomeStatus = (item: (typeof outcomes)[number]): CaseStatus => {
 		const ids = [...new Set([...Object.keys(item.rubrics), ...Object.keys(item.judged)])]
-		if (!ids.length) return { case: item.id, status: 'not-tested' }
+		const guard = item.guard ? { guard: true as const } : {}
+		if (!ids.length) return { case: item.id, status: 'not-tested', ...guard }
 		const runs = byCase(item.id, main).filter(ok)
-		if (!runs.length) return { case: item.id, status: 'not-run', ...sandboxFailed(item.id) }
+		if (!runs.length) return { case: item.id, status: 'not-run', ...sandboxFailed(item.id), ...guard }
 		const each = ids.map((id) =>
 			statusOf(runs.filter((row) => criterionPassed(row, id).pass).length, runs.length, item.id),
 		)
-		const passed = runs.filter((row) => ids.every((id) => criterionPassed(row, id).pass)).length
+		const allPassed = (row: Row) => ids.every((id) => criterionPassed(row, id).pass)
+		const base = item.guard && meta.baselineRan ? byCase(item.id, other).filter(ok) : undefined
 		return {
 			case: item.id,
 			status: each.includes('fail') ? 'fail' : 'pass',
-			passed,
+			passed: runs.filter(allPassed).length,
 			ran: runs.length,
 			...sandboxFailed(item.id),
+			...guard,
+			...(base ? { baseline: { passed: base.filter(allPassed).length, ran: base.length } } : {}),
 		}
 	}
 	const cases: CaseStatus[] = [

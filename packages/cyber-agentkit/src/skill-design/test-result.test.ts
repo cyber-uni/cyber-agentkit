@@ -539,3 +539,41 @@ describe('setup script failures (R156)', () => {
 		})
 	})
 })
+
+describe('guard cases (R160)', () => {
+	const guarded: TestPlan = {
+		...plan,
+		cases: plan.cases.map((item) => (item.id === 'two-prs' ? { ...item, guard: true as const } : item)),
+	}
+	const both = (skill: boolean, baseline: boolean): RowSpec[] => [
+		...[0, 1, 2].map((run) => ({ case: 'two-prs', run, checks: { C1: skill, C2: skill } })),
+		...[0, 1, 2].map((run) => ({ case: 'two-prs', label: 'baseline', run, checks: { C1: baseline, C2: baseline } })),
+	]
+
+	it('marks a guard case and the criteria only guards test, and counts its baseline runs', () => {
+		const result = readPromptfooOutput(output(both(true, true)), guarded, meta)
+		expect(result.cases.find((item) => item.case === 'two-prs')).toEqual({
+			case: 'two-prs',
+			status: 'pass',
+			passed: 3,
+			ran: 3,
+			guard: true,
+			baseline: { passed: 3, ran: 3 },
+		})
+		expect(result.criteria.filter((item) => item.guard).map((item) => item.id)).toEqual(['C1', 'C2'])
+	})
+
+	it('still fails a guard case whose runs with the skill fail', () => {
+		const result = readPromptfooOutput(output(both(false, true)), guarded, meta)
+		expect(result.cases.find((item) => item.case === 'two-prs')).toMatchObject({ status: 'fail', guard: true })
+		expect(result.criteria[0]).toMatchObject({ id: 'C1', status: 'fail', guard: true })
+	})
+
+	it('marks nothing when no case is a guard, and leaves the baseline count out when the baseline did not run', () => {
+		const plain = readPromptfooOutput(output(both(true, true)), plan, meta)
+		expect(plain.cases.find((item) => item.case === 'two-prs')).not.toHaveProperty('guard')
+		expect(plain.criteria.some((item) => item.guard)).toBe(false)
+		const alone = readPromptfooOutput(output(both(true, true)), guarded, { ...meta, baselineRan: false })
+		expect(alone.cases.find((item) => item.case === 'two-prs')).not.toHaveProperty('baseline')
+	})
+})
