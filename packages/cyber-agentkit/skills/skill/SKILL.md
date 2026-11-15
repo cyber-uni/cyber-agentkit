@@ -23,7 +23,7 @@ works through the aspects below.
 | `report [skill]` | the author wants a skill's eval results in its docs or README, or as JSON | [report.md](references/report.md) |
 | `customize [aspect]` | the author wants to see or change which implementation each aspect uses, or how much each command applies on its own | [customize.md](references/customize.md) |
 
-Take an explicit command first. When the request describes a skill to write but names no command, as in `/skill a
+Take a named command first. When the request describes a skill to write but names no command, as in `/skill a
 skill for release notes`, follow `create`. Otherwise read the intent
 from the request; if it fits two commands, ask which. With no request, follow `help`.
 
@@ -226,7 +226,7 @@ or <runs> runs)`. When `within` is true, start `test` without asking. When it is
 A run stops only where its level says to ask, for a `test` over the budget, and for a decision only the author can
 make: changing the Intent (such as adopting or extending an existing skill that Research found), what a skill
 generalizes over, an aspect the description says nothing about, or removing or weakening a `## Done when` criterion. A Criteria fix that makes a criterion checkable keeps what it asks for: it is
-not weakening it. A request that names such a change still stops: say what it changes, and ask.
+not weakening it. A request naming such a change still stops: say what it changes, and ask.
 
 A stop is the same every time:
 
@@ -238,7 +238,7 @@ A stop is the same every time:
 ## Rules
 
 - When the skill named cannot be found, stop, say where you looked, and write nothing.
-- Run no judge unless the author names one.
+- Run no judge the author did not name.
 - When `check` or `test`, run as the command asked, finds failures, end by offering `fix`, and change nothing unless the
   author accepts. When another command runs them, it goes on as its own steps say.
 - Before editing a skill from an installed plugin, say that a plugin update will overwrite the change.
@@ -277,4 +277,4 @@ Before reporting done, check each against the result, and report any that fails.
   no file before the author picked.
 - **C19.** Sandbox failures were reported as uncounted, a held result as unsaved until `skill accept`, with no `fix`.
 - **C20.** `report` wrote the results as `skill report` printed them, and changed no other file.
-- **C21.** A new case came from `skill case`, its history in a setup script.
+- **C21.** New cases came from `skill case`, history in setup scripts.
