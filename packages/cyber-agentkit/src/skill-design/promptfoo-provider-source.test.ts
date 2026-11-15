@@ -51,6 +51,7 @@ const git = (dir, ...args) => execFileSync('git', args, { cwd: dir, encoding: 'u
 exports.loadApiProvider = async (_id, { options }) => ({
   callApi: async () => {
     const dir = options.config.working_dir
+    if (process.env.FAKE_RUN_WRITES) fs.writeFileSync(dir + '/' + process.env.FAKE_RUN_WRITES, 'written by the run\n')
     const report = {
       isRepo: git(dir, 'rev-parse', '--is-inside-work-tree'),
       log: git(dir, 'log', '--format=%s|%an|%ae'),
@@ -771,7 +772,15 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 
 describe('promptfooProviderSource setup scripts and script checks (R155, R156, R157)', () => {
 	/** Runs one outcome run with a setup script and rubrics through the fake promptfoo; answers its whole response. */
-	function scripted({ setup, rubrics = {} }: { setup?: string; rubrics?: Record<string, Record<string, unknown>[]> }): {
+	function scripted({
+		setup,
+		rubrics = {},
+		writes,
+	}: {
+		setup?: string
+		rubrics?: Record<string, Record<string, unknown>[]>
+		writes?: string
+	}): {
 		response: Record<string, any>
 		outside: string
 	} {
@@ -799,7 +808,10 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify
 `,
 		)
 		const response = JSON.parse(
-			execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8', env: { ...process.env, OUTSIDE: outside } }),
+			execFileSync('node', [join(root, 'run.mjs')], {
+				encoding: 'utf8',
+				env: { ...process.env, OUTSIDE: outside, ...(writes ? { FAKE_RUN_WRITES: writes } : {}) },
+			}),
 		)
 		return { response, outside }
 	}
@@ -861,6 +873,25 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify
 			expect(existsSync(join(outside, 'escaped.txt'))).toBe(false)
 		},
 	)
+
+	/** The check many criteria end with: nothing in the run's repository changed. */
+	const unchanged = { C1: [{ script: 'test -z "$(git status --porcelain --untracked-files=all)"' }] }
+
+	it.skipIf(!sandboxStarts)(
+		'passes a "nothing changed" git status check for a run that wrote nothing, unmoved by what the sandbox protects',
+		() => {
+			expect(scripted({ rubrics: unchanged }).response.metadata.checks.C1).toEqual({ pass: true })
+		},
+	)
+
+	it.skipIf(!sandboxStarts)('fails that check for a run that wrote a file', () => {
+		expect(scripted({ rubrics: unchanged, writes: 'new.txt' }).response.metadata.checks.C1.pass).toBe(false)
+	})
+
+	it.skipIf(!sandboxStarts)("still refuses a script check a write to the run repository's .git/config", () => {
+		const { response } = scripted({ rubrics: { C1: [{ script: 'echo "[core]" >> .git/config' }] } })
+		expect(response.metadata.checks.C1.pass).toBe(false)
+	})
 })
 
 describe('promptfooProviderSource usage limit (R162)', () => {
