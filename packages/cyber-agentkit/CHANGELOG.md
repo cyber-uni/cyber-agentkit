@@ -1,5 +1,27 @@
 # cyber-agentkit
 
+## 2.8.0
+
+### Minor Changes
+
+- 6c8e615: `skill case add --from <case>` starts a new case from another case's setup: its setup script is a copy of that
+  case's, ready to edit, and it shares that case's files folder unless `--files` is given.
+- e410c98: `skill case add` now writes the new case into `evals/evals.yaml` where it goes, and `skill case remove` cuts only
+  the removed case, so every other entry keeps its formatting: folded `script:` checks stay folded and `[C4]` stays
+  `[C4]`. `skill case add` also takes `--criteria C1,C2` and `--check <ID>=<script>` (repeatable), so a case's
+  criteria and `script` checks no longer go in by hand.
+- 454908a: `skill case try <folder> <case>` runs one outcome case's setup script alone, as `skill test` runs it, in the same
+  script sandbox and empty home, with no model call. It prints the run folder's `git status --porcelain` and what the
+  setup printed, and keeps the run's folder and home under the skill's results path, so a setup can be checked
+  without a paid run and nothing needs deleting.
+
+### Patch Changes
+
+- b0cd01d: The setup script `skill case add --setup` scaffolds, and the `skill-design.aspects.verification` reference, now say
+  that a run's `.git/hooks` and `.git/config` are read-only and how to install a git hook anyway: a tracked `hooks/`
+  folder and `git config --global core.hooksPath "$PWD/hooks"` in the run's own empty home.
+- adffe74: `skill test` makes each path the shell sandbox mounts over ahead in every dependency copy, as it does in the plugin copy, so a dependency without `.mcp.json` no longer breaks every shell command of a run. A run that still hits bwrap's `Can't find source path` error is reported as a sandbox failure, counted toward no pass rate, instead of a failed run.
+
 ## 2.7.0
 
 ### Minor Changes
