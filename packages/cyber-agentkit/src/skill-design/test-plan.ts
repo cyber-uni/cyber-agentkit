@@ -22,6 +22,8 @@ export type PlannedCase = {
 	setup?: string
 	/** For an outcome case: the hosts its runs may reach; none by default (R107). */
 	network?: string[]
+	/** For an outcome case: set when it is a regression guard, expected to pass without the skill too (R160). */
+	guard?: true
 	/** For an outcome case: the criteria it tests that have a rubric, with the checks a run decides. */
 	rubrics: Record<string, Record<string, unknown>[]>
 	/** For an outcome case: the criteria whose rubric needs a judge. */
@@ -169,6 +171,7 @@ export function planEvals(
 		if (item.files !== undefined) planned.files = resolve(folder, item.files)
 		if (item.setup !== undefined) planned.setup = resolve(folder, item.setup)
 		if (item.network?.length) planned.network = item.network
+		if (item.guard) planned.guard = true
 		for (const id of ids) {
 			const list = item.checks?.[id] ?? rubrics[id]
 			if (!list) continue

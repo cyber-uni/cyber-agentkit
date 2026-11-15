@@ -27,6 +27,19 @@ describe('planTest', () => {
 		expect(none.plan.cases.at(-1)?.network).toBeUndefined()
 	})
 
+	it('carries a case marked as a guard into the plan (R160)', () => {
+		const evals = goodEvals.replace(
+			'  - { id: two-prs, prompt: write the notes, files: files/two-prs }',
+			'  - { id: two-prs, prompt: write the notes, files: files/two-prs, guard: true }',
+		)
+		const planned = planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': evals }))
+		if (!('plan' in planned)) throw new Error(planned.problem)
+		expect(planned.plan.cases.at(-1)?.guard).toBe(true)
+		const none = planTest(goodSkill())
+		if (!('plan' in none)) throw new Error(none.problem)
+		expect(none.plan.cases.at(-1)?.guard).toBeUndefined()
+	})
+
 	it('plans a five-minute time limit, or the evals timeout (F8)', () => {
 		const planned = (evals: string) => {
 			const result = planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': evals }))

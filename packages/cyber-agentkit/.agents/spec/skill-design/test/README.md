@@ -69,6 +69,9 @@ contract apply here; IDs are shared across the parent and its children.
     reported as not run.
   - **UC6.19** The author adds or removes a case. A command makes or deletes that case's files and its entry, and
     nothing outside the skill's eval files.
+  - **UC6.20** A case keeps a behavior that passes without the skill too, such as one another part of the plugin
+    teaches. The author marks it as a guard, and the report shows its pass in both arms as expected rather than as a
+    skill that adds nothing. A guard that fails with the skill is still a failure.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -162,3 +165,7 @@ contract apply here; IDs are shared across the parent and its children.
 - R159 (UC6.19): A `case` command adds a case, scaffolding its files folder, setup script when asked, and entry, and
   removes one, deleting only its own files and entry. It refuses a case ID or a path that would reach outside the
   skill's eval files, and changes nothing then.
+- R160 (UC6.20): A case may be marked as a guard. The result marks it, with its baseline pass rate, and marks each
+  criterion only guards test. The `test` and `report` output show a guard's pass in both arms as expected, and the
+  report's gap over the baseline leaves out the criteria only guards test. A guard is passed or failed by its runs with
+  the skill, as any case is.

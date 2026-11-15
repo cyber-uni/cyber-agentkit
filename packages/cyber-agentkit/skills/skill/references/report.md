@@ -18,7 +18,8 @@ node <this skill's folder>/scripts/skill.mjs report <skill folder>
 
 It prints the Evals section as Markdown, starting at its `## Evals` heading: the summary line and cost, the gap over
 the no-skill baseline, the trigger cases, each criterion with the skill and without, the outcome cases, runs the
-sandbox broke, and the trend over the kept accepted results. Add `--format json` when a site generator will read it,
+sandbox broke, and the trend over the kept accepted results. A guard case (`guard: true` in `evals.yaml`) that passes
+without the skill too reads as expected, and the gap leaves out the criteria only guards test. Add `--format json` when a site generator will read it,
 and `--test-link <url>` when the page should link `skill test` somewhere other than the cyber-agentkit docs site.
 
 When it prints `This skill has no saved eval result yet`, say so plainly, and point to `test`; write nothing.

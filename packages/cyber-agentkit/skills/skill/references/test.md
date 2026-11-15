@@ -124,6 +124,8 @@ the skill that were. A run that broke for a reason `skill test` cannot name is i
 or `network`, and `target` the path or host. A refused attempt does not by itself fail a criterion.
 
 `cases` holds each case's status: an outcome case passes when every criterion it tests meets the threshold in it.
+A case marked `guard: true` in `evals.yaml` carries `guard: true` and, when the baseline ran, `baseline`: its baseline
+runs in which every criterion it tests passed. A criterion that only guard cases test carries `guard: true` too.
 `passed` and `ran` count its runs that went right: for an outcome case, the runs in which every criterion it tests
 passed; for a trigger case, the runs that fired or skipped as expected.
 `changed` lists the cases that went between `pass` and `fail` since the skill's expected result
@@ -167,7 +169,9 @@ in the skill, and count toward no pass rate. Give each case's `sandboxFailed` be
 to save it once the author has looked; never run it for them. A sandbox failure is not a failure of the skill: offer
 no `fix` for it. Then each
 trigger case beside what was expected; each criterion's pass rate, threshold, and baseline; each failure with its
-case and the output that broke it; what the runs with the skill tried and were refused, if anything; and the cases that changed between pass and fail since the expected result, or, with
+case and the output that broke it; each guard case, whose pass without the skill too is expected, so never report it as a
+skill that adds nothing, while a guard that fails with the skill is a failure like any other; what the runs with the
+skill tried and were refused, if anything; and the cases that changed between pass and fail since the expected result, or, with
 none, the previous result, saying which. With neither, say there is none to compare. Name each case in `moved` with
 its rate in each accepted result and in this run. Say when the result was saved as the
 expected result. With failures, offer `fix` as `SKILL.md`'s Rules say.

@@ -22,7 +22,10 @@ export type EvalReport = {
 	/** US dollars, for `totalRuns` runs when the result records them. Results record no tokens. */
 	cost?: number
 	totalRuns?: number
-	/** The criterion checks that passed with the skill and without it, over the criteria the baseline scored too. */
+	/**
+	 * The criterion checks that passed with the skill and without it, over the criteria the baseline scored too, leaving
+	 * out guard criteria (R160): they are expected to pass without the skill.
+	 */
 	gap?: { with: Count; without: Count }
 	trigger?: { case: string; prompt: string; expect: 'fire' | 'skip'; fired: number; ran: number; result: string }[]
 	/** Each criterion, largest gap over the baseline first; `text` is its line in the `SKILL.md` `## Done when`. */
@@ -33,10 +36,21 @@ export type EvalReport = {
 		reason?: string
 		with?: Count
 		without?: Count
+		/** Every case that tests it is a regression guard (R160). */
+		guard?: true
 		result: string
 	}[]
-	/** The outcome cases: every case that is not a trigger case. */
-	cases?: { case: string; status: Status; passed?: number; ran?: number; sandboxFailed?: number; result: string }[]
+	/** The outcome cases: every case that is not a trigger case. A guard counts its baseline runs that passed (R160). */
+	cases?: {
+		case: string
+		status: Status
+		passed?: number
+		ran?: number
+		sandboxFailed?: number
+		guard?: true
+		baseline?: Count
+		result: string
+	}[]
 	notRun?: { case: string; reason: string }[]
 	/** The runs the test sandbox broke, in either arm; they count toward no pass rate. */
 	sandboxFailures?: SandboxFailure[]
@@ -77,9 +91,19 @@ function resultText(status: Status, sandboxFailed: number | undefined): string {
 	return `${status}, ${plural(sandboxFailed, 'sandbox failure')}`
 }
 
-/** The criterion checks that passed with the skill and without, over the criteria the baseline scored. */
+/**
+ * A guard case's result (R160): a pass with the skill that also passes without it is what a guard is for, so it reads
+ * as expected; a fail with the skill is still a fail.
+ */
+function guardText(text: string, c: { status: Status; baseline?: Count }, threshold: number): string {
+	if (c.status === 'pass' && c.baseline?.ran && c.baseline.passed >= Math.min(threshold, c.baseline.ran))
+		return `${text}, and without the skill, as a guard should`
+	return `${text} (guard)`
+}
+
+/** The criterion checks that passed with the skill and without, over the criteria the baseline scored, guards left out. */
 function gapOf(result: TestResult): { with: Count; without: Count } | undefined {
-	const compared = (result.criteria ?? []).filter((c) => typeof c.passed === 'number' && c.baseline)
+	const compared = (result.criteria ?? []).filter((c) => typeof c.passed === 'number' && c.baseline && !c.guard)
 	if (!compared.length) return undefined
 	const sum = (pick: (c: (typeof compared)[number]) => number) => compared.reduce((total, c) => total + pick(c), 0)
 	return {
@@ -138,12 +162,20 @@ export function evalReport(
 			...(c.reason ? { reason: c.reason } : {}),
 			...(typeof c.passed === 'number' ? { with: { passed: c.passed, ran: c.ran ?? 0 } } : {}),
 			...(typeof c.passed === 'number' && c.baseline ? { without: c.baseline } : {}),
-			result: typeof c.passed === 'number' ? c.status : `${c.status}${c.reason ? `: ${c.reason}` : ''}`,
+			...(c.guard ? { guard: true as const } : {}),
+			result: c.guard
+				? guardText(c.status, { status: c.status, ...(c.baseline ? { baseline: c.baseline } : {}) }, result.threshold)
+				: typeof c.passed === 'number'
+					? c.status
+					: `${c.status}${c.reason ? `: ${c.reason}` : ''}`,
 		}))
 
 	report.cases = (result.cases ?? [])
 		.filter((c) => !trigger.some((t) => t.case === c.case))
-		.map((c) => ({ ...c, result: resultText(c.status, c.sandboxFailed) }))
+		.map((c) => {
+			const text = resultText(c.status, c.sandboxFailed)
+			return { ...c, result: c.guard ? guardText(text, c, result.threshold) : text }
+		})
 	report.notRun = result.notRun ?? []
 	report.sandboxFailures = result.sandboxFailures ?? []
 
@@ -214,6 +246,17 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 	if (report.gap)
 		out.push(
 			`**What the skill adds:** with the skill, ${ratio(report.gap.with)} criterion checks pass; without it, ${ratio(report.gap.without)}.`,
+			'',
+		)
+
+	const guards = (report.criteria ?? []).filter((c) => c.guard).map((c) => c.id)
+	if (guards.length || report.cases?.some((c) => c.guard))
+		out.push(
+			`A guard case keeps a behavior that passes without the skill too, so a pass on both sides is expected there, and a fail with the skill is still a fail.${
+				report.gap && guards.length
+					? ` The line above leaves out the criteria only guard cases test: ${guards.join(', ')}.`
+					: ''
+			}`,
 			'',
 		)
 

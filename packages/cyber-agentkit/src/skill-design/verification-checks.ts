@@ -35,6 +35,11 @@ export type EvalsFile = {
 		effects?: 'outside'
 		/** Hosts the case's runs may reach, such as `registry.npmjs.org` or `*.github.com`; none by default. */
 		network?: string[]
+		/**
+		 * Marks a regression guard (R160): it keeps a behavior that also passes without the skill, so a pass in both arms
+		 * is expected, not a skill that adds nothing. A fail with the skill is still a fail.
+		 */
+		guard?: boolean
 		checks?: Record<string, Record<string, unknown>[]>
 	}[]
 	rubrics?: Record<string, Record<string, unknown>[]>
@@ -109,6 +114,8 @@ export function evalsProblems(value: unknown): string[] {
 					)
 				)
 					problems.push(`${where}: \`network\` is not a list of host names`)
+				if (item['guard'] !== undefined && typeof item['guard'] !== 'boolean')
+					problems.push(`${where}: \`guard\` is not true or false`)
 				const checks = item['checks']
 				if (checks !== undefined) {
 					if (!isRecord(checks)) problems.push(`${where}: \`checks\` is not a mapping of criterion IDs`)

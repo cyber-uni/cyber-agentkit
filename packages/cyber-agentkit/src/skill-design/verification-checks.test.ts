@@ -51,6 +51,13 @@ describe('checkVerification', () => {
 			expect(one(network)).toEqual(['outcome case 1: `network` is not a list of host names'])
 	})
 
+	it('accepts true or false as a case guard, and rejects others (R160)', () => {
+		const one = (guard: unknown) => evalsProblems({ outcome: [{ id: 'a', prompt: 'p', guard }] })
+		expect(one(true)).toEqual([])
+		expect(one(false)).toEqual([])
+		for (const guard of ['yes', 1, []]) expect(one(guard)).toEqual(['outcome case 1: `guard` is not true or false'])
+	})
+
 	it('names each format problem', () => {
 		expect(
 			evalsProblems({

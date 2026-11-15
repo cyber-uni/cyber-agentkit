@@ -39,7 +39,7 @@ import { type SkillVetReport, vetSkill } from './skill-vet.js'
 import { defaultTestBudget, estimateTest, estimateText } from './test-estimate.js'
 import { planScripts, planTest, withoutScripts } from './test-plan.js'
 import { planLine } from './test-progress.js'
-import type { TestResult } from './test-result.js'
+import type { CaseStatus, TestResult } from './test-result.js'
 import { type GitHubGet, githubGet, type JsonGet, jsonGet, type SupplyChainSignals } from './vet-signals.js'
 import { cloneSource, type FetchSource, parseVetSource } from './vet-source.js'
 import { readTrustList, trustListName } from './vet-trust.js'
@@ -227,6 +227,22 @@ function resultsBase(rootOption: string | undefined, home: string): string {
 	return existsSync(join(root, '.git')) ? root : home
 }
 
+/**
+ * A regression guard's line (R160): a pass on both arms is what a guard is for, so it says so instead of reading as a
+ * skill that adds nothing; a fail with the skill is still a fail.
+ */
+function guardLine(item: CaseStatus, threshold: number): string {
+	const rate = item.ran === undefined ? '' : ` ${item.passed} of ${item.ran}`
+	const base = item.baseline ? `, baseline ${item.baseline.passed} of ${item.baseline.ran}` : ''
+	const note =
+		item.status === 'fail'
+			? 'a guard that fails with the skill is a failure'
+			: item.status === 'pass' && item.baseline?.ran && item.baseline.passed >= Math.min(threshold, item.baseline.ran)
+				? 'passes without the skill too, as a guard is expected to'
+				: ''
+	return `guard ${item.case}: ${item.status}${rate}${base}${note ? ` — ${note}` : ''}`
+}
+
 /** The text report; `folder` is where the result was saved, so the replies file is named in full. */
 function testText(result: TestResult, folder?: string): string {
 	const lines = [
@@ -256,12 +272,15 @@ function testText(result: TestResult, folder?: string): string {
 	for (const item of result.criteria) {
 		const rate = item.ran === undefined ? '' : ` ${item.passed} of ${item.ran}`
 		const base = item.baseline ? `, baseline ${item.baseline.passed} of ${item.baseline.ran}` : ''
-		lines.push(`${item.id}: ${item.status}${rate}${base}${item.reason ? ` — ${item.reason}` : ''}`)
+		lines.push(
+			`${item.id}${item.guard ? ' (guard)' : ''}: ${item.status}${rate}${base}${item.reason ? ` — ${item.reason}` : ''}`,
+		)
 		for (const failure of item.failures ?? [])
 			lines.push(
 				`  ${failure.case} run ${failure.run}: ${failure.output.split('\n').slice(0, 3).join(' ').slice(0, 200)}`,
 			)
 	}
+	for (const item of result.cases) if (item.guard) lines.push(guardLine(item, result.threshold))
 	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
 	for (const item of result.blocked ?? [])
 		lines.push(
