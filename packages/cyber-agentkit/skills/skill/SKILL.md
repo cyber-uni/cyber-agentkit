@@ -6,8 +6,8 @@ argument-hint: "<description> | help | create [description] | check [skill] | te
 
 # Skill
 
-Route the request to one command, load that command's file from this skill's folder, and follow it. Every command
-works through the aspects below.
+Route the request to one command, load that command's file from this skill's folder, and follow it. A `create`, `fix`,
+or `enhance` reply opens with its `Autonomy:` line (see Autonomy), even when the run stops before any change.
 
 ## Commands
 
