@@ -230,6 +230,10 @@ export function headlessInvocation(harness: HarnessId): HeadlessInvocation {
 						CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1',
 						// claude.ai connectors are the account's, not the run's (E-CC-D14).
 						ENABLE_CLAUDEAI_MCP_SERVERS: 'false',
+						// Each shell command starts back in the run's folder (E-CC-D17). A cd that carried into a loaded
+						// plugin's folder, which the sandbox holds read-only, would make the sandbox fail every later
+						// command before it starts.
+						CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR: '1',
 					},
 					// The OS sandbox and the working-folder permissions (E-CC-D15).
 					containment: {
@@ -252,6 +256,7 @@ export function headlessInvocation(harness: HarnessId): HeadlessInvocation {
 						'E-CC-D13',
 						'E-CC-D14',
 						'E-CC-D16',
+						'E-CC-D17',
 						'E-CC-L1',
 						'E-CC-H7',
 						'E-CC-I1',

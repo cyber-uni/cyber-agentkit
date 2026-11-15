@@ -226,3 +226,9 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
   `claude plugin list --json`, which `skill test` reads to check every plugin loads before it runs a case.
 - Added E-CC-H11: `claude plugin eval` loads only the target plugin, so `skill test --backend plugin-eval` cannot test
   a plugin that declares dependencies.
+
+## 2026-11-14 (skill test shell after a cd)
+
+- Added E-CC-D17: `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR` and why a `cd` into a loaded plugin's folder breaks the
+  Bash sandbox, from the vendor docs and bubblewrap arguments logged from live runs. `skill test` sets the variable so a
+  run's shell keeps working after such a `cd`.
