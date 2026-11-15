@@ -15,6 +15,12 @@ describe('recognizeSandboxFault (R154)', () => {
 		expect(recognizeSandboxFault(other)?.fault).toBe('bwrap-read-only-mount')
 	})
 
+	it('recognizes the missing mount point of a dependency copy from cyber-agentkit#289 (E-CC-D22)', () => {
+		const missing =
+			"bwrap: Can't find source path /tmp/skill-test-Ab12/dependencies/cyber-agentkit/.mcp.json: No such file or directory"
+		expect(recognizeSandboxFault(`Exit code 1\n${missing}\n`)).toEqual({ fault: 'bwrap-missing-source', text: missing })
+	})
+
 	it('recognizes nothing in ordinary failures, a read-only error of another program, or a sandbox that could not start', () => {
 		for (const text of [
 			'cat: notes.txt: No such file or directory',

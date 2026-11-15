@@ -2,7 +2,7 @@
  * The promptfoo provider `skill test` writes beside its config. promptfoo's Claude Agent SDK provider
  * (0.125.1) runs in a temp folder it deletes and has no `copy_working_dir` (research E20), so this
  * wrapper makes each run's folder: a fresh copy of the case's files committed in a new git repository, plus the
- * skill under the harness's project skills folder (`.claude/skills/<name>/` for Claude Code) in the arm that has it (excluded from git status), or, for a skill developed in a plugin, a fresh copy of that arm's plugin loaded as a local plugin (R91), committed in a git repository of its own whose git folder is kept outside it, holding ahead each path the harness's shell sandbox mounts over (E-CC-D20), and named to script checks by `SKILL_TEST_PLUGIN`, or its skills copied into the project skills folder for a harness with no local-plugin flag. Claude Code runs through promptfoo's Agent SDK provider; another harness (`config.harness`) runs through its own CLI (`config.command`). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. A case's setup script (`vars.setup`) runs in the
+ * skill under the harness's project skills folder (`.claude/skills/<name>/` for Claude Code) in the arm that has it (excluded from git status), or, for a skill developed in a plugin, a fresh copy of that arm's plugin loaded as a local plugin (R91), committed in a git repository of its own whose git folder is kept outside it, holding ahead each path the harness's shell sandbox mounts over (E-CC-D20), as each dependency copy also does (E-CC-D22), and named to script checks by `SKILL_TEST_PLUGIN`, or its skills copied into the project skills folder for a harness with no local-plugin flag. Claude Code runs through promptfoo's Agent SDK provider; another harness (`config.harness`) runs through its own CLI (`config.command`). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. A case's setup script (`vars.setup`) runs in the
  * folder after the files are committed and before the model starts, and it and each `script` check run in the script
  * sandbox (R155, R157). After the run it decides the rubric checks that
  * need no judge in that folder, records whether the skill fired, and removes the folder. Each run also gets an empty home folder.
@@ -554,6 +554,10 @@ export default class SkillRun {
         fs.cpSync(pluginDir, plugin, { recursive: true })
         commit(plugin, 'plugin', { gitDir: pluginGit, force: isolation.containment?.mountPoints ? makeMountPoints(plugin, isolation.containment.mountPoints) : [] })
       }
+      // The sandbox holds each dependency copy read-only as it holds the plugin, and fails every shell command on a
+      // mount point a copy does not have (E-CC-D20, E-CC-D22), so each copy gets them too. The copies are shared by
+      // every run and are no git repository; a later run finds them made and writes nothing.
+      if (isolation.containment?.mountPoints) for (const dependency of dependencyDirs) makeMountPoints(dependency, isolation.containment.mountPoints)
       const skills = path.join(dir, isolation.projectSkills)
       if (skillDir) fs.cpSync(skillDir, path.join(skills, skillName), { recursive: true })
       // A harness with no flag to load a local plugin gets the plugin's skills as project skills.

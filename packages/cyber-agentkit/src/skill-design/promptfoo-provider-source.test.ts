@@ -222,6 +222,17 @@ describe('promptfooProviderSource containment (R107)', () => {
 		expect(sandbox.filesystem.allowWrite).not.toContain(dependency)
 	})
 
+	it('makes ahead, in every folder of each dependency copy, each path the shell sandbox mounts over (E-CC-D22, #289)', () => {
+		const dependency = mkdtempSync(join(tmpdir(), 'provider-dependency-'))
+		mkdirSync(join(dependency, 'skills', 'kit'), { recursive: true })
+		writeFileSync(join(dependency, '.claude-plugin.json'), '{}')
+		runProvider(false, { plugin: true, dependencies: [dependency] })
+		expect(readFileSync(join(dependency, '.mcp.json'), 'utf8')).toBe('{}\n')
+		expect(readFileSync(join(dependency, 'skills', 'kit', '.mcp.json'), 'utf8')).toBe('{}\n')
+		expect(readFileSync(join(dependency, '.claude', 'launch.json'), 'utf8')).toBe('{}\n')
+		expect(existsSync(join(dependency, 'skills', 'kit', '.claude', 'hooks'))).toBe(true)
+	})
+
 	it('opens the network only to the hosts the case lists', () => {
 		expect(runProvider(true, { network: ['registry.npmjs.org'] }).sandbox.network).toEqual({
 			allowedDomains: ['registry.npmjs.org'],
@@ -613,22 +624,26 @@ describe('promptfooProviderSource sandbox failures (R154)', () => {
 	const bwrap =
 		"bwrap: Can't create file at /tmp/skill-test-plugin-Xa1b2C/references/.claude/launch.json: Read-only file system"
 	/** A fake inner provider that plays shell commands through every PostToolUse and PostToolUseFailure hook it is given. */
-	const shell = (failing: boolean) => String.raw`
+	const shell = (failing: boolean, error = bwrap) => String.raw`
 exports.loadApiProvider = async (_id, { options }) => ({
   callApi: async () => {
     const all = (event, input) => Promise.all(options.config.hooks[event].flatMap((entry) => entry.hooks.map((hook) => hook(input))))
     await all('PostToolUse', { tool_name: 'Bash', tool_input: { command: 'ls' }, tool_response: { stdout: 'notes.txt', stderr: '' } })
-    ${failing ? `await all('PostToolUseFailure', { tool_name: 'Bash', tool_input: { command: 'ls' }, error: 'Exit code 1\\n' + ${JSON.stringify(bwrap)} })` : ''}
+    ${failing ? `await all('PostToolUseFailure', { tool_name: 'Bash', tool_input: { command: 'ls' }, error: 'Exit code 1\\n' + ${JSON.stringify(error)} })` : ''}
     return { output: 'done', metadata: {} }
   },
 })
 `
 
-	function play(failing: boolean, containment: boolean): { response: Record<string, any>; line?: Record<string, any> } {
+	function play(
+		failing: boolean,
+		containment: boolean,
+		error = bwrap,
+	): { response: Record<string, any>; line?: Record<string, any> } {
 		const root = mkdtempSync(join(tmpdir(), 'provider-sandbox-'))
 		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
 		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
-		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), shell(failing))
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), shell(failing, error))
 		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
 		writeFileSync(join(root, 'hook.mjs'), promptfooHookSource)
 		const used = containment ? JSON.parse(isolation) : { ...JSON.parse(isolation), containment: undefined }
@@ -653,6 +668,14 @@ console.log(JSON.stringify(response))
 			expect(response.metadata.sandboxFault).toEqual({ fault: 'bwrap-read-only-mount', text: bwrap })
 			expect(line).toMatchObject({ outcome: 'sandbox failure', reason: bwrap.slice(0, 160) })
 		}
+	})
+
+	it('ends a run whose sandbox could not find a mount point of a dependency copy as a sandbox failure (#289)', () => {
+		const missing =
+			"bwrap: Can't find source path /tmp/skill-test-x1/dependencies/cyber-agentkit/.mcp.json: No such file or directory"
+		const { response, line } = play(true, true, missing)
+		expect(response.metadata.sandboxFault).toEqual({ fault: 'bwrap-missing-source', text: missing })
+		expect(line).toMatchObject({ outcome: 'sandbox failure' })
 	})
 
 	it('records nothing when no command hit one', () => {
