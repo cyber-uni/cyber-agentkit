@@ -10,6 +10,9 @@ each one has the shape the interface describes.
 Registering an interface is optional. Those that were registered are listed in the
 [interface registry](/cyber-agentkit/interface-registry/).
 
+An interface's document is named `<id>.interface.md`, and a skill's copy of it is `<id>.interface.default.md`. The
+[reference file naming](/cyber-agentkit/concepts/reference-file-naming/) page gives the rule for every file form.
+
 | Term | Means |
 | --- | --- |
 | interface | An id, a cardinality, a version, and the top-level sections an implementation has |
