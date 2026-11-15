@@ -12,6 +12,7 @@
 | [prose-update](./prose-update/conclusion.md) | How to merge prose a tool wrote and the owner edited when the tool ships a new wording: three-way merge at sentence level with a retired-wordings history as the base, when to escalate to an agent, and prior art |
 | [skill-design-interface](./skill-design-interface/conclusion.md) | What stages skill-writing tools share, whether any separates configuration from process, which aspects the `skill-design` interface needs, and which plugin owns the interface, the front door, and the implementations |
 | [skill-install-counts](./skill-install-counts/conclusion.md) | Where a tool can get a verified, machine-readable install count for a third-party agent skill, and which signals (stars, clones, downloads) must not be labelled as installs |
+| [skill-description-display](./skill-description-display/conclusion.md) | How many characters of a skill description each harness shows in its slash menu before truncating, and what cap applies to the description the model sees |
 
 Each topic under `.research/<topic-slug>/` holds four files: `conclusion.md` (the current best
 answer), `topic.md` (the full investigation), `evidence.md` (claims with source URLs and
