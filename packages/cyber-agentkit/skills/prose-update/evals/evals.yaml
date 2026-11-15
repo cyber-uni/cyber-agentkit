@@ -26,7 +26,8 @@ outcome:
       C4:
         - regex: "Run the full suite before you push\\.|[Dd]ecided"
       C7:
-        - regex: "\\?"
+        # A question or options lettered A, B, and so on, in any markup, as the skill skill's C14 tests a stop (#285).
+        - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
   - id: no-history
     prompt: >-
       We offer a new wording of the Testing section in offered.md, and found.md is what the owner's file holds now.
@@ -63,7 +64,8 @@ rubrics:
         Pass when the answer gives the outcome of every part, and says of every sentence of the recommendation
         whether it was kept, taken from the offered wording, or decided.
   C7:
-    - not-regex: "\\?(\\s|$)"
+    # No question and no lettered options, as the skill skill's C11 tests that a run did not stop (#285).
+    - not-regex: "(\\?|\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[B-Hb-h][.):][^\\n]*)\\s*$"
   C8:
     - script: "grep -m1 '^## Superseded' history.md | grep -q '2026-11-13'"
     - script: "grep -q '^## Superseded 2026-10-01' history.md"

@@ -60,6 +60,7 @@ export default defineConfig({
 						{ label: 'Harness detection', slug: 'concepts/harness-detection' },
 						{ label: 'Reference documents', slug: 'concepts/reference-documents' },
 						{ label: 'Reference interfaces', slug: 'concepts/reference-interfaces' },
+						{ label: 'Reference file naming', slug: 'concepts/reference-file-naming' },
 					],
 				},
 			],

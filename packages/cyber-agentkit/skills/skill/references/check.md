@@ -22,13 +22,18 @@ step 3 for each skill in turn. When no form of the command can run, decide the `
 
 ## 3. Decide the rest
 
-For each aspect, core and open, decide each `read` check by reading the skill. Report each `run` check as not checked,
+For each aspect, core and open, decide each `read` check by reading the skill: go through every ID the script listed as
+not checked, one at a time, and leave none undecided. Report each `run` check as not checked,
 pointing to `test`, never as a pass. A skill that fails the Agent Skills specification still gets every aspect checked.
 Report a check that does not apply to the skill as skipped, such as TRG-1 on a name-only skill (Trigger says which).
 
 To decide SHP-5 and SHP-6, run the `reference` skill's `audit <skill folder>` (its Audit mode, steps 1 to 3). It lists
 pattern leads with their lines and the references the skill loads with no default. A lead is a candidate, not a failure:
 SHP-5 fails only for a choice you judge another team would make differently. Changes nothing.
+
+To decide SHP-19, find each line where the body reads a file named `<name>.default.md` from a `references/` folder. A
+read is fine only as the fallback for a command that cannot run; a read the body makes by default, with the `reference`
+skill as the way to load it, fails SHP-19 and names the line.
 
 ## Report
 

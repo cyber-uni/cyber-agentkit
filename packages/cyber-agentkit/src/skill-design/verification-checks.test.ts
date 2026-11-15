@@ -11,6 +11,7 @@ describe('checkVerification', () => {
 			'pass',
 			'pass',
 			'pass',
+			'pass',
 		])
 	})
 
@@ -56,6 +57,19 @@ describe('checkVerification', () => {
 		expect(one(true)).toEqual([])
 		expect(one(false)).toEqual([])
 		for (const guard of ['yes', 1, []]) expect(one(guard)).toEqual(['outcome case 1: `guard` is not true or false'])
+	})
+
+	it("accepts a tier or a model ID as a case's model, and rejects others (R161)", () => {
+		const outcome = (model: unknown) => evalsProblems({ outcome: [{ id: 'a', prompt: 'p', model }] })
+		const trigger = (model: unknown) => evalsProblems({ trigger: [{ prompt: 'p', expect: 'fire', model }] })
+		for (const model of ['mid', 'claude-sonnet-5-5', 'gpt-5.6-luna', 'sonnet[1m]']) {
+			expect(outcome(model)).toEqual([])
+			expect(trigger(model)).toEqual([])
+		}
+		for (const model of ['', 'a b', '--x', 3]) {
+			expect(outcome(model)).toEqual(['outcome case 1: `model` is not a tier or a model ID'])
+			expect(trigger(model)).toEqual(['trigger case 1: `model` is not a tier or a model ID'])
+		}
 	})
 
 	it('names each format problem', () => {
@@ -149,6 +163,30 @@ describe('checkVerification', () => {
 		const plain = goodEvals.replace('prompt: write the notes', 'prompt: "run the tests, then commit the setup changes"')
 		expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': plain })))['VER-9']).toEqual({
 			id: 'VER-9',
+			status: 'pass',
+		})
+	})
+
+	it('flags a text check that is a punctuation mark alone, in a rubric or a case, and passes one with words (VER-11)', () => {
+		const rubric = goodEvals.replace('- contains: "## Release notes"', '- regex: "\\\\?\\\\s*$"')
+		expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': rubric })))['VER-11']).toMatchObject({
+			status: 'fail',
+			message: 'rubric C1: `regex: \\?\\s*$` tests a punctuation mark alone; test what the outcome left behind',
+		})
+		const perCase = goodEvals.replace(
+			'files: files/two-prs',
+			'files: files/two-prs, checks: { C2: [{ not-contains: "?" }] }',
+		)
+		expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': perCase })))['VER-11']).toMatchObject({
+			status: 'fail',
+			message: expect.stringContaining('case two-prs: checks C2: `not-contains: ?`'),
+		})
+		const options = goodEvals.replace(
+			'- contains: "## Release notes"',
+			'- regex: "\\\\?|(^|\\\\n)[ \\\\t]*\\\\(?[Aa][.)]"',
+		)
+		expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': options })))['VER-11']).toEqual({
+			id: 'VER-11',
 			status: 'pass',
 		})
 	})

@@ -159,3 +159,28 @@ Confidence: H high, M medium, L low. Read 2026-11-10. "Unverified" means the cla
   (https://www.npmjs.com/package/@anthropic-ai/sandbox-runtime), read from the installed package; the spike above.
 - Confidence: H for this version on Linux; M for macOS, which was not run; the README calls the package a research
   preview whose configuration may change, so the version stays pinned.
+
+## E23. The script sandbox's placeholders in the folder it starts in: sandbox runtime 0.0.81, 2026-11-15
+
+- Claim: on Linux, `srt` write-protects a fixed set of names in the folder it starts in (its working folder):
+  the files `.gitconfig`, `.gitmodules`, `.bashrc`, `.bash_profile`, `.zshrc`, `.zprofile`, `.profile`,
+  `.ripgreprc`, `.mcp.json`, the folders `.vscode`, `.idea`, `.claude/commands`, `.claude/agents`, and, in a git
+  repository there, `.git/hooks` and `.git/config`. A name that does not exist gets `/dev/null` bound over it, so
+  inside the sandbox it exists as a character device, and `git status --porcelain --untracked-files=all` lists it as
+  untracked (seen for each name but `.claude/commands` and `.claude/agents`, whose `.claude` folder did not
+  exist). The set follows only from the folder `srt` starts in (and a ripgrep scan below it for names that
+  exist), not from where the command later changes to. A path named in `filesystem.denyWrite` that exists is bound
+  read-only as it is, with no placeholder.
+- Seen: in a fresh git repository with one committed file, `srt -c 'git status --porcelain --untracked-files=all'`
+  started there listed `.bash_profile`, `.bashrc`, `.gitconfig`, `.gitmodules`, `.idea`, `.mcp.json`, `.profile`,
+  `.ripgreprc`, `.vscode`, `.zprofile`, `.zshrc` as untracked. Started in an empty folder with the command
+  `cd <repo>` first, it listed nothing, and listed a file the command then wrote. With that repository's
+  `.git/config` and `.git/hooks` in `denyWrite`, writes to both failed with `Read-only file system`. Nothing was left
+  on the host in either folder afterwards.
+- Source: `DANGEROUS_FILES`, `getDangerousDirectories`, and `linuxGetCwdMandatoryDenyPaths` in
+  `dist/sandbox/sandbox-utils.js` and `dist/sandbox/linux-sandbox-utils.js` of
+  `@anthropic-ai/sandbox-runtime@0.0.81` (https://www.npmjs.com/package/@anthropic-ai/sandbox-runtime), read from
+  the installed package; the spike above.
+- Confidence: H for this version on Linux. macOS was not run: its Seatbelt profile denies the same names by rule and
+  binds nothing, so no placeholder is expected there (L).
+

@@ -1,13 +1,13 @@
 ---
 name: skill
-description: Create, check, test, fix, enhance, customize, vet, or report on an agent skill (a SKILL.md and its folder), whether it stands alone or ships inside a plugin or npm package, as in "write a skill for X", "add a skill", "add an X skill to this plugin", "teach agents to use our library", "is this skill any good", "run the skill's evals", "publish the skill's eval results in its docs", "my skill doesn't trigger", "improve this skill", or "is this skill from GitHub safe to install", and before handing skill writing to a subagent. Take it for general skill authoring and review over aced:define-skill and aced:improve-skill. Also load it before adding, editing, or linking any file of a skill (its SKILL.md, or a file under its references/, scripts/, assets/, or evals/) while doing other work, such as implementing an issue that adds a skill or changes one, even when the request never says "skill".
+description: Create, check, test, and fix agent skills (a SKILL.md and its folder). Also enhance, customize, vet, or report on one, whether it stands alone or ships inside a plugin or npm package, as in "write a skill for X", "add a skill", "add an X skill to this plugin", "teach agents to use our library", "is this skill any good", "run the skill's evals", "publish the skill's eval results in its docs", "my skill doesn't trigger", "improve this skill", "is this skill from GitHub safe to install", "which implementation does each aspect use", or "switch an aspect's implementation", and before handing skill writing to a subagent. Take it for general skill authoring and review over aced:define-skill and aced:improve-skill. Also load it before adding, editing, or linking any file of a skill (its SKILL.md, or a file under its references/, scripts/, assets/, or evals/) while doing other work, such as implementing an issue that adds a skill or changes one, even when the request never says "skill".
 argument-hint: "<description> | help | create [description] | check [skill] | test [skill] | fix [skill] | enhance [skill] [prompt] | vet <source> | report [skill] | customize [aspect]"
 ---
 
 # Skill
 
-Route the request to one command, load that command's file from this skill's folder, and follow it. Every command
-works through the aspects below.
+Route the request to one command, load that command's file from this skill's folder, and follow it. A `create`, `fix`,
+or `enhance` reply opens with its `Autonomy:` line (see Autonomy), even when the run stops before any change.
 
 ## Commands
 
@@ -113,33 +113,27 @@ program does the same way every time, such as parsing or validating a file. At `
   not a menu of options to choose from.
 - **SHP-18** [read, warning] Each script or command the body runs writes machine output to stdout, in the format the
   body asks for, and prints prose only behind `--verbose`.
+- **SHP-19** [read, warning] Where the body loads a reference the `reference` skill composes, it says to load it with
+  that skill, and reads the reference's bundled `<name>.default.md` directly only as the fallback for when the command
+  cannot run.
 
-**Fix.** Move the text or the step as Draft says, and update the links. For SHP-1, before changing anything, estimate
-what each way to trim that applies saves, at four characters a token, naming the sections it touches:
-
-1. **Drop dead text**: text for a command, option, or case the skill no longer has.
-2. **Move to a reference**: a section only one command or case reads moves to its own file under `references/`, and
-   the body says when to load it. It saves the most when the skill serves several commands.
-3. **Tighten the prose**: cut what SHP-15 names, repeats, and explanations of reasons, and shorten sentences without
-   changing what the agent does. Never cut or weaken a `## Done when` criterion.
-4. **Move checkable detail to a script**: a rule a script or test can decide moves there, and the prose keeps a
-   one-line pointer to it.
-
-At `ask`, offer each one, lettered, with its estimate, and apply only what the author picks. At `apply-safe` and
-`apply`, apply them in that order until SHP-1 passes, keeping each only when `test` is no worse. For SHP-5, propose the reference and the
+**Fix.** Move the text or the step as Draft says, and update the links. For SHP-1, offer the ways to trim in
+[fix](references/fix.md#shp-1-ways-to-trim). For SHP-5, propose the reference and the
 interface the skill should depend on, and the author decides each move. Apply an approved one with the `reference` skill: Create the default, then
 Wire a skill. For SHP-6, ship the default. For SHP-7 to SHP-11, move the file or folder the check names, and update
 what links or names it. For SHP-12, write the body as steps or sections. For SHP-13, make the script print what the
 step needs, and point the step at that. For SHP-14, add the flag. For SHP-15 and SHP-16, delete the text. For SHP-17, keep
 as the default the option most runs need, and name the condition under which the step does otherwise. For SHP-18, move
-the prose to stderr or behind `--verbose`.
+the prose to stderr or behind `--verbose`. For SHP-19, make the step load the reference through the `reference` skill,
+and keep the default only as the fallback; `fix` and `enhance` never replace a reference load with a direct read.
 
 ### Trigger
 
 Produces the `description` in the skill's front matter, and the near misses Verification turns into `skip` cases.
 
-**Draft.** Name the job in the words users type, with two or three phrasings. Open with the job, not a lead-in such as "Use this skill when" or
-"Use when", and add no filler words. Say nothing about when not to use it. List three or more near misses: requests a
+**Draft.** Open with a sentence of at most 100 characters stating the main thing the skill does: a slash-command menu
+shows only the start. Then name the job in the words users type, with two or three phrasings. Use no lead-in such as
+"Use this skill when" and no filler words. Say nothing about when not to use it. List three or more near misses: requests a
 user could plausibly make that belong to the nearest other jobs. Two kinds of skill are exempt from this: a
 name-only skill, whose description is a fixed marker as below, and a user-only skill, which
 stays user-invocable but turns model invocation off (in Claude Code, `disable-model-invocation: true`).
@@ -147,7 +141,7 @@ stays user-invocable but turns model invocation off (in Claude Code, `disable-mo
 **Name-only skill.** A skill that another skill loads by name, and that no user request should match, is name-only. Its
 description declares it: exactly `By name only`, or `Partial Skill: ` followed by text. Write exactly `By name only`, and put what the skill is, who calls
 it, and what it returns in the body and `README.md`. Its near misses still go to Verification as `skip` cases. TRG-1,
-TRG-4, TRG-7, and TRG-9 do not apply to a name-only skill, and TRG-5 and TRG-6 apply only to one: report a check that
+TRG-4, TRG-7, TRG-9, and TRG-10 do not apply to a name-only skill, and TRG-5 and TRG-6 apply only to one: report a check that
 does not apply as skipped.
 
 - **TRG-1** [read] The description says when to use the skill, in words a user would type, with no lead-in or filler
@@ -163,11 +157,14 @@ does not apply as skipped.
 - **TRG-8** [read, warning] It matches the body: each command, file, or skill it names exists and does what it says.
 - **TRG-9** [script, warning] A skill whose body documents the arguments it takes (a command table whose commands take
   arguments, an `Arguments:` line or heading, or `$ARGUMENTS`) declares an `argument-hint` in its front matter.
+- **TRG-10** [script, warning] The description's first sentence is at most 100 characters and opens with what the
+  skill does, not a lead-in.
 
 **Fix.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result. For TRG-5 and
 TRG-6, set the description to exactly `By name only` and move what it said to the body or `README.md`. For TRG-7, name
 the job and the words users type for it. For TRG-8, change whichever of the description and the body is out of date. For
-TRG-9, add an `argument-hint` that lists what the user types, such as `"<command> [skill]"`.
+TRG-9, add an `argument-hint` that lists what the user types, such as `"<command> [skill]"`. For TRG-10, rewrite
+the first sentence as Draft says.
 
 ## Run the command
 
@@ -192,8 +189,8 @@ Never decide whether an author is present: the level decides where a run stops.
   about the rest.
 - `apply`: apply every change, and report each one.
 
-Before the first change, settle the level, take the first that answers, and state it as one line,
-`Autonomy: <level> (<source>: <reason>)`:
+Settle the level before anything else, taking the first that answers. Open every reply with it as one line, written
+exactly `Autonomy: <level> (<source>: <reason>)`, even when the run stops or changes nothing:
 
 1. `author`: the request names a level, or says to apply without asking ("I approve every change") or to ask first.
    Other work that adds or edits a skill, as Commands says, is the approval to apply: take `apply`, or `apply-safe` on
@@ -210,16 +207,14 @@ was applied on that reason alone.
 
 ### Test budget
 
-`skill-design.autonomy` also holds the test budget, under `## test budget`: a cost in US dollars and a run count,
-`$10 or 60 runs` by default. Before any `test` run, whichever command starts it, run
+`skill-design.autonomy` also holds the test budget under `## test budget`, `$10 or 60 runs` when it sets none. Before any `test` run, whichever command starts it, run
 
 ```sh
-node <this skill's folder>/scripts/skill.mjs test <skill folder> --estimate --budget-cost <cost> --budget-runs <runs> --format json
+node <this skill's folder>/scripts/skill.mjs test <skill folder> --estimate --format json
 ```
 
-It makes no run, and prints `runs`, `estimate` (US dollars, or `null` when no cost is known), `last` (the last saved
-result), and `within`. State it as one line, `Test budget: <within|over> (<runs> runs, <estimate or "no cost known">; budget <cost>
-or <runs> runs)`. When `within` is true, start `test` without asking. When it is false, stop.
+It makes no run, reads that budget, and prints `within`, `last`, and `line`. Write `line` on a line of its own,
+exactly as printed, prefix included, such as `Test budget: over (24 runs, $4.32; budget $0.01 or 1 runs)`. When `within` is true, start `test` without asking. When it is false, stop.
 
 ### Stops
 
@@ -263,9 +258,9 @@ Before reporting done, check each against the result, and report any that fails.
   `Test budget:` line, and, within the budget, started `test` without asking.
 - **C12.** When other work added a skill, the skill was written in the same run without asking about each aspect,
   and `check` ran on it before the work was reported done.
-- **C13.** Each `create`, `fix`, and `enhance` run stated its autonomy level, where it came from, and why, before its
-  first change.
-- **C14.** A `test` estimated over the budget started no run, the skill written so far stayed on disk, and the reply
+- **C13.** Each `create`, `fix`, and `enhance` reply opened with the line `Autonomy: <level> (<source>: <reason>)`, even
+  when the run stopped before any change.
+- **C14.** A `test` estimated over the budget, as `skill-design.autonomy` sets it, started no run, the skill written so far stayed on disk, and the reply
   ended by asking whether to run it, giving the run count, the estimate, and the options.
 - **C15.** A decision only the author can make stopped the run at every level: nothing that depends on it changed, and
   the reply reported the work done so far, then ended with the decision and its options.
@@ -278,3 +273,4 @@ Before reporting done, check each against the result, and report any that fails.
 - **C19.** Sandbox failures were reported as uncounted, a held result as unsaved until `skill accept`, with no `fix`.
 - **C20.** `report` wrote the results as `skill report` printed them, and changed no other file.
 - **C21.** New cases came from `skill case`, history in setup scripts.
+- **C22.** Each description `create` or `fix` wrote passes TRG-10.

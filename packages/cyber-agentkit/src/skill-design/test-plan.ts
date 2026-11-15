@@ -16,6 +16,11 @@ export type PlannedCase = {
 	kind: 'trigger' | 'outcome'
 	prompt: string
 	expect?: 'fire' | 'skip'
+	/**
+	 * The model its runs use, over the test's (R161): the tier or model ID `evals.yaml` names, until `resolvePlanModels`
+	 * turns a tier into the harness's model.
+	 */
+	model?: string
 	/** The folder whose copy each run starts in. */
 	files?: string
 	/** For an outcome case: the setup script each run runs in its folder before the model starts (R155). */
@@ -31,6 +36,11 @@ export type PlannedCase = {
 }
 
 export type TestPlan = {
+	/**
+	 * The model every case runs on unless it names its own (R161), set by `resolvePlanModels`: the model passed to the
+	 * harness, or `default` when the harness picks it. A plan not resolved leaves it out.
+	 */
+	model?: string
 	runs: number
 	threshold: number
 	/** Seconds one run may take. */
@@ -157,6 +167,7 @@ export function planEvals(
 			kind: 'trigger',
 			prompt: item.prompt,
 			expect: item.expect,
+			...(item.model ? { model: item.model } : {}),
 			rubrics: {},
 			judged: {},
 		})
@@ -168,6 +179,7 @@ export function planEvals(
 		}
 		const ids = (item.criteria ?? criteria).filter((id) => criteria.includes(id) && !untested.has(id))
 		const planned: PlannedCase = { id: item.id, kind: 'outcome', prompt: item.prompt, rubrics: {}, judged: {} }
+		if (item.model) planned.model = item.model
 		if (item.files !== undefined) planned.files = resolve(folder, item.files)
 		if (item.setup !== undefined) planned.setup = resolve(folder, item.setup)
 		if (item.network?.length) planned.network = item.network

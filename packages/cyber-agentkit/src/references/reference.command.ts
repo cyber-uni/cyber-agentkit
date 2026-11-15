@@ -1,6 +1,7 @@
 import type { cli } from 'clibuilder'
 import { command } from 'clibuilder'
 import { registerCommand } from '../interface-registry/register.command.js'
+import { defaultsCommand } from './reference-bundle.command.js'
 import { checkCommand } from './reference-check.command.js'
 import { defaultReferencePath, layerSource } from './reference-command-support.js'
 import { createCommand } from './reference-create.command.js'
@@ -57,6 +58,7 @@ export type ReferenceCommands = {
 	delete: cli.Command
 	migrate: cli.Command
 	check: cli.Command
+	defaults: cli.Command
 	implementations: cli.Command
 	audit: cli.Command
 	register: cli.Command
@@ -78,6 +80,7 @@ export function createReferenceCommands({
 		delete: deleteCommand(layersFor, path),
 		migrate: migrateCommand(layersFor, path),
 		check: checkCommand(layersFor, path),
+		defaults: defaultsCommand(layersFor, path),
 		implementations: implementationsCommand(layersFor, path),
 		audit: auditCommand(layersFor, path),
 		register: registerCommand(path),
@@ -95,6 +98,7 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 		delete: remove,
 		migrate,
 		check,
+		defaults,
 		implementations,
 		audit,
 		register,
@@ -103,6 +107,20 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 		name: 'reference',
 		description:
 			'Read reference documents by name, composed from the managed, repo, user, plugin, and default tiers, create, customize, or delete a contribution, migrate version 1 files, and register an interface in the public registry.',
-		commands: [load, list, search, where, create, customize, remove, migrate, implementations, audit, check, register],
+		commands: [
+			load,
+			list,
+			search,
+			where,
+			create,
+			customize,
+			remove,
+			migrate,
+			implementations,
+			audit,
+			check,
+			defaults,
+			register,
+		],
 	})
 }

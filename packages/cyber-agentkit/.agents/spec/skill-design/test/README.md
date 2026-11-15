@@ -35,7 +35,7 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC6.3** The skill has no eval cases. `/skill` proposes cases from the Intent and Criteria, and the author approves
     them before any run. With no author present, nothing is tested and the missing cases are reported.
   - **UC6.4** A run errors or hits a limit, such as time or token budget. That case is reported as not run, with the
-    reason, and never as a pass.
+    reason, and never as a pass. The account's usage limit is UC6.22.
   - **UC6.5** A case gives different results on different runs. That is expected: the pass rate over the runs is the
     result.
   - **UC6.6** The selected implementation for an aspect cannot be found. The default is used, as in UC1.3.
@@ -72,6 +72,16 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC6.20** A case keeps a behavior that passes without the skill too, such as one another part of the plugin
     teaches. The author marks it as a guard, and the report shows its pass in both arms as expected rather than as a
     skill that adds nothing. A guard that fails with the skill is still a failure.
+  - **UC6.21** The author names no model. The runs use a mid-tier model of the harness, not its most capable one, so a
+    full test costs less. The author can name a model, or a tier, for the whole test, and a case can name its own,
+    which wins over both, for a case known to need a stronger or a cheaper model. The judge's model is set apart. The
+    result names the model each case ran on, and a comparison with a result taken on another model says so. A harness
+    whose tiers are not known runs on its own default, and the report says so.
+  - **UC6.22** The account's usage limit is reached partway through. No new run starts; the result says the limit was
+    reached, when it resets, and which runs are left, and it is incomplete, so it never becomes the expected result.
+    After the reset, the author runs only the runs left and they join the incomplete result.
+  - **UC6.23** The estimate for the runs is over the test budget, whichever command starts `test` and at every
+    autonomy level. No run starts, and the run stops, offering to run every case, to run some cases, or not to run.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -99,6 +109,7 @@ contract apply here; IDs are shared across the parent and its children.
 - R31 (UC6.3): A skill with no eval cases gets cases proposed from its Intent and Criteria, and none runs before the
   author approves them. With no author present, nothing runs and the missing cases are reported.
 - R32 (UC6.4): A run that errors or hits a limit is reported as not run, with the reason, and never counts as a pass.
+  The account's usage limit is the exception R162 names.
 - R33 (UC6.7): A criterion with no rubric is reported as not tested, pointing to `fix`.
 - R34 (UC6.8): A case that would cause an outside effect the run cannot contain is not run, and is reported as such.
 - R35 (UC6.10): When the baseline cannot be run, results are reported without it, and the report says so.
@@ -109,7 +120,7 @@ contract apply here; IDs are shared across the parent and its children.
 - R91 (UC6.13): When a folder above the skill holds a plugin manifest whose skills folder holds the skill, each run
   loads that plugin from the working copy, and the baseline loads it without the skill. Each run reads the plugin's
   references and other skills, and none from an installed copy of it. Each run's copy is its own, so a check can
-  tell whether that run changed the plugin.
+  tell whether that run changed the plugin. A run whose shell changes into its copy keeps running shell commands.
 - R97 (UC6): Before the first run, `test` reports how many runs it will make, and, when the skill has a saved result,
   about how long and how much they took last time. When that result does not record how many runs it made, the report
   says the count is unknown rather than guess it.
@@ -158,7 +169,8 @@ contract apply here; IDs are shared across the parent and its children.
 - R156 (UC6.17): A run whose setup script fails is reported as not run, with the script's output, and counts toward no
   pass rate.
 - R157 (UC6.17): A setup script and a `script` check run contained as a run's shell commands are: they write only to
-  the run's folders and reach no network. When that containment cannot start, no script runs outside it.
+  the run's folders and reach no network. When that containment cannot start, no script runs outside it. A script
+  sees the run's folder as the run left it: nothing the containment adds to protect it shows as a change there.
 - R158 (UC6.18): For a skill whose folder is outside the current repository, `test` lists every setup script and
   `script` check before any run, and runs none of them unless the author passes a flag to trust them; the cases that
   need them are reported as not run, with the reason. `vet` runs no script of a skill.
@@ -169,3 +181,20 @@ contract apply here; IDs are shared across the parent and its children.
   criterion only guards test. The `test` and `report` output show a guard's pass in both arms as expected, and the
   report's gap over the baseline leaves out the criteria only guards test. A guard is passed or failed by its runs with
   the skill, as any case is.
+- R161 (UC6.21): With no model named, each run uses the harness's mid-tier model. A model or tier named for the test
+  applies to every case, and a case's own model or tier wins over it; neither changes the judge's model. A tier that
+  the harness's definition does not map to a model is an error before any run, and with no model named on such a
+  harness the runs use its default and the report says so. The result names the model each case ran on, and the
+  cases whose model differs from the result they are compared with are listed with both models.
+- R162 (UC6.22): A run that the harness ends with its usage-limit message, recognized by the message's fixed text, is
+  reported as limit reached, not as a pass, a fail, or not run. Once one is, no new run starts, and each run left is
+  reported as limit reached too. Those runs count toward no pass rate, and a case with none of its runs finished is not
+  run. The result is marked incomplete, is never saved as the expected result, and an accept of it is refused. The
+  report and the progress say the limit was reached, when it resets when the message says, and which runs are left.
+  The messages recognized are kept in one list that more can be added to.
+- R166 (UC1, UC6.23; E2): Before any run, `test` estimates the runs and their cost against the test budget, whichever
+  command starts it. Over the budget, no run starts, and the run stops with the Stop outcome R167 states; the decision
+  gives the run count and the estimate, and offers to run every case, to run some cases, or not to run.
+- R163 (UC6.22): `test` asked to resume runs only the runs an incomplete result has left, and the result holds the
+  runs it had and the new ones, as one run of the whole test would. It refuses, and runs nothing, when the last result
+  is not incomplete, or when the skill or its eval cases changed since that result.

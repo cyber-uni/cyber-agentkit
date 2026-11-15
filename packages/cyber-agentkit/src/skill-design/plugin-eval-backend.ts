@@ -104,11 +104,19 @@ export const installScriptSandbox: ScriptSandboxInstall = async (folder) => {
 	return { node: process.execPath, cli }
 }
 
-/** The script sandbox's settings for a setup script: it writes only to `folder`, and reaches no network (E22). */
+/**
+ * The script sandbox's settings for a setup script: it writes only to `folder`, and reaches no network (E22). The
+ * sandbox starts outside `folder` so it puts no placeholder there (E23), which leaves the protection of the
+ * repository's `.git/config` and `.git/hooks` to these settings.
+ */
 export function scriptSandboxSettings(folder: string): Record<string, unknown> {
 	return {
 		network: { allowedDomains: [], deniedDomains: [] },
-		filesystem: { denyRead: [], allowWrite: [folder], denyWrite: [] },
+		filesystem: {
+			denyRead: [],
+			allowWrite: [folder],
+			denyWrite: [`${folder}/.git/config`, `${folder}/.git/hooks`],
+		},
 	}
 }
 
@@ -213,10 +221,15 @@ export function writePluginEvalSuite(
 			copyFileSync(item.setup, join(folder, 'skill-test-setup.sh'))
 			chmodSync(join(folder, 'skill-test-setup.sh'), 0o755)
 			const settings = JSON.stringify(scriptSandboxSettings('%s'))
+			const folders = ' "$PWD"'.repeat(settings.split('%s').length - 1)
+			// The sandbox starts in an empty folder of its own, and the script changes into the workspace first, so it
+			// sees no placeholder for what the sandbox protects (E23).
+			const command = `cd "$SKILL_TEST_WORKSPACE" || exit 1\n${quote(join(folder, 'skill-test-setup.sh'))}`
 			script.push(
 				'settings=$(mktemp -d)',
-				`printf '${settings}' "$PWD" > "$settings/srt.json"`,
-				`${quote(sandbox.node)} ${quote(sandbox.cli)} --settings "$settings/srt.json" -c ${quote(quote(join(folder, 'skill-test-setup.sh')))} >&2 || { status=$?; echo ${quote(setupFailedMarker)} >&2; exit $status; }`,
+				`printf '${settings}'${folders} > "$settings/srt.json"`,
+				'mkdir "$settings/start"',
+				`(export SKILL_TEST_WORKSPACE="$PWD" && cd "$settings/start" && ${quote(sandbox.node)} ${quote(sandbox.cli)} --settings "$settings/srt.json" -c ${quote(command)}) >&2 || { status=$?; echo ${quote(setupFailedMarker)} >&2; exit $status; }`,
 				'rm -rf "$settings"',
 			)
 		}
@@ -241,7 +254,8 @@ export function writePluginEvalSuite(
 			max_turns: item.kind === 'trigger' ? 3 : 20,
 			timeout_seconds: Math.min(plan.timeout, 3600),
 			allowed_tools: ['Read', 'Glob', 'Grep', 'Skill', 'Write', 'Edit', 'Bash'],
-			...(model ? { model } : {}),
+			// A case's own model wins over the run's (R161); each case carries its model, so no --model flag is passed.
+			...((item.model ?? model) ? { model: item.model ?? model } : {}),
 		}
 		const yaml = {
 			schema_version: '1.1',
@@ -431,7 +445,6 @@ export async function runPluginEvalTest(
 			'WebFetch',
 			'WebSearch',
 			'AskUserQuestion',
-			...(options.model ? ['--model', options.model] : []),
 			...(options.judge ? ['--judge-model', options.judge] : []),
 			'--output-dir',
 			join(folder, 'results'),

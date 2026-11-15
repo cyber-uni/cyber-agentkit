@@ -15,3 +15,5 @@
 
 - Added E22: Anthropic's sandbox runtime (`srt`) contains a case's setup script and `script` checks with the same OS
   sandbox as Claude Code's Bash tool: writes only where allowed, no network.
+- Added E23: the script sandbox puts `/dev/null` placeholders for the dotfiles it protects in the folder it starts
+  in, which `git status` lists as untracked, so a script now starts it in an empty folder and changes into the run's.

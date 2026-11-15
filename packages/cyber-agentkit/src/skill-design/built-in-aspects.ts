@@ -155,6 +155,13 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				statement:
 					'Each script or command the body runs writes machine output to stdout, in the format the body asks for, and prints prose only behind `--verbose`.',
 			},
+			{
+				id: 'SHP-19',
+				how: 'read',
+				severity: 'warning',
+				statement:
+					"Where the body loads a reference the `reference` skill composes, it says to load it with that skill, and reads the reference's bundled `<name>.default.md` directly only as the fallback for when the command cannot run.",
+			},
 		],
 	},
 	{
@@ -217,6 +224,14 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				severity: 'warning',
 				statement:
 					'A skill whose body documents the arguments it takes (a command table whose commands take arguments, an `Arguments:` line or heading, or `$ARGUMENTS`) declares an `argument-hint` in its front matter.',
+				appliesTo: 'matched',
+			},
+			{
+				id: 'TRG-10',
+				how: 'script',
+				severity: 'warning',
+				statement:
+					"The description's first sentence is at most 100 characters and opens with what the skill does, not a lead-in.",
 				appliesTo: 'matched',
 			},
 		],

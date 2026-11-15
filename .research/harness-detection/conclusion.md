@@ -316,8 +316,13 @@ test` can cut it off from the user's setup. Only Claude Code and Codex are verif
 
 | Harness | Config folder | Project skills | Local plugin | Login | Still reaches a run | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Claude Code | `CLAUDE_CONFIG_DIR`, else `~/.claude` | `.claude/skills` | `--plugin-dir` | Its own folder, `CLAUDE_SECURESTORAGE_CONFIG_DIR` (undocumented), so the config folder can be empty; macOS ties the keychain entry to the config folder, so it stays there | Nothing on Linux | E-CC-D7, E-CC-D11, E-CC-L1, E-CC-H7 |
+| Claude Code | `CLAUDE_CONFIG_DIR`, else `~/.claude` | `.claude/skills` | `--plugin-dir` | Its own folder, `CLAUDE_SECURESTORAGE_CONFIG_DIR` (undocumented), so the config folder can be empty; macOS ties the keychain entry to the config folder, so it stays there | Nothing on Linux | E-CC-D7, E-CC-D11, E-CC-D21, E-CC-L1, E-CC-H7 |
 | Codex | `CODEX_HOME`, else `~/.codex` | `.agents/skills` | None | `auth.json` in `CODEX_HOME`, so the folder stays; `--ignore-user-config --ignore-rules` keep its config out | The global `$CODEX_HOME/AGENTS.md` | E-CODEX-D8, E-CODEX-L1, E-CODEX-H6, E-CODEX-H7 |
+
+Claude Code documents no setting that keeps a claude.ai login apart from the config folder, so `skill test`
+keeps the undocumented variable. Before the first run it asks `claude auth status` whether a run is logged in.
+When the run is not but Claude Code is, every run answers with that cause by name, and with the documented
+fallbacks `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN`, which reach a run as they are (E-CC-D16, E-CC-D21).
 
 `claude plugin eval` is a runner of its own for Claude Code: it isolates each run itself and
 reads only a plugin's eval suite (E-CC-H8, E-CC-H9).

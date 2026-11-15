@@ -36,6 +36,9 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC3.7** CI checks every skill in the repository with one command. The script finds each skill under a set of
     folders the author can change, naming several at once by glob, checks each skill once even when a symlink reaches
     it twice, and gives one summary and one exit code under the same policy.
+  - **UC3.8** The skill loads a reference by reading its bundled default file, where the `reference` skill is the way to
+    load it. The default is the fallback for when that command cannot run, and reading it directly drops the user and
+    plugin override tiers. The Shape check flags it, and the author decides whether to keep it.
 - **Example:** `/skill check release-notes` passes Intent, Criteria, Shape, and Security, and fails Trigger because the
   description says how the skill works instead of when to use it.
 
@@ -62,3 +65,6 @@ contract apply here; IDs are shared across the parent and its children.
   `skills` and `.agents/skills` by default, where a folder may be a glob. A skill reached through more than one path
   is checked once. The report gives each skill's result and a summary, and the exit follows R19's policy over every
   check of every skill. Finding no skill is an error, not a pass.
+- R164 (UC3.8): A skill whose body reads a reference's bundled `<name>.default.md` directly, where it should load the
+  reference with the `reference` skill, gets a Shape failure that names the file and the step. Reading the default is
+  not flagged when the step makes it the fallback for a command that cannot run.

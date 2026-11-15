@@ -754,8 +754,9 @@ describe('skill test progress (UC6)', () => {
 				runs: 24,
 				estimate: 4.32,
 				basis: 'per-run-default',
-				budget: { cost: 10, runs: 60 },
+				budget: { cost: 10, runs: 60, from: 'default' },
 				within: true,
+				line: 'Test budget: within (24 runs, $4.32; budget $10 or 60 runs; no budget configured, default used)',
 			})
 			expect(existsSync(join(root, '.agents', 'skill-design', 'results'))).toBe(false)
 		})
@@ -774,8 +775,24 @@ describe('skill test progress (UC6)', () => {
 				estimate: 6,
 				basis: 'last-result',
 				last: { runs: 12, cost: 3, durationMs: 120_000 },
-				budget: { cost: 5, runs: 20 },
+				budget: { cost: 5, runs: 20, from: 'flags' },
 				within: false,
+			})
+		})
+
+		it('takes the budget skill-design.autonomy sets when no option gives one, and prints the Test budget line (#238)', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			mkdirSync(join(root, '.agents', 'references'), { recursive: true })
+			writeFileSync(
+				join(root, '.agents', 'references', 'skill-design.autonomy.md'),
+				"---\ndescription: This repository's test budget.\n---\n\n## test budget\n\n$0.01 or 1 runs\n",
+			)
+			await test(skill.folder, fakeRun({}), root, '--estimate')
+			expect(JSON.parse(printed())).toMatchObject({
+				budget: { cost: 0.01, runs: 1, from: 'reference' },
+				within: false,
+				line: 'Test budget: over (24 runs, $4.32; budget $0.01 or 1 runs)',
 			})
 		})
 	})
@@ -1145,5 +1162,289 @@ describe('skill test scripts from outside the repository (R158)', () => {
 		expect(said()).not.toContain('untrusted-scripts')
 		const tests = seen.config?.['tests'] as { description: string }[]
 		expect(tests.map((item) => item.description)).toContain('two-prs')
+	})
+})
+
+describe('skill test model (R161)', () => {
+	const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+	const latest = () =>
+		JSON.parse(
+			readFileSync(join(fakeHome, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'), 'utf8'),
+		) as TestResult
+	type Seen = { config?: Record<string, unknown> }
+	const providers = (seen: Seen) => seen.config?.['providers'] as { config: Record<string, any> }[]
+	const tests = (seen: Seen) => seen.config?.['tests'] as { description: string; vars: Record<string, string> }[]
+	const ownModels = goodEvals
+		.replace(
+			'{ prompt: write release notes, expect: fire }',
+			'{ prompt: write release notes, expect: fire, model: small }',
+		)
+		.replace(
+			'{ id: two-prs, prompt: write the notes, files: files/two-prs }',
+			'{ id: two-prs, prompt: write the notes, files: files/two-prs, model: claude-opus-5-5 }',
+		)
+
+	it("runs each case on the harness's mid-tier model when no model is named, and records it", async () => {
+		const seen: Seen = {}
+		expect(await test(goodSkill().folder, fakeRun(seen), repo())).toBe(0)
+		expect(providers(seen).map((p) => p.config.inner.model)).toEqual(['sonnet', 'sonnet'])
+		expect(tests(seen).every((item) => item.vars['model'] === undefined)).toBe(true)
+		expect(latest().model).toBe('sonnet')
+		expect(latest().cases.every((item) => item.model === undefined)).toBe(true)
+	})
+
+	it('takes a tier or a model ID named with --model for the whole run', async () => {
+		const tier: Seen = {}
+		await test(goodSkill().folder, fakeRun(tier), repo(), '--model', 'top')
+		expect(providers(tier)[0]?.config.inner.model).toBe('opus')
+		const id: Seen = {}
+		await test(goodSkill().folder, fakeRun(id), repo(), '--model', 'claude-haiku-5-5')
+		expect(providers(id)[0]?.config.inner.model).toBe('claude-haiku-5-5')
+		expect(latest().model).toBe('claude-haiku-5-5')
+	})
+
+	it('runs a case that names its own model or tier on it, over --model, and the result names it', async () => {
+		const seen: Seen = {}
+		await test(goodSkill({ 'evals/evals.yaml': ownModels }).folder, fakeRun(seen), repo(), '--model', 'mid')
+		const vars = Object.fromEntries(tests(seen).map((item) => [item.description, item.vars['model']]))
+		expect(vars).toMatchObject({ 'trigger-1': 'haiku', 'trigger-2': undefined, 'two-prs': 'claude-opus-5-5' })
+		expect(providers(seen)[0]?.config.inner.model).toBe('sonnet')
+		const cases = Object.fromEntries(latest().cases.map((item) => [item.case, item.model]))
+		expect(cases).toMatchObject({ 'trigger-1': 'haiku', 'trigger-2': undefined, 'two-prs': 'claude-opus-5-5' })
+	})
+
+	it('leaves the judge on --judge', async () => {
+		const evals = goodEvals.replace('    - contains: "## Release notes"', '    - judge: Pass when it has notes.')
+		const seen: Seen = {}
+		await test(goodSkill({ 'evals/evals.yaml': evals }).folder, fakeRun(seen), repo(), '--judge', 'opus')
+		const judged = tests(seen)
+			.flatMap((item) => (item as unknown as { assert: { type: string; provider?: any }[] }).assert)
+			.find((check) => check.type === 'llm-rubric')
+		expect(judged?.provider.config.model).toBe('opus')
+		expect(providers(seen)[0]?.config.inner.model).toBe('sonnet')
+	})
+
+	it('runs Codex on its own default when no model is named, since its tiers are not known, and says so', async () => {
+		const seen: Seen = {}
+		expect(await test(goodSkill().folder, fakeRun(seen), repo(), '--harness', 'codex')).toBe(0)
+		expect(providers(seen)[0]?.config.command.args).not.toContain('--model')
+		expect(providers(seen)[0]?.config.command.modelFlag).toBe('--model')
+		expect(errors()).toContain('warning: harness-default-model: codex has no known mid-tier model')
+		expect(latest().model).toBe('default')
+	})
+
+	it('refuses a tier the harness does not map, for the run or a case, before any run', async () => {
+		const seen: Seen = {}
+		expect(await test(goodSkill().folder, fakeRun(seen), repo(), '--harness', 'codex', '--model', 'top')).not.toBe(0)
+		expect(errors()).toContain('error: unknown-tier: codex has no known top-tier model')
+		stderr.mockClear()
+		const skill = goodSkill({ 'evals/evals.yaml': ownModels })
+		expect(await test(skill.folder, fakeRun(seen), repo(), '--harness', 'codex', '--model', 'gpt-x')).not.toBe(0)
+		expect(errors()).toContain('error: unknown-tier: case trigger-1: codex has no known small-tier model')
+		expect(seen.config).toBeUndefined()
+	})
+
+	it('prints the model, each case on its own, and warns when the compared result ran on another model', async () => {
+		const text = async (...extra: string[]) => {
+			stdout.mockClear()
+			const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
+				createSkillCommand({ ...offline, runPromptfoo: fakeRun({}) }),
+			)
+			await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root, ...extra])
+			return printed()
+		}
+		const skill = goodSkill({ 'evals/evals.yaml': ownModels })
+		const root = repo()
+		const first = await text()
+		expect(first).toMatch(/^release-notes: 3 runs per case, threshold 2, baseline without the skill, model sonnet$/m)
+		expect(first).toContain('model trigger-1: haiku\nmodel two-prs: claude-opus-5-5\n')
+		expect(first).not.toContain('model changed')
+		const second = await text('--model', 'top')
+		expect(second).toContain(
+			'warning: model changed since expected: sonnet → opus for trigger-2, trigger-3, trigger-4, trigger-5, trigger-6',
+		)
+		const third = await text('--model', 'top')
+		expect(third).toContain('warning: model changed since expected: sonnet → opus')
+		acceptLatest(skill.folder)
+		expect(await text('--model', 'top')).not.toContain('model changed')
+	})
+})
+
+/** Accepts the last saved result of the release-notes skill as its expected result. */
+function acceptLatest(skillFolder: string): void {
+	const saved = JSON.parse(
+		readFileSync(join(fakeHome, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'), 'utf8'),
+	) as TestResult
+	acceptResult(saved, skillFolder)
+}
+
+describe('skill test and the usage limit (R162, R163)', () => {
+	const limitText = "You've hit your 5-hour limit · resets 4:40am (America/Los_Angeles)"
+	const gitRepo = () => {
+		const root = repo()
+		mkdirSync(join(root, '.git'))
+		return root
+	}
+	const latestOf = (root: string): TestResult =>
+		JSON.parse(readFileSync(join(root, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'), 'utf8'))
+	/** The fake promptfoo, with every third run in each arm ended by the usage limit, the first of them started. */
+	const limited =
+		(seen: { config?: Record<string, unknown> } = {}): PromptfooRun =>
+		async (folder, config, out) => {
+			const ran = await fakeRun(seen)(folder, config, out)
+			if (!('output' in ran)) return ran
+			let first = true
+			// a trigger case runs with the skill only: the provider skips its baseline before anything else
+			for (const item of (ran.output as { results: { results: Record<string, any>[] } }).results.results)
+				if (String(item['testCase'].description).startsWith('trigger') && item['provider'].label === 'baseline')
+					item['response'].metadata.skipped = true
+				else if (item['repeatIndex'] === 2) {
+					item['response'].error = first
+						? `Claude Code returned an error result: ${limitText}`
+						: `limit reached: ${limitText}`
+					item['response'].metadata.limitReached = {
+						text: limitText,
+						resets: '4:40am (America/Los_Angeles)',
+						started: first,
+					}
+					first = false
+				}
+			return ran
+		}
+	/** The fake promptfoo for a resume: one row per test and arm it names, each passing, with the run it stands for. */
+	const resuming =
+		(seen: { config?: Record<string, unknown> }): PromptfooRun =>
+		async (folder, config) => {
+			const parsed: Record<string, unknown> = parse(readFileSync(join(folder, config), 'utf8'))
+			seen.config = parsed
+			const tests = parsed['tests'] as { description: string; vars: Record<string, string> }[]
+			const results = tests.flatMap((test) =>
+				(JSON.parse(test.vars['__arms'] ?? '[]') as string[]).map((arm) => {
+					const ids = Object.keys(JSON.parse(test.vars['rubrics'] ?? '{}'))
+					return {
+						provider: { label: arm === 'skill' ? 'with-skill' : 'baseline' },
+						testCase: { description: test.description, vars: test.vars },
+						repeatIndex: 0,
+						response: {
+							output: 'x',
+							metadata: { fired: true, checks: Object.fromEntries(ids.map((id) => [id, { pass: true }])) },
+						},
+						gradingResult: { componentResults: ids.map((metric) => ({ pass: true, assertion: { metric } })) },
+					}
+				}),
+			)
+			return { output: { results: { results } } }
+		}
+
+	it('passes the provider the usage-limit messages and a file to stop the runs after one', async () => {
+		const seen: { config?: Record<string, unknown> } = {}
+		await test(goodSkill().folder, fakeRun(seen), gitRepo())
+		const providers = (seen.config?.['providers'] ?? []) as { config: Record<string, unknown> }[]
+		const config = providers[0]?.config
+		expect(config?.['usageLimits']).toEqual([expect.objectContaining({ id: 'claude-code-usage-limit' })])
+		expect(String(config?.['limitFile'])).toMatch(/usage-limit\.json$/)
+	})
+
+	it('saves an incomplete result with the runs left, never as expected, and exits 1', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		expect(await test(skill.folder, limited(), root, '--accept')).toBe(1)
+		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+		const latest = latestOf(root)
+		expect(latest.incomplete).toMatchObject({
+			reason: 'limit reached',
+			text: limitText,
+			resets: '4:40am (America/Los_Angeles)',
+			options: { harness: 'claude-code', backend: 'promptfoo' },
+		})
+		// 6 trigger cases with the skill, 1 outcome case in both arms: one run each left
+		expect(latest.incomplete?.left).toHaveLength(8)
+		expect(latest.incomplete?.runs).toMatch(/\.runs\.json$/)
+		expect(latest).not.toHaveProperty('savedAsExpected')
+		expect(await sub('accept', skill.folder, root)).toBe(1)
+		expect(stderr.mock.calls.join('')).toContain('error: incomplete-result:')
+		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+	})
+
+	it('says at the top of the text report that the limit was reached, when it resets, and which runs are left', async () => {
+		const root = gitRepo()
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
+			createSkillCommand({ ...offline, runPromptfoo: limited() }),
+		)
+		await app.parse(['node', 'cyber-agentkit', 'skill', 'test', goodSkill().folder, '--root', root])
+		const lines = printed().split('\n')
+		expect(lines[1]).toMatch(
+			/^warning: incomplete: the usage limit was reached \(You've hit your 5-hour limit .*\); 8 runs are left and count toward no pass rate: .*two-prs \(with skill, run 3\), two-prs \(without skill, run 3\)/,
+		)
+		expect(printed()).toContain('incomplete: not saved as the expected result; run `skill test --resume`')
+	})
+
+	it('resumes only the runs left, with the options the run had, and merges them into one complete result', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, limited(), root)
+		const stopped = latestOf(root)
+		const seen: { config?: Record<string, unknown> } = {}
+		expect(await test(skill.folder, resuming(seen), root, '--resume')).toBe(0)
+		const tests = seen.config?.['tests'] as { description: string; vars: Record<string, string> }[]
+		expect(tests.map((item) => [item.description, item.vars['__run'], item.vars['__arms']])).toContainEqual([
+			'two-prs',
+			'3',
+			'["skill","baseline"]',
+		])
+		expect(tests).toHaveLength(7)
+		expect(seen.config?.['evaluateOptions']).toMatchObject({ repeat: 1 })
+		const merged = latestOf(root)
+		expect(merged).not.toHaveProperty('incomplete')
+		expect(merged.resumedFrom).toBe(stopped.at)
+		expect(merged.cases.find((item) => item.case === 'two-prs')).toMatchObject({ status: 'pass', passed: 3, ran: 3 })
+		expect(merged.criteria.every((item) => item.status !== 'fail')).toBe(true)
+		// the first full pass is saved as expected, as an unbroken run would be
+		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(true)
+		const replies = JSON.parse(
+			readFileSync(join(root, '.agents', 'skill-design', 'results', 'release-notes', merged.replies as string), 'utf8'),
+		) as { case: string; arm: string; run: number; outcome: string }[]
+		expect(
+			replies
+				.filter((item) => item.case === 'two-prs' && item.arm === 'with-skill')
+				.map((item) => item.run)
+				.sort(),
+		).toEqual([1, 2, 3])
+		expect(replies.some((item) => item.outcome === 'limit reached')).toBe(false)
+		// the runs file is kept only while a resume can need it
+		expect(
+			readdirSync(join(root, '.agents', 'skill-design', 'results', 'release-notes')).some((name) =>
+				name.endsWith('.runs.json'),
+			),
+		).toBe(false)
+	})
+
+	it('refuses a resume when the last result is complete, and runs nothing', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}), root)
+		const run = vi.fn(fakeRun({}))
+		expect(await test(skill.folder, run, root, '--resume')).toBe(1)
+		expect(stderr.mock.calls.join('')).toContain('error: nothing-to-resume:')
+		expect(run).not.toHaveBeenCalled()
+	})
+
+	it('refuses a resume when the skill changed since, and runs nothing', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, limited(), root)
+		appendFileSync(join(skill.folder, 'SKILL.md'), '\nA new line.\n')
+		const run = vi.fn(fakeRun({}))
+		expect(await test(skill.folder, run, root, '--resume')).toBe(1)
+		expect(stderr.mock.calls.join('')).toContain('error: resume-changed:')
+		expect(run).not.toHaveBeenCalled()
+	})
+
+	it('refuses options a resume takes from the result it resumes', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, limited(), root)
+		expect(await test(skill.folder, fakeRun({}), root, '--resume', '--model', 'x')).toBe(2)
+		expect(stderr.mock.calls.join('')).toContain('error: resume-options:')
 	})
 })

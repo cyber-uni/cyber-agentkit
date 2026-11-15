@@ -91,7 +91,8 @@ what can be found, and every fault is reported as a warning.
 - K10 **contribution**: a reference file for a name, in one layer. A name may have several.
 - K13 **default**: a skill's own contribution of a name it owns, `references/<name>.default.md` in the skill's folder.
   It is the lowest step of the stack unless its own `extends` or a written `extends` places it.
-  A name ending `.default` is reserved for it.
+  A name ending `.default` is reserved for it. A skill's default of an interface answers only when no plugin and no
+  other tier holds the interface (R14).
 - K14 **stack**: the plugin and default contributions of a name, applied bottom first, each with its merge operation.
   Frontmatter `extends` lists it.
 - K15 **step**: one entry of `extends`: a plugin or `default`, optionally with the keys (`merge`, `extends`) to use for

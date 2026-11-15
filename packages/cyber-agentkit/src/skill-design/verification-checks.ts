@@ -24,10 +24,13 @@ export type EvalsFile = {
 	timeout?: number
 	/** Runs at once, never above the bound `skill test` sets from the hardware threads; optional. */
 	concurrency?: number
-	trigger?: { prompt: string; expect: 'fire' | 'skip' }[]
+	/** A trigger case; `model`, a tier (`small`, `mid`, `top`) or a model ID, wins over the test's model (R161). */
+	trigger?: { prompt: string; expect: 'fire' | 'skip'; model?: string }[]
 	outcome?: {
 		id: string
 		prompt: string
+		/** A tier (`small`, `mid`, `top`) or a model ID the case's runs use, over the test's model (R161). */
+		model?: string
 		files?: string
 		/** A script, relative to `evals/`, that each run runs in its folder after the files are committed. */
 		setup?: string
@@ -47,6 +50,8 @@ export type EvalsFile = {
 
 const file = 'evals/evals.yaml'
 const isFile = (path: string) => existsSync(path) && statSync(path).isFile()
+/** A tier or a model ID: one word, no space, so it cannot carry a second flag. */
+const isModel = (value: unknown) => typeof value === 'string' && /^[A-Za-z0-9][\w.:/@[\]-]*$/.test(value)
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	!!value && typeof value === 'object' && !Array.isArray(value)
 
@@ -85,6 +90,8 @@ export function evalsProblems(value: unknown): string[] {
 					!['fire', 'skip'].includes(item['expect'] as string)
 				)
 					problems.push(`trigger case ${index + 1} needs a \`prompt\` and \`expect: fire\` or \`skip\``)
+				else if (item['model'] !== undefined && !isModel(item['model']))
+					problems.push(`trigger case ${index + 1}: \`model\` is not a tier or a model ID`)
 			})
 	}
 	const outcome = value['outcome']
@@ -114,6 +121,8 @@ export function evalsProblems(value: unknown): string[] {
 					)
 				)
 					problems.push(`${where}: \`network\` is not a list of host names`)
+				if (item['model'] !== undefined && !isModel(item['model']))
+					problems.push(`${where}: \`model\` is not a tier or a model ID`)
 				if (item['guard'] !== undefined && typeof item['guard'] !== 'boolean')
 					problems.push(`${where}: \`guard\` is not true or false`)
 				const checks = item['checks']
@@ -140,9 +149,22 @@ export function evalsProblems(value: unknown): string[] {
 const setupStep =
 	/\b(?:run|execute|source|invoke)\b[^\n]{0,40}?[\w./-]*(?:setup|scaffold|prepare|bootstrap|init)[\w.-]*\.(?:sh|bash|zsh|mjs|js|py)\b/i
 
-/** VER-1 to VER-5 and VER-9, the default Verification aspect's script checks. */
+/** The checks that read a run's reply as text. */
+const textChecks = ['contains', 'not-contains', 'regex', 'not-regex'] as const
+
+/**
+ * Whether a text check's value is punctuation alone (VER-11), such as `regex: "\\?"`: once a regex's escapes such as
+ * `\b`, `\s`, and `\n` are dropped, no letter or digit is left, so the check tests a mark, not what the outcome left.
+ */
+export function isPunctuationOnly(kind: string, value: unknown): boolean {
+	if (!(textChecks as readonly string[]).includes(kind) || typeof value !== 'string') return false
+	const text = kind.endsWith('regex') ? value.replace(/\\[A-Za-z]/g, '') : value
+	return !/[\p{L}\p{N}]/u.test(text)
+}
+
+/** VER-1 to VER-5, VER-9, and VER-11, the default Verification aspect's script checks. */
 export function checkVerification(skill: SkillFiles): CheckOutcome[] {
-	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9']
+	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9', 'VER-11']
 	const blocked = (message: string): CheckOutcome[] => [
 		{ id: 'VER-1', status: 'fail', message, file },
 		...later.map((id): CheckOutcome => ({ id, status: 'not-checked', message: 'VER-1 failed' })),
@@ -233,6 +255,35 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 					file,
 				}
 			: { id: 'VER-9', status: 'pass' },
+	)
+
+	const lists: [string, Record<string, unknown>[]][] = [
+		...Object.entries(evals.rubrics ?? {}).map(([id, list]): [string, Record<string, unknown>[]] => [
+			`rubric ${id}`,
+			list,
+		]),
+		...(evals.outcome ?? []).flatMap((item) =>
+			Object.entries(item.checks ?? {}).map(([id, list]): [string, Record<string, unknown>[]] => [
+				`case ${item.id}: checks ${id}`,
+				list,
+			]),
+		),
+	]
+	const marks = lists.flatMap(([where, list]) =>
+		list.flatMap((check) => {
+			const [kind, value] = Object.entries(check)[0] ?? []
+			return kind && isPunctuationOnly(kind, value) ? [`${where}: \`${kind}: ${String(value)}\``] : []
+		}),
+	)
+	outcomes.push(
+		marks.length
+			? {
+					id: 'VER-11',
+					status: 'fail',
+					message: `${marks.join('; ')} tests a punctuation mark alone; test what the outcome left behind`,
+					file,
+				}
+			: { id: 'VER-11', status: 'pass' },
 	)
 	return outcomes
 }

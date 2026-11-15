@@ -1,6 +1,6 @@
 ---
 name: reference
-description: Load, create, customize, update, delete, migrate, find, inspect, or register a reference (a document agents read by name, Markdown or a JSON, YAML, TOML, or text file), or wire a skill to load one. Also migrate reference files left in a version 1 form, or under a name a plugin renamed, as a `reference-legacy-format` or `reference-renamed` warning asks.
+description: Load, create, customize, update, delete, migrate, find, inspect, or register a reference document. A reference is a document agents read by name (Markdown or a JSON, YAML, TOML, or text file), layered across the plugin, user, repo, and managed tiers, so also explain why a reference resolved as it did or change what the repo's copy says. Also wire a skill to load one, or migrate reference files left in a version 1 form, or under a name a plugin renamed, as a `reference-legacy-format` or `reference-renamed` warning asks.
 ---
 
 # Reference
@@ -111,6 +111,8 @@ Load the implementations of the `<id>` interface with the `reference` skill of `
 ```
 
 A skill written for one harness may add that harness's typed form after the skill's name; the README lists each one. The skill may ship its own default of a name at `references/<name>.default.md` in its folder. Load adds it below every other contribution, and reads it on its own only when the command cannot run. A copy at `references/<name>.md` is not read as a default.
+
+An author keeps a skill's copies in step with its plugin with `reference defaults <skill>`, run from the repository. It writes each missing or stale copy, copied from the plugin's `references/<name>.md` with `default` taken out of `extends`. With `--check` it writes nothing and fails on a copy that is missing, stale, misnamed, or no longer named by the skill. An interface the skill loads is copied as `references/<id>.interface.default.md`, the same rule applied to `<id>.interface`; a copy held as `references/<id>.interface.md` is misnamed. The documentation's reference file naming page gives the rule for every file form.
 
 ## Audit
 

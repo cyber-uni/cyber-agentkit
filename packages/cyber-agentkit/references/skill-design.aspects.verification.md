@@ -22,6 +22,14 @@ check-script: ../skills/skill/scripts/check-verification.mjs
    prompt, such as "I approve writing it; don't ask again".
 3. **Rubrics.** For each Criteria ID, write the checks that decide it from a run's output. Prefer a deterministic
    check. Use `judge` only when no deterministic check decides the criterion, and say so to the author.
+   A check tests what the outcome left behind: a file changed or left unchanged (a `script` on `git status`), a
+   report or section present, the options a stop listed, or a skill called (`.skill-test/skill-calls.jsonl`). It
+   never tests one exact phrasing or a punctuation mark. Where a check must read the reply's wording, it accepts the
+   ways of saying the same thing: "not counted", "uncounted", and "neither is counted"; a label in any case or
+   markup, such as `Test budget: over` and ``**`test` budget:** over``; and a path written as `~/`, `$HOME`, or the
+   run's absolute home folder. A `not-` check matches only what the criterion rules out, such as offering to run
+   `fix`, and not advice against it, such as "don't run `fix`". Where a skill has several stops or branches, describe
+   each outcome once, and have every criterion and check for that outcome test the same observable parts.
 4. Mark a case `effects: outside` when running it would reach past the sandbox, such as posting to GitHub. It is not
    run. A case that needs the network, such as one that installs a package, lists the hosts it may reach in
    `network`; every other host stays closed.
@@ -50,6 +58,7 @@ outcome:
     effects: outside          # optional; the case is not run
     network: [registry.npmjs.org]  # optional; the hosts its runs may reach (`*.example.com` for subdomains), none by default
     guard: true               # optional; a regression guard, expected to pass without the skill too
+    model: top                # optional; a tier (small, mid, top) or a model ID its runs use, over --model
     checks:                   # optional; per-case checks that replace rubrics.<ID> for this case
       C2:
         - contains: "no merge commits"
@@ -99,7 +108,12 @@ A criterion counts as having a rubric (VER-3) when it has `rubrics.<ID>` or when
 Run `test <skill folder>` with the `/skill` command, as its Run the command says. It runs promptfoo at a pinned version
 through `npx`, so the first run downloads it. Add `--judge <model>` only when the author named a judge, `--baseline
 <folder>` to compare with another version instead of a run without the skill, and `--model <model>` to choose the model
-each run uses. It saves the result, prints it, and exits 1 when a case or a criterion fails. Each run's result stays local (the
+each run uses: a tier (`small`, `mid`, `top`) or a model ID. Without `--model`, each run uses the harness's mid-tier
+model (`sonnet` on Claude Code), not its most capable one; a harness whose tiers are not known, such as Codex, runs on
+its own default, and the test warns. A case's own `model`, a tier or an ID, wins over `--model` for that case: set it
+on a case known to need a stronger model, or one a cheaper model does well. A tier the harness does not map is an
+error before any run. `--judge` alone sets the judge's model. A skill tested only on a mid-tier model may behave
+differently on the model its users run. It saves the result, prints it, and exits 1 when a case or a criterion fails. Each run's result stays local (the
 results folder ignores itself). Each save keeps `latest.json` and the 5 most recent past results of the skill, and deletes
 older ones. The reply of every run, passed or failed, goes in a file beside the result that its `replies` field names. It also deletes the results of any other skill whose recorded skill folder no longer exists, and leaves a
 result with no recorded folder alone. Add `--accept` to also keep the result as the skill's expected result,
@@ -215,6 +229,11 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 - **VER-8** [read] No case holds private data, such as real names, tokens, or customer text.
 - **VER-9** [script, warning] No outcome case's prompt tells the model to run a setup script; that step is the case's
   `setup`.
+- **VER-10** [read] Each check tests what the outcome left behind (files changed or unchanged, a report present,
+  options listed, a skill called), not one exact phrasing or a punctuation mark; a check that reads the reply's
+  wording accepts the ways of saying the same thing, and a `not-` check matches only what the criterion rules out.
+- **VER-11** [script, warning] No `contains`, `not-contains`, `regex`, or `not-regex` check is a punctuation mark
+  alone: once a regex's escapes such as `\b` and `\s` are dropped, its value holds a letter or a digit.
 
 ## Fix
 
@@ -224,9 +243,15 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 - VER-8: replace the data with made-up data of the same shape.
 - VER-9: move the step into a setup script (`skill case add ... --setup` scaffolds one for a new case), name it in the
   case's `setup`, and leave only the request in the prompt.
+- VER-10 and VER-11: rewrite the check to test what the outcome left behind, as Draft's Rubrics say: a `script` on
+  the files or the skill calls, or the parts of the reply that outcome always has, such as lettered options for a
+  stop. Widen a wording check to the ways of saying the same thing, and narrow a `not-` check to what the criterion
+  rules out. Keep what the criterion asks for.
 
 ## Enhance
 
 - A trigger miss or a wrong result seen while the skill was used: add it as a case.
 - A case that passes with and without the skill alike: it does not show what the skill adds.
 - A `judge` rubric that a deterministic check could replace.
+- A check that failed a run whose reply did the right thing: rewrite it as VER-10 says, and replay the saved replies
+  (the result's `replies` file) to show the right replies now pass and a wrong one still fails.

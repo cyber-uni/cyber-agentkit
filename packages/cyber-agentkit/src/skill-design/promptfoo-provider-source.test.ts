@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { headlessInvocation } from '../headless/headless-invocation.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
 import { sandboxFaults } from './sandbox-faults.js'
+import { usageLimits } from './usage-limits.js'
 
 /** The script sandbox's CLI, which the provider resolves from the npx install it runs in. */
 const srt = join(dirname(createRequire(import.meta.url).resolve('@anthropic-ai/sandbox-runtime')), 'cli.js')
@@ -50,6 +51,7 @@ const git = (dir, ...args) => execFileSync('git', args, { cwd: dir, encoding: 'u
 exports.loadApiProvider = async (_id, { options }) => ({
   callApi: async () => {
     const dir = options.config.working_dir
+    if (process.env.FAKE_RUN_WRITES) fs.writeFileSync(dir + '/' + process.env.FAKE_RUN_WRITES, 'written by the run\n')
     const report = {
       isRepo: git(dir, 'rev-parse', '--is-inside-work-tree'),
       log: git(dir, 'log', '--format=%s|%an|%ae'),
@@ -405,6 +407,32 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 	})
 })
 
+describe('promptfooProviderSource model (R161)', () => {
+	function modelOf(caseModel?: string): unknown {
+		const root = mkdtempSync(join(tmpdir(), 'provider-model-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(
+			join(root, 'node_modules', 'promptfoo', 'index.js'),
+			'exports.loadApiProvider = async (_id, { options }) => ({ callApi: async () => ({ output: "", metadata: { model: options.config.model } }) })',
+		)
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'baseline', skillName: 'demo', isolation: ${isolation}, inner: { model: 'sonnet' } } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}'${caseModel ? `, model: '${caseModel}'` : ''} } })))
+`,
+		)
+		return JSON.parse(execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' })).metadata.model
+	}
+
+	it("runs on the run's model, or on the case's own when it names one", () => {
+		expect(modelOf()).toBe('sonnet')
+		expect(modelOf('opus')).toBe('opus')
+	})
+})
+
 describe('promptfooProviderSource trigger runs (F9)', () => {
 	/** A fake inner provider for a trigger run: it sees the turn cap and the Skill hook, calls the hook as Claude would, then hits the cap. */
 	const capped = String.raw`
@@ -456,6 +484,61 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'trigger
 		const response = trigger(false)
 		expect(response.error).toBeUndefined()
 		expect(response.metadata).toMatchObject({ fired: false })
+	})
+})
+
+describe('promptfooProviderSource cost cap (#238)', () => {
+	/** A fake inner provider that writes a transcript of `TOKENS` output tokens, then makes a tool call through every PreToolUse hook. */
+	const spending = String.raw`
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
+exports.loadApiProvider = async (_id, { options }) => ({
+  callApi: async () => {
+    const c = options.config
+    const transcript = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'provider-transcript-')), 't.jsonl')
+    const message = { id: 'm1', model: 'claude-sonnet-5-5', usage: { input_tokens: 10, output_tokens: Number(process.env.TOKENS) } }
+    // The same message twice, as a transcript writes one line per content block: it counts once.
+    fs.writeFileSync(transcript, [{ type: 'user' }, { type: 'assistant', message }, { type: 'assistant', message }].map((l) => JSON.stringify(l)).join('\n'))
+    const answers = await Promise.all(c.hooks.PreToolUse.flatMap((entry) => entry.hooks.map((hook) => hook({ tool_name: 'Bash', tool_input: { command: 'true' }, transcript_path: transcript }))))
+    return { output: 'done', metadata: { budget: c.max_budget_usd ?? null, stopped: answers.some((a) => a.continue === false && a.stopReason === 'cost cap') } }
+  },
+})
+`
+
+	function spend(tokens: number): Record<string, any> {
+		const root = mkdtempSync(join(tmpdir(), 'provider-cost-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), spending)
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'baseline', skillName: 'demo', isolation: ${isolation}, costCap: 0.5, inner: {} } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
+`,
+		)
+		return JSON.parse(
+			execFileSync('node', [join(root, 'run.mjs')], {
+				encoding: 'utf8',
+				env: { ...process.env, TOKENS: String(tokens) },
+			}),
+		)
+	}
+
+	it('passes the Agent SDK no budget the model would see, and lets a run under the cap go on', () => {
+		// 10,000 output tokens at $15 a million: $0.15.
+		const response = spend(10_000)
+		expect(response.error).toBeUndefined()
+		expect(response.metadata).toMatchObject({ budget: null, stopped: false })
+	})
+
+	it('ends a run whose transcript passes the cap, and answers an error', () => {
+		// 40,000 output tokens at $15 a million: $0.60; counted twice it would be $1.20.
+		const response = spend(40_000)
+		expect(response.metadata).toMatchObject({ budget: null, stopped: true })
+		expect(response.error).toBe('Exceeded the run cost cap: about $0.60 of $0.50')
 	})
 })
 
@@ -598,6 +681,7 @@ out({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 5 } })
 		kind: 'trigger' | 'outcome',
 		withSkill = true,
 		pluginDir?: string,
+		model?: { args: string[]; case?: string },
 	): { response: Record<string, any>; seen: Record<string, any> } {
 		const root = mkdtempSync(join(tmpdir(), 'provider-codex-'))
 		mkdirSync(join(root, 'bin'))
@@ -616,7 +700,11 @@ out({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 5 } })
 			arm: 'skill',
 			skillName: 'demo',
 			harness: 'codex',
-			command: { executable: join(root, 'bin', 'codex'), args: ['exec', '--json', '--ignore-user-config'] },
+			command: {
+				executable: join(root, 'bin', 'codex'),
+				args: model?.args ?? ['exec', '--json', '--ignore-user-config'],
+				modelFlag: '--model',
+			},
 			...(withSkill ? { skillDir: join(root, 'skill') } : {}),
 			...(pluginDir ? { pluginDir, pluginName: 'kit' } : {}),
 		}
@@ -628,7 +716,7 @@ out({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 5 } })
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
 const provider = new Provider({ config: { ...${JSON.stringify(config)}, isolation: ${codexIsolation} } })
-console.log(JSON.stringify(await provider.callApi('write the notes', { vars: { kind: '${kind}', rubrics: ${JSON.stringify(rubrics)} } })))
+console.log(JSON.stringify(await provider.callApi('write the notes', { vars: { kind: '${kind}', rubrics: ${JSON.stringify(rubrics)}${model?.case ? `, model: '${model.case}'` : ''} } })))
 `,
 		)
 		const seenFile = join(root, 'seen.json')
@@ -656,6 +744,18 @@ console.log(JSON.stringify(await provider.callApi('write the notes', { vars: { k
 	it('ends a trigger run at the first read of a SKILL.md, and counts it fired only for the skill under test', () => {
 		expect(codex('trigger').response).toMatchObject({ output: '', metadata: { fired: true } })
 		expect(codex('trigger', false).response).toMatchObject({ metadata: { fired: false } })
+	})
+
+	it("replaces the run's model with a case's own, before the prompt (R161)", () => {
+		const args = ['exec', '--model', 'run-model', '--json']
+		expect(codex('outcome', true, undefined, { args, case: 'case-model' }).seen.args).toEqual([
+			'exec',
+			'--json',
+			'--model',
+			'case-model',
+			'write the notes',
+		])
+		expect(codex('outcome', true, undefined, { args }).seen.args).toEqual([...args, 'write the notes'])
 	})
 
 	it('gives a plugin skill project skills copied from the plugin, as Codex has no flag to load one', () => {
@@ -723,11 +823,98 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 	it.skipIf(!sandboxStarts)('passes that check when the run left the plugin alone', () => {
 		expect(pluginRun(false).response.metadata.checks.C2).toEqual({ pass: true })
 	})
+
+	/** A fake inner provider that reports what the plugin copy holds when the model would start. */
+	const inspecting = String.raw`
+const { execFileSync } = require('node:child_process')
+const fs = require('node:fs')
+const path = require('node:path')
+exports.loadApiProvider = async (_id, { options }) => ({
+  callApi: async () => {
+    const plugin = options.config.plugins[0].path
+    const at = (p) => path.join(plugin, p)
+    const gitFile = fs.readFileSync(at('.git'), 'utf8').trim()
+    const report = {
+      plugin,
+      gitFile,
+      status: execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: plugin, encoding: 'utf8' }),
+      tracked: execFileSync('git', ['ls-files'], { cwd: plugin, encoding: 'utf8' }).trim().split(/\r?\n/),
+      sandbox: options.config.sandbox,
+      exists: Object.fromEntries(
+        ['.mcp.json', '.claude/launch.json', '.claude/workflows', 'skills/demo/.claude/launch.json', 'skills/demo/.mcp.json', 'skills/demo/references/.claude/settings.json', 'skills/demo/.claude/hooks']
+          .map((p) => [p, fs.existsSync(at(p)) ? (fs.statSync(at(p)).isDirectory() ? 'folder' : fs.readFileSync(at(p), 'utf8')) : null]),
+      ),
+      nested: fs.existsSync(at('.claude/.claude')),
+    }
+    return { output: JSON.stringify(report), metadata: {} }
+  },
+})
+`
+
+	/** Runs one outcome run of a plugin whose root already holds an .mcp.json, through the inspecting provider. */
+	function inspectCopy(): Record<string, any> {
+		const root = mkdtempSync(join(tmpdir(), 'provider-plugin-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), inspecting)
+		const source = join(root, 'plugin')
+		mkdirSync(join(source, 'skills', 'demo', 'references'), { recursive: true })
+		writeFileSync(join(source, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\n---\n')
+		writeFileSync(join(source, '.mcp.json'), '{"mcpServers":{"own":{"command":"x"}}}\n')
+		// A file the author's own git ignore rules would leave out, so the placeholder is committed despite them.
+		writeFileSync(join(source, '.gitignore'), 'settings.json\n')
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', pluginName: 'kit', pluginDir: ${JSON.stringify(source)}, isolation: ${isolation}, inner: {} } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome' } })))
+`,
+		)
+		return JSON.parse(JSON.parse(execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' })).output)
+	}
+
+	it('makes ahead, in every folder of the copy, each path the shell sandbox mounts over, so a cd into the copy keeps the shell working (E-CC-D20)', () => {
+		const { exists, nested } = inspectCopy()
+		expect(exists).toEqual({
+			'.mcp.json': '{"mcpServers":{"own":{"command":"x"}}}\n',
+			'.claude/launch.json': '{}\n',
+			'.claude/workflows': 'folder',
+			'skills/demo/.claude/launch.json': '{}\n',
+			'skills/demo/.mcp.json': '{}\n',
+			'skills/demo/references/.claude/settings.json': '{}\n',
+			'skills/demo/.claude/hooks': 'folder',
+		})
+		expect(nested).toBe(false)
+	})
+
+	it('commits those paths, so the copy starts clean, even when ignore rules would leave them out', () => {
+		const { status, tracked } = inspectCopy()
+		expect(status).toBe('')
+		expect(tracked).toEqual(expect.arrayContaining(['.claude/settings.json', 'skills/demo/.claude/settings.json']))
+	})
+
+	it("keeps the copy's git folder outside it, readable by the shell but not writable (E-CC-D20)", () => {
+		const { plugin, gitFile, sandbox } = inspectCopy()
+		const gitDir = gitFile.replace(/^gitdir: /, '')
+		expect(gitDir).toMatch(/skill-test-plugin-git-/)
+		expect(gitDir.startsWith(plugin)).toBe(false)
+		expect(sandbox.filesystem.allowRead).toContain(gitDir)
+		expect(sandbox.filesystem.allowWrite).not.toContain(gitDir)
+	})
 })
 
 describe('promptfooProviderSource setup scripts and script checks (R155, R156, R157)', () => {
 	/** Runs one outcome run with a setup script and rubrics through the fake promptfoo; answers its whole response. */
-	function scripted({ setup, rubrics = {} }: { setup?: string; rubrics?: Record<string, Record<string, unknown>[]> }): {
+	function scripted({
+		setup,
+		rubrics = {},
+		writes,
+	}: {
+		setup?: string
+		rubrics?: Record<string, Record<string, unknown>[]>
+		writes?: string
+	}): {
 		response: Record<string, any>
 		outside: string
 	} {
@@ -755,7 +942,10 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify
 `,
 		)
 		const response = JSON.parse(
-			execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8', env: { ...process.env, OUTSIDE: outside } }),
+			execFileSync('node', [join(root, 'run.mjs')], {
+				encoding: 'utf8',
+				env: { ...process.env, OUTSIDE: outside, ...(writes ? { FAKE_RUN_WRITES: writes } : {}) },
+			}),
 		)
 		return { response, outside }
 	}
@@ -817,4 +1007,121 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify
 			expect(existsSync(join(outside, 'escaped.txt'))).toBe(false)
 		},
 	)
+
+	/** The check many criteria end with: nothing in the run's repository changed. */
+	const unchanged = { C1: [{ script: 'test -z "$(git status --porcelain --untracked-files=all)"' }] }
+
+	it.skipIf(!sandboxStarts)(
+		'passes a "nothing changed" git status check for a run that wrote nothing, unmoved by what the sandbox protects',
+		() => {
+			expect(scripted({ rubrics: unchanged }).response.metadata.checks.C1).toEqual({ pass: true })
+		},
+	)
+
+	it.skipIf(!sandboxStarts)('fails that check for a run that wrote a file', () => {
+		expect(scripted({ rubrics: unchanged, writes: 'new.txt' }).response.metadata.checks.C1.pass).toBe(false)
+	})
+
+	it.skipIf(!sandboxStarts)("still refuses a script check a write to the run repository's .git/config", () => {
+		const { response } = scripted({ rubrics: { C1: [{ script: 'echo "[core]" >> .git/config' }] } })
+		expect(response.metadata.checks.C1.pass).toBe(false)
+	})
+})
+
+describe('promptfooProviderSource usage limit (R162)', () => {
+	const limitText = "You've hit your 5-hour limit · resets 4:40am (America/Los_Angeles)"
+	/** A fake inner provider that counts its calls in a file and answers the usage-limit error each time. */
+	const limited = (calls: string) => String.raw`
+const fs = require('node:fs')
+exports.loadApiProvider = async () => ({
+  callApi: async () => {
+    fs.appendFileSync(${JSON.stringify(calls)}, 'x')
+    return { error: 'Error calling Claude Agent SDK: Error: Claude Code returned an error result: ' + ${JSON.stringify(limitText)} }
+  },
+})
+`
+
+	it('ends the run that hits the limit as limit reached, and starts no run after it', () => {
+		const root = mkdtempSync(join(tmpdir(), 'provider-limit-'))
+		const calls = join(root, 'calls.txt')
+		const limitFile = join(root, 'usage-limit.json')
+		const progressFile = join(root, 'progress.jsonl')
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), limited(calls))
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(join(root, 'hook.mjs'), promptfooHookSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+import { afterEach } from './hook.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, usageLimits: ${JSON.stringify(usageLimits)}, limitFile: ${JSON.stringify(limitFile)}, progressFile: ${JSON.stringify(progressFile)} } })
+const responses = []
+for (const repeatIndex of [0, 1, 2]) {
+  const response = await provider.callApi('hi', { test: { description: 'case-a' }, repeatIndex, vars: { kind: 'outcome', rubrics: '{}' } })
+  await afterEach({ result: { response, vars: { kind: 'outcome' }, testCase: { description: 'case-a' }, provider: { label: 'with-skill' }, repeatIndex } })
+  responses.push(response)
+}
+console.log(JSON.stringify(responses))
+`,
+		)
+		const responses = JSON.parse(execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' }))
+		expect(readFileSync(calls, 'utf8')).toBe('x')
+		expect(JSON.parse(readFileSync(limitFile, 'utf8'))).toEqual({
+			text: limitText,
+			resets: '4:40am (America/Los_Angeles)',
+		})
+		expect(responses[0].metadata.limitReached).toEqual({
+			text: limitText,
+			resets: '4:40am (America/Los_Angeles)',
+			started: true,
+		})
+		for (const later of responses.slice(1)) {
+			expect(later.error).toBe(`limit reached: ${limitText}`)
+			expect(later.metadata.limitReached).toMatchObject({ text: limitText, started: false })
+		}
+		const lines = readFileSync(progressFile, 'utf8')
+			.split('\n')
+			.filter(Boolean)
+			.map((line) => JSON.parse(line))
+		// only the run that started has a start line
+		expect(lines.filter((line) => line.event === 'start')).toHaveLength(1)
+		expect(lines.filter((line) => line.event === 'end')).toMatchObject([
+			{ run: 1, outcome: 'limit reached', reason: limitText, started: true, resets: '4:40am (America/Los_Angeles)' },
+			{ run: 2, outcome: 'limit reached', started: false },
+			{ run: 3, outcome: 'limit reached', started: false },
+		])
+	})
+
+	it('runs only the arms a resumed run names, under the run number it stands for (R163)', () => {
+		const root = mkdtempSync(join(tmpdir(), 'provider-resume-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(
+			join(root, 'node_modules', 'promptfoo', 'index.js'),
+			"exports.loadApiProvider = async () => ({ callApi: async () => ({ output: 'ok', metadata: {} }) })",
+		)
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		const progressFile = join(root, 'progress.jsonl')
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const vars = { kind: 'outcome', rubrics: '{}', __run: '3', __arms: '["skill"]' }
+const out = []
+for (const arm of ['skill', 'baseline']) {
+  const provider = new Provider({ config: { arm, skillName: 'demo', isolation: ${isolation}, inner: {}, progressFile: ${JSON.stringify(progressFile)} } })
+  out.push(await provider.callApi('hi', { test: { description: 'case-a' }, repeatIndex: 0, vars }))
+}
+console.log(JSON.stringify(out))
+`,
+		)
+		const [skill, baseline] = JSON.parse(execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' }))
+		expect(skill.output).toBe('ok')
+		expect(baseline.metadata).toMatchObject({ skipped: true })
+		expect(JSON.parse(readFileSync(progressFile, 'utf8').trim())).toMatchObject({
+			event: 'start',
+			arm: 'skill',
+			run: 3,
+		})
+	})
 })

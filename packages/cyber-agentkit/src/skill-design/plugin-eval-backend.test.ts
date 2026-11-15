@@ -94,6 +94,16 @@ describe('writePluginEvalSuite', () => {
 		expect(outcome.graders.map((g: { name: string }) => g.name)).toEqual(['C1--1', 'C2--1'])
 	})
 
+	it("writes a case's own model over the run's (R161)", () => {
+		const target = mkdtempSync(join(tmpdir(), 'plugin-eval-suite-'))
+		const own = plan()
+		own.cases = own.cases.map((item) => (item.id === 'two-prs' ? { ...item, model: 'opus' } : item))
+		writePluginEvalSuite(own, target, 'release-notes', 'sonnet')
+		const read = (id: string) => parse(readFileSync(join(target, pluginEvalDir, id, 'case.yaml'), 'utf8'))
+		expect(read('two-prs').execution.model).toBe('opus')
+		expect(read('trigger-1').execution.model).toBe('sonnet')
+	})
+
 	it('starts each run in a git repository holding the case files, committed', () => {
 		const target = mkdtempSync(join(tmpdir(), 'plugin-eval-suite-'))
 		writePluginEvalSuite(plan(), target, 'release-notes')
@@ -161,6 +171,19 @@ rubrics:
 		expect(execFileSync('git', ['status', '--porcelain'], { cwd: workspace, encoding: 'utf8' }).trim()).toBe(
 			'?? draft.txt',
 		)
+	})
+
+	it.skipIf(!sandboxStarts)('shows the setup script no placeholder for what the sandbox protects', () => {
+		const { workspace, run } = scaffold('set -e\ntest -z "$(git status --porcelain --untracked-files=all)"\n')
+		run()
+		expect(
+			execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: workspace, encoding: 'utf8' }),
+		).toBe('')
+	})
+
+	it.skipIf(!sandboxStarts)("refuses the setup script a write to the repository's .git/config", () => {
+		const { run } = scaffold('echo "[core]" >> .git/config\n')
+		expect(run).toThrow()
 	})
 
 	it.skipIf(!sandboxStarts)(

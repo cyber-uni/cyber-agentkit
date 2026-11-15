@@ -506,6 +506,34 @@ describe('interface documents (R14)', () => {
 		expect(codes(resolved)).toEqual(['interface-not-composed', 'interface-not-composed'])
 	})
 
+	it('answers from a skill default only when no plugin and no other tier holds it (R14)', () => {
+		const resolved = resolve(
+			[skillDefault('s', { [`${iface}.default.md`]: 'default\n' }), plugin('a', { [`${iface}.md`]: 'owner\n' })],
+			iface,
+		)
+
+		expect(resolved.content).toBe('owner\n')
+		expect(resolved.trace.layers.find(({ tier }) => tier === 'default')?.outcome).toBe(
+			'not used (a plugin or tier holds the interface)',
+		)
+	})
+
+	it('answers from a repo copy over a skill default with no plugin holding it (R14)', () => {
+		const resolved = resolve(
+			[skillDefault('s', { [`${iface}.default.md`]: 'default\n' }), layer('repo', { [`${iface}.md`]: 'project\n' })],
+			iface,
+		)
+
+		expect(resolved.content).toBe('project\n')
+	})
+
+	it('answers from the skill default when nothing else holds the interface (R14)', () => {
+		const resolved = resolve([skillDefault('s', { [`${iface}.default.md`]: 'default\n' })], iface)
+
+		expect(resolved.content).toBe('default\n')
+		expect(resolved.warnings).toEqual([])
+	})
+
 	it('is ambiguous when two plugins hold it', () => {
 		const resolved = resolve([plugin('a', { [`${iface}.md`]: 'a\n' }), plugin('b', { [`${iface}.md`]: 'b\n' })], iface)
 

@@ -14,7 +14,8 @@ the author asks to accept one, or when the first passing run saves one (see Save
 
 ## 2. Run
 
-Run the cases as Verification's Run says. Pass a judge only when the author named one. A case marked as having an
+Run the cases as Verification's Run says. Pass a judge only when the author named one. Pass `--model` only when the
+author named a model or a tier; without it the runs take the harness's mid-tier model. A case marked as having an
 outside effect is not run, and is reported as such. Each run is contained to its own folder, and reaches the network
 only for the hosts its case lists. When the test stops with `error: login:`, `error: sandbox:`, `error: dependency-missing:`,
 `error: dependency-unsupported:`, or `error: plugin-load:`, pass the reason on as it is said; no run was made. For
@@ -33,7 +34,9 @@ runs, the last result was saved before the run count was recorded and may have c
 can, so the author can keep working, and watch its progress lines on stderr: one per finished run (`[n/total] <case>
 run <k> (<arm>): <outcome>`) and a `still running` line when none has finished for 30 seconds. Pass them on at most once
 a minute, in one short update that sums up the lines since the last one: the count so far (`n/total`), each run with
-the skill that failed, was not run, or was a sandbox failure, and the latest `still running` line when no run finished. Send nothing when no
+the skill that failed, was not run, or was a sandbox failure, and the latest `still running` line when no run finished. When a
+`usage limit reached` line comes, pass it on at once with when the limit resets: no new run starts after it, so the
+test ends soon, and its last line says how many runs are left. Send nothing when no
 line has come since the last update. A run without the skill that fails is the baseline doing worse, not news. Never
 quote the model's replies in an update.
 
@@ -55,6 +58,7 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
   "folder": "/home/me/code/app/skills/release-notes",
   "at": "2026-11-10T21:00:00Z",
   "verification": "skill-design.aspects.verification from cyber-agentkit",
+  "model": "sonnet",
   "runs": 3,
   "threshold": 2,
   "baseline": "without the skill",
@@ -120,12 +124,25 @@ names it and `text` is what the run printed. Such a run is a **sandbox failure**
 a case's threshold holds over its other runs. A case's `sandboxFailed`, left out when none was, counts its runs with
 the skill that were. A run that broke for a reason `skill test` cannot name is in `notRun` instead.
 
+`incomplete`, left out when every run finished, means the account's usage limit stopped the test: `text` is the
+harness's message, `resets` when the limit resets when the message says, and `left` each run (`case`, `arm`, `run`)
+the limit ended or never started. Those runs count toward no pass rate, and a case with none of its runs finished is
+`not-run`. An incomplete result is never saved as expected, `skill accept` refuses it, and `skill test` exits 1. After
+the limit resets, `skill test <folder> --resume` runs only the runs left, with the options the stopped test had, and
+saves one result holding both, with `resumedFrom` naming the stopped one. It takes no `--case`, `--model`, `--judge`,
+`--baseline`, `--harness`, or `--backend`, and it refuses (`resume-changed`) when the skill or its evals changed since:
+then the whole test has to run again. Estimate a resume against the test budget like any test, by the runs left.
+
 `blocked`, left out when nothing was, lists what a run tried that its containment refused: `what` is `read`, `write`,
 or `network`, and `target` the path or host. A refused attempt does not by itself fail a criterion.
 
 `cases` holds each case's status: an outcome case passes when every criterion it tests meets the threshold in it.
 A case marked `guard: true` in `evals.yaml` carries `guard: true` and, when the baseline ran, `baseline`: its baseline
 runs in which every criterion it tests passed. A criterion that only guard cases test carries `guard: true` too.
+`model` names the model the cases ran on (`default` when the harness picked it), and a case that named its own in
+`evals.yaml` carries its own `model`. `modelChanged`, left out when none did, lists the cases whose model differs from
+the result `changed` compares with, each `from` and `to`; `unknown` is the model of a result saved before it was
+recorded.
 `passed` and `ran` count its runs that went right: for an outcome case, the runs in which every criterion it tests
 passed; for a trigger case, the runs that fired or skipped as expected.
 `changed` lists the cases that went between `pass` and `fail` since the skill's expected result
@@ -138,7 +155,7 @@ for an outcome case. `totalRuns` is how many runs the test planned; a result sav
 
 `replies` names a file beside the result, in the same results folder, that holds the reply of every run, passed,
 failed, or not run, with the skill and without it. Each entry has `case`, `arm` (`with-skill` or `baseline`), `run`
-(from 1), `outcome` (`pass`, `fail`, `fired`, `not fired`, `not run`, or `sandbox failure`), the whole `reply`, each
+(from 1), `outcome` (`pass`, `fail`, `fired`, `not fired`, `not run`, `sandbox failure`, or `limit reached`), the whole `reply`, each
 criterion the run decided under `criteria` with the `detail` of a failure, for a run that did not run, its short
 `reason` and full `error`, and for a sandbox failure, the fault's text as its `reason`. Read it to see why a run passed or failed; `failures` keeps only the start of a failed reply. The file goes
 when its result is pruned. `evalId` is promptfoo's own ID for the run, for `promptfoo view` when its database is kept.
@@ -163,7 +180,9 @@ history grows from the next accept.
 
 ## Report
 
-When the result has sandbox failures, say so first, before any pass rate: those runs broke in the test sandbox, not
+When the result is `incomplete`, say so first: the usage limit stopped it, when it resets, and how many runs are left;
+the pass rates below cover only the runs that finished, and it was not saved as expected. Offer `skill test --resume`
+for after the reset, and no `fix` for the runs left. When the result has sandbox failures, say so first, before any pass rate: those runs broke in the test sandbox, not
 in the skill, and count toward no pass rate. Give each case's `sandboxFailed` beside it. When the result carries
 `expectedHeld`, say it was not saved as the expected result because of them, and name `skill accept <folder>` as how
 to save it once the author has looked; never run it for them. A sandbox failure is not a failure of the skill: offer
@@ -172,6 +191,8 @@ trigger case beside what was expected; each criterion's pass rate, threshold, an
 case and the output that broke it; each guard case, whose pass without the skill too is expected, so never report it as a
 skill that adds nothing, while a guard that fails with the skill is a failure like any other; what the runs with the
 skill tried and were refused, if anything; and the cases that changed between pass and fail since the expected result, or, with
-none, the previous result, saying which. With neither, say there is none to compare. Name each case in `moved` with
+none, the previous result, saying which. With neither, say there is none to compare. Name the model the cases ran on,
+and each case on its own. When `modelChanged` lists cases, say their model changed since the result compared with, so
+a change there may be the model's rather than the skill's. Name each case in `moved` with
 its rate in each accepted result and in this run. Say when the result was saved as the
 expected result. With failures, offer `fix` as `SKILL.md`'s Rules say.

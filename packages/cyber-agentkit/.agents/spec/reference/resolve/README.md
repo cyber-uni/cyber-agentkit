@@ -309,6 +309,9 @@ Edge IDs are in [graph.md](./graph.md).
   are left out without a warning.
 - R14 (UC1): An interface document is never composed: `extends` and `merge` on it are ignored with a warning, a higher
   contribution of it is ignored with a warning, and the lowest answers; two plugins holding it make it `ambiguous`.
+  A skill's default of an interface (`<id>.interface.default.md`, K13) is the lowest only when no plugin and no other
+  tier holds the interface. It never answers over a plugin's copy or a repo or user copy, which is traced `not used`
+  with that reason, and it draws no warning.
 - R15 (UC2, E17): A layer skipped for a reason appears in the trace with that reason and adds no contribution.
 - R20 (UC1, UC2, E22): No `governances/` folder is read, in any tier or skill folder.
 

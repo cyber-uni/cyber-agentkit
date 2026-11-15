@@ -79,14 +79,16 @@ outcome:
       C13:
         - regex: "[Aa]utonomy:\\W{0,4}ask\\b"
   # A description with no command routes to create, which runs check and then test without asking, since
-  # files/high-budget sets a budget no test reaches. The sandbox has no network, so the test itself cannot complete.
+  # files/high-budget sets a budget no test reaches. The sandbox has no network, so the test itself cannot complete:
+  # promptfoo cannot download, and a nested harness could not reach its model. The case does not test whether the
+  # skill tests what it writes, and no criterion relies on the test's result, only on starting it (C11) (#285).
   - id: create-described
     prompt: >-
       /skill a skill in .agents/skills that drafts a changelog entry for each merged pull request. I approve every
       draft; don't ask again. End your reply with a line "Check:" then pass or fail, from the check of the skill you
       wrote.
     files: files/high-budget
-    criteria: [C11, C16]
+    criteria: [C11, C16, C22]
   # Research finds that the installed release-notes skill already does the job (#221): create names it, writes no
   # SKILL.md, and asks whether to adopt it, since adopting changes the Intent.
   - id: create-covered
@@ -99,10 +101,12 @@ outcome:
       C17:
         - regex: "release-notes\\b"
         - regex: "[Aa]dopt|[Rr]euse|[Uu]se the existing"
-        - regex: "\\?"
+        # A stop asks a question or lists lettered options, as C14 and C15 test it.
+        - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
         - script: "test ! -e .agents/skills/pr-release-notes/SKILL.md"
   # Other work adds a skill (#205): the work is the approval, so the skill is written without asking about each aspect.
   # Its job is one no skill in files/samples covers, so research finds nothing to adopt and does not stop the run.
+  # Like create-described, it cannot complete a nested `skill test` in the sandbox, and C12 does not rely on one (#285).
   - id: work-adds-skill
     prompt: >-
       Implement issue #61: add an oncall-handoff skill in .agents/skills that drafts this team's weekly on-call handoff
@@ -133,7 +137,7 @@ outcome:
       Check the skill in .agents/skills/release-notes-flawed, then fix what the check finds. I approve every change;
       don't ask again.
     files: files/samples
-    criteria: [C6, C7]
+    criteria: [C6, C7, C22]
   # files/long-skill holds issue-triage, which fails only SHP-1: an inline label catalog, two commands, and a section
   # for a removed --legacy option (#224). Fix offers ways to trim with estimates, not a bare "shorten it".
   - id: fix-too-long
@@ -149,7 +153,7 @@ outcome:
         - regex: "[Rr]eferences?/|[Rr]eference file"
         - regex: "[Ll]egacy"
         - regex: "~?\\d[\\d,]* tokens"
-        - regex: "\\?"
+        - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
         - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
   # files/sandbox-report holds release-notes with no expected result, and test-report.json, what `skill test
   # --format json` printed for it when a sandbox failure broke one of two-prs' runs with the skill (#248). The sandbox
@@ -182,8 +186,10 @@ outcome:
     files: files/samples
     guard: true
     criteria: [C21]
+  # The prompt names the skill: "which commands can I use" alone reads as a question about the session, which lists
+  # its skills instead of loading this one (#238).
   - id: help
-    prompt: I want to create, check, test, or fix an agent skill. Which commands can I use? List them all.
+    prompt: I want to create, check, test, or fix an agent skill. Which commands does the skill skill have? List them all.
     files: files/samples
     criteria: [C8]
   - id: customize-show
@@ -197,10 +203,17 @@ outcome:
     files: files/samples
     network: [github.com, api.github.com, codeload.github.com, skills.sh]
     criteria: [C10]
+# The spec criteria each rubric tests, in the skill-design spec and its children. A rubric checks the outcome those
+# criteria state; for a stop, the Stop outcome of the spec's decision graph (R167) on edge E1, E2, or E3.
+#   C1 R1 | C2 R18, R21 | C3 R17, R19 | C4 R7 | C5 R6 (E1) | C6 R39 | C7 R37, R38 | C8 R94, R96 | C9 R92, R93
+#   C10 R142 to R147, R149 | C11 R5, R166 (E4) | C12 none yet | C13 R150 | C14 R166, R167 (E2)
+#   C15 R74, R167 (E3) | C16 R150, R167 (E1 to E3) | C17 R152, R153 (E3) | C18 none yet | C19 R154 | C20 none yet
+#   C21 R155, R159 | C22 none yet
 rubrics:
   C1:
     - regex: "deploy-notes"
-    - regex: "~/\\.[a-z]+/skills|\\$HOME/\\.[a-z]+/skills|[Uu]ser'?s? (own )?skills"
+    # The user skills folder in any form a reply writes it: `~/`, `$HOME/`, the run's absolute home folder, or in words.
+    - regex: "~/\\.[a-z]+/skills|\\$HOME/\\.[a-z]+/skills|[Hh]ome[\\w./-]*/\\.[a-z]+/skills|[Hh]ome (folder|directory)|[Uu]ser'?s?[ -](own |level |-level )?skills"
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
   C2:
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
@@ -247,12 +260,15 @@ rubrics:
     - script: >-
         f=$(ls .agents/skills/*/SKILL.md) && test -n "$f" && grep -q '^## Done when' $f
         && test ! -e .agents/skill-design/results
-    - regex: "Test budget:\\W{0,4}over"
+    # The budget line in any case or markup, such as `Test budget: over` or **`test` budget:** over.
+    - regex: "[Tt]est\\W{0,4}[Bb]udget\\W{0,6}over\\b"
     - regex: "\\b\\d+ runs\\b"
-    - regex: "\\?"
+    # A stop ends with a question or with options lettered A, B, and so on (#264), in any markup, such as **A:**, **A.**,
+    # or A); the scripts check it stopped.
+    - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
   C15:
     - regex: "[Ii]ntent|[Pp]urpose|what (the skill|it) is for"
-    - regex: "\\?"
+    - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
     - script: "git diff --quiet HEAD -- .agents/skills/release-notes && test -z \"$(git status --porcelain --untracked-files=all -- .agents/skills/release-notes)\""
   C16:
     - not-regex: "[Nn]o (author|one|human) (is )?(present|watching|available)|[Uu]nattended|[Nn]obody (is )?(present|watching|available)"
@@ -265,14 +281,15 @@ rubrics:
   C11:
     - script: "ls .agents/skills/*/SKILL.md | grep -qv release-notes"
     - regex: "Check:\\W{0,4}(pass|fail)"
-    - regex: "Test budget:\\W{0,4}within"
-    - not-regex: "\\?\\s*$"
+    - regex: "[Tt]est\\W{0,4}[Bb]udget\\W{0,6}within\\b"
+    # Started without asking: the reply does not end as a stop does, with a question or lettered options.
+    - not-regex: "(\\?|\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[B-Hb-h][.):][^\\n]*)\\s*$"
   # create writes the skill's evals and README's Research section, and reports `check`'s result. Without the skill,
   # the work may copy release-notes' layout, but it reports only its own checks ("all four checks passed").
   C12:
     - script: "test -f .agents/skills/oncall-handoff/SKILL.md && test -f .agents/skills/oncall-handoff/evals/evals.yaml"
     - script: "grep -q '^## Research' .agents/skills/oncall-handoff/README.md"
-    - regex: "`check`|\\b(static|automatic) checks?\\b"
+    - regex: "`(skill )?check`|\\bskill(\\.mjs)? check\\b|\\b(static|automatic) checks?\\b"
   C17:
     - regex: "[Rr]esearch"
   C21:
@@ -282,12 +299,33 @@ rubrics:
         && grep -q 'The setup of case squash-merge' $d/setup/squash-merge.sh && grep -q 'CHANGELOG' $d/setup/squash-merge.sh
         && ! grep -iqE '(run|execute).{0,40}[.]sh' $f
         && git diff --quiet HEAD -- $d/files .agents/skills/release-notes-flawed
+  # Each SKILL.md the run wrote or changed opens its description with what the skill does, in a first sentence of at
+  # most 100 characters with no lead-in (TRG-10, #238): a harness's slash-command menu shows only the start.
+  C22:
+    - script: >-
+        fs=$(git status --porcelain --untracked-files=all -- .agents/skills | awk '{print $2}' | grep '/SKILL.md$');
+        test -n "$fs" && for f in $fs; do node -e '
+        const t = require("fs").readFileSync(process.argv[1], "utf8");
+        const fm = (t.match(/^---\n([\s\S]*?)\n---/) || [])[1] || "";
+        const m = fm.match(/^description:[ \t]*(.*)((?:\n[ \t]+.*)*)/m);
+        if (!m) process.exit(1);
+        let d = (/^[>|]/.test(m[1]) ? m[2] : m[1] + m[2]).replace(/\s+/g, " ").trim().replace(/^["\x27]|["\x27]$/g, "");
+        let q = false, s = d;
+        for (let i = 0; i < d.length; i++) { const c = d[i]; if (c === "\"") q = !q;
+          else if (!q && ".!?".includes(c) && (i + 1 === d.length || d[i + 1] === " ")) { s = d.slice(0, i + 1); break } }
+        const lead = /^(use (this skill |it )?(when|whenever|for|to|if)\b|this skill\b|a skill (that|to|for)\b|when\b|whenever\b|for\b)/i;
+        process.exit(s.length <= 100 && !lead.test(s) ? 0 : 1)' "$f" || exit 1; done
   C19:
-    - regex: "[Ss]andbox[ -]failures?"
-    - regex: "[Nn]o pass rate|not (be )?counted|(doesn't|does not|don't|do not|didn't|did not|never) count|count(s|ed)? (toward|against) (no|none)|excluded|left out"
-    - regex: "(not|n't)( been| yet)? saved|\\bheld\\b"
+    # Each wording check accepts the ways of saying it: "sandbox failures", "the sandbox broke one run"; "not
+    # counted", "uncounted", "neither is counted" (#264, #271).
+    - regex: "[Ss]andbox\\b[^\\n]{0,60}\\b([Ff]ail|[Ff]ault|[Bb]roke|[Ll]ost|[Ee]rror)|([Ff]ail|[Ff]ault|[Bb]roke|[Ll]ost|[Ee]rror)[^\\n]{0,60}\\b[Ss]andbox"
+    - regex: "[Nn]o pass rate|\\b[Uu]ncounted\\b|\\b([Nn]either|[Nn]one|[Nn]or)( of them)? (is|was|were|are|gets?|got) counted|(not|n't|never)( be| been| being| get| got)? (counted|included|scored)|(doesn't|does not|don't|do not|didn't|did not|never|aren't|weren't) count\\b|count(s|ed)? (toward|against) (no|none)|excluded|left out"
+    # Not saved, in the words runs use for it: not saved or accepted, held, or on hold (#264).
+    - regex: "(not|n't)( been| yet| yet been)? (saved|accepted)|\\bheld\\b|\\bon hold\\b"
     - regex: "skill(\\.mjs)? accept\\b"
-    - not-regex: "(run|use|try|want me to|shall I|should I|I can|offer)[^\\n]{0,30}`?/?(skill )?fix`?\\b"
+    # No `fix`: none ran, and the reply offers none. Advice against it, such as "Don't run `fix`", is not an offer.
+    - script: "! grep -E '\"skill\":\"(cyber-agentkit:)?skill\"' .skill-test/skill-calls.jsonl 2>/dev/null | grep -qE '\"args\":\" *fix'"
+    - not-regex: "([Ww]ant me to|[Ss]hall I|[Ss]hould I|I can|I could|I'll|[Ll]et me|[Oo]ffer to)( now)?( run| use| try)? `?/?(skill )?fix\\b|(^|\\n)[ \\t]*(\\d+[.)]|[-*])?[ \\t]*(\\*\\*)?([Rr]un|[Uu]se|[Tt]ry) `?/?(skill )?fix\\b"
     - script: "test ! -e .agents/skills/release-notes/evals/expected.json && test -z \"$(git status --porcelain --untracked-files=all)\""
   C20:
     - script: >-

@@ -1,4 +1,4 @@
-import { existsSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { cli } from 'clibuilder'
@@ -8,6 +8,7 @@ import { collapseHome } from '../command-output/collapse-home.js'
 import { type HarnessId, harnessIds } from '../harness/harness-id.js'
 import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plugins.js'
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
+import { resolveReference } from '../references/resolve-reference.js'
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
 import { addCase, type CaseChange, removeCase } from './eval-case.js'
@@ -33,13 +34,21 @@ import {
 	runPromptfoo,
 	runTest,
 	saveResult,
+	testFingerprint,
 } from './skill-test.js'
-import { skillTestHarness, skillTestHarnesses } from './skill-test-harness.js'
+import {
+	harnessDefault,
+	resolveModel,
+	resolvePlanModels,
+	type SkillTestHarness,
+	skillTestHarness,
+	skillTestHarnesses,
+} from './skill-test-harness.js'
 import { type SkillVetReport, vetSkill } from './skill-vet.js'
-import { defaultTestBudget, estimateTest, estimateText } from './test-estimate.js'
+import { defaultTestBudget, estimateTest, estimateText, parseTestBudget } from './test-estimate.js'
 import { planScripts, planTest, withoutScripts } from './test-plan.js'
 import { planLine } from './test-progress.js'
-import type { CaseStatus, TestResult } from './test-result.js'
+import type { CaseStatus, Incomplete, ResumeOptions, Row, TestResult } from './test-result.js'
 import { type GitHubGet, githubGet, type JsonGet, jsonGet, type SupplyChainSignals } from './vet-signals.js'
 import { cloneSource, type FetchSource, parseVetSource } from './vet-source.js'
 import { readTrustList, trustListName } from './vet-trust.js'
@@ -246,8 +255,10 @@ function guardLine(item: CaseStatus, threshold: number): string {
 /** The text report; `folder` is where the result was saved, so the replies file is named in full. */
 function testText(result: TestResult, folder?: string): string {
 	const lines = [
-		`${result.skill}: ${result.runs} runs per case, threshold ${result.threshold}, baseline ${result.baseline}`,
+		`${result.skill}: ${result.runs} runs per case, threshold ${result.threshold}, baseline ${result.baseline}${result.model ? `, model ${result.model === harnessDefault ? "the harness's default" : result.model}` : ''}`,
 	]
+	// Each case on a model of its own says so, so its result is not read as the run's model's (R161).
+	for (const item of result.cases) if (item.model) lines.push(`model ${item.case}: ${item.model}`)
 	// Sandbox failures come first, so the pass rates below are not read as the skill's (R154).
 	const sandbox = result.sandboxFailures ?? []
 	if (sandbox.length) {
@@ -264,6 +275,16 @@ function testText(result: TestResult, folder?: string): string {
 			lines.push(
 				`sandbox failure: ${id} — ${counts.skill} with the skill, ${counts.baseline} without — ${sandbox.find((item) => item.case === id)?.text}`,
 			)
+	}
+	// A reached usage limit comes first too: the runs it left count toward no pass rate below (R162).
+	const incomplete = result.incomplete
+	if (incomplete) {
+		const left = incomplete.left
+			.map((item) => `${item.case} (${item.arm === 'skill' ? 'with skill' : 'without skill'}, run ${item.run})`)
+			.join(', ')
+		lines.push(
+			`warning: incomplete: the usage limit was reached (${incomplete.text})${incomplete.resets && !incomplete.text.includes(incomplete.resets) ? `; it resets ${incomplete.resets}` : ''}; ${incomplete.left.length} ${incomplete.left.length === 1 ? 'run is' : 'runs are'} left and count toward no pass rate: ${left}`,
+		)
 	}
 	for (const item of result.trigger)
 		lines.push(
@@ -289,6 +310,11 @@ function testText(result: TestResult, folder?: string): string {
 	if (result.replies) lines.push(`replies of every run: ${folder ? join(folder, result.replies) : result.replies}`)
 	if (result.partial)
 		lines.push(`partial: only ${result.partial.cases.join(', ')} ran; not saved as the expected result`)
+	if (incomplete)
+		lines.push(
+			`incomplete: not saved as the expected result; run \`skill test --resume\` on the skill${incomplete.resets ? ` after the limit resets (${incomplete.resets})` : ' after the limit resets'} to run only the runs left`,
+		)
+	if (result.resumedFrom) lines.push(`resumed: holds the runs of ${result.resumedFrom} and the runs it had left`)
 	if (result.savedAsExpected) lines.push('no expected result yet: saved this passing result as evals/expected.json')
 	if (result.expectedHeld)
 		lines.push(
@@ -298,6 +324,16 @@ function testText(result: TestResult, folder?: string): string {
 	else
 		for (const item of result.changed ?? [])
 			lines.push(`changed since ${result.comparedWith}: ${item.case} ${item.from} → ${item.to}`)
+	// A comparison across models says so (R161): the same change and its models, one line for the cases sharing them.
+	const models = new Map<string, string[]>()
+	for (const item of result.modelChanged ?? []) {
+		const key = `${item.from} → ${item.to}`
+		models.set(key, [...(models.get(key) ?? []), item.case])
+	}
+	for (const [key, cases] of models)
+		lines.push(
+			`warning: model changed since ${result.comparedWith}: ${key} for ${cases.length === result.cases.filter((item) => item.status !== 'not-run').length ? 'every case that ran' : cases.join(', ')}; a change there may be the model's, not the skill's`,
+		)
 	for (const item of result.moved ?? [])
 		lines.push(
 			`moved across accepted results: ${item.case} ${item.rates.map((rate, index) => `${index === item.rates.length - 1 ? 'now ' : ''}${rate.passed} of ${rate.ran}`).join(' → ')}`,
@@ -333,7 +369,8 @@ function testCommand({
 				type: t.string().optional(),
 			},
 			model: {
-				description: "The model each run uses. Defaults to the harness's default.",
+				description:
+					"The model each run uses: a tier (`small`, `mid`, `top`) or a model ID. Defaults to the harness's mid-tier model, or its own default when its tiers are not known. A case's own `model` in evals.yaml wins over it. The judge keeps --judge.",
 				type: t.string().optional(),
 			},
 			judge: {
@@ -363,6 +400,11 @@ function testCommand({
 					"Run the setup scripts and `script` checks of a skill whose folder is outside the repository (`--root`, else the one holding the current directory). Without it, test lists them and reports the cases that need them as not run. Read them first: they run on this machine, contained to each run's folder with no network.",
 				type: t.boolean().optional(),
 			},
+			resume: {
+				description:
+					'Run only the runs the last result left when the usage limit stopped it, with the options that run had, and merge them into it. Refused when the last result is not incomplete, or when the skill or its eval cases changed since; takes no --case, --model, --judge, --baseline, --harness, or --backend.',
+				type: t.boolean().optional(),
+			},
 			accept: {
 				description:
 					"After the run, also write its result to the skill's `evals/expected.json`, the expected result that later runs compare with. A result with sandbox failures is held back: accept it with `skill accept` once you have seen it.",
@@ -370,15 +412,15 @@ function testCommand({
 			},
 			estimate: {
 				description:
-					'Make no run: print how many runs the test plans, its estimated cost (from the last saved result, else the default per-run cost), and whether that is within the budget.',
+					'Make no run: print how many runs the test plans, its estimated cost (from the last saved result, else the default per-run cost), whether that is within the budget, and the `Test budget:` line to report. The budget is the one `skill-design.autonomy` sets under `## test budget`, unless --budget-cost or --budget-runs gives one.',
 				type: t.boolean().optional(),
 			},
 			'budget-cost': {
-				description: `The budget --estimate holds the cost to, in US dollars. Defaults to ${defaultTestBudget.cost}.`,
+				description: `The budget --estimate holds the cost to, in US dollars, instead of the one skill-design.autonomy sets. Defaults to ${defaultTestBudget.cost} when neither sets one.`,
 				type: t.number().optional(),
 			},
 			'budget-runs': {
-				description: `The budget --estimate holds the run count to when no cost is known. Defaults to ${defaultTestBudget.runs}.`,
+				description: `The budget --estimate holds the run count to when no cost is known, instead of the one skill-design.autonomy sets. Defaults to ${defaultTestBudget.runs} when neither sets one.`,
 				type: t.number().optional(),
 			},
 		},
@@ -397,12 +439,17 @@ function testCommand({
 				description: 'Test it on `claude plugin eval`',
 			},
 			{
+				command: 'cyber-agentkit skill test .agents/skills/release-notes --resume',
+				description: 'Finish a test the usage limit stopped, once the limit resets',
+			},
+			{
 				command: 'cyber-agentkit skill test .agents/skills/release-notes --accept',
 				description: "Test it and keep the result as the skill's expected result",
 			},
 			{
-				command: 'cyber-agentkit skill test .agents/skills/release-notes --estimate --budget-cost 10 --budget-runs 60',
-				description: 'Estimate what the test costs, and whether it is within a budget, without running it',
+				command: 'cyber-agentkit skill test .agents/skills/release-notes --estimate',
+				description:
+					'Estimate what the test costs, and whether it is within the configured test budget, without running it',
 			},
 		],
 		async run(
@@ -417,6 +464,7 @@ function testCommand({
 				plugin?: string[] | undefined
 				root?: string | undefined
 				accept?: boolean | undefined
+				resume?: boolean | undefined
 				'trust-scripts'?: boolean | undefined
 				case?: string[] | undefined
 				estimate?: boolean | undefined
@@ -435,6 +483,52 @@ function testCommand({
 				)
 				throw CliError.reported(exitCodes.usage)
 			}
+			// A resume runs again with the options the incomplete result was made with (R163).
+			let resume: { rows: Row[]; latest: TestResult; incomplete: Incomplete } | undefined
+			if (args.resume) {
+				const given = (['case', 'model', 'judge', 'baseline', 'harness', 'backend', 'estimate'] as const).filter(
+					(key) => args[key] !== undefined,
+				)
+				if (given.length) {
+					process.stderr.write(
+						`error: resume-options: --resume runs with the options of the result it resumes; drop ${given.map((key) => `--${key}`).join(', ')}\n`,
+					)
+					throw CliError.reported(exitCodes.usage)
+				}
+				const name =
+					typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+				const folder = resultsFolder(resultsBase(args.root, homedir()), name)
+				const latest = readLatest(folder)
+				const incomplete = latest?.incomplete
+				if (!latest || !incomplete) {
+					process.stderr.write(
+						`error: nothing-to-resume: the last test of ${name} is ${latest ? 'not incomplete' : 'not saved'}; run \`skill test\` without --resume\n`,
+					)
+					throw CliError.reported(exitCodes.error)
+				}
+				let rows: Row[] | undefined
+				try {
+					rows = incomplete.runs
+						? (JSON.parse(readFileSync(join(folder, incomplete.runs), 'utf8')) as Row[])
+						: undefined
+				} catch {
+					rows = undefined
+				}
+				if (!rows || !incomplete.options || !incomplete.fingerprint) {
+					process.stderr.write(
+						`error: resume-unavailable: the last test of ${name} kept no runs to resume from; run the whole test again\n`,
+					)
+					throw CliError.reported(exitCodes.error)
+				}
+				resume = { rows, latest, incomplete }
+				args.harness = incomplete.options.harness
+				args.backend = incomplete.options.backend
+				args.case = incomplete.options.cases
+				args.model = incomplete.options.model
+				args.judge = incomplete.options.judge
+				args.baseline = incomplete.options.baseline
+				args['trust-scripts'] = incomplete.options.trustScripts
+			}
 			const harnessId = args.harness ?? 'claude-code'
 			if (!(harnessIds as readonly string[]).includes(harnessId)) {
 				process.stderr.write(
@@ -442,11 +536,25 @@ function testCommand({
 				)
 				throw CliError.reported(exitCodes.usage)
 			}
-			const harness = skillTestHarness(harnessId as HarnessId, args.model)
-			if ('problem' in harness) {
-				process.stderr.write(`error: unsupported-harness: ${harness.problem}\n`)
+			const driver = skillTestHarness(harnessId as HarnessId)
+			if ('problem' in driver) {
+				process.stderr.write(`error: unsupported-harness: ${driver.problem}\n`)
 				throw CliError.reported(exitCodes.usage)
 			}
+			// A tier becomes the harness's model, and with none named the runs take its mid tier (R161).
+			const runModel = resolveModel(driver, args.model)
+			if ('problem' in runModel) {
+				process.stderr.write(`error: unknown-tier: ${runModel.problem}\n`)
+				throw CliError.reported(exitCodes.usage)
+			}
+			const harness =
+				runModel.model === undefined
+					? driver
+					: (skillTestHarness(harnessId as HarnessId, runModel.model) as SkillTestHarness)
+			if (runModel.model === undefined)
+				process.stderr.write(
+					`warning: harness-default-model: ${harness.id} has no known mid-tier model, so each run uses its default; name one with --model\n`,
+				)
 			const backend = args.backend ?? 'promptfoo'
 			if (backend !== 'promptfoo' && backend !== 'plugin-eval') {
 				process.stderr.write(`error: unknown-backend: no backend ${backend}; use promptfoo or plugin-eval\n`)
@@ -464,6 +572,12 @@ function testCommand({
 				throw CliError.reported(planned.code === 'unknown-case' ? exitCodes.usage : exitCodes.error)
 			}
 			for (const warning of planned.warnings) process.stderr.write(`warning: ${warning}\n`)
+			const modelled = resolvePlanModels(planned.plan, harness, args.model)
+			if ('problem' in modelled) {
+				process.stderr.write(`error: unknown-tier: ${modelled.problem}\n`)
+				throw CliError.reported(exitCodes.usage)
+			}
+			planned.plan = modelled.plan
 			// The scripts of a skill from outside the repository are listed, and run only when the author trusts them (R158).
 			const repository = args.root === undefined ? findRoot(process.cwd()) : resolve(args.root)
 			const scripts = planScripts(planned.plan)
@@ -488,22 +602,14 @@ function testCommand({
 					)
 				}
 			}
-			const home = homedir()
-			if (args.estimate) {
-				const skillName =
-					typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
-				const estimate = estimateTest(
-					skillName,
-					planned.plan,
-					lastResult(resultsFolder(resultsBase(args.root, home), skillName), skill.folder),
-					harness.id,
-					{
-						cost: args['budget-cost'] ?? defaultTestBudget.cost,
-						runs: args['budget-runs'] ?? defaultTestBudget.runs,
-					},
+			const fingerprint = backend === 'promptfoo' ? testFingerprint(planned.plan, skill.folder) : undefined
+			if (resume && resume.incomplete.fingerprint !== fingerprint) {
+				process.stderr.write(
+					`error: resume-changed: the skill or its eval cases changed since the test ${resume.latest.at} stopped, so its runs cannot be merged; run the whole test again\n`,
 				)
-				return result(estimate, { render: { text: () => estimateText(estimate) } })
+				throw CliError.reported(exitCodes.error)
 			}
+			const home = homedir()
 			const layers = await referenceLayers({
 				root: args.root,
 				cwd: process.cwd(),
@@ -512,6 +618,28 @@ function testCommand({
 				env: process.env,
 				plugin,
 			})
+			if (args.estimate) {
+				const skillName =
+					typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+				// With no budget option, the budget is the one `skill-design.autonomy` sets, resolved as `reference load`
+				// resolves it, so the skill reports the line as printed instead of reading the reference itself (#238).
+				const flagged = args['budget-cost'] !== undefined || args['budget-runs'] !== undefined
+				const configured = flagged
+					? undefined
+					: parseTestBudget(resolveReference('skill-design.autonomy', layers).content)
+				const estimate = estimateTest(
+					skillName,
+					planned.plan,
+					lastResult(resultsFolder(resultsBase(args.root, home), skillName), skill.folder),
+					harness.id,
+					configured ?? {
+						cost: args['budget-cost'] ?? defaultTestBudget.cost,
+						runs: args['budget-runs'] ?? defaultTestBudget.runs,
+					},
+					flagged ? 'flags' : configured ? 'reference' : 'default',
+				)
+				return result(estimate, { render: { text: () => estimateText(estimate) } })
+			}
 			const verification = loadAspect('skill-design.aspects.verification', layers, (path) => collapseHome(home, path))
 			const name =
 				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
@@ -519,13 +647,17 @@ function testCommand({
 			const report =
 				this.ui?.displayLevel === 'none' ? undefined : (line: string) => void process.stderr.write(`${line}\n`)
 			const resultFolder = resultsFolder(resultsBase(args.root, home), name)
-			report?.(planLine(planned.plan, lastResult(resultFolder, skill.folder)))
+			if (resume)
+				report?.(
+					`skill test: resuming ${resume.latest.at}: ${resume.incomplete.left.length} runs left of ${resume.latest.totalRuns ?? 'an unknown number'}; ${planned.plan.concurrency} at once`,
+				)
+			else report?.(planLine(planned.plan, lastResult(resultFolder, skill.folder)))
 			const common = {
 				plan: planned.plan,
 				skill,
 				skillName: name,
 				baselineFolder: args.baseline === undefined ? undefined : resolve(args.baseline),
-				model: args.model,
+				model: modelled.model,
 				judge: args.judge,
 				verification: `${verification.name} from ${verification.implementation}`,
 				at: new Date().toISOString(),
@@ -543,26 +675,52 @@ function testCommand({
 								installed: await installed(),
 							},
 							progress: report ? { ...progress, write: report } : undefined,
+							resume: resume && {
+								rows: resume.rows,
+								left: resume.incomplete.left,
+								from: resume.latest.at,
+								durationMs: resume.latest.durationMs,
+							},
 						})
 			if ('problem' in ran) {
 				process.stderr.write(`error: ${('code' in ran && ran.code) || `${backend}-failed`}: ${ran.problem}\n`)
 				throw CliError.reported(exitCodes.error)
 			}
 			for (const warning of ran.warnings) process.stderr.write(`warning: ${warning}\n`)
-			const saved = saveResult(resultFolder, ran.result, skill.folder, ran.replies)
+			// An incomplete result keeps what a resume needs: the options it ran with, and what the skill and plan were (R163).
+			const options: ResumeOptions = {
+				harness: harness.id,
+				backend,
+				...(args.case?.length ? { cases: args.case } : {}),
+				...(args.model !== undefined ? { model: args.model } : {}),
+				...(args.judge !== undefined ? { judge: args.judge } : {}),
+				...(args.baseline !== undefined ? { baseline: args.baseline } : {}),
+				...(args['trust-scripts'] ? { trustScripts: true } : {}),
+			}
+			const toSave: TestResult =
+				ran.result.incomplete && fingerprint
+					? { ...ran.result, incomplete: { ...ran.result.incomplete, fingerprint, options } }
+					: ran.result
+			const saved = saveResult(
+				resultFolder,
+				toSave,
+				skill.folder,
+				ran.replies,
+				'rows' in ran ? (ran.rows as Row[]) : undefined,
+			)
 			const failed = [...saved.trigger, ...saved.criteria].some((item) => item.status === 'fail')
-			// The first run that passes becomes the expected result when there is none (R80).
-			const firstPass = !failed && !saved.partial && !existsSync(expectedPath(skill.folder))
+			// The first run that passes becomes the expected result when there is none (R80); an incomplete one never does (R162).
+			const firstPass = !failed && !saved.partial && !saved.incomplete && !existsSync(expectedPath(skill.folder))
 			// A result with sandbox failures becomes the expected one only by `skill accept`, once the author has seen it (R154).
-			const held = (args.accept || firstPass) && !!saved.sandboxFailures?.length
-			if ((args.accept || firstPass) && !held) acceptResult(saved, skill.folder)
+			const held = (args.accept || firstPass) && !!saved.sandboxFailures?.length && !saved.incomplete
+			if ((args.accept || firstPass) && !held && !saved.incomplete) acceptResult(saved, skill.folder)
 			const reported: TestResult = held
 				? { ...saved, expectedHeld: true }
 				: !args.accept && firstPass
 					? { ...saved, savedAsExpected: true }
 					: saved
 			const answer = result(reported, { render: { text: () => testText(reported, resultFolder) } })
-			if (failed) answerThenFail(answer, this.format)
+			if (failed || saved.incomplete) answerThenFail(answer, this.format)
 			return answer
 		},
 	})
@@ -602,6 +760,12 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 			if (latest.partial) {
 				process.stderr.write(
 					`error: partial-result: the last test of ${name} ran only ${latest.partial.cases.join(', ')}; run the whole test to accept it\n`,
+				)
+				throw CliError.reported(exitCodes.error)
+			}
+			if (latest.incomplete) {
+				process.stderr.write(
+					`error: incomplete-result: the usage limit stopped the last test of ${name} with ${latest.incomplete.left.length} runs left; run \`skill test --resume\` to finish it, then accept it\n`,
 				)
 				throw CliError.reported(exitCodes.error)
 			}
