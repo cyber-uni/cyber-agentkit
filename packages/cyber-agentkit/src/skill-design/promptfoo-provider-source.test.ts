@@ -140,6 +140,10 @@ describe('promptfooProviderSource home (F4, F10)', () => {
 		expect(env.BASH_MAX_TIMEOUT_MS).toBe('120000')
 		expect(env.CLAUDE_CODE_DISABLE_BACKGROUND_TASKS).toBe('1')
 	})
+
+	it('starts each shell command in the run folder, so a cd into the read-only plugin copy cannot break the sandbox (E-CC-D17)', () => {
+		expect(runProvider(true, { plugin: true }).env.CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR).toBe('1')
+	})
 })
 
 describe('promptfooProviderSource containment (R107)', () => {
