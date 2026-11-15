@@ -40,7 +40,7 @@ contract apply here; IDs are shared across the parent and its children.
 
 - R5 (UC1): `create` drafts Intent, researches it, then drafts Criteria, Shape, and Trigger in that order, then builds
   the skill, then runs `test`.
-- R6 (UC1, UC2, UC10): At `ask`, no aspect's output is written before the author approves it.
+- R6 (UC1, UC2, UC10; E1): At `ask`, no aspect's output is written before the author approves it.
 - R7 (UC1.1, UC2.4): When a skill with that name exists at the chosen location, the command stops, leaves it unchanged,
   and points to `check`, `fix`, and `enhance`.
 - R8 (UC1.2): When the author rejects an aspect's draft, that aspect is redrafted, and every aspect after it in K2's
@@ -49,5 +49,6 @@ contract apply here; IDs are shared across the parent and its children.
 - R10 (UC1.5, UC2.4): When the author stops partway, every aspect already approved stays on disk.
 - R152 (UC1): Before Criteria is drafted, the skill's research is recorded: a linked research record, a quick
   prior-art search, or a skip with its reason, through a Research implementation a team can swap.
-- R153 (UC1.6): When Research finds an existing skill that does the job, `create` stops at every autonomy level, names
-  that skill, and asks whether to adopt it, with no `SKILL.md` written before the answer.
+- R153 (UC1.6; E3): When Research finds an existing skill that does the job, `create` stops at every autonomy level,
+  names that skill, and asks whether to adopt it, with no `SKILL.md` written before the answer, as the Stop outcome
+  R167 states.

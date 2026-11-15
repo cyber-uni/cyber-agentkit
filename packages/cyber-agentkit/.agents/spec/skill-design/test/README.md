@@ -80,6 +80,8 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC6.22** The account's usage limit is reached partway through. No new run starts; the result says the limit was
     reached, when it resets, and which runs are left, and it is incomplete, so it never becomes the expected result.
     After the reset, the author runs only the runs left and they join the incomplete result.
+  - **UC6.23** The estimate for the runs is over the test budget, whichever command starts `test` and at every
+    autonomy level. No run starts, and the run stops, offering to run every case, to run some cases, or not to run.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -190,6 +192,9 @@ contract apply here; IDs are shared across the parent and its children.
   run. The result is marked incomplete, is never saved as the expected result, and an accept of it is refused. The
   report and the progress say the limit was reached, when it resets when the message says, and which runs are left.
   The messages recognized are kept in one list that more can be added to.
+- R166 (UC1, UC6.23; E2): Before any run, `test` estimates the runs and their cost against the test budget, whichever
+  command starts it. Over the budget, no run starts, and the run stops with the Stop outcome R167 states; the decision
+  gives the run count and the estimate, and offers to run every case, to run some cases, or not to run.
 - R163 (UC6.22): `test` asked to resume runs only the runs an incomplete result has left, and the result holds the
   runs it had and the new ones, as one run of the whole test would. It refuses, and runs nothing, when the last result
   is not incomplete, or when the skill or its eval cases changed since that result.
