@@ -150,6 +150,17 @@ outcome:
         - regex: "~?\\d[\\d,]* tokens"
         - regex: "\\?"
         - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+  # files/sandbox-report holds release-notes with no expected result, and test-report.json, what `skill test
+  # --format json` printed for it when a sandbox failure broke one of two-prs' runs with the skill (#248). The sandbox
+  # fault cannot be caused on demand, so the case acts on that saved report, and the same result saved for `skill
+  # accept`, instead of running the test. Both write the fault's "Can't" as "Can\u0027t", so a run that reads them is
+  # not itself taken for a sandbox failure.
+  - id: test-sandbox-failures
+    prompt: >-
+      With /skill, report the test of .agents/skills/release-notes: I already ran it and saved what it printed to
+      test-report.json, so don't run it again. Tell me what to do next.
+    files: files/sandbox-report
+    criteria: [C19]
   - id: help
     prompt: I want to create, check, test, or fix an agent skill. Which commands can I use? List them all.
     files: files/samples
@@ -242,3 +253,10 @@ rubrics:
     - regex: "`check`|\\b(static|automatic) checks?\\b"
   C17:
     - regex: "[Rr]esearch"
+  C19:
+    - regex: "[Ss]andbox[ -]failures?"
+    - regex: "[Nn]o pass rate|not (be )?counted|(doesn't|does not|don't|do not|didn't|did not|never) count|count(s|ed)? (toward|against) (no|none)|excluded|left out"
+    - regex: "(not|n't)( been| yet)? saved|\\bheld\\b"
+    - regex: "skill(\\.mjs)? accept\\b"
+    - not-regex: "(run|use|try|want me to|shall I|should I|I can|offer)[^\\n]{0,30}`?/?(skill )?fix`?\\b"
+    - script: "test ! -e .agents/skills/release-notes/evals/expected.json && test -z \"$(git status --porcelain --untracked-files=all)\""

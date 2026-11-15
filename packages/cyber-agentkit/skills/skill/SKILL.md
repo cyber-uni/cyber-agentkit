@@ -140,7 +140,7 @@ Produces the `description` in the skill's front matter, and the near misses Veri
 **Draft.** Name the job in the words users type, with two or three phrasings. Open with the job, not a lead-in such as "Use this skill when" or
 "Use when", and add no filler words. Say nothing about when not to use it. List three or more near misses: requests a
 user could plausibly make that belong to the nearest other jobs. Two kinds of skill are exempt from this: a
-name-only skill (a direct-invocation skill), whose description is a fixed marker as below, and a user-only skill, which
+name-only skill, whose description is a fixed marker as below, and a user-only skill, which
 stays user-invocable but turns model invocation off (in Claude Code, `disable-model-invocation: true`).
 
 **Name-only skill.** A skill that another skill loads by name, and that no user request should match, is name-only. Its
@@ -276,3 +276,4 @@ Before reporting done, check each of these against the result. Report any that f
   when an existing skill covers the job, the run wrote no `SKILL.md`, named that skill, and asked whether to adopt it.
 - **C18.** When SHP-1 failed, `fix` named each way to trim that applies with the tokens it saves, and at `ask` changed
   no file before the author picked.
+- **C19.** Sandbox failures were reported as uncounted, a held result as unsaved until `skill accept`, with no `fix`.

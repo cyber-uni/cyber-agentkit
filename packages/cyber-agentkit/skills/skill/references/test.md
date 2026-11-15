@@ -79,7 +79,7 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
       "arm": "skill",
       "run": 3,
       "fault": "bwrap-read-only-mount",
-      "text": "bwrap: Can't create file at /tmp/skill-test-plugin-x/references/.claude/launch.json: Read-only file system"
+      "text": "bwrap: Can\u0027t create file at /tmp/skill-test-plugin-x/references/.claude/launch.json: Read-only file system"
     }
   ],
   "comparedWith": "expected",
@@ -107,7 +107,7 @@ limit is in `notRun` and never counts as a pass; its `reason` is one short line,
 criterion has a `baseline` field.
 
 `sandboxFailures`, left out when there is none, lists each run, in either arm, whose tool output or error carries an
-error `skill test` knows the test sandbox caused, such as `bwrap: Can't create file at …: Read-only file system`: `fault`
+error `skill test` knows the test sandbox caused, such as bwrap's `Can't create file at …` ending in `Read-only file system`: `fault`
 names it and `text` is what the run printed. Such a run is a **sandbox failure**: it counts toward no pass rate, and
 a case's threshold holds over its other runs. A case's `sandboxFailed`, left out when none was, counts its runs with
 the skill that were. A run that broke for a reason `skill test` cannot name is in `notRun` instead.
@@ -153,8 +153,11 @@ history grows from the next accept.
 
 ## Report
 
-When the result has sandbox failures, say so first, before any pass rate, give each case's `sandboxFailed` beside it,
-and say the result was not saved as expected when it carries `expectedHeld`. Then each
+When the result has sandbox failures, say so first, before any pass rate: those runs broke in the test sandbox, not
+in the skill, and count toward no pass rate. Give each case's `sandboxFailed` beside it. When the result carries
+`expectedHeld`, say it was not saved as the expected result because of them, and name `skill accept <folder>` as how
+to save it once the author has looked; never run it for them. A sandbox failure is not a failure of the skill: offer
+no `fix` for it. Then each
 trigger case beside what was expected; each criterion's pass rate, threshold, and baseline; each failure with its
 case and the output that broke it; what the runs with the skill tried and were refused, if anything; and the cases that changed between pass and fail since the expected result, or, with
 none, the previous result, saying which. With neither, say there is none to compare. Name each case in `moved` with
