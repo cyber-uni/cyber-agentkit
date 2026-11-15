@@ -1,6 +1,6 @@
 ---
 name: instruction
-description: Compare two wordings of an always-loaded instruction (an AGENTS.md section, a CLAUDE.md rule, or a section of a global instruction file) by running them, as in "which wording of Commit Discipline works better", "A/B test this AGENTS.md section", or "measure this instruction against the current one".
+description: Compare two wordings of an AGENTS.md section or other always-loaded instruction by running them. The instruction can also be a CLAUDE.md rule or a section of a global instruction file, as in "which wording of Commit Discipline works better", "A/B test this AGENTS.md section", or "measure this instruction against the current one".
 argument-hint: "compare <wording A> <wording B> [--cases <file>] [--runs <n>]"
 ---
 

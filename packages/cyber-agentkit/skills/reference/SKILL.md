@@ -1,6 +1,6 @@
 ---
 name: reference
-description: Load, create, customize, update, delete, migrate, find, inspect, or register a reference (a document agents read by name, Markdown or a JSON, YAML, TOML, or text file), or wire a skill to load one. Also migrate reference files left in a version 1 form, or under a name a plugin renamed, as a `reference-legacy-format` or `reference-renamed` warning asks.
+description: Load, create, customize, update, delete, migrate, find, inspect, or register a reference document. A reference is a document agents read by name (Markdown or a JSON, YAML, TOML, or text file), layered across the plugin, user, repo, and managed tiers, so also explain why a reference resolved as it did or change what the repo's copy says. Also wire a skill to load one, or migrate reference files left in a version 1 form, or under a name a plugin renamed, as a `reference-legacy-format` or `reference-renamed` warning asks.
 ---
 
 # Reference
