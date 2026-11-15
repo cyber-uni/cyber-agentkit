@@ -118,7 +118,19 @@ on its own, and give each step one way to do it. At `ask`, propose the layout to
 - **SHP-18** [read, warning] Each script or command the body runs writes machine output to stdout, in the format the
   body asks for, and prints prose only behind `--verbose`.
 
-**Fix.** Move the text or the step as Draft says, and update the links. For SHP-5, propose the reference and the
+**Fix.** Move the text or the step as Draft says, and update the links. For SHP-1, before changing anything, estimate
+what each way to trim that applies saves, at four characters a token, naming the sections it touches:
+
+1. **Drop dead text**: text for a command, option, or case the skill no longer has.
+2. **Move to a reference**: a section only one command or case reads moves to its own file under `references/`, and
+   the body says when to load it. It saves the most when the skill serves several commands.
+3. **Tighten the prose**: cut what SHP-15 names, repeats, and explanations of reasons, and shorten sentences without
+   changing what the agent does. Never cut or weaken a `## Done when` criterion.
+4. **Move checkable detail to a script**: a rule a script or test can decide moves there, and the prose keeps a
+   one-line pointer to it.
+
+At `ask`, offer each one, lettered, with its estimate, and apply only what the author picks. At `apply-safe` and
+`apply`, apply them in that order until SHP-1 passes, keeping each only when `test` is no worse. For SHP-5, propose the reference and the
 interface the skill should depend on (a new host, tracker, or workflow is then an implementation, not an edit to the
 skill), and the author decides each move. Apply an approved one with the `reference` skill: Create the default, then
 Wire a skill. For SHP-6, ship the default. For SHP-7 to SHP-11, move the file or folder the check names, and update
@@ -279,3 +291,5 @@ Before reporting done, check each of these against the result. Report any that f
   and the run stopped only where Autonomy's Stops says.
 - **C17.** `create` ran Research before it wrote Criteria: the skill's `README.md` has a `## Research` section, or,
   when an existing skill covers the job, the run wrote no `SKILL.md`, named that skill, and asked whether to adopt it.
+- **C18.** When SHP-1 failed, `fix` named each way to trim that applies with the tokens it saves, and at `ask` changed
+  no file before the author picked.

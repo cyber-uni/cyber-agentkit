@@ -1,0 +1,5 @@
+[
+	{ "number": 1, "title": "Crash on empty config", "body": "TypeError: cannot read 'port' of undefined", "labels": [] },
+	{ "number": 2, "title": "Please add a dark theme", "body": "It would be nice to have a dark theme.", "labels": [] },
+	{ "number": 3, "title": "How do I set the port?", "body": "How do I change the port?", "labels": ["config/question"] }
+]

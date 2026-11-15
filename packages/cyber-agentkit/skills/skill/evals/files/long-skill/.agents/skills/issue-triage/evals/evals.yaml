@@ -1,0 +1,18 @@
+runs: 3
+threshold: 2
+trigger:
+  - { prompt: Triage the new issues., expect: fire }
+  - { prompt: Label these open issues., expect: fire }
+  - { prompt: Are our issue labels right? Audit them., expect: fire }
+  - { prompt: Close the stale issues., expect: skip }
+  - { prompt: Answer the question in issue 12., expect: skip }
+  - { prompt: Write the release notes., expect: skip }
+outcome:
+  - id: triage
+    prompt: Triage the new issues.
+    files: files/three-issues
+rubrics:
+  C1:
+    - script: "test $(wc -l < TRIAGE.md) = 2"
+  C2:
+    - script: "true"
