@@ -249,10 +249,11 @@ rubrics:
         && test ! -e .agents/skill-design/results
     - regex: "Test budget:\\W{0,4}over"
     - regex: "\\b\\d+ runs\\b"
-    - regex: "\\?"
+    # A stop ends with a question or with options lettered A, B, and so on (#264); the scripts check it stopped.
+    - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa][.)][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb][.)]"
   C15:
     - regex: "[Ii]ntent|[Pp]urpose|what (the skill|it) is for"
-    - regex: "\\?"
+    - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa][.)][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb][.)]"
     - script: "git diff --quiet HEAD -- .agents/skills/release-notes && test -z \"$(git status --porcelain --untracked-files=all -- .agents/skills/release-notes)\""
   C16:
     - not-regex: "[Nn]o (author|one|human) (is )?(present|watching|available)|[Uu]nattended|[Nn]obody (is )?(present|watching|available)"
@@ -284,8 +285,9 @@ rubrics:
         && git diff --quiet HEAD -- $d/files .agents/skills/release-notes-flawed
   C19:
     - regex: "[Ss]andbox[ -]failures?"
-    - regex: "[Nn]o pass rate|not (be )?counted|(doesn't|does not|don't|do not|didn't|did not|never) count|count(s|ed)? (toward|against) (no|none)|excluded|left out"
-    - regex: "(not|n't)( been| yet)? saved|\\bheld\\b"
+    - regex: "[Nn]o pass rate|(not|n't)( be| been)? (counted|included)|(doesn't|does not|don't|do not|didn't|did not|never|aren't|weren't) count\\b|count(s|ed)? (toward|against) (no|none)|excluded|left out"
+    # Not saved, in the words runs use for it: not saved or accepted, held, or on hold (#264).
+    - regex: "(not|n't)( been| yet| yet been)? (saved|accepted)|\\bheld\\b|\\bon hold\\b"
     - regex: "skill(\\.mjs)? accept\\b"
     - not-regex: "(run|use|try|want me to|shall I|should I|I can|offer)[^\\n]{0,30}`?/?(skill )?fix`?\\b"
     - script: "test ! -e .agents/skills/release-notes/evals/expected.json && test -z \"$(git status --porcelain --untracked-files=all)\""
