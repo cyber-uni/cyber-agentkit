@@ -241,7 +241,8 @@ export function writePluginEvalSuite(
 			max_turns: item.kind === 'trigger' ? 3 : 20,
 			timeout_seconds: Math.min(plan.timeout, 3600),
 			allowed_tools: ['Read', 'Glob', 'Grep', 'Skill', 'Write', 'Edit', 'Bash'],
-			...(model ? { model } : {}),
+			// A case's own model wins over the run's (R161); each case carries its model, so no --model flag is passed.
+			...((item.model ?? model) ? { model: item.model ?? model } : {}),
 		}
 		const yaml = {
 			schema_version: '1.1',
@@ -431,7 +432,6 @@ export async function runPluginEvalTest(
 			'WebFetch',
 			'WebSearch',
 			'AskUserQuestion',
-			...(options.model ? ['--model', options.model] : []),
 			...(options.judge ? ['--judge-model', options.judge] : []),
 			'--output-dir',
 			join(folder, 'results'),

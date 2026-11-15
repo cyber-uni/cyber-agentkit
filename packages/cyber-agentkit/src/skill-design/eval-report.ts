@@ -19,6 +19,13 @@ export type EvalReport = {
 	/** `without the skill` when the baseline ran; otherwise why it did not. */
 	baseline?: string
 	baselineRan?: boolean
+	/**
+	 * The model the cases ran on unless one names its own (R161), `default` when the harness picked it; left out for a
+	 * result saved before it was recorded.
+	 */
+	model?: string
+	/** The cases that ran on a model of their own, each with it (R161). */
+	caseModels?: { case: string; model: string }[]
 	/** US dollars, for `totalRuns` runs when the result records them. Results record no tokens. */
 	cost?: number
 	totalRuns?: number
@@ -132,6 +139,9 @@ export function evalReport(
 		baseline: result.baseline,
 		baselineRan: result.baseline === 'without the skill',
 	}
+	if (result.model) report.model = result.model
+	const caseModels = (result.cases ?? []).flatMap((c) => (c.model ? [{ case: c.case, model: c.model }] : []))
+	if (caseModels.length) report.caseModels = caseModels
 	if (typeof result.cost === 'number') report.cost = result.cost
 	if (typeof result.totalRuns === 'number') report.totalRuns = result.totalRuns
 	const gap = gapOf(result)
@@ -241,6 +251,13 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 		}`,
 		'',
 	)
+	if (report.model) {
+		const own = (report.caseModels ?? []).map((c) => `\`${cell(c.case)}\` on \`${cell(c.model)}\``)
+		out.push(
+			`${report.model === 'default' ? "The cases ran on the harness's default model" : `The cases ran on \`${cell(report.model)}\``}${own.length ? `, except ${own.join(', ')}` : ''}.`,
+			'',
+		)
+	}
 	if (typeof report.cost === 'number')
 		out.push(`The run cost ${dollars(report.cost, report.totalRuns)}, with the skill and without.`, '')
 	if (report.gap)

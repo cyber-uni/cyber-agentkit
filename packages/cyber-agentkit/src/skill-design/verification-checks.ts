@@ -24,10 +24,13 @@ export type EvalsFile = {
 	timeout?: number
 	/** Runs at once, never above the bound `skill test` sets from the hardware threads; optional. */
 	concurrency?: number
-	trigger?: { prompt: string; expect: 'fire' | 'skip' }[]
+	/** A trigger case; `model`, a tier (`small`, `mid`, `top`) or a model ID, wins over the test's model (R161). */
+	trigger?: { prompt: string; expect: 'fire' | 'skip'; model?: string }[]
 	outcome?: {
 		id: string
 		prompt: string
+		/** A tier (`small`, `mid`, `top`) or a model ID the case's runs use, over the test's model (R161). */
+		model?: string
 		files?: string
 		/** A script, relative to `evals/`, that each run runs in its folder after the files are committed. */
 		setup?: string
@@ -47,6 +50,8 @@ export type EvalsFile = {
 
 const file = 'evals/evals.yaml'
 const isFile = (path: string) => existsSync(path) && statSync(path).isFile()
+/** A tier or a model ID: one word, no space, so it cannot carry a second flag. */
+const isModel = (value: unknown) => typeof value === 'string' && /^[A-Za-z0-9][\w.:/@[\]-]*$/.test(value)
 const isRecord = (value: unknown): value is Record<string, unknown> =>
 	!!value && typeof value === 'object' && !Array.isArray(value)
 
@@ -85,6 +90,8 @@ export function evalsProblems(value: unknown): string[] {
 					!['fire', 'skip'].includes(item['expect'] as string)
 				)
 					problems.push(`trigger case ${index + 1} needs a \`prompt\` and \`expect: fire\` or \`skip\``)
+				else if (item['model'] !== undefined && !isModel(item['model']))
+					problems.push(`trigger case ${index + 1}: \`model\` is not a tier or a model ID`)
 			})
 	}
 	const outcome = value['outcome']
@@ -114,6 +121,8 @@ export function evalsProblems(value: unknown): string[] {
 					)
 				)
 					problems.push(`${where}: \`network\` is not a list of host names`)
+				if (item['model'] !== undefined && !isModel(item['model']))
+					problems.push(`${where}: \`model\` is not a tier or a model ID`)
 				if (item['guard'] !== undefined && typeof item['guard'] !== 'boolean')
 					problems.push(`${where}: \`guard\` is not true or false`)
 				const checks = item['checks']

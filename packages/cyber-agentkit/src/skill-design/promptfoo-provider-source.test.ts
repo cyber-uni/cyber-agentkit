@@ -405,6 +405,32 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 	})
 })
 
+describe('promptfooProviderSource model (R161)', () => {
+	function modelOf(caseModel?: string): unknown {
+		const root = mkdtempSync(join(tmpdir(), 'provider-model-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(
+			join(root, 'node_modules', 'promptfoo', 'index.js'),
+			'exports.loadApiProvider = async (_id, { options }) => ({ callApi: async () => ({ output: "", metadata: { model: options.config.model } }) })',
+		)
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'baseline', skillName: 'demo', isolation: ${isolation}, inner: { model: 'sonnet' } } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}'${caseModel ? `, model: '${caseModel}'` : ''} } })))
+`,
+		)
+		return JSON.parse(execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' })).metadata.model
+	}
+
+	it("runs on the run's model, or on the case's own when it names one", () => {
+		expect(modelOf()).toBe('sonnet')
+		expect(modelOf('opus')).toBe('opus')
+	})
+})
+
 describe('promptfooProviderSource trigger runs (F9)', () => {
 	/** A fake inner provider for a trigger run: it sees the turn cap and the Skill hook, calls the hook as Claude would, then hits the cap. */
 	const capped = String.raw`
@@ -598,6 +624,7 @@ out({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 5 } })
 		kind: 'trigger' | 'outcome',
 		withSkill = true,
 		pluginDir?: string,
+		model?: { args: string[]; case?: string },
 	): { response: Record<string, any>; seen: Record<string, any> } {
 		const root = mkdtempSync(join(tmpdir(), 'provider-codex-'))
 		mkdirSync(join(root, 'bin'))
@@ -616,7 +643,11 @@ out({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 5 } })
 			arm: 'skill',
 			skillName: 'demo',
 			harness: 'codex',
-			command: { executable: join(root, 'bin', 'codex'), args: ['exec', '--json', '--ignore-user-config'] },
+			command: {
+				executable: join(root, 'bin', 'codex'),
+				args: model?.args ?? ['exec', '--json', '--ignore-user-config'],
+				modelFlag: '--model',
+			},
 			...(withSkill ? { skillDir: join(root, 'skill') } : {}),
 			...(pluginDir ? { pluginDir, pluginName: 'kit' } : {}),
 		}
@@ -628,7 +659,7 @@ out({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 5 } })
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
 const provider = new Provider({ config: { ...${JSON.stringify(config)}, isolation: ${codexIsolation} } })
-console.log(JSON.stringify(await provider.callApi('write the notes', { vars: { kind: '${kind}', rubrics: ${JSON.stringify(rubrics)} } })))
+console.log(JSON.stringify(await provider.callApi('write the notes', { vars: { kind: '${kind}', rubrics: ${JSON.stringify(rubrics)}${model?.case ? `, model: '${model.case}'` : ''} } })))
 `,
 		)
 		const seenFile = join(root, 'seen.json')
@@ -656,6 +687,18 @@ console.log(JSON.stringify(await provider.callApi('write the notes', { vars: { k
 	it('ends a trigger run at the first read of a SKILL.md, and counts it fired only for the skill under test', () => {
 		expect(codex('trigger').response).toMatchObject({ output: '', metadata: { fired: true } })
 		expect(codex('trigger', false).response).toMatchObject({ metadata: { fired: false } })
+	})
+
+	it("replaces the run's model with a case's own, before the prompt (R161)", () => {
+		const args = ['exec', '--model', 'run-model', '--json']
+		expect(codex('outcome', true, undefined, { args, case: 'case-model' }).seen.args).toEqual([
+			'exec',
+			'--json',
+			'--model',
+			'case-model',
+			'write the notes',
+		])
+		expect(codex('outcome', true, undefined, { args }).seen.args).toEqual([...args, 'write the notes'])
 	})
 
 	it('gives a plugin skill project skills copied from the plugin, as Codex has no flag to load one', () => {

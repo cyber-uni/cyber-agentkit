@@ -39,6 +39,8 @@ export type CaseStatus = {
 	 */
 	guard?: true
 	baseline?: { passed: number; ran: number }
+	/** Set when the case named its own model (R161): the model its runs used, instead of the result's `model`. */
+	model?: string
 }
 /** One point of a case's pass rate: the result it comes from (its `at`), and how many runs went right of how many ran. */
 export type RatePoint = { at: string; passed: number; ran: number }
@@ -67,6 +69,11 @@ export type TestResult = {
 	folder?: string
 	at: string
 	verification: string
+	/**
+	 * The model the cases ran on unless one names its own (R161): the model passed to the harness, or `default` when
+	 * the harness picked it. Results saved before it was recorded lack it, and their model is unknown.
+	 */
+	model?: string
 	runs: number
 	threshold: number
 	baseline: string
@@ -81,6 +88,11 @@ export type TestResult = {
 	/** The runs, in either arm, that the test sandbox broke (R154); they count toward no pass rate. Left out when none was. */
 	sandboxFailures?: SandboxFailure[]
 	changed?: { case: string; from: Status; to: Status }[]
+	/**
+	 * The cases whose model differs from the one they ran on in the result `changed` compares with (R161), so a change
+	 * is not read as the skill's alone. `unknown` names the model of a result saved before it was recorded.
+	 */
+	modelChanged?: { case: string; from: string; to: string }[]
 	/** Which result `changed` compares with: the skill's expected result, else the previous saved one. */
 	comparedWith?: 'expected' | 'previous'
 	/** The cases whose pass rate moved across the kept accepted results and this run, each with its rate in each, oldest first. */
@@ -334,6 +346,9 @@ export function readPromptfooOutput(
 			...(base ? { baseline: { passed: base.filter(allPassed).length, ran: base.length } } : {}),
 		}
 	}
+	const ownModel = new Map(plan.cases.flatMap((item) => (item.model ? [[item.id, item.model] as const] : [])))
+	const withModel = (item: CaseStatus): CaseStatus =>
+		ownModel.has(item.case) ? { ...item, model: ownModel.get(item.case) as string } : item
 	const cases: CaseStatus[] = [
 		...trigger.map((item) =>
 			item.ran
@@ -348,7 +363,7 @@ export function readPromptfooOutput(
 		),
 		...outcomes.map(outcomeStatus),
 		...plan.notRun.map((item) => ({ case: item.case, status: 'not-run' as Status })),
-	]
+	].map(withModel)
 	const cost = rows.reduce((sum, row) => sum + (row.cost ?? 0), 0)
 	const blocked: Blocked[] = rows.flatMap((row) =>
 		(row.response?.metadata?.blocked ?? []).map((item) => ({
@@ -364,6 +379,7 @@ export function readPromptfooOutput(
 		skill: meta.skill,
 		at: meta.at,
 		verification: meta.verification,
+		...(plan.model ? { model: plan.model } : {}),
 		runs: plan.runs,
 		threshold: plan.threshold,
 		baseline: meta.baseline,
@@ -475,6 +491,7 @@ export function compareWithPrevious(
 	comparedWith: 'expected' | 'previous' = 'previous',
 ): TestResult {
 	if (!compared) return { ...result, noPrevious: true }
+	const { modelChanged: _modelChanged, ...rest } = result
 	const before = new Map(compared.cases.map((item) => [item.case, item.status]))
 	const changed = result.cases.flatMap((item) => {
 		if (result.partial && !result.partial.cases.includes(item.case)) return []
@@ -482,5 +499,26 @@ export function compareWithPrevious(
 		const flipped = (from === 'pass' && item.status === 'fail') || (from === 'fail' && item.status === 'pass')
 		return flipped && from ? [{ case: item.case, from, to: item.status }] : []
 	})
-	return { ...result, comparedWith, changed }
+	const modelChanged = modelChanges(result, compared)
+	return { ...rest, comparedWith, changed, ...(modelChanged.length ? { modelChanged } : {}) }
+}
+
+/** The model one case ran on in a result: its own, else the result's, else `unknown` for a result that lacks it. */
+export function caseModel(result: TestResult, id: string): string {
+	return result.cases.find((item) => item.case === id)?.model ?? result.model ?? 'unknown'
+}
+
+/**
+ * The cases that ran and are in both results whose model differs between them (R161). A result saved before models
+ * were recorded has the model `unknown`, so every case differs from one that names its model.
+ */
+export function modelChanges(result: TestResult, compared: TestResult): { case: string; from: string; to: string }[] {
+	const known = new Set(compared.cases.map((item) => item.case))
+	return result.cases.flatMap((item) => {
+		if (!known.has(item.case) || item.status === 'not-run') return []
+		if (result.partial && !result.partial.cases.includes(item.case)) return []
+		const from = caseModel(compared, item.case)
+		const to = caseModel(result, item.case)
+		return from === to ? [] : [{ case: item.case, from, to }]
+	})
 }

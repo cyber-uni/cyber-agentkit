@@ -1147,3 +1147,116 @@ describe('skill test scripts from outside the repository (R158)', () => {
 		expect(tests.map((item) => item.description)).toContain('two-prs')
 	})
 })
+
+describe('skill test model (R161)', () => {
+	const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+	const latest = () =>
+		JSON.parse(
+			readFileSync(join(fakeHome, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'), 'utf8'),
+		) as TestResult
+	type Seen = { config?: Record<string, unknown> }
+	const providers = (seen: Seen) => seen.config?.['providers'] as { config: Record<string, any> }[]
+	const tests = (seen: Seen) => seen.config?.['tests'] as { description: string; vars: Record<string, string> }[]
+	const ownModels = goodEvals
+		.replace(
+			'{ prompt: write release notes, expect: fire }',
+			'{ prompt: write release notes, expect: fire, model: small }',
+		)
+		.replace(
+			'{ id: two-prs, prompt: write the notes, files: files/two-prs }',
+			'{ id: two-prs, prompt: write the notes, files: files/two-prs, model: claude-opus-5-5 }',
+		)
+
+	it("runs each case on the harness's mid-tier model when no model is named, and records it", async () => {
+		const seen: Seen = {}
+		expect(await test(goodSkill().folder, fakeRun(seen), repo())).toBe(0)
+		expect(providers(seen).map((p) => p.config.inner.model)).toEqual(['sonnet', 'sonnet'])
+		expect(tests(seen).every((item) => item.vars['model'] === undefined)).toBe(true)
+		expect(latest().model).toBe('sonnet')
+		expect(latest().cases.every((item) => item.model === undefined)).toBe(true)
+	})
+
+	it('takes a tier or a model ID named with --model for the whole run', async () => {
+		const tier: Seen = {}
+		await test(goodSkill().folder, fakeRun(tier), repo(), '--model', 'top')
+		expect(providers(tier)[0]?.config.inner.model).toBe('opus')
+		const id: Seen = {}
+		await test(goodSkill().folder, fakeRun(id), repo(), '--model', 'claude-haiku-5-5')
+		expect(providers(id)[0]?.config.inner.model).toBe('claude-haiku-5-5')
+		expect(latest().model).toBe('claude-haiku-5-5')
+	})
+
+	it('runs a case that names its own model or tier on it, over --model, and the result names it', async () => {
+		const seen: Seen = {}
+		await test(goodSkill({ 'evals/evals.yaml': ownModels }).folder, fakeRun(seen), repo(), '--model', 'mid')
+		const vars = Object.fromEntries(tests(seen).map((item) => [item.description, item.vars['model']]))
+		expect(vars).toMatchObject({ 'trigger-1': 'haiku', 'trigger-2': undefined, 'two-prs': 'claude-opus-5-5' })
+		expect(providers(seen)[0]?.config.inner.model).toBe('sonnet')
+		const cases = Object.fromEntries(latest().cases.map((item) => [item.case, item.model]))
+		expect(cases).toMatchObject({ 'trigger-1': 'haiku', 'trigger-2': undefined, 'two-prs': 'claude-opus-5-5' })
+	})
+
+	it('leaves the judge on --judge', async () => {
+		const evals = goodEvals.replace('    - contains: "## Release notes"', '    - judge: Pass when it has notes.')
+		const seen: Seen = {}
+		await test(goodSkill({ 'evals/evals.yaml': evals }).folder, fakeRun(seen), repo(), '--judge', 'opus')
+		const judged = tests(seen)
+			.flatMap((item) => (item as unknown as { assert: { type: string; provider?: any }[] }).assert)
+			.find((check) => check.type === 'llm-rubric')
+		expect(judged?.provider.config.model).toBe('opus')
+		expect(providers(seen)[0]?.config.inner.model).toBe('sonnet')
+	})
+
+	it('runs Codex on its own default when no model is named, since its tiers are not known, and says so', async () => {
+		const seen: Seen = {}
+		expect(await test(goodSkill().folder, fakeRun(seen), repo(), '--harness', 'codex')).toBe(0)
+		expect(providers(seen)[0]?.config.command.args).not.toContain('--model')
+		expect(providers(seen)[0]?.config.command.modelFlag).toBe('--model')
+		expect(errors()).toContain('warning: harness-default-model: codex has no known mid-tier model')
+		expect(latest().model).toBe('default')
+	})
+
+	it('refuses a tier the harness does not map, for the run or a case, before any run', async () => {
+		const seen: Seen = {}
+		expect(await test(goodSkill().folder, fakeRun(seen), repo(), '--harness', 'codex', '--model', 'top')).not.toBe(0)
+		expect(errors()).toContain('error: unknown-tier: codex has no known top-tier model')
+		stderr.mockClear()
+		const skill = goodSkill({ 'evals/evals.yaml': ownModels })
+		expect(await test(skill.folder, fakeRun(seen), repo(), '--harness', 'codex', '--model', 'gpt-x')).not.toBe(0)
+		expect(errors()).toContain('error: unknown-tier: case trigger-1: codex has no known small-tier model')
+		expect(seen.config).toBeUndefined()
+	})
+
+	it('prints the model, each case on its own, and warns when the compared result ran on another model', async () => {
+		const text = async (...extra: string[]) => {
+			stdout.mockClear()
+			const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
+				createSkillCommand({ ...offline, runPromptfoo: fakeRun({}) }),
+			)
+			await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root, ...extra])
+			return printed()
+		}
+		const skill = goodSkill({ 'evals/evals.yaml': ownModels })
+		const root = repo()
+		const first = await text()
+		expect(first).toMatch(/^release-notes: 3 runs per case, threshold 2, baseline without the skill, model sonnet$/m)
+		expect(first).toContain('model trigger-1: haiku\nmodel two-prs: claude-opus-5-5\n')
+		expect(first).not.toContain('model changed')
+		const second = await text('--model', 'top')
+		expect(second).toContain(
+			'warning: model changed since expected: sonnet → opus for trigger-2, trigger-3, trigger-4, trigger-5, trigger-6',
+		)
+		const third = await text('--model', 'top')
+		expect(third).toContain('warning: model changed since expected: sonnet → opus')
+		acceptLatest(skill.folder)
+		expect(await text('--model', 'top')).not.toContain('model changed')
+	})
+})
+
+/** Accepts the last saved result of the release-notes skill as its expected result. */
+function acceptLatest(skillFolder: string): void {
+	const saved = JSON.parse(
+		readFileSync(join(fakeHome, '.agents', 'skill-design', 'results', 'release-notes', 'latest.json'), 'utf8'),
+	) as TestResult
+	acceptResult(saved, skillFolder)
+}

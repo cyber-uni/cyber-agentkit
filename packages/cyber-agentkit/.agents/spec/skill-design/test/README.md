@@ -72,6 +72,11 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC6.20** A case keeps a behavior that passes without the skill too, such as one another part of the plugin
     teaches. The author marks it as a guard, and the report shows its pass in both arms as expected rather than as a
     skill that adds nothing. A guard that fails with the skill is still a failure.
+  - **UC6.21** The author names no model. The runs use a mid-tier model of the harness, not its most capable one, so a
+    full test costs less. The author can name a model, or a tier, for the whole test, and a case can name its own,
+    which wins over both, for a case known to need a stronger or a cheaper model. The judge's model is set apart. The
+    result names the model each case ran on, and a comparison with a result taken on another model says so. A harness
+    whose tiers are not known runs on its own default, and the report says so.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -169,3 +174,8 @@ contract apply here; IDs are shared across the parent and its children.
   criterion only guards test. The `test` and `report` output show a guard's pass in both arms as expected, and the
   report's gap over the baseline leaves out the criteria only guards test. A guard is passed or failed by its runs with
   the skill, as any case is.
+- R161 (UC6.21): With no model named, each run uses the harness's mid-tier model. A model or tier named for the test
+  applies to every case, and a case's own model or tier wins over it; neither changes the judge's model. A tier that
+  the harness's definition does not map to a model is an error before any run, and with no model named on such a
+  harness the runs use its default and the report says so. The result names the model each case ran on, and the
+  cases whose model differs from the result they are compared with are listed with both models.
