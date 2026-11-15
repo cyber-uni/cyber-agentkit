@@ -604,7 +604,15 @@ describe('skill test progress (UC6)', () => {
 		return root
 	}
 	const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk))
-	const pause = (ms: number) => new Promise((done) => setTimeout(done, ms))
+	// The progress watch polls on an interval and times its heartbeat by the clock, so these tests own both (#247):
+	// time moves only when a fake run pauses, and a slow runner cannot stretch a gap past the heartbeat.
+	beforeEach(() => {
+		vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+	})
+	afterEach(() => {
+		vi.useRealTimers()
+	})
+	const pause = (ms: number) => vi.advanceTimersByTimeAsync(ms)
 
 	async function testWith(folder: string, run: PromptfooRun, root: string, ...extra: string[]) {
 		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
@@ -808,10 +816,13 @@ describe('skill test progress (UC6)', () => {
 				gitRepo(),
 			)
 			const lines = errors().slice(1)
-			const beats = lines.filter((line) => line.startsWith('still running'))
-			expect(beats.length).toBeGreaterThanOrEqual(2)
-			for (const beat of beats) expect(beat).toMatch(/^still running: 2 runs in progress, longest 1m\d+s\n$/)
-			expect(lines.at(-1)).toBe('[1/24] two-prs run 1 (with skill): pass, 1m06s\n')
+			// 200 ms with no run ended, and a heartbeat every 60 ms: one at 60, 120, and 180
+			expect(lines).toEqual([
+				'still running: 2 runs in progress, longest 1m5s\n',
+				'still running: 2 runs in progress, longest 1m5s\n',
+				'still running: 2 runs in progress, longest 1m5s\n',
+				'[1/24] two-prs run 1 (with skill): pass, 1m06s\n',
+			])
 		})
 
 		it('stays quiet while runs keep ending', async () => {
