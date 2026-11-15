@@ -436,11 +436,51 @@ function watchSandboxFaults(faults) {
   return { hooks: { PostToolUse: [{ hooks: [after] }], PostToolUseFailure: [{ hooks: [after] }] }, hit: () => (found.fault ? { ...found } : undefined) }
 }
 
+// Holds a run to the config's costCap (US dollars) without telling the model: Claude Code shows the Agent SDK's own
+// max_budget_usd to the model as a reminder (#238), so the provider estimates the spend itself. Before each tool call
+// it sums the usage of each assistant message in the run's transcript, at the per-million-token rates of the model's
+// family (an estimate, as the SDK's own is), and ends the run once it passes the cap.
+const costRates = [
+  { family: /haiku/i, input: 1, output: 5 },
+  { family: /sonnet/i, input: 3, output: 15 },
+  { family: /./, input: 5, output: 25 },
+]
+function transcriptCost(file) {
+  let text
+  try { text = fs.readFileSync(file, 'utf8') } catch { return 0 }
+  const seen = new Map()
+  for (const line of text.split('\n')) {
+    let entry
+    try { entry = JSON.parse(line) } catch { continue }
+    const message = entry?.message
+    if (entry?.type !== 'assistant' || !message?.usage) continue
+    seen.set(message.id ?? seen.size, message)
+  }
+  let cost = 0
+  for (const { model = '', usage } of seen.values()) {
+    const rate = costRates.find(({ family }) => family.test(model))
+    const input = (usage.input_tokens ?? 0) + 1.25 * (usage.cache_creation_input_tokens ?? 0) + 0.1 * (usage.cache_read_input_tokens ?? 0)
+    cost += (input * rate.input + (usage.output_tokens ?? 0) * rate.output) / 1e6
+  }
+  return cost
+}
+function watchCost(costCap) {
+  let over
+  const before = async (input) => {
+    if (!costCap || over || !input.transcript_path) return {}
+    const cost = transcriptCost(input.transcript_path)
+    if (cost <= costCap) return {}
+    over = cost
+    return { continue: false, stopReason: 'cost cap' }
+  }
+  return { hooks: costCap ? [{ hooks: [before] }] : [], over: () => over }
+}
+
 export default class SkillRun {
   constructor(options) { this.options = options; this.config = options.config }
   id() { return this.options.id || 'skill-run' }
   async callApi(prompt, context) {
-    const { arm, skillDir, skillName, pluginDir, pluginName, dependencyDirs = [], instruction, inner, timeout = 300, harness = 'claude-code', isolation, command, sandboxFaults = [], usageLimits = [], limitFile } = this.config
+    const { arm, skillDir, skillName, pluginDir, pluginName, dependencyDirs = [], instruction, inner, timeout = 300, harness = 'claude-code', isolation, command, sandboxFaults = [], usageLimits = [], limitFile, costCap } = this.config
     // A skill loaded from a plugin is called <plugin>:<skill> (research E21).
     const names = pluginName ? [skillName, pluginName + ':' + skillName] : [skillName]
     const vars = context.vars
@@ -542,7 +582,8 @@ export default class SkillRun {
       }
       const skillHook = { matcher: 'Skill', hooks: [watchSkill] }
       const faults = watchSandboxFaults(sandboxFaults)
-      let hooks = { PreToolUse: [skillHook], ...faults.hooks }
+      const spend = watchCost(costCap)
+      let hooks = { PreToolUse: [skillHook, ...spend.hooks], ...faults.hooks }
       let contained
       let watch
       const blocked = []
@@ -550,7 +591,7 @@ export default class SkillRun {
         contained = containment({ dir, home, plugin, dependencies: readOnly, network: vars.network ? JSON.parse(vars.network) : undefined })
         watch = watchContainment({ dir, ...contained, fileTools: isolation.containment.fileTools, network: contained.sandbox.network.allowedDomains }, blocked)
         hooks = {
-          PreToolUse: [skillHook, ...watch.hooks.PreToolUse],
+          PreToolUse: [skillHook, ...spend.hooks, ...watch.hooks.PreToolUse],
           PostToolUse: [...watch.hooks.PostToolUse, ...faults.hooks.PostToolUse],
           PostToolUseFailure: [...watch.hooks.PostToolUseFailure, ...faults.hooks.PostToolUseFailure],
         }
@@ -576,6 +617,8 @@ export default class SkillRun {
         delete response.error
         response.output = ''
       }
+      // A capped run answers an error, as the Agent SDK's own cap did.
+      if (spend.over()) response.error = 'Exceeded the run cost cap: about $' + spend.over().toFixed(2) + ' of $' + costCap.toFixed(2)
       watch?.review(response.metadata?.toolCalls)
       const calls = response.metadata?.skillCalls ?? []
       const fired = hookFired || calls.some((call) => names.includes(call.name) || names.includes(call.input?.skill))

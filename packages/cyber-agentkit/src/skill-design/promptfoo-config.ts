@@ -49,13 +49,19 @@ export type ConfigOptions = {
 	description?: string | undefined
 }
 
-/** The Agent SDK options for every run: only the run folder's own skills and settings, no web, a turn and cost cap. */
+/**
+ * What one run may spend, in US dollars, as the provider estimates it from the run's transcript. The provider holds
+ * it, not the Agent SDK's `max_budget_usd`: Claude Code shows that budget to the model as a reminder, and a run that
+ * sees "$0.50 budget" stops for that reason instead of the skill's own (#238).
+ */
+export const runCostCap = 0.5
+
+/** The Agent SDK options for every run: only the run folder's own skills and settings, no web, a turn cap. */
 function inner(model: string | undefined): Record<string, unknown> {
 	return {
 		...(model ? { model } : {}),
 		apiKeyRequired: false,
 		max_turns: 20,
-		max_budget_usd: 0.5,
 		setting_sources: ['project'],
 		skills: 'all',
 		permission_mode: 'acceptEdits',
@@ -95,6 +101,7 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 					: skillDir
 						? { skillDir }
 						: {}),
+			costCap: runCostCap,
 			inner: inner(options.model),
 		},
 	})
