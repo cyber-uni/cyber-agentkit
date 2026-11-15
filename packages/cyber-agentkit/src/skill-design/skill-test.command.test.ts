@@ -1448,3 +1448,87 @@ describe('skill test and the usage limit (R162, R163)', () => {
 		expect(stderr.mock.calls.join('')).toContain('error: resume-options:')
 	})
 })
+
+describe('skill case try (#290)', () => {
+	const setupSkill = () =>
+		goodSkill({
+			'evals/evals.yaml':
+				'outcome:\n  - { id: two-prs, prompt: write the notes, files: files/two-prs, setup: setup/two-prs.sh }\n  - { id: plain, prompt: x, files: files/two-prs }\n',
+			'evals/setup/two-prs.sh': '#!/bin/sh\necho hi\n',
+		})
+	/** A fake promptfoo that answers the setup-only run as the provider does, and keeps the config it was given. */
+	const tryRun =
+		(seen: { config?: Record<string, any> }, tried: Record<string, unknown>, error?: string): PromptfooRun =>
+		async (folder, config) => {
+			seen.config = parse(readFileSync(join(folder, config), 'utf8'))
+			return { output: { results: { results: [{ response: { ...(error ? { error } : {}), metadata: { tried } } }] } } }
+		}
+	const tryIt = (run: PromptfooRun, folder: string, kase: string, ...extra: string[]) =>
+		cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' })
+			.command(createSkillCommand({ ...offline, runPromptfoo: run }))
+			.parse<number | undefined>(['node', 'cyber-agentkit', 'skill', 'case', 'try', folder, kase, ...extra])
+			.then((code) => (typeof code === 'number' ? code : 0))
+
+	it('runs only the setup, with one arm, no assertion, and a keep folder under the results path', async () => {
+		const skill = setupSkill()
+		const seen: { config?: Record<string, any> } = {}
+		const code = await tryIt(
+			tryRun(seen, { status: '?? a.txt\n', said: 'hi', failed: false }),
+			skill.folder,
+			'two-prs',
+			'--root',
+			join(skill.folder, '..'),
+			'--format',
+			'json',
+		)
+		expect(code).toBe(0)
+		expect(seen.config?.['providers']).toHaveLength(1)
+		const keep = seen.config?.['providers'][0].config.keep as string
+		expect(keep).toBe(join(fakeHome, '.agents', 'skill-design', 'results', 'release-notes', 'try', 'two-prs'))
+		expect(seen.config?.['tests']).toEqual([expect.objectContaining({ assert: [] })])
+		expect(seen.config?.['tests'][0].vars.setup).toBe(join(skill.folder, 'evals', 'setup', 'two-prs.sh'))
+		expect(existsSync(join(fakeHome, '.agents', 'skill-design', 'results', '.gitignore'))).toBe(true)
+		expect(JSON.parse(printed())).toMatchObject({
+			case: 'two-prs',
+			status: '?? a.txt\n',
+			folder: join(keep, 'folder'),
+			home: join(keep, 'home'),
+		})
+	})
+
+	it('prints the git status and what the setup printed as text, and exits 1 when the setup fails', async () => {
+		const skill = setupSkill()
+		const code = await tryIt(
+			tryRun(
+				{},
+				{ status: '', said: 'cannot create .git/hooks/commit-msg: Read-only file system', failed: true },
+				'setup script failed: x',
+			),
+			skill.folder,
+			'two-prs',
+			'--root',
+			join(skill.folder, '..'),
+			'--format',
+			'text',
+		)
+		expect(code).toBe(1)
+		expect(printed()).toContain('setup failed for case two-prs')
+		expect(printed()).toContain('git status --porcelain:\n(clean)')
+		expect(printed()).toContain('Read-only file system')
+	})
+
+	it('refuses a case with no setup script as a usage error, and runs nothing', async () => {
+		const run = vi.fn()
+		const skill = setupSkill()
+		expect(await tryIt(run, skill.folder, 'plain', '--root', join(skill.folder, '..'))).toBe(2)
+		expect(stderr.mock.calls.join('')).toContain('error: no-setup:')
+		expect(run).not.toHaveBeenCalled()
+	})
+
+	it('refuses the setup of a skill outside the repository without --trust-scripts', async () => {
+		const run = vi.fn()
+		expect(await tryIt(run, setupSkill().folder, 'two-prs', '--root', repo())).toBe(1)
+		expect(stderr.mock.calls.join('')).toContain('error: untrusted-scripts:')
+		expect(run).not.toHaveBeenCalled()
+	})
+})
