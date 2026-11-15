@@ -42,12 +42,14 @@ function runProvider(
 		platform,
 		network,
 		plugin,
+		dependencies,
 		instruction,
 		caseInstructions,
 	}: {
 		platform?: string
 		network?: string[]
 		plugin?: boolean
+		dependencies?: string[]
 		instruction?: string
 		caseInstructions?: string
 	} = {},
@@ -65,7 +67,7 @@ function runProvider(
 	writeFileSync(
 		join(root, 'run.mjs'),
 		`${platform ? `Object.defineProperty(process, 'platform', { value: ${JSON.stringify(platform)} })\n` : ''}const { default: Provider } = await import('./provider.mjs')
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, ${instruction === undefined ? '' : `instruction: ${JSON.stringify(instruction)}, `}${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${plugin ? ` pluginName: 'kit', pluginDir: ${JSON.stringify(join(root, 'skill'))},` : ''} } })
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, ${instruction === undefined ? '' : `instruction: ${JSON.stringify(instruction)}, `}${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${plugin ? ` pluginName: 'kit', pluginDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${dependencies ? ` dependencyDirs: ${JSON.stringify(dependencies)},` : ''} } })
 const response = await provider.callApi('hi', { vars: { kind: 'outcome', files: ${JSON.stringify(join(root, 'files'))}, rubrics: '{}'${network ? `, network: ${JSON.stringify(JSON.stringify(network))}` : ''} } })
 console.log(response.output)
 `,
@@ -166,6 +168,19 @@ describe('promptfooProviderSource containment (R107)', () => {
 		expect(sandbox.filesystem.allowRead).toContain(copy)
 		expect(sandbox.filesystem.allowWrite).toContain(copy)
 		expect(settings.permissions.blockReadsExemptPaths).toBeUndefined()
+	})
+
+	it('loads the plugins the plugin depends on beside it, readable but not writable (E-CC-H10)', () => {
+		const dependency = mkdtempSync(join(tmpdir(), 'provider-dependency-'))
+		const { sandbox, additionalDirectories, plugins } = runProvider(false, { plugin: true, dependencies: [dependency] })
+		const copy = plugins[0].path
+		expect(plugins).toEqual([
+			{ type: 'local', path: copy },
+			{ type: 'local', path: dependency },
+		])
+		expect(additionalDirectories).toEqual([copy, dependency])
+		expect(sandbox.filesystem.allowRead).toContain(dependency)
+		expect(sandbox.filesystem.allowWrite).not.toContain(dependency)
 	})
 
 	it('opens the network only to the hosts the case lists', () => {

@@ -16,8 +16,9 @@ the author asks to accept one, or when the first passing run saves one (see Save
 
 Run the cases as Verification's Run says. Pass a judge only when the author named one. A case marked as having an
 outside effect is not run, and is reported as such. Each run is contained to its own folder, and reaches the network
-only for the hosts its case lists. When the test stops with `error: login:` or `error: sandbox:`, pass the reason on
-as it is said; no run was made.
+only for the hosts its case lists. When the test stops with `error: login:`, `error: sandbox:`, `error: dependency-missing:`,
+`error: dependency-unsupported:`, or `error: plugin-load:`, pass the reason on as it is said; no run was made. For
+`dependency-missing`, offer to rerun with `--plugin <folder>` for the plugin it names, or to install that plugin.
 
 A full test makes many runs and can take several minutes. Before starting, estimate it against the test budget as
 `SKILL.md`'s Autonomy says: within it, start without asking; over it, stop. A request that names the runs to make, such

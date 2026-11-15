@@ -12,6 +12,7 @@ import {
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { stringify } from 'yaml'
+import { checkPluginsLoad, type DependencySources, type PluginList, resolveDependencyPlugins } from './plugin-load.js'
 import { promptfooConfig, promptfooPackages } from './promptfoo-config.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
 import { readSkill, type SkillFiles } from './skill-files.js'
@@ -67,14 +68,19 @@ export type TestOptions = {
 	harness?: SkillTestHarness | undefined
 	/** Where progress lines go while promptfoo runs (R98, R99); without it the run reports none. */
 	progress?: Pick<ProgressWatch, 'write' | 'heartbeatMs' | 'pollMs' | 'now'> | undefined
+	/** Where the plugins the skill's plugin depends on are found; without it only `--plugin` folders, of which there are none. */
+	dependencies?: DependencySources | undefined
+	/** How the test checks that every plugin a run loads does load before it runs a case; without it, it does not check. */
+	listPlugins?: PluginList | undefined
 }
+
+/** Why a test stopped before any run: a cause every run would share. */
+export type TestProblemCode = 'login' | 'sandbox' | 'dependency-missing' | 'plugin-load'
 
 /** Runs a plan and reads the result; the baseline falls back to a run without the skill when its folder holds no skill (R35). */
 export async function runTest(
 	options: TestOptions,
-): Promise<
-	{ result: TestResult; replies: Reply[]; warnings: string[] } | { problem: string; code?: 'login' | 'sandbox' }
-> {
+): Promise<{ result: TestResult; replies: Reply[]; warnings: string[] } | { problem: string; code?: TestProblemCode }> {
 	const warnings: string[] = []
 	let baselineFolder = options.baselineFolder
 	if (baselineFolder !== undefined && !readSkill(baselineFolder)) {
@@ -88,13 +94,34 @@ export async function runTest(
 		const progressFile = join(folder, 'progress.jsonl')
 		// A skill developed in a plugin runs inside a copy of that plugin, with its references and other skills (R91).
 		const found = findSkillPlugin(options.skill.folder)
-		let plugin: { name: string; withSkill: string; baseline: string } | undefined
+		const harness = options.harness ?? (skillTestHarness('claude-code') as SkillTestHarness)
+		let plugin: { name: string; withSkill: string; baseline: string; dependencies?: string[] } | undefined
 		if (found) {
 			plugin = { name: found.name, withSkill: join(folder, 'plugin-with'), baseline: join(folder, 'plugin-baseline') }
 			copyPlugin(found.root, plugin.withSkill)
 			copyPlugin(found.root, plugin.baseline, options.skill.folder, baselineFolder)
 		}
-		const harness = options.harness ?? (skillTestHarness('claude-code') as SkillTestHarness)
+		// Only Claude Code lets a plugin declare the plugins it needs, and it does not start one without them (E-CC-X1,
+		// E-CC-H10): both arms load them, and the test stops when one cannot be found or a plugin does not load.
+		if (found && plugin && harness.id === 'claude-code') {
+			const resolved = await resolveDependencyPlugins(found.root, found.name, options.dependencies ?? {})
+			if ('problem' in resolved) return { code: 'dependency-missing', problem: resolved.problem }
+			const dependencies = resolved.plugins.map((dependency) => {
+				const path = join(folder, 'dependencies', dependency.name)
+				copyPlugin(dependency.path, path)
+				return { name: dependency.name, path }
+			})
+			plugin.dependencies = dependencies.map((dependency) => dependency.path)
+			if (options.listPlugins)
+				for (const path of [plugin.withSkill, plugin.baseline]) {
+					const checked = await checkPluginsLoad([{ name: found.name, path }, ...dependencies], options.listPlugins)
+					if (checked && 'problem' in checked) return { code: 'plugin-load', problem: checked.problem }
+					if (checked) {
+						warnings.push(checked.warning)
+						break
+					}
+				}
+		}
 		if (harness.leaks) warnings.push(`each ${harness.id} run still reads ${harness.leaks}`)
 		// Only a harness whose definition declares containment is held to the run's folder (R107).
 		if (!harness.isolation.containment)
