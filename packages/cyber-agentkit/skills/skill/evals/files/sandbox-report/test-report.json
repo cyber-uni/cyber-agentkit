@@ -1,0 +1,168 @@
+{
+	"version": 1,
+	"skill": "release-notes",
+	"at": "2026-11-14T18:20:00Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"trigger": [
+		{
+			"case": "trigger-1",
+			"prompt": "Write the release notes for this release.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"prompt": "Draft the changelog for 2.0 from the merged PRs.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"prompt": "What shipped this release? Put it in the release notes.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"prompt": "Summarize pull request 14 for a reviewer.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"prompt": "Write a commit message for my staged changes.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"prompt": "Review my diff before I push.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		}
+	],
+	"criteria": [
+		{
+			"id": "C1",
+			"status": "pass",
+			"passed": 2,
+			"ran": 2,
+			"baseline": {
+				"passed": 0,
+				"ran": 2
+			}
+		},
+		{
+			"id": "C2",
+			"status": "pass",
+			"passed": 2,
+			"ran": 2,
+			"baseline": {
+				"passed": 0,
+				"ran": 2
+			}
+		},
+		{
+			"id": "C3",
+			"status": "pass",
+			"passed": 2,
+			"ran": 2,
+			"baseline": {
+				"passed": 0,
+				"ran": 2
+			}
+		},
+		{
+			"id": "C4",
+			"status": "pass",
+			"passed": 2,
+			"ran": 2,
+			"baseline": {
+				"passed": 0,
+				"ran": 2
+			}
+		}
+	],
+	"cases": [
+		{
+			"case": "trigger-1",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-2",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-3",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-4",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-5",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-6",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "two-prs",
+			"status": "pass",
+			"passed": 2,
+			"ran": 2,
+			"sandboxFailed": 1
+		}
+	],
+	"notRun": [],
+	"sandboxFailures": [
+		{
+			"case": "two-prs",
+			"arm": "skill",
+			"run": 3,
+			"fault": "bwrap-read-only-mount",
+			"text": "bwrap: Can\u0027t create file at /tmp/skill-test-plugin-4f2a/skills/release-notes/.claude/launch.json: Read-only file system"
+		},
+		{
+			"case": "two-prs",
+			"arm": "baseline",
+			"run": 2,
+			"fault": "bwrap-read-only-mount",
+			"text": "bwrap: Can\u0027t create file at /tmp/skill-test-plugin-4f2a/skills/release-notes/.claude/launch.json: Read-only file system"
+		}
+	],
+	"noPrevious": true,
+	"cost": 0.94,
+	"durationMs": 312000,
+	"totalRuns": 42,
+	"expectedHeld": true
+}

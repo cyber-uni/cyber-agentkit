@@ -153,8 +153,11 @@ history grows from the next accept.
 
 ## Report
 
-When the result has sandbox failures, say so first, before any pass rate, give each case's `sandboxFailed` beside it,
-and say the result was not saved as expected when it carries `expectedHeld`. Then each
+When the result has sandbox failures, say so first, before any pass rate: those runs broke in the test sandbox, not
+in the skill, and count toward no pass rate. Give each case's `sandboxFailed` beside it. When the result carries
+`expectedHeld`, say it was not saved as the expected result because of them, and name `skill accept <folder>` as how
+to save it once the author has looked; never run it for them. A sandbox failure is not a failure of the skill: offer
+no `fix` for it. Then each
 trigger case beside what was expected; each criterion's pass rate, threshold, and baseline; each failure with its
 case and the output that broke it; what the runs with the skill tried and were refused, if anything; and the cases that changed between pass and fail since the expected result, or, with
 none, the previous result, saying which. With neither, say there is none to compare. Name each case in `moved` with
