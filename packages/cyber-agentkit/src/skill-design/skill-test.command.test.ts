@@ -386,6 +386,55 @@ describe('skill test', () => {
 			expect(readFileSync(expected, 'utf8')).toBe(first)
 		})
 
+		describe('with sandbox failures (R154)', () => {
+			const bwrap =
+				"bwrap: Can't create file at /tmp/skill-test-plugin-Xa1b2C/references/.claude/launch.json: Read-only file system"
+			/** The fake promptfoo, with the first run of each case in each arm broken by the sandbox. */
+			const breaking = (): PromptfooRun => async (folder, config, out) => {
+				const ran = await fakeRun({})(folder, config, out)
+				if (!('output' in ran)) return ran
+				const rows = (ran.output as { results: { results: Record<string, any>[] } }).results.results
+				for (const item of rows)
+					if (item['repeatIndex'] === 0)
+						item['response'].metadata.sandboxFault = { fault: 'bwrap-read-only-mount', text: bwrap }
+				return ran
+			}
+
+			it('does not save a passing first result as expected, and says it held it', async () => {
+				const skill = goodSkill()
+				const root = gitRepo()
+				expect(await test(skill.folder, breaking(), root)).toBe(0)
+				expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+				const report = JSON.parse(printed())
+				expect(report.expectedHeld).toBe(true)
+				expect(report).not.toHaveProperty('savedAsExpected')
+				expect(report.sandboxFailures.length).toBeGreaterThan(0)
+			})
+
+			it('holds it back from --accept too, and accepts it by skill accept, with a warning', async () => {
+				const skill = goodSkill()
+				const root = gitRepo()
+				await test(skill.folder, breaking(), root, '--accept')
+				expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+				expect(await sub('accept', skill.folder, root)).toBe(0)
+				expect(stderr.mock.calls.join('')).toContain('warning: sandbox-failures:')
+				const expected = JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8'))
+				expect(expected.sandboxFailures.length).toBeGreaterThan(0)
+			})
+
+			it('warns at the top of the text report and lists the sandbox failures of each case', async () => {
+				const root = gitRepo()
+				const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
+					createSkillCommand({ ...offline, runPromptfoo: breaking() }),
+				)
+				await app.parse(['node', 'cyber-agentkit', 'skill', 'test', goodSkill().folder, '--root', root])
+				const lines = printed().split('\n')
+				expect(lines[1]).toMatch(/^warning: \d+ runs were sandbox failures/)
+				expect(lines).toContain(`sandbox failure: two-prs — 1 with the skill, 1 without — ${bwrap}`)
+				expect(printed()).toContain('not saved as evals/expected.json: it has sandbox failures')
+			})
+		})
+
 		it('accepts the last saved result without running, and errors when there is none', async () => {
 			const skill = goodSkill()
 			const root = gitRepo()

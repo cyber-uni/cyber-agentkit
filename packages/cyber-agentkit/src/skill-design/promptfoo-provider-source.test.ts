@@ -5,6 +5,7 @@ import { delimiter, dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { headlessInvocation } from '../headless/headless-invocation.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
+import { sandboxFaults } from './sandbox-faults.js'
 
 const claude = headlessInvocation('claude-code')
 const isolation = JSON.stringify(claude.supported === true ? claude.isolation : undefined)
@@ -490,6 +491,59 @@ await afterEach({ result: { response: { error: ${JSON.stringify(error)} }, vars:
 		execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' })
 		const line = JSON.parse(readFileSync(join(root, 'progress.jsonl'), 'utf8').trim())
 		expect(line).toMatchObject({ outcome: 'not run', reason: 'Not logged in · Please run /login' })
+	})
+})
+
+describe('promptfooProviderSource sandbox failures (R154)', () => {
+	const bwrap =
+		"bwrap: Can't create file at /tmp/skill-test-plugin-Xa1b2C/references/.claude/launch.json: Read-only file system"
+	/** A fake inner provider that plays shell commands through every PostToolUse and PostToolUseFailure hook it is given. */
+	const shell = (failing: boolean) => String.raw`
+exports.loadApiProvider = async (_id, { options }) => ({
+  callApi: async () => {
+    const all = (event, input) => Promise.all(options.config.hooks[event].flatMap((entry) => entry.hooks.map((hook) => hook(input))))
+    await all('PostToolUse', { tool_name: 'Bash', tool_input: { command: 'ls' }, tool_response: { stdout: 'notes.txt', stderr: '' } })
+    ${failing ? `await all('PostToolUseFailure', { tool_name: 'Bash', tool_input: { command: 'ls' }, error: 'Exit code 1\\n' + ${JSON.stringify(bwrap)} })` : ''}
+    return { output: 'done', metadata: {} }
+  },
+})
+`
+
+	function play(failing: boolean, containment: boolean): { response: Record<string, any>; line?: Record<string, any> } {
+		const root = mkdtempSync(join(tmpdir(), 'provider-sandbox-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), shell(failing))
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(join(root, 'hook.mjs'), promptfooHookSource)
+		const used = containment ? JSON.parse(isolation) : { ...JSON.parse(isolation), containment: undefined }
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+import { afterEach } from './hook.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${JSON.stringify(used)}, inner: {}, sandboxFaults: ${JSON.stringify(sandboxFaults)} } })
+const response = await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })
+await afterEach({ result: { response, vars: { kind: 'outcome' }, testCase: { description: 'case-a' }, provider: { label: 'with-skill' }, repeatIndex: 0, success: true } })
+console.log(JSON.stringify(response))
+`,
+		)
+		const response = JSON.parse(execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' }))
+		const file = join(root, 'progress.jsonl')
+		return { response, line: existsSync(file) ? JSON.parse(readFileSync(file, 'utf8').trim()) : undefined }
+	}
+
+	it('records the known fault a shell command hit, contained or not, and ends the run as a sandbox failure', () => {
+		for (const contained of [true, false]) {
+			const { response, line } = play(true, contained)
+			expect(response.metadata.sandboxFault).toEqual({ fault: 'bwrap-read-only-mount', text: bwrap })
+			expect(line).toMatchObject({ outcome: 'sandbox failure', reason: bwrap.slice(0, 160) })
+		}
+	})
+
+	it('records nothing when no command hit one', () => {
+		const { response, line } = play(false, true)
+		expect(response.metadata).not.toHaveProperty('sandboxFault')
+		expect(line).toMatchObject({ outcome: 'pass' })
 	})
 })
 

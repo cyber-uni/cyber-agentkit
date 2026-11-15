@@ -15,6 +15,7 @@ import { stringify } from 'yaml'
 import { checkPluginsLoad, type DependencySources, type PluginList, resolveDependencyPlugins } from './plugin-load.js'
 import { promptfooConfig, promptfooPackages } from './promptfoo-config.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
+import { recognizeSandboxFault } from './sandbox-faults.js'
 import { readSkill, type SkillFiles } from './skill-files.js'
 import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
 import { type SkillTestHarness, skillTestHarness } from './skill-test-harness.js'
@@ -204,8 +205,12 @@ export function setupProblem(output: unknown): { problem: string; code: 'login' 
 	const errors = rows.map((row) => row.response?.error).filter((error): error is string => !!error)
 	const login = errors.find((error) => error.startsWith('login: '))
 	if (login) return { code: 'login', problem: login.slice('login: '.length) }
+	// A known fault that broke one run's shell is that run's sandbox failure (R154), not a sandbox that could not start.
 	const sandbox = errors.find(
-		(error) => /sandbox/i.test(error) && /unavailable|cannot|missing|not supported|bubblewrap|bwrap/i.test(error),
+		(error) =>
+			!recognizeSandboxFault(error) &&
+			/sandbox/i.test(error) &&
+			/unavailable|cannot|missing|not supported|bubblewrap|bwrap/i.test(error),
 	)
 	if (sandbox)
 		return {

@@ -1,3 +1,4 @@
+import { sandboxFaults } from './sandbox-faults.js'
 import type { SkillTestHarness } from './skill-test-harness.js'
 import type { TestPlan } from './test-plan.js'
 
@@ -59,6 +60,8 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 			arm,
 			skillName: options.skillName,
 			timeout: plan.timeout,
+			// The errors the provider watches each shell command's output for (R154).
+			sandboxFaults: sandboxFaults.map(({ id, pattern }) => ({ id, pattern })),
 			harness: options.harness.id,
 			isolation: options.harness.isolation,
 			...(options.harness.command ? { command: options.harness.command } : {}),
