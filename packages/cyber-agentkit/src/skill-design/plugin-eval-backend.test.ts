@@ -173,6 +173,19 @@ rubrics:
 		)
 	})
 
+	it.skipIf(!sandboxStarts)('shows the setup script no placeholder for what the sandbox protects', () => {
+		const { workspace, run } = scaffold('set -e\ntest -z "$(git status --porcelain --untracked-files=all)"\n')
+		run()
+		expect(
+			execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: workspace, encoding: 'utf8' }),
+		).toBe('')
+	})
+
+	it.skipIf(!sandboxStarts)("refuses the setup script a write to the repository's .git/config", () => {
+		const { run } = scaffold('echo "[core]" >> .git/config\n')
+		expect(run).toThrow()
+	})
+
 	it.skipIf(!sandboxStarts)(
 		'fails the scaffold, with the marker, when the setup script writes outside the workspace',
 		() => {

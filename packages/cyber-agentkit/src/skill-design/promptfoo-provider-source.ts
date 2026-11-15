@@ -135,6 +135,11 @@ function scriptSandbox() {
 
 // Runs a shell command in srt: own folders readable and writable, needed folders readable, no network. The settings
 // file lives in a folder of its own, outside what the command may write. Throws as execSync does when it exits non-zero.
+// srt write-protects the dotfiles and folders it names in the folder it starts in, and puts a /dev/null placeholder
+// where one does not exist, which a command in that folder sees as a new file: git status lists .bashrc, .mcp.json,
+// .vscode and the rest as untracked (E23). So srt starts in an empty folder of its own and the command changes into
+// cwd first, and the run folder looks to the command as the run left it. The protection that matters there stays:
+// writes to each own git repository's .git/config and .git/hooks are refused, which git status does not show.
 function runContained(cli, command, { cwd, own, needed = [], env, timeout }) {
   const real = (p) => { try { return fs.realpathSync(p) } catch { return p } }
   const nodeInstall = path.dirname(path.dirname(real(process.execPath)))
@@ -142,14 +147,19 @@ function runContained(cli, command, { cwd, own, needed = [], env, timeout }) {
   const srtPackage = path.dirname(path.dirname(real(cli)))
   const writable = [...new Set(own.flatMap((p) => [p, real(p)]))]
   const readable = [...writable, ...new Set(needed.flatMap((p) => [p, real(p)]))]
+  const gitGuarded = writable.filter((p) => { try { return fs.statSync(path.join(p, '.git')).isDirectory() } catch { return false } })
+    .flatMap((p) => [path.join(p, '.git', 'config'), path.join(p, '.git', 'hooks')])
   const settingsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-srt-'))
   try {
     const settings = path.join(settingsDir, 'srt-settings.json')
+    const start = path.join(settingsDir, 'start')
+    fs.mkdirSync(start)
     fs.writeFileSync(settings, JSON.stringify({
       network: { allowedDomains: [], deniedDomains: [] },
-      filesystem: { denyRead: [...new Set([os.tmpdir(), real(os.tmpdir()), os.homedir()])], allowRead: [...readable, nodeInstall, srtPackage], allowWrite: writable, denyWrite: [] },
+      filesystem: { denyRead: [...new Set([os.tmpdir(), real(os.tmpdir()), os.homedir()])], allowRead: [...readable, nodeInstall, srtPackage], allowWrite: writable, denyWrite: gitGuarded },
     }))
-    return execFileSync(process.execPath, [cli, '--settings', settings, '-c', command], { cwd, env, stdio: 'pipe', timeout, encoding: 'utf8' })
+    const enter = "cd '" + cwd.replace(/'/g, "'\\''") + "' || exit 1\n"
+    return execFileSync(process.execPath, [cli, '--settings', settings, '-c', enter + command], { cwd: start, env, stdio: 'pipe', timeout, encoding: 'utf8' })
   } finally { try { fs.rmSync(settingsDir, { recursive: true, force: true }) } catch {} }
 }
 

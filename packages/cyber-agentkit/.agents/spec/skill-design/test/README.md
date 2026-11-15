@@ -167,7 +167,8 @@ contract apply here; IDs are shared across the parent and its children.
 - R156 (UC6.17): A run whose setup script fails is reported as not run, with the script's output, and counts toward no
   pass rate.
 - R157 (UC6.17): A setup script and a `script` check run contained as a run's shell commands are: they write only to
-  the run's folders and reach no network. When that containment cannot start, no script runs outside it.
+  the run's folders and reach no network. When that containment cannot start, no script runs outside it. A script
+  sees the run's folder as the run left it: nothing the containment adds to protect it shows as a change there.
 - R158 (UC6.18): For a skill whose folder is outside the current repository, `test` lists every setup script and
   `script` check before any run, and runs none of them unless the author passes a flag to trust them; the cases that
   need them are reported as not run, with the reason. `vet` runs no script of a skill.
