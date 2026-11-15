@@ -1,5 +1,5 @@
 // Generates the skill and CLI pages of every package under `packages/` from the package's own
-// sources (`plugin.json`, `skills/*/SKILL.md`, each skill's saved `evals/expected.json`, and the built CLI's `--help --format json`), so the
+// sources (`plugin.json`, `skills/*/SKILL.md`, each skill's saved `evals/expected.json` through `skill report`, and the built CLI's `--help --format json`), so the
 // pages cannot drift from what the package ships. Editorial text that no source holds (example
 // prompts, expected results, CLI examples) lives in `docs-data/<package>.json`.
 //
@@ -9,7 +9,6 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { doneWhenCriteria, renderEvals } from './eval-results.mjs'
 
 const web = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repo = resolve(web, '../..')
@@ -53,6 +52,18 @@ const unlinkAnchors = (text) => text.replace(/\[([^\]]+)\]\(#[^)]*\)/g, '$1')
 
 // ---- skills ---------------------------------------------------------------------------------
 
+/** The `skill` skill's bundled command, committed on `main`; it renders every skill's Evals section, so there is one renderer. */
+const skillScript = join(repo, 'packages/cyber-agentkit/skills/skill/scripts/skill.mjs')
+
+/** A skill's Evals section, from its saved `evals/expected.json`, by `skill report`. */
+function evalsSection(skillDir) {
+	return execFileSync(
+		process.execPath,
+		[skillScript, 'report', skillDir, '--test-link', '/cyber-agentkit/packages/cyber-agentkit/skills/skill/'],
+		{ encoding: 'utf8' },
+	)
+}
+
 function skillPage(pkg, dir, skill, data) {
 	const skillDir = join(repo, 'packages', pkg, 'skills', skill)
 	const { meta, body } = frontmatter(readFileSync(join(skillDir, 'SKILL.md'), 'utf8'))
@@ -81,9 +92,7 @@ function skillPage(pkg, dir, skill, data) {
 	if (invocations) {
 		out.push('## How to type it in each harness', '', invocations[1], '')
 	}
-	const expectedPath = join(skillDir, 'evals', 'expected.json')
-	const expected = existsSync(expectedPath) ? readJson(expectedPath) : undefined
-	out.push(renderEvals(expected, { criteria: doneWhenCriteria(body) }))
+	out.push(evalsSection(skillDir))
 	out.push('## Source', '', `[\`packages/${pkg}/skills/${skill}\`](${repoUrl}/packages/${pkg}/skills/${skill})`, '')
 	write(join(docs, pkg, 'skills', `${skill}.md`), out.join('\n'))
 	return { skill, description: meta.description ?? '' }
