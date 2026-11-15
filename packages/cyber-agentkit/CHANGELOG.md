@@ -1,5 +1,111 @@
 # cyber-agentkit
 
+## 2.7.0
+
+### Minor Changes
+
+- fa7b6bc: `reference defaults <skill>` writes a skill's bundled default copies: each plugin reference the skill loads, copied to `references/<name>.default.md` with `default` taken out of `extends`, and each interface document, copied to `references/<id>.interface.default.md`. With `--check`, it writes nothing and fails when a copy is missing, stale, misnamed, or no longer named by the skill. Orphan copies are reported and never deleted.
+- 14f64d2: `skill accept` and `skill test --accept` now keep the expected result they replace in the skill's `evals/accepted/`, the 3 newest, so accepted runs can be compared. Each case in a result counts the runs that went right, and `skill test`'s report names under `moved` the cases whose pass rate changed across the kept accepted results and this run. An existing `evals/expected.json` keeps working as the newest entry, with no migration step.
+- e605c31: `/skill create` researches a skill's job before its Intent is final, through a new open aspect,
+  `skill-design.aspects.research`. The default delegates to `research-workbench:deep-research`, sizes the research to
+  the skill (full, a quick prior-art search, or a recorded skip), and stops to ask whether to adopt an existing skill
+  that already does the job. `check` reports its checks RES-1 to RES-3; a skill written before this step passes RES-1
+  by recording `Skipped: written before the research step` under `## Research` in its README.
+- 572ec03: `skill report <folder>` prints a skill's accepted eval results for its docs, as Markdown ready to paste into a docs
+  page or README, or as JSON with `--format json`: the summary and cost, the gap over the no-skill baseline, the trigger
+  cases, each criterion with the skill and without, the outcome cases, runs the sandbox broke, and the trend over the
+  kept accepted results. It says so plainly when the skill has no accepted result.
+  
+  `/skill report` runs it and puts the output where the author asks, instead of writing the tables by hand.
+- e4e3f3c: `skill test --estimate` reads the test budget from `skill-design.autonomy` itself, unless `--budget-cost` or
+  `--budget-runs` gives one, and prints a `line` field, such as `Test budget: over (24 runs, $4.32; budget $0.01 or 1
+  runs)`, that says when no budget is configured. `/skill` reports that line as printed. A `skill test` run is now held
+  to its $0.50 cost cap by the provider, from the run's transcript, instead of through the Agent SDK, which showed the
+  budget to the model. A new warning check, TRG-10, asks that a description open with a first sentence of at most 100
+  characters that says what the skill does, since a slash-command menu shows only its start.
+- 04850ec: `skill test` runs a case's setup script before the model starts. An outcome case in `evals.yaml` may name `setup`, a
+  script relative to `evals/`; each run, with and without the skill and on both backends, runs it in its folder after the
+  case's files are committed, so the prompt holds only the request. A failing setup script reports the run as not run,
+  with the script's output, and counts toward no pass rate.
+  
+  Setup scripts and `script` checks now run contained in Anthropic's sandbox runtime: they write only to the run's
+  folders and reach no network. When that sandbox cannot start (on Linux and WSL it needs bubblewrap, socat, and
+  ripgrep), the test
+  stops with `error: sandbox:`. For a skill outside the repository, `skill test` lists its scripts and runs none without
+  `--trust-scripts`.
+  
+  `skill case add <skill> <case> --prompt <request> [--setup]` scaffolds a case's entry, files folder, and setup script,
+  and `skill case remove <skill> <case>` deletes only that case's entry and files. Both refuse a path outside the skill's
+  `evals/` folder. The Verification aspect documents both, and its new VER-9 flags a prompt that tells the model to run a
+  setup script.
+- 7b2cc8b: `skill test` runs each case on the harness's mid-tier model (`sonnet` on Claude Code) unless `--model` names a tier
+  (`small`, `mid`, `top`) or a model ID, so a full test no longer spends the most capable model on every case. A case in
+  `evals.yaml` can set its own `model:`, a tier or an ID, which wins over `--model`; the judge keeps `--judge`. The result
+  records the model the cases ran on and each case's own, `skill test` and `skill report` print them, and a comparison
+  with a result taken on another model warns which cases changed model. Codex has no known tiers, so its runs keep their
+  default and the test warns. Headless definitions gain `modelTiers`.
+- e605c31: `skill test` now loads the plugins a skill's plugin declares in `dependencies`, and theirs, in both arms. Claude Code
+  does not start a plugin whose dependency is missing, so before this every run of such a plugin loaded no skill and
+  was still scored. Each dependency comes from a folder passed with the new `--plugin <folder>` option, else from Claude
+  Code's installed plugins. The test stops before any run with `error: dependency-missing:` when a dependency is found
+  in neither, and with `error: plugin-load:` when Claude Code reports that a plugin a run loads does not load.
+  `--backend plugin-eval` cannot load a second plugin, so it stops with `error: dependency-unsupported:` for a plugin
+  that declares dependencies.
+- 4094c64: `skill test` now reports a run whose shell the test sandbox broke (`bwrap: Can't create file at …: Read-only file system`) as a **sandbox failure**, not as a skill failure. Such a run counts toward no pass rate, the result lists it under `sandboxFailures` and counts it per case as `sandboxFailed`, and the report warns of it first. A result with sandbox failures is not saved as the expected result, by the first passing run or by `--accept`, until the author runs `skill accept` on it. The errors recognized live in one list, so more can be added. Results saved before this change read as before.
+- 3509ab6: `skill test` reports a run that hits the account's usage limit as `limit reached`, not as not run. Once one does, no
+  new run starts. The runs the limit left count toward no pass rate, and a case with none of its runs finished reads as
+  not run. The result is marked incomplete: it is never saved as the expected result, and `skill accept` refuses it. The
+  report and the progress lines say the limit was reached, when it resets, and which runs are left. After the reset,
+  `skill test --resume` runs only those runs, with the options the stopped run had, and merges them into one result.
+- 3645194: The default Verification aspect of `/skill` says that an eval check tests what the outcome left behind: files changed
+  or unchanged, a report present, options listed, or a skill called. It never tests one exact phrasing or a punctuation
+  mark. A check that reads the reply's wording accepts the ways of saying the same thing, and a `not-` check matches only
+  what the criterion rules out. VER-10 (read) asks this of every check. VER-11 (script, warning) flags a `contains`,
+  `not-contains`, `regex`, or `not-regex` check that is a punctuation mark alone, such as `regex: "\\?"`.
+
+### Patch Changes
+
+- e605c31: `prose-update classify` no longer reports `tied-base` when one retired wording contains another. Among wordings that
+  share the most sentences with the found text, the base is the one with the fewest sentences the found text lacks, so a
+  section that still holds an older wording updates from it. `tied-base` remains for wordings still equal after that.
+- df8f8bf: A skill's default of an interface document no longer answers ahead of the plugin's copy or a repository or user copy. It answers only when nothing else holds the interface, and is traced as not used otherwise.
+- e605c31: The `reference`, `skillify`, `asset`, `instruction`, and `prose-update` skills record `## Research` in their README
+  as `Skipped: written before the research step`, so `/skill check` passes RES-1 on them.
+- e269ae7: The `asset`, `instruction`, `prose-update`, `reference`, and `skillify` skills' descriptions now open with a sentence of
+  at most 100 characters that says what the skill does, so a harness's slash-command menu, which shows only the start of
+  a description, names the job. Every skill the package ships now passes TRG-10.
+- d1f39a8: The `skill` skill opens every `create`, `fix`, and `enhance` reply with its autonomy line, even when the run stops
+  before any change, and takes the test budget from `skill-design.autonomy` as loaded instead of assuming one. Its ways to
+  trim a skill over its length limit move to `fix`'s steps.
+- 4d4a8dc: The `skill` skill's eval case `work-adds-skill` now asks for an on-call handoff skill that no sample skill covers, so it tests C12 without the research step rightly stopping to ask about adopting `release-notes`. Its C12 checks now also require the README's Research section and a report of `check`'s result, so a run without the skill no longer passes them.
+- 2310db2: The `skill` skill's criterion C7 now says `fix` names each failure by its ID or in words, matching what its eval check accepts, so `/skill check` no longer warns on VER-7 for C7.
+- cfba484: The `skill` skill's `check` decides every `read` check it lists, one ID at a time, and `fix` decides them all before
+  its first repair, so a fault such as SHP-3 is no longer missed without a word. `fix` also writes its autonomy line
+  again at the top of the reply that ends the run, even when an earlier message already stated it.
+- 57f39be: `/skill` now also tells the agent never to `cd` into its plugin's folders, such as the plugin's `references/`, not just
+  the skill's own folder: either may be read-only, and a shell left there fails every later command.
+- 97b823a: `skill test`: a setup script or `script` check no longer sees the sandbox's `/dev/null` placeholders for `.bashrc`,
+  `.mcp.json`, `.vscode` and the like as new files, so a "nothing changed" `git status` check passes for a run that
+  wrote nothing. The sandbox now starts in an empty folder of its own, and still refuses writes to the run
+  repository's `.git/config` and `.git/hooks`.
+- 7d93887: `skill check` flags a skill that reads a reference's bundled default directly instead of loading it with the `reference` skill (SHP-19). The default is the fallback only for when that command cannot run, so the user and plugin override tiers still apply.
+- e605c31: `/skill fix` gives SHP-1 (the `SKILL.md` body is too long) ways to trim instead of "shorten it": drop dead text, move
+  a section one command reads to a reference, tighten the prose, or move checkable detail to a script. It estimates
+  what each saves before changing anything, offers them at `ask`, and at `apply-safe` and `apply` keeps each only when
+  `test` is no worse. The `skill` skill's own `SKILL.md` now passes SHP-1.
+- 09e02aa: The `skill` skill's eval checks for C14 and C15 now pass a stop that ends with lettered options as well as one that ends with a question, and C19 accepts more ways of saying the sandbox failures were not counted and the result was not saved, such as "weren't counted", "hasn't been accepted", and "on hold". A run that did not stop, or that wrote the change, still fails.
+- a8dc06b: The `skill` skill's eval checks for a stop (C14, C15, C17, and C18) accept lettered options in any markup, such as `**A:**`, `**A**:`, `**A.**`, or `A)`, as well as a question.
+- 678ef67: A `skill test` run whose shell changes into its plugin copy keeps running shell commands. Before, Claude Code's
+  sandbox failed every later command with `bwrap: Can't create file at …: Read-only file system`, unless
+  `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR` reset the folder first. Each copy now holds ahead every path the sandbox
+  mounts over, and keeps its git folder outside itself.
+- 847e227: `skill test`: a `cd` into the copied plugin folder no longer breaks every later shell command of a Claude Code run. Each command now starts back in the run's folder (`CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR`), so the sandbox no longer fails with `bwrap: Can't create file at …/.claude/launch.json: Read-only file system`.
+- 4dd215a: The `skill` skill's test reference no longer prints the sandbox fault's exact text, so a run that reads it during
+  `skill test` is no longer taken for a sandbox failure.
+- 8961d5e: The `skill` skill, reporting a `test` result with sandbox failures, now says those runs count toward no pass rate,
+  names `skill accept` as how to save a result held back from being the expected one, and offers no `fix` for them
+  (C19). An eval case checks it against a saved report.
+
 ## 2.6.1
 
 ### Patch Changes
