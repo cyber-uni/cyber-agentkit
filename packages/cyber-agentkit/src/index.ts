@@ -33,11 +33,13 @@ export type {
 	HeadlessIsolation,
 	HeadlessLogin,
 	HeadlessMode,
+	HeadlessModelTiers,
 	HeadlessOutputFormat,
 	HeadlessPermission,
 	HeadlessTranscript,
 	HeadlessUnavailable,
 	HeadlessUsage,
+	ModelTier,
 } from './headless/headless-invocation.js'
 export { headlessCommand, headlessInvocation } from './headless/headless-invocation.js'
 export type { InterfaceEntry, InterfaceEntryResult, InterfaceLink } from './interface-registry/interface-entry.js'
