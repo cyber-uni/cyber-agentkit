@@ -540,10 +540,11 @@ function resolveInterface(
 		}
 	}
 	const tiered = contributions.filter(({ layer }) => layer.tier !== 'plugin' && layer.tier !== 'default')
+	const held = [...plugins, ...[...tiered].reverse()]
+	// A skill's default of an interface answers only when no plugin and no other tier holds it (R14).
 	const bottomFirst = [
-		...(ref.plugin === undefined && defaultContribution ? [defaultContribution] : []),
-		...plugins,
-		...[...tiered].reverse(),
+		...(ref.plugin === undefined && defaultContribution && !held.length ? [defaultContribution] : []),
+		...held,
 	]
 	const [lowest, ...higher] = bottomFirst
 	if (!lowest) {
@@ -562,7 +563,8 @@ function resolveInterface(
 		)
 	}
 	if (defaultContribution && defaultContribution !== lowest)
-		defaultContribution.entry.outcome = 'not used (qualified name)'
+		defaultContribution.entry.outcome =
+			ref.plugin === undefined ? 'not used (a plugin or tier holds the interface)' : 'not used (qualified name)'
 	lowest.entry.outcome = 'used'
 	lowest.entry.operation = 'replace'
 	lowest.entry.operationFrom = 'default'

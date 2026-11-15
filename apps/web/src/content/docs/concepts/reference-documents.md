@@ -66,6 +66,12 @@ A skill loads references by naming them in one line:
 Load `agent-readiness-weights` and `release-checklist` with the `reference` skill of `cyber-agentkit`.
 ```
 
+## Naming reference files
+
+A file's name says its form: `<name>.md` for a reference, `<name>.default.md` for a skill's copy, `<id>.interface.md`
+for an interface document. The [reference file naming](/cyber-agentkit/concepts/reference-file-naming/) page lists every
+form and the one rule behind them.
+
 ## References that are not Markdown
 
 A reference can also be a data file: `<name>.json`, `<name>.yaml`, `<name>.yml`, `<name>.toml`, or
