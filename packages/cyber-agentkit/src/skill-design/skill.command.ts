@@ -1024,7 +1024,7 @@ function caseCommand(_options: SkillCommandOptions): cli.Command {
 	const add = command({
 		name: 'add',
 		description:
-			"Add an outcome case to a skill: its entry in `evals/evals.yaml`, its files folder `evals/files/<case>/`, and with `--setup` a setup script `evals/setup/<case>.sh` that each run runs before the model starts. Touches nothing outside the skill's `evals/` folder, and changes nothing when the case exists.",
+			"Add an outcome case to a skill: its entry in `evals/evals.yaml`, its files folder `evals/files/<case>/`, and with `--setup` a setup script `evals/setup/<case>.sh` that each run runs before the model starts, or with `--from` a copy of another case's. The entry goes after the last case, and every other entry keeps its formatting. Touches nothing outside the skill's `evals/` folder, and changes nothing when the case exists.",
 		arguments: [
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() },
 			{
@@ -1041,8 +1041,13 @@ function caseCommand(_options: SkillCommandOptions): cli.Command {
 				type: t.boolean().optional(),
 			},
 			files: {
-				description: 'Make the files folder too when `--setup` is given.',
+				description: 'Make the files folder too when `--setup` or `--from` is given.',
 				type: t.boolean().optional(),
+			},
+			from: {
+				description:
+					"Start from another outcome case's setup: the new setup script `evals/setup/<case>.sh` is a copy of that case's, to edit, and the new case names that case's files folder unless `--files` is given. Implies `--setup`.",
+				type: t.string().optional(),
 			},
 			criteria: {
 				description: "The criteria the case tests, as comma-separated IDs from the skill's Criteria, such as `C1,C2`.",
@@ -1070,6 +1075,11 @@ function caseCommand(_options: SkillCommandOptions): cli.Command {
 					"cyber-agentkit skill case add .agents/skills/commit clean-tree --prompt 'commit my change' --criteria C1 --check 'C2=test -z \"$(git status --porcelain)\"'",
 				description: 'Add a case with its criteria and a script check',
 			},
+			{
+				command:
+					"cyber-agentkit skill case add .agents/skills/commit red-check-amend --prompt 'amend the last commit' --from red-check",
+				description: "Add a case that starts from another case's setup script",
+			},
 		],
 		async run(
 			this: { format: Format },
@@ -1079,6 +1089,7 @@ function caseCommand(_options: SkillCommandOptions): cli.Command {
 				prompt: string
 				setup?: boolean | undefined
 				files?: boolean | undefined
+				from?: string | undefined
 				criteria?: string | undefined
 				check?: string[] | undefined
 			},
@@ -1096,8 +1107,9 @@ function caseCommand(_options: SkillCommandOptions): cli.Command {
 			}
 			const added = addCase(skill.folder, args.case, {
 				prompt: args.prompt,
-				setup: args.setup,
-				files: args.files === true || !args.setup,
+				from: args.from,
+				setup: args.setup || args.from !== undefined,
+				files: args.files === true || (!args.setup && args.from === undefined),
 				criteria: args.criteria
 					?.split(',')
 					.map((id) => id.trim())

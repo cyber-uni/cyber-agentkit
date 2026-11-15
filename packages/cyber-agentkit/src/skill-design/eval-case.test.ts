@@ -142,6 +142,37 @@ describe('addCase (R159)', () => {
 		expect(evalsOf(skill.folder)).toBe(`${written}outcome:\n  - id: first\n    prompt: x\n    files: files/first\n`)
 	})
 
+	it("starts a case from another case's setup with from (#290)", () => {
+		const skill = goodSkill({
+			'evals/evals.yaml': 'outcome:\n  - { id: base, prompt: a, files: files/two-prs, setup: setup/base.sh }\n',
+			'evals/setup/base.sh': '#!/bin/sh\nset -e\ngit commit -q --allow-empty -m start\n',
+		})
+		const added = addCase(skill.folder, 'more', { prompt: 'b', from: 'base' })
+		expect(added).toMatchObject({ paths: [join('evals', 'setup', 'more.sh')] })
+		expect(readFileSync(join(skill.folder, 'evals', 'setup', 'more.sh'), 'utf8')).toBe(
+			'#!/bin/sh\nset -e\ngit commit -q --allow-empty -m start\n',
+		)
+		expect(statSync(join(skill.folder, 'evals', 'setup', 'more.sh')).mode & 0o111).not.toBe(0)
+		expect(existsSync(join(skill.folder, 'evals', 'files', 'more'))).toBe(false)
+		expect(parse(evalsOf(skill.folder)).outcome[1]).toEqual({
+			id: 'more',
+			prompt: 'b',
+			files: 'files/two-prs',
+			setup: 'setup/more.sh',
+		})
+		addCase(skill.folder, 'own', { prompt: 'c', from: 'base', files: true })
+		expect(parse(evalsOf(skill.folder)).outcome[2]).toMatchObject({ files: 'files/own', setup: 'setup/own.sh' })
+	})
+
+	it('refuses from a case that is missing or has no setup script, and changes nothing', () => {
+		const skill = goodSkill()
+		const before = evalsOf(skill.folder)
+		expect(addCase(skill.folder, 'a', { prompt: 'x', from: 'nope' })).toMatchObject({ code: 'unknown-case' })
+		expect(addCase(skill.folder, 'a', { prompt: 'x', from: 'two-prs' })).toMatchObject({ code: 'no-setup' })
+		expect(evalsOf(skill.folder)).toBe(before)
+		expect(existsSync(join(skill.folder, 'evals', 'setup', 'a.sh'))).toBe(false)
+	})
+
 	it('refuses to write through a files folder linked outside the evals folder', () => {
 		const skill = goodSkill()
 		const outside = mkdtempSync(join(tmpdir(), 'eval-case-outside-'))

@@ -243,6 +243,14 @@ describe('skill case (R159)', () => {
 		})
 	})
 
+	it("adds a case from another case's setup with --from (#290)", async () => {
+		const skill = goodSkill()
+		await kase('add', skill.folder, 'base', '--prompt', 'a', '--setup')
+		stdout.mockClear()
+		expect(await kase('add', skill.folder, 'more', '--prompt', 'b', '--from', 'base')).toBe(0)
+		expect(JSON.parse(printed())).toMatchObject({ case: 'more', paths: [join('evals', 'setup', 'more.sh')] })
+	})
+
 	it('refuses a --check that is not <ID>=<script>, as a usage error', async () => {
 		expect(await kase('add', goodSkill().folder, 'a', '--prompt', 'x', '--check', 'test -f a')).toBe(2)
 		expect(stderr.mock.calls.join('')).toContain('error: bad-check:')

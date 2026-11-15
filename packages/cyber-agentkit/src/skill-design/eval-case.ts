@@ -14,6 +14,7 @@ export type CaseProblemCode =
 	| 'bad-criterion'
 	| 'case-exists'
 	| 'unknown-case'
+	| 'no-setup'
 	| 'evals-invalid'
 	| 'outside-evals'
 
@@ -168,19 +169,23 @@ const criterionId = /^[A-Za-z][A-Za-z0-9._-]*$/
  * and, with `setup`, its setup script `evals/setup/<id>.sh`. With `setup`, the files folder is made only when `files`
  * is also set. `criteria` and the criteria of `checks` become the case's `criteria`, and each check a `script` check
  * of its criterion. The entry goes after the last case in the file's own text, so no other entry is rewritten.
- * Changes nothing when the ID is taken or not a plain name.
+ * With `from`, the new case starts from that case's setup: its setup script is a copy of the other case's, and,
+ * unless `files` is set, it names the other case's files folder instead of making one. Changes nothing when the ID is
+ * taken or not a plain name, or when `from` names no case with a setup script.
  */
 export function addCase(
 	skillFolder: string,
 	id: string,
 	{
 		prompt,
-		setup = false,
+		from,
+		setup = from !== undefined,
 		files = !setup,
 		criteria = [],
 		checks = [],
 	}: {
 		prompt: string
+		from?: string | undefined
 		setup?: boolean | undefined
 		files?: boolean | undefined
 		criteria?: string[] | undefined
@@ -198,10 +203,31 @@ export function addCase(
 	const read = readEvals(skillFolder)
 	if ('problem' in read) return read.problem
 	const { file, source, doc } = read
-	const before = (doc.toJS() ?? {}) as { outcome?: { id?: string }[] }
+	const before = (doc.toJS() ?? {}) as { outcome?: { id?: string; files?: string; setup?: string }[] }
 	if ((before.outcome ?? []).some((item) => item.id === id))
 		return { code: 'case-exists', problem: `evals/evals.yaml already has a case ${id}` }
 	const evals = join(skillFolder, 'evals')
+	const origin = from === undefined ? undefined : (before.outcome ?? []).find((item) => item.id === from)
+	if (from !== undefined && !origin)
+		return {
+			code: 'unknown-case',
+			problem: `evals/evals.yaml has no outcome case ${from} to start from; its cases are ${(before.outcome ?? []).map((item) => item.id).join(', ') || 'none'}`,
+		}
+	let startScript: string | undefined
+	if (origin) {
+		if (origin.setup === undefined)
+			return { code: 'no-setup', problem: `case ${from} has no setup script to start from` }
+		const path = resolve(evals, origin.setup)
+		if (!strictlyInside(evals, path))
+			return {
+				code: 'outside-evals',
+				problem: `case ${from} names ${origin.setup}, which is outside the skill's evals folder`,
+			}
+		if (!existsSync(path))
+			return { code: 'no-setup', problem: `case ${from}'s setup script evals/${origin.setup} does not exist` }
+		startScript = readFileSync(path, 'utf8')
+	}
+	const sharedFiles = origin && !files ? origin.files : undefined
 	const filesPath = join('files', id)
 	const setupPath = join('setup', `${id}.sh`)
 	for (const path of [...(files ? [filesPath] : []), ...(setup ? [setupPath] : [])]) {
@@ -216,7 +242,7 @@ export function addCase(
 	const entry: Record<string, unknown> = {
 		id,
 		prompt,
-		...(files ? { files: filesPath.split('\\').join('/') } : {}),
+		...(files ? { files: filesPath.split('\\').join('/') } : sharedFiles !== undefined ? { files: sharedFiles } : {}),
 		...(setup ? { setup: setupPath.split('\\').join('/') } : {}),
 		...(named.length ? { criteria: named } : {}),
 		...(checks.length ? { checks: scripts } : {}),
@@ -239,7 +265,7 @@ export function addCase(
 	}
 	if (setup) {
 		mkdirSync(join(evals, 'setup'), { recursive: true })
-		writeFileSync(join(evals, setupPath), setupScaffold(id))
+		writeFileSync(join(evals, setupPath), startScript ?? setupScaffold(id))
 		chmodSync(join(evals, setupPath), 0o755)
 		paths.push(join('evals', setupPath))
 	}
