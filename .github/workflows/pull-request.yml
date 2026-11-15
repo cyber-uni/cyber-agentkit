@@ -102,10 +102,12 @@ jobs:
           cache: pnpm
       - run: sudo apt-get update && sudo apt-get install -y bubblewrap socat ripgrep
       # Ubuntu's AppArmor limits unprivileged user namespaces, and the capabilities inside a nested one, which
-      # bubblewrap and srt's seccomp helper need.
+      # bubblewrap and srt's seccomp helper need. The runner is thrown away, so its profiles are unloaded too.
       - run: |
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
+          sudo aa-teardown || true
+          unshare -Ur unshare -Ur true && echo "nested user namespaces work"
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec vitest run src/skill-design/promptfoo-provider-source.test.ts src/skill-design/plugin-eval-backend.test.ts -t "setup scripts"
         working-directory: packages/cyber-agentkit
