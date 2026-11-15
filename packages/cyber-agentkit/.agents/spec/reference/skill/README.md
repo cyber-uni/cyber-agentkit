@@ -81,6 +81,30 @@ IDs are shared across the parent and its children.
     one wins where they conflict.
   - UC17.5 The command did not run (UC4.4): the default is followed in the same order.
 
+### UC25 — Keep a skill's bundled default copies in step with its plugin (A6.1)
+
+- **Trigger:** a skill ships its own copy of each plugin reference it loads, since an installed skill gets only its
+  own folder, and the plugin's canonical reference has changed, or a load line has been added or dropped. A release or
+  a verify step checks that the copies still match.
+- **Entry points:** Code: `reference defaults <skill>`, with `--check` to write nothing and fail when a copy is out of
+  date, and `--plugin <folder>` when the skill has no plugin above it. The skill itself never runs the command (UC12).
+- **Inputs:** a skill, by folder or name; the plugin's folder, found as the nearest folder above the skill with a
+  plugin manifest unless given; whether to check only.
+- **Outcome:** each name the skill loads that its plugin ships a canonical reference for has a copy at
+  `references/<name>.default.md`, which is the canonical reference with `default` taken out of `extends`. The report
+  lists each copy with its state: `current`, `missing`, `stale`, `misnamed`, `orphan`, or `unbundled`. Without
+  `--check`, the command writes the missing and stale copies. It never deletes an orphan copy and never renames a
+  misnamed one: those are the author's decision. With `--check`, any copy not `current` or `unbundled` is a failure.
+- **Extensions:**
+  - UC25.1 No plugin manifest above the skill and no `--plugin`: refused, and nothing is written.
+  - UC25.2 A loaded name the plugin does not ship a canonical reference for: `unbundled`, reported, not a failure.
+  - UC25.3 A copy held under `<name>.md` instead of `<name>.default.md`: `misnamed`, which fails `--check`. Nothing is
+    renamed.
+  - UC25.4 A `<name>.default.md` for a name the skill no longer loads: `orphan`, which fails `--check`. Nothing is
+    deleted.
+  - UC25.5 An interface the skill loads: not bundled by this use case, so the skill's copies of interface documents
+    are left to the author.
+
 ## Criteria
 
 Edge IDs are in [graph.md](./graph.md).

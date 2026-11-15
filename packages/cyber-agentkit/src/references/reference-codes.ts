@@ -174,6 +174,14 @@ export const referenceCodes = {
 	'in-not-below-root': { kind: 'usage', when: '`--in` naming the root or a folder outside it (R24)' },
 	'remove-with-template': { kind: 'usage', when: '`--merge remove` with `--template` (R27)' },
 	'template-with-implements': { kind: 'usage', when: '`--template` with `--implements` (R28)' },
+	'plugin-not-found': {
+		kind: 'refused',
+		when: '`defaults` on a skill with no plugin manifest above its folder, and no `--plugin` given; the skill has no canonical reference to copy from',
+	},
+	'bundle-out-of-date': {
+		kind: 'refused',
+		when: '`defaults --check` finds a bundled default copy missing, stale, misnamed, or no longer named by its skill; the details give each',
+	},
 } as const satisfies Record<string, { kind: ReferenceCodeKind; when: string }>
 
 export type ReferenceCodeKind = 'status' | 'warning' | 'refused' | 'notice' | 'usage'

@@ -1,0 +1,129 @@
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { type FoundSkill, skillsIn } from '../skills/skill-folder.js'
+import { bundledCopy, bundleSkill, pluginRootOf } from './reference-bundle.js'
+
+let root: string
+
+beforeEach(() => {
+	root = mkdtempSync(join(tmpdir(), 'bundle-'))
+})
+
+afterEach(() => {
+	rmSync(root, { recursive: true, force: true })
+})
+
+function put(path: string, text: string): void {
+	mkdirSync(join(path, '..'), { recursive: true })
+	writeFileSync(path, text)
+}
+
+/** A plugin with a manifest and one canonical reference; a skill inside it that loads `name`. */
+function plugin(
+	name: string,
+	canonical: string,
+	skillText = `Load \`${name}\` with the \`reference\` skill of \`cyber-agentkit\`.\n`,
+) {
+	put(join(root, 'plugin.json'), '{"name":"demo","version":"1.0.0"}')
+	put(join(root, 'references', `${name}.md`), canonical)
+	put(join(root, 'skills', 'demo', 'SKILL.md'), `---\nname: demo\ndescription: d\n---\n${skillText}`)
+	return join(root, 'skills', 'demo')
+}
+
+function skill(folder: string): FoundSkill {
+	return skillsIn([folder])[0] as FoundSkill
+}
+
+describe('bundledCopy', () => {
+	it('takes default out of an inline extends list, keeping the other plugins', () => {
+		expect(bundledCopy('---\nextends: [default, base]\n---\n## A\n\nx\n')).toBe(
+			'---\nextends: [base]\n---\n## A\n\nx\n',
+		)
+	})
+
+	it('drops extends when default was its only entry', () => {
+		expect(bundledCopy('---\nextends: [default]\nmerge: patch\n---\n## A\n')).toBe('---\nmerge: patch\n---\n## A\n')
+	})
+
+	it('takes default out of a block extends list', () => {
+		expect(bundledCopy('---\nextends:\n  - default\n  - base\n---\n## A\n')).toBe(
+			'---\nextends:\n  - base\n---\n## A\n',
+		)
+	})
+
+	it('leaves a document with no frontmatter as it is', () => {
+		expect(bundledCopy('## A\n')).toBe('## A\n')
+	})
+})
+
+describe('bundleSkill', () => {
+	const canonical = '---\nextends: [default]\n---\n## Title\n\n[Bug] <summary>\n'
+	const expectedCopy = '## Title\n\n[Bug] <summary>\n'
+
+	it('writes a missing copy in --write mode, and it then checks current', () => {
+		const folder = plugin('bug-title', canonical)
+		const written = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+		expect(written.entries).toEqual([
+			{ name: 'bug-title', state: 'current', file: 'references/bug-title.default.md', written: true },
+		])
+		expect(readFileSync(join(folder, 'references/bug-title.default.md'), 'utf8')).toBe(bundledCopy(canonical))
+		expect(bundleSkill({ skill: skill(folder), pluginRoot: root, write: false }).ok).toBe(true)
+	})
+
+	it('reports a missing copy without writing it when only checking', () => {
+		const folder = plugin('bug-title', canonical)
+		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: false })
+		expect(report.ok).toBe(false)
+		expect(report.entries[0]).toEqual({ name: 'bug-title', state: 'missing', file: 'references/bug-title.default.md' })
+	})
+
+	it('rewrites a stale copy in --write mode', () => {
+		const folder = plugin('bug-title', canonical)
+		put(join(folder, 'references/bug-title.default.md'), 'old text\n')
+		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+		expect(report.entries[0]).toMatchObject({ state: 'current', written: true })
+		expect(readFileSync(join(folder, 'references/bug-title.default.md'), 'utf8')).toBe(expectedCopy)
+	})
+
+	it('flags a copy held under the wrong name, and leaves it alone', () => {
+		const folder = plugin('bug-title', canonical)
+		put(join(folder, 'references/bug-title.md'), 'copy\n')
+		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+		expect(report.entries).toEqual([{ name: 'bug-title', state: 'misnamed', file: 'references/bug-title.md' }])
+		expect(report.ok).toBe(false)
+	})
+
+	it('reports a copy the skill no longer loads as an orphan, and never deletes it', () => {
+		const folder = plugin('bug-title', canonical)
+		put(join(folder, 'references/retired.default.md'), 'gone\n')
+		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+		expect(report.entries).toContainEqual({
+			name: 'retired',
+			state: 'orphan',
+			file: 'references/retired.default.md',
+		})
+		expect(report.ok).toBe(false)
+		expect(readFileSync(join(folder, 'references/retired.default.md'), 'utf8')).toBe('gone\n')
+	})
+
+	it('treats a name with no canonical reference in the plugin as unbundled, not a failure', () => {
+		const folder = plugin('bug-title', canonical, 'Load `triage` with the `reference` skill of `cyber-agentkit`.\n')
+		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+		expect(report.entries).toEqual([{ name: 'triage', state: 'unbundled', file: 'references/triage.default.md' }])
+		expect(report.ok).toBe(true)
+	})
+})
+
+describe('pluginRootOf', () => {
+	it('finds the nearest folder above a skill that carries a plugin manifest', () => {
+		plugin('bug-title', '## Title\n')
+		expect(pluginRootOf(join(root, 'skills', 'demo'))).toBe(root)
+	})
+
+	it('finds none when no manifest is above the skill', () => {
+		put(join(root, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\n---\n')
+		expect(pluginRootOf(join(root, 'skills', 'demo'))).toBeUndefined()
+	})
+})
