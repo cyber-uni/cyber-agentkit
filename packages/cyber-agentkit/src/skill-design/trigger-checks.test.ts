@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isNameOnly } from './name-only-skills.js'
 import { byId, goodSkill, goodSkillMd } from './skill-design.fixtures.js'
 import type { SkillFiles } from './skill-files.js'
-import { checkTrigger } from './trigger-checks.js'
+import { checkTrigger, firstSentence, firstSentenceMaxChars } from './trigger-checks.js'
 
 const trg5 = (skill: SkillFiles) => checkTrigger(skill).filter(({ id }) => id === 'TRG-5')
 
@@ -141,5 +141,51 @@ describe('checkTrigger (TRG-9)', () => {
 			status: 'skipped',
 			message: 'the skill is name-only',
 		})
+	})
+})
+
+describe('checkTrigger (TRG-10, #238)', () => {
+	const trg10 = (skill: SkillFiles) => byId(checkTrigger(skill))['TRG-10']
+
+	it('passes a description that opens with a short sentence saying what the skill does', () => {
+		expect(trg10(goodSkill())).toEqual({ id: 'TRG-10', status: 'pass' })
+	})
+
+	it('fails a first sentence over the length a slash-command menu shows whole, with its count', () => {
+		const long = `Draft release notes ${'from merged pull requests '.repeat(8).trim()}.`
+		expect(trg10(withDescription(`${long} Use it for a changelog.`))).toEqual({
+			id: 'TRG-10',
+			status: 'fail',
+			message: `the first sentence is ${long.length} characters, over ${firstSentenceMaxChars}`,
+			file: 'SKILL.md',
+		})
+	})
+
+	it('fails a first sentence that opens with a lead-in, naming it', () => {
+		expect(trg10(withDescription('Use this skill when the user wants release notes drafted.'))).toMatchObject({
+			status: 'fail',
+			message: 'the first sentence opens with the lead-in "Use this skill when", not what the skill does',
+		})
+		expect(trg10(withDescription('This skill drafts release notes from merged pull requests.'))).toMatchObject({
+			status: 'fail',
+		})
+	})
+
+	it('skips a name-only skill', () => {
+		expect(trg10(withDescription('By name only'))).toMatchObject({ status: 'skipped' })
+	})
+})
+
+describe('firstSentence', () => {
+	it('ends at the first full stop, question, or exclamation mark followed by a space or the end', () => {
+		expect(firstSentence('Draft release notes. Use it for a changelog.')).toBe('Draft release notes.')
+		expect(firstSentence('Draft release notes')).toBe('Draft release notes')
+		expect(firstSentence('Check v1.2 notes. More.')).toBe('Check v1.2 notes.')
+	})
+
+	it('reads past a full stop inside a quoted phrase, and joins wrapped lines', () => {
+		expect(firstSentence('Vet a skill, as in "is it safe? vet it.", before install.\n  More.')).toBe(
+			'Vet a skill, as in "is it safe? vet it.", before install.',
+		)
 	})
 })

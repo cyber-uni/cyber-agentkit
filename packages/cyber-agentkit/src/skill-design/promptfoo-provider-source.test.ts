@@ -487,6 +487,61 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'trigger
 	})
 })
 
+describe('promptfooProviderSource cost cap (#238)', () => {
+	/** A fake inner provider that writes a transcript of `TOKENS` output tokens, then makes a tool call through every PreToolUse hook. */
+	const spending = String.raw`
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
+exports.loadApiProvider = async (_id, { options }) => ({
+  callApi: async () => {
+    const c = options.config
+    const transcript = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'provider-transcript-')), 't.jsonl')
+    const message = { id: 'm1', model: 'claude-sonnet-5-5', usage: { input_tokens: 10, output_tokens: Number(process.env.TOKENS) } }
+    // The same message twice, as a transcript writes one line per content block: it counts once.
+    fs.writeFileSync(transcript, [{ type: 'user' }, { type: 'assistant', message }, { type: 'assistant', message }].map((l) => JSON.stringify(l)).join('\n'))
+    const answers = await Promise.all(c.hooks.PreToolUse.flatMap((entry) => entry.hooks.map((hook) => hook({ tool_name: 'Bash', tool_input: { command: 'true' }, transcript_path: transcript }))))
+    return { output: 'done', metadata: { budget: c.max_budget_usd ?? null, stopped: answers.some((a) => a.continue === false && a.stopReason === 'cost cap') } }
+  },
+})
+`
+
+	function spend(tokens: number): Record<string, any> {
+		const root = mkdtempSync(join(tmpdir(), 'provider-cost-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), spending)
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'baseline', skillName: 'demo', isolation: ${isolation}, costCap: 0.5, inner: {} } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
+`,
+		)
+		return JSON.parse(
+			execFileSync('node', [join(root, 'run.mjs')], {
+				encoding: 'utf8',
+				env: { ...process.env, TOKENS: String(tokens) },
+			}),
+		)
+	}
+
+	it('passes the Agent SDK no budget the model would see, and lets a run under the cap go on', () => {
+		// 10,000 output tokens at $15 a million: $0.15.
+		const response = spend(10_000)
+		expect(response.error).toBeUndefined()
+		expect(response.metadata).toMatchObject({ budget: null, stopped: false })
+	})
+
+	it('ends a run whose transcript passes the cap, and answers an error', () => {
+		// 40,000 output tokens at $15 a million: $0.60; counted twice it would be $1.20.
+		const response = spend(40_000)
+		expect(response.metadata).toMatchObject({ budget: null, stopped: true })
+		expect(response.error).toBe('Exceeded the run cost cap: about $0.60 of $0.50')
+	})
+})
+
 describe('promptfooProviderSource progress (R98, R99)', () => {
 	/** A fake inner provider that answers at once; the run script runs the wrapper and the hook, then prints the progress file. */
 	const answering =

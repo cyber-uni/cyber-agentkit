@@ -8,6 +8,7 @@ import { collapseHome } from '../command-output/collapse-home.js'
 import { type HarnessId, harnessIds } from '../harness/harness-id.js'
 import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plugins.js'
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
+import { resolveReference } from '../references/resolve-reference.js'
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
 import { addCase, type CaseChange, removeCase } from './eval-case.js'
@@ -44,7 +45,7 @@ import {
 	skillTestHarnesses,
 } from './skill-test-harness.js'
 import { type SkillVetReport, vetSkill } from './skill-vet.js'
-import { defaultTestBudget, estimateTest, estimateText } from './test-estimate.js'
+import { defaultTestBudget, estimateTest, estimateText, parseTestBudget } from './test-estimate.js'
 import { planScripts, planTest, withoutScripts } from './test-plan.js'
 import { planLine } from './test-progress.js'
 import type { CaseStatus, Incomplete, ResumeOptions, Row, TestResult } from './test-result.js'
@@ -411,15 +412,15 @@ function testCommand({
 			},
 			estimate: {
 				description:
-					'Make no run: print how many runs the test plans, its estimated cost (from the last saved result, else the default per-run cost), and whether that is within the budget.',
+					'Make no run: print how many runs the test plans, its estimated cost (from the last saved result, else the default per-run cost), whether that is within the budget, and the `Test budget:` line to report. The budget is the one `skill-design.autonomy` sets under `## test budget`, unless --budget-cost or --budget-runs gives one.',
 				type: t.boolean().optional(),
 			},
 			'budget-cost': {
-				description: `The budget --estimate holds the cost to, in US dollars. Defaults to ${defaultTestBudget.cost}.`,
+				description: `The budget --estimate holds the cost to, in US dollars, instead of the one skill-design.autonomy sets. Defaults to ${defaultTestBudget.cost} when neither sets one.`,
 				type: t.number().optional(),
 			},
 			'budget-runs': {
-				description: `The budget --estimate holds the run count to when no cost is known. Defaults to ${defaultTestBudget.runs}.`,
+				description: `The budget --estimate holds the run count to when no cost is known, instead of the one skill-design.autonomy sets. Defaults to ${defaultTestBudget.runs} when neither sets one.`,
 				type: t.number().optional(),
 			},
 		},
@@ -446,8 +447,9 @@ function testCommand({
 				description: "Test it and keep the result as the skill's expected result",
 			},
 			{
-				command: 'cyber-agentkit skill test .agents/skills/release-notes --estimate --budget-cost 10 --budget-runs 60',
-				description: 'Estimate what the test costs, and whether it is within a budget, without running it',
+				command: 'cyber-agentkit skill test .agents/skills/release-notes --estimate',
+				description:
+					'Estimate what the test costs, and whether it is within the configured test budget, without running it',
 			},
 		],
 		async run(
@@ -608,21 +610,6 @@ function testCommand({
 				throw CliError.reported(exitCodes.error)
 			}
 			const home = homedir()
-			if (args.estimate) {
-				const skillName =
-					typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
-				const estimate = estimateTest(
-					skillName,
-					planned.plan,
-					lastResult(resultsFolder(resultsBase(args.root, home), skillName), skill.folder),
-					harness.id,
-					{
-						cost: args['budget-cost'] ?? defaultTestBudget.cost,
-						runs: args['budget-runs'] ?? defaultTestBudget.runs,
-					},
-				)
-				return result(estimate, { render: { text: () => estimateText(estimate) } })
-			}
 			const layers = await referenceLayers({
 				root: args.root,
 				cwd: process.cwd(),
@@ -631,6 +618,28 @@ function testCommand({
 				env: process.env,
 				plugin,
 			})
+			if (args.estimate) {
+				const skillName =
+					typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+				// With no budget option, the budget is the one `skill-design.autonomy` sets, resolved as `reference load`
+				// resolves it, so the skill reports the line as printed instead of reading the reference itself (#238).
+				const flagged = args['budget-cost'] !== undefined || args['budget-runs'] !== undefined
+				const configured = flagged
+					? undefined
+					: parseTestBudget(resolveReference('skill-design.autonomy', layers).content)
+				const estimate = estimateTest(
+					skillName,
+					planned.plan,
+					lastResult(resultsFolder(resultsBase(args.root, home), skillName), skill.folder),
+					harness.id,
+					configured ?? {
+						cost: args['budget-cost'] ?? defaultTestBudget.cost,
+						runs: args['budget-runs'] ?? defaultTestBudget.runs,
+					},
+					flagged ? 'flags' : configured ? 'reference' : 'default',
+				)
+				return result(estimate, { render: { text: () => estimateText(estimate) } })
+			}
 			const verification = loadAspect('skill-design.aspects.verification', layers, (path) => collapseHome(home, path))
 			const name =
 				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName

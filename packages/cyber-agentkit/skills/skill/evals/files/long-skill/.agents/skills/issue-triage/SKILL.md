@@ -1,6 +1,6 @@
 ---
 name: issue-triage
-description: Triage a repository's open issues by labeling each one, or audit the labels already applied, as in "triage the new issues", "label these issues", or "are our issue labels right".
+description: Triage a repository's open issues by labeling each one, or audit the labels already applied. Asked as "triage the new issues", "label these issues", or "are our issue labels right".
 argument-hint: "triage | audit"
 ---
 
