@@ -13,7 +13,22 @@ describe('checkVerification', () => {
 			'pass',
 			'pass',
 			'pass',
+			'pass',
 		])
+	})
+
+	it('flags a Done-when criterion no outcome case lists, and counts a case with no criteria as listing all (VER-13)', () => {
+		const run = (evals: string) =>
+			byId(checkVerification(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': evals })))['VER-13']
+		expect(run(goodEvals)).toEqual({ id: 'VER-13', status: 'pass' })
+		const some = goodEvals.replace(
+			'  - { id: two-prs, prompt: write the notes, files: files/two-prs }',
+			'  - { id: two-prs, prompt: write the notes, files: files/two-prs, criteria: [C1] }',
+		)
+		expect(some).not.toBe(goodEvals)
+		expect(run(some)).toMatchObject({ status: 'fail', message: expect.stringContaining('lists C2') })
+		const both = some.replace('criteria: [C1]', 'criteria: [C1, C2]')
+		expect(run(both)).toEqual({ id: 'VER-13', status: 'pass' })
 	})
 
 	it('asks a name-only skill for three `skip` trigger cases and no `fire` ones (VER-2)', () => {
