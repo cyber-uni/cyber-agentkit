@@ -1,5 +1,14 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	symlinkSync,
+	utimesSync,
+	writeFileSync,
+} from 'node:fs'
 import { createRequire } from 'node:module'
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
@@ -55,6 +64,7 @@ const git = (dir, ...args) => execFileSync('git', args, { cwd: dir, encoding: 'u
 exports.loadApiProvider = async (_id, { options }) => ({
   callApi: async () => {
     const dir = options.config.working_dir
+    if (process.env.FAKE_RUN_REMOVES && !globalThis.removed) { globalThis.removed = true; fs.rmSync(process.env.FAKE_RUN_REMOVES, { force: true }) }
     if (process.env.FAKE_RUN_WRITES) fs.writeFileSync(dir + '/' + process.env.FAKE_RUN_WRITES, 'written by the run\n')
     const report = {
       isRepo: git(dir, 'rev-parse', '--is-inside-work-tree'),
@@ -86,7 +96,13 @@ function runProvider(
 		caseInstructions,
 		unsandboxed,
 		box,
+		runs = 1,
+		removes,
 	}: {
+		/** A path the fake inner provider deletes during the first run, to show whether a later run made it again. */
+		removes?: string
+		/** How many runs one provider makes, one after the other. */
+		runs?: number
 		unsandboxed?: boolean
 		/** Sandbox settings of the test's own, over the claude-code template. */
 		box?: Record<string, unknown>
@@ -112,11 +128,17 @@ function runProvider(
 		join(root, 'run.mjs'),
 		`${platform ? `Object.defineProperty(process, 'platform', { value: ${JSON.stringify(platform)} })\n` : ''}const { default: Provider } = await import('./provider.mjs')
 const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, ${unsandboxed ? `sandbox: ${folderBox}, ` : ''}${box ? `sandbox: ${JSON.stringify(box)}, ` : ''}${instruction === undefined ? '' : `instruction: ${JSON.stringify(instruction)}, `}${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${plugin ? ` pluginName: 'kit', pluginDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${dependencies ? ` dependencyDirs: ${JSON.stringify(dependencies)},` : ''} } })
-const response = await provider.callApi('hi', { vars: { kind: 'outcome', files: ${JSON.stringify(join(root, 'files'))}, rubrics: '{}'${network ? `, network: ${JSON.stringify(JSON.stringify(network))}` : ''} } })
+let response
+for (let run = 0; run < ${runs}; run++) response = await provider.callApi('hi', { vars: { kind: 'outcome', files: ${JSON.stringify(join(root, 'files'))}, rubrics: '{}'${network ? `, network: ${JSON.stringify(JSON.stringify(network))}` : ''} } })
 console.log(response.output)
 `,
 	)
-	return JSON.parse(execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' }))
+	return JSON.parse(
+		execFileSync('node', [join(root, 'run.mjs')], {
+			encoding: 'utf8',
+			env: { ...process.env, ...(removes ? { FAKE_RUN_REMOVES: removes } : {}) },
+		}),
+	)
 }
 
 describe('promptfooProviderSource run folder (F7)', () => {
@@ -289,6 +311,26 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 		expect(readFileSync(join(dependency, 'skills', 'kit', '.mcp.json'), 'utf8')).toBe('{}\n')
 		expect(readFileSync(join(dependency, '.claude', 'launch.json'), 'utf8')).toBe('{}\n')
 		expect(existsSync(join(dependency, 'skills', 'kit', '.claude', 'hooks'))).toBe(true)
+	})
+
+	/** Every folder and file under root, relative to it. */
+	const tree = (root: string) => readdirSync(root, { recursive: true }).map(String).sort()
+
+	it('leaves a dependency copy as it is when a later run finds the mount points already made (#311)', () => {
+		const dependency = mkdtempSync(join(tmpdir(), 'provider-dependency-'))
+		mkdirSync(join(dependency, 'skills', 'kit'), { recursive: true })
+		runProvider(false, { plugin: true, dependencies: [dependency] })
+		const first = tree(dependency)
+		runProvider(false, { plugin: true, dependencies: [dependency] })
+		runProvider(false, { plugin: true, dependencies: [dependency] })
+		expect(tree(dependency)).toEqual(first)
+	})
+
+	it('makes the mount points of a dependency copy once per test, not once per run (#311)', () => {
+		const dependency = mkdtempSync(join(tmpdir(), 'provider-dependency-'))
+		mkdirSync(join(dependency, 'skills'), { recursive: true })
+		runProvider(false, { plugin: true, dependencies: [dependency], runs: 2, removes: join(dependency, '.mcp.json') })
+		expect(existsSync(join(dependency, '.mcp.json'))).toBe(false)
 	})
 
 	it('opens the network only to the hosts the case lists', () => {

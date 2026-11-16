@@ -307,14 +307,19 @@ function spawnInGroup(children) {
   }
 }
 
+const mountedDependencies = new Set()
+
 // The harness's sandbox mounts over the declaration's mountPoints in the shell's folder and in each folder above it,
 // and in a folder it holds read-only, as it holds a loaded plugin, a path that does not exist cannot be mounted over:
 // every later shell command fails (E-CC-D17, E-CC-D20). So each folder of the plugin copy gets each one the copy
 // does not have, a JSON file holding {} or an empty one, made ahead. Answers the files made, relative to root.
+// The walk does not go into the folders that hold the mount points (the first segment of each declared folder, as
+// .claude), or a later call would find the ones this call made and make them again inside, eight times over each call (#311).
 function makeMountPoints(root, { files, folders }) {
   const made = []
+  const own = new Set([...folders, ...files].map((declared) => declared.split('/')[0]))
   const walk = (at) => {
-    const here = fs.readdirSync(path.join(root, at), { withFileTypes: true }).filter((entry) => entry.isDirectory() && entry.name !== '.git')
+    const here = fs.readdirSync(path.join(root, at), { withFileTypes: true }).filter((entry) => entry.isDirectory() && entry.name !== '.git' && !own.has(entry.name))
     for (const folder of folders) if (!fs.existsSync(path.join(root, at, folder))) fs.mkdirSync(path.join(root, at, folder), { recursive: true })
     for (const file of files) {
       const full = path.join(root, at, file)
@@ -598,8 +603,13 @@ export default class SkillRun {
       }
       // The sandbox holds each dependency copy read-only as it holds the plugin, and fails every shell command on a
       // mount point a copy does not have (E-CC-D20, E-CC-D22), so each copy gets them too. The copies are shared by
-      // every run and are no git repository; a later run finds them made and writes nothing.
-      if (isolation.containment?.mountPoints && !shellOff) for (const dependency of dependencyDirs) makeMountPoints(dependency, isolation.containment.mountPoints)
+      // every run and are no git repository, so each is made once, by the first run to reach it (#311).
+      if (isolation.containment?.mountPoints && !shellOff)
+        for (const dependency of dependencyDirs)
+          if (!mountedDependencies.has(dependency)) {
+            makeMountPoints(dependency, isolation.containment.mountPoints)
+            mountedDependencies.add(dependency)
+          }
       const skills = path.join(dir, isolation.projectSkills)
       if (skillDir) fs.cpSync(skillDir, path.join(skills, skillName), { recursive: true })
       // A harness with no flag to load a local plugin gets the plugin's skills as project skills.
