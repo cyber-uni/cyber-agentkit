@@ -8,11 +8,6 @@
 			"automerge": true
 		},
 		{
-			"description": "@types/node tracks the supported Node range, so bumps are a deliberate call.",
-			"matchPackageNames": ["@types/node"],
-			"automerge": false
-		},
-		{
 			"description": "astro check does not support TypeScript 7 yet; keep the docs site on TypeScript 6",
 			"matchFileNames": ["apps/web/package.json"],
 			"matchPackageNames": ["typescript"],
