@@ -1,0 +1,22 @@
+# The folder-only sandbox template of `skill test`, for a machine that cannot run a sandbox. Each run still gets a
+# fresh folder holding only the skill and its case files, and an empty home and config folder, so no other skill or
+# plugin loads. Shell commands, setup scripts, and `script` checks run with no sandbox and an open network: they can
+# read and write anything your account can. The file tools still reach only the run's folders. The result records
+# `sandbox: none`, and lists in `wroteOutside` each path outside the run's folders a shell command named and changed.
+
+shell:
+  sandbox: false
+  failIfUnavailable: false
+  allowUnsandboxedCommands: false
+  network: open
+  hideHome: false
+
+scripts:
+  sandbox: false
+  network: open
+
+fileTools:
+  blockReadsOutsideWorkingDirectories: true
+  blockWritesOutsideWorkingDirectories: true
+
+hook: true

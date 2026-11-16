@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { headlessInvocation } from '../headless/headless-invocation.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
 import { sandboxFaults } from './sandbox-faults.js'
+import { shippedSandbox } from './skill-design.fixtures.js'
 import { usageLimits } from './usage-limits.js'
 
 /** The script sandbox's CLI, which the provider resolves from the npx install it runs in. */
@@ -42,6 +43,9 @@ if (process.env['SKILL_TEST_REQUIRE_SANDBOX'] && sandboxDown)
 
 const claude = headlessInvocation('claude-code')
 const isolation = JSON.stringify(claude.supported === true ? claude.isolation : undefined)
+/** The settings of the sandbox templates the plugin ships, as skill test passes them to each run (#302). */
+const claudeBox = JSON.stringify(shippedSandbox('claude-code'))
+const folderBox = JSON.stringify(shippedSandbox('folder-only'))
 
 /** A fake `promptfoo` whose inner provider reports what the run folder looks like when the model would start. */
 const fakePromptfoo = String.raw`
@@ -81,8 +85,11 @@ function runProvider(
 		instruction,
 		caseInstructions,
 		unsandboxed,
+		box,
 	}: {
 		unsandboxed?: boolean
+		/** Sandbox settings of the test's own, over the claude-code template. */
+		box?: Record<string, unknown>
 		platform?: string
 		network?: string[]
 		plugin?: boolean
@@ -104,7 +111,7 @@ function runProvider(
 	writeFileSync(
 		join(root, 'run.mjs'),
 		`${platform ? `Object.defineProperty(process, 'platform', { value: ${JSON.stringify(platform)} })\n` : ''}const { default: Provider } = await import('./provider.mjs')
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, ${unsandboxed ? 'unsandboxed: true, ' : ''}${instruction === undefined ? '' : `instruction: ${JSON.stringify(instruction)}, `}${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${plugin ? ` pluginName: 'kit', pluginDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${dependencies ? ` dependencyDirs: ${JSON.stringify(dependencies)},` : ''} } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, ${unsandboxed ? `sandbox: ${folderBox}, ` : ''}${box ? `sandbox: ${JSON.stringify(box)}, ` : ''}${instruction === undefined ? '' : `instruction: ${JSON.stringify(instruction)}, `}${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${plugin ? ` pluginName: 'kit', pluginDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${dependencies ? ` dependencyDirs: ${JSON.stringify(dependencies)},` : ''} } })
 const response = await provider.callApi('hi', { vars: { kind: 'outcome', files: ${JSON.stringify(join(root, 'files'))}, rubrics: '{}'${network ? `, network: ${JSON.stringify(JSON.stringify(network))}` : ''} } })
 console.log(response.output)
 `,
@@ -210,6 +217,40 @@ describe('promptfooProviderSource containment (R107)', () => {
 		})
 	})
 
+	it('takes each setting from the sandbox settings it is given (#302)', () => {
+		const settings = shippedSandbox('claude-code')
+		const box = {
+			...settings,
+			shell: { ...settings.shell, hideHome: false, failIfUnavailable: false, allowUnsandboxedCommands: true },
+			fileTools: { blockReadsOutsideWorkingDirectories: false, blockWritesOutsideWorkingDirectories: true },
+		}
+		const report = runProvider(true, { box })
+		expect(report.sandbox).toMatchObject({ enabled: true, failIfUnavailable: false, allowUnsandboxedCommands: true })
+		expect(report.sandbox.filesystem.denyRead).toEqual([])
+		expect(report.settings.permissions).toEqual({
+			blockReadsOutsideWorkingDirectories: false,
+			blockWritesOutsideWorkingDirectories: true,
+		})
+	})
+
+	it('starts no run when the config names no sandbox settings (#302)', () => {
+		const root = mkdtempSync(join(tmpdir(), 'provider-nobox-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), fakePromptfoo)
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {} } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
+`,
+		)
+		expect(JSON.parse(execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8' })).error).toBe(
+			'sandbox: the test config names no sandbox settings',
+		)
+	})
+
 	it('in a folder-only run, makes no sandbox mount point in a plugin copy or a dependency copy (#302)', () => {
 		const dependency = mkdtempSync(join(tmpdir(), 'provider-dependency-'))
 		runProvider(false, { plugin: true, dependencies: [dependency], unsandboxed: true })
@@ -281,7 +322,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 })
 `
 
-	function probe(): Record<string, any> {
+	function probe(box?: Record<string, unknown>): Record<string, any> {
 		const root = mkdtempSync(join(tmpdir(), 'provider-contain-'))
 		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
 		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
@@ -292,7 +333,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {} } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}${box ? `, sandbox: ${JSON.stringify(box)}` : ''} } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
 `,
 		)
@@ -334,7 +375,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, unsandboxed: true } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, sandbox: ${folderBox} } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
 `,
 		)
@@ -354,6 +395,12 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 		expect(metadata.answers.writeOutside[1]).toMatchObject(denied)
 		expect(metadata.answers.globOutside[1]).toMatchObject(denied)
 		expect(metadata.answers.readInside).toEqual([{}, {}])
+	})
+
+	it('with hook false, leaves the file tools to the file-tool limits alone (#302)', () => {
+		const { metadata } = probe({ ...shippedSandbox('claude-code'), hook: false })
+		expect(metadata.answers.readOutside).toEqual([{}])
+		expect(metadata.answers.writeOutside).toEqual([{}])
 	})
 
 	it('records a read the sandbox hid, a host it denied, and a host a command asked for beyond the case list, and nothing for a read it allowed or a file that does not exist', () => {
@@ -398,7 +445,7 @@ process.exit(loggedIn ? 0 : 1)
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {} } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {} } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
 `,
 		)
@@ -454,7 +501,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, timeout: 2 } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, timeout: 2 } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
 `,
 		)
@@ -493,7 +540,7 @@ describe('promptfooProviderSource model (R161)', () => {
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'baseline', skillName: 'demo', isolation: ${isolation}, inner: { model: 'sonnet' } } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'baseline', skillName: 'demo', isolation: ${isolation}, inner: { model: 'sonnet' } } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}'${caseModel ? `, model: '${caseModel}'` : ''} } })))
 `,
 		)
@@ -529,7 +576,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: { max_turns: 20 } } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: { max_turns: 20 } } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'trigger', rubrics: '{}' } })))
 `,
 		)
@@ -588,7 +635,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'baseline', skillName: 'demo', isolation: ${isolation}, costCap: 0.5, inner: {} } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'baseline', skillName: 'demo', isolation: ${isolation}, costCap: 0.5, inner: {} } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
 `,
 		)
@@ -632,7 +679,7 @@ describe('promptfooProviderSource progress (R98, R99)', () => {
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
 import { afterEach } from './hook.mjs'
-const provider = new Provider({ config: { arm: ${JSON.stringify(arm)}, skillName: 'demo', isolation: ${isolation}, inner: {}, progressFile: ${JSON.stringify(file)} } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: ${JSON.stringify(arm)}, skillName: 'demo', isolation: ${isolation}, inner: {}, progressFile: ${JSON.stringify(file)} } })
 const response = await provider.callApi('hi', { test: { description: 'case-a' }, repeatIndex: 1, vars: { kind: ${JSON.stringify(kind)}, rubrics: '{}' } })
 await afterEach({ result: { response, vars: { kind: ${JSON.stringify(kind)} }, testCase: { description: 'case-a' }, provider: { label: ${JSON.stringify(arm === 'skill' ? 'with-skill' : 'baseline')} }, repeatIndex: 1, latencyMs: 1234, success: ${!skipped} } })
 `,
@@ -713,7 +760,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
 import { afterEach } from './hook.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${JSON.stringify(used)}, inner: {}, sandboxFaults: ${JSON.stringify(sandboxFaults)} } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', isolation: ${JSON.stringify(used)}, inner: {}, sandboxFaults: ${JSON.stringify(sandboxFaults)} } })
 const response = await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })
 await afterEach({ result: { response, vars: { kind: 'outcome' }, testCase: { description: 'case-a' }, provider: { label: 'with-skill' }, repeatIndex: 0, success: true } })
 console.log(JSON.stringify(response))
@@ -800,7 +847,7 @@ out({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 5 } })
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { ...${JSON.stringify(config)}, isolation: ${codexIsolation} } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, ...${JSON.stringify(config)}, isolation: ${codexIsolation} } })
 console.log(JSON.stringify(await provider.callApi('write the notes', { vars: { kind: '${kind}', rubrics: ${JSON.stringify(rubrics)}${model?.case ? `, model: '${model.case}'` : ''} } })))
 `,
 		)
@@ -883,7 +930,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', pluginName: 'kit', pluginDir: ${JSON.stringify(source)}, isolation: ${isolation}, inner: {} } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', pluginName: 'kit', pluginDir: ${JSON.stringify(source)}, isolation: ${isolation}, inner: {} } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: ${JSON.stringify(rubrics)} } })))
 `,
 		)
@@ -952,7 +999,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', pluginName: 'kit', pluginDir: ${JSON.stringify(source)}, isolation: ${isolation}, inner: {} } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', pluginName: 'kit', pluginDir: ${JSON.stringify(source)}, isolation: ${isolation}, inner: {} } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome' } })))
 `,
 		)
@@ -1027,7 +1074,7 @@ describe('promptfooProviderSource setup scripts and script checks (R155, R156, R
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}${keep ? `, keep: ${JSON.stringify(keep)}` : ''}${unsandboxed ? ', unsandboxed: true' : ''} } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}${keep ? `, keep: ${JSON.stringify(keep)}` : ''}${unsandboxed ? `, sandbox: ${folderBox}` : ''} } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify(vars)} })))
 `,
 		)
@@ -1178,7 +1225,7 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {} } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {} } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: JSON.stringify({ C1: [{ script: 'true' }] }) } })))
 `,
 		)
@@ -1217,7 +1264,7 @@ exports.loadApiProvider = async () => ({
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
 import { afterEach } from './hook.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, usageLimits: ${JSON.stringify(usageLimits)}, limitFile: ${JSON.stringify(limitFile)}, progressFile: ${JSON.stringify(progressFile)} } })
+const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, usageLimits: ${JSON.stringify(usageLimits)}, limitFile: ${JSON.stringify(limitFile)}, progressFile: ${JSON.stringify(progressFile)} } })
 const responses = []
 for (const repeatIndex of [0, 1, 2]) {
   const response = await provider.callApi('hi', { test: { description: 'case-a' }, repeatIndex, vars: { kind: 'outcome', rubrics: '{}' } })
@@ -1271,7 +1318,7 @@ console.log(JSON.stringify(responses))
 const vars = { kind: 'outcome', rubrics: '{}', __run: '3', __arms: '["skill"]' }
 const out = []
 for (const arm of ['skill', 'baseline']) {
-  const provider = new Provider({ config: { arm, skillName: 'demo', isolation: ${isolation}, inner: {}, progressFile: ${JSON.stringify(progressFile)} } })
+  const provider = new Provider({ config: { sandbox: ${claudeBox}, arm, skillName: 'demo', isolation: ${isolation}, inner: {}, progressFile: ${JSON.stringify(progressFile)} } })
   out.push(await provider.callApi('hi', { test: { description: 'case-a' }, repeatIndex: 0, vars }))
 }
 console.log(JSON.stringify(out))

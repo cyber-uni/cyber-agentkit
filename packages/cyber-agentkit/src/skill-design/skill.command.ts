@@ -50,7 +50,13 @@ import { defaultTestBudget, estimateTest, estimateText, parseTestBudget } from '
 import { planScripts, planTest, withoutScripts } from './test-plan.js'
 import { planLine } from './test-progress.js'
 import type { CaseStatus, Incomplete, ResumeOptions, Row, TestResult } from './test-result.js'
-import { resolveTestSandbox, type SandboxTemplate, sandboxReferenceName, sandboxTemplates } from './test-sandbox.js'
+import {
+	defaultTemplate,
+	resolveTestSandbox,
+	type SandboxSettings,
+	sandboxReferenceName,
+	sandboxTemplatePrefix,
+} from './test-sandbox.js'
 import { type GitHubGet, githubGet, type JsonGet, jsonGet, type SupplyChainSignals } from './vet-signals.js'
 import { cloneSource, type FetchSource, parseVetSource } from './vet-source.js'
 import { readTrustList, trustListName } from './vet-trust.js'
@@ -255,25 +261,46 @@ function guardLine(item: CaseStatus, threshold: number): string {
 }
 
 /**
- * The sandbox template a test or a try runs in (#302), from `--sandbox` or the managed, repo, or user tier. Writes its
- * warnings, and a warning that the runs take no sandbox; exits on an unknown or unreadable template.
+ * The sandbox settings a test, a try, or a compare runs in (#302), as `skill-design.test.sandbox` or `--sandbox`
+ * resolves them. Writes its warnings, and a warning for each sandbox the runs go without; exits on an unknown template
+ * or settings it cannot read.
  */
-function testSandbox(layers: Parameters<typeof resolveTestSandbox>[0], flag: string | undefined): SandboxTemplate {
+export function testSandbox(
+	layers: Parameters<typeof resolveTestSandbox>[0],
+	flag: string | undefined,
+): SandboxSettings {
 	const chosen = resolveTestSandbox(layers, flag)
 	if ('problem' in chosen) {
 		process.stderr.write(`error: ${chosen.code}: ${chosen.problem}\n`)
 		throw CliError.reported(chosen.code === 'unknown-sandbox' ? exitCodes.usage : exitCodes.error)
 	}
 	for (const warning of chosen.warnings) process.stderr.write(`warning: ${warning}\n`)
-	if (chosen.template === 'folder-only')
+	const { shell, scripts } = chosen.settings
+	const without =
+		!shell.sandbox && !scripts.sandbox
+			? 'shell commands, setup scripts, and script checks'
+			: !shell.sandbox
+				? 'shell commands'
+				: !scripts.sandbox
+					? 'setup scripts and script checks'
+					: undefined
+	if (without) {
+		const source =
+			chosen.from === 'flag'
+				? '--sandbox'
+				: chosen.from === 'plugin'
+					? sandboxReferenceName
+					: `${sandboxReferenceName} in the ${chosen.from} tier`
+		const template = chosen.templates[0] ? `the ${chosen.templates[0]} template (${source})` : source
 		process.stderr.write(
-			`warning: no-sandbox: the folder-only sandbox (${chosen.from === 'flag' ? '--sandbox' : `${sandboxReferenceName} in the ${chosen.from} tier`}) runs shell commands, setup scripts, and script checks without a sandbox, with the network open; only the file tools are held to each run's folder\n`,
+			`warning: no-sandbox: ${template} runs ${without} without a sandbox${shell.network === 'open' || scripts.network === 'open' ? ', with the network open' : ''}\n`,
 		)
-	return chosen.template
+	}
+	return chosen.settings
 }
 
 const sandboxOption = {
-	description: `The sandbox template each run takes: ${sandboxTemplates.join(' or ')}. \`folder-only\` runs shell commands, setup scripts, and \`script\` checks without a sandbox, keeping only each run's own folder and the file-tool limits. Defaults to the template \`${sandboxReferenceName}\` names in the managed, repo, or user tier, else \`default\`.`,
+	description: `The sandbox template each run takes: the name of a \`${sandboxTemplatePrefix}<template>\` reference, such as \`folder-only\`, which runs shell commands, setup scripts, and \`script\` checks without a sandbox for a machine that cannot run one, or \`default\` (\`${defaultTemplate}\`). Without it, the runs take what \`${sandboxReferenceName}\` holds in the managed, repo, or user tier, else the plugin's, which extends \`${defaultTemplate}\`.`,
 	type: t.string().optional(),
 }
 
@@ -328,9 +355,9 @@ function testText(result: TestResult, folder?: string): string {
 	}
 	for (const item of result.cases) if (item.guard) lines.push(guardLine(item, result.threshold))
 	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
-	if (result.sandbox === 'none')
+	if (result.sandbox)
 		lines.push(
-			'sandbox: none — the runs took the folder-only template, with no sandbox around shell commands or scripts',
+			`sandbox: ${result.sandbox} — ${{ none: 'no sandbox around shell commands or scripts', 'shell-only': 'setup scripts and script checks ran without the script sandbox', 'scripts-only': 'shell commands ran without the OS sandbox' }[result.sandbox]}`,
 		)
 	for (const item of result.wroteOutside ?? [])
 		lines.push(`wrote outside: ${item.case} run ${item.run} (${item.arm}) changed ${item.target}`)
@@ -739,7 +766,7 @@ function testCommand({
 				...(args.judge !== undefined ? { judge: args.judge } : {}),
 				...(args.baseline !== undefined ? { baseline: args.baseline } : {}),
 				...(args['trust-scripts'] ? { trustScripts: true } : {}),
-				...(sandbox === 'folder-only' ? { sandbox } : {}),
+				...(args.sandbox !== undefined ? { sandbox: args.sandbox } : {}),
 			}
 			const toSave: TestResult =
 				ran.result.incomplete && fingerprint

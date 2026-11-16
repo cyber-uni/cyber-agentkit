@@ -111,11 +111,12 @@ export type TestResult = {
 	at: string
 	verification: string
 	/**
-	 * Set to `none` when the runs took the `folder-only` sandbox template (#302): shell commands, setup scripts, and
-	 * `script` checks ran without a sandbox. Left out when they ran in the sandbox.
+	 * Which sandbox did not run (#302): `none` when shell commands, setup scripts, and `script` checks all ran without one,
+	 * as the `folder-only` template has it; `shell-only` when only shell commands ran in one, `scripts-only` when only
+	 * scripts did. Left out when both sandboxes ran.
 	 */
-	sandbox?: 'none'
-	/** In a result with `sandbox: none`, each path outside a run's folders that one of its shell commands changed (#302). */
+	sandbox?: 'none' | 'shell-only' | 'scripts-only'
+	/** In a result whose shell commands ran without a sandbox, each path outside a run's folders that one changed (#302). */
 	wroteOutside?: WroteOutside[]
 	/**
 	 * The model the cases ran on unless one names its own (R161): the model passed to the harness, or `default` when

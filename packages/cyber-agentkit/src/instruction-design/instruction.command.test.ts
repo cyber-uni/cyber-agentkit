@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { cli } from 'clibuilder'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
@@ -85,7 +86,12 @@ function fakeRun(seen: { config?: Record<string, any> }): PromptfooRun {
 
 async function compare(root: string, run: PromptfooRun, ...extra: string[]) {
 	const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
-		createInstructionCommand({ runPromptfoo: run, threads: 8 }),
+		createInstructionCommand({
+			runPromptfoo: run,
+			threads: 8,
+			// This package as the plugin tier, as the CLI passes it, so its sandbox templates resolve (#302).
+			plugin: { name: 'cyber-agentkit', root: fileURLToPath(new URL('../..', import.meta.url)) },
+		}),
 	)
 	const cwd = process.cwd()
 	process.chdir(root)

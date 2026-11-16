@@ -1,4 +1,4 @@
 ---
-description: The sandbox skill test runs each case in - the default Claude Code and script sandbox, or folder-only with no sandbox for a machine that cannot run one.
+description: The sandbox skill test runs each case in - the template it extends, claude-code by default, and any setting a tier changes on top.
 tags: [skill-design, test, sandbox, evals]
 ---

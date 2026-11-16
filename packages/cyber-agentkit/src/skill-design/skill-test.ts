@@ -34,7 +34,7 @@ import {
 	readRows,
 	type TestResult,
 } from './test-result.js'
-import type { SandboxTemplate } from './test-sandbox.js'
+import { type SandboxSettings, sandboxLabel } from './test-sandbox.js'
 
 /** Runs promptfoo on a config in a folder and answers its output JSON, or why it could not. */
 export type PromptfooRun = (
@@ -80,8 +80,8 @@ export type TestOptions = {
 	run: PromptfooRun
 	/** The harness each run drives; Claude Code when absent. */
 	harness?: SkillTestHarness | undefined
-	/** The sandbox template each run takes (#302); `default` when absent. */
-	sandbox?: SandboxTemplate | undefined
+	/** The sandbox settings each run takes, as `skill-design.test.sandbox` resolved them (#302). */
+	sandbox: SandboxSettings
 	/** Where progress lines go while promptfoo runs (R98, R99); without it the run reports none. */
 	progress?: Pick<ProgressWatch, 'write' | 'heartbeatMs' | 'pollMs' | 'now'> | undefined
 	/** Where the plugins the skill's plugin depends on are found; without it only `--plugin` folders, of which there are none. */
@@ -256,7 +256,7 @@ export async function runTest(
 		return {
 			result: {
 				...result,
-				...(options.sandbox === 'folder-only' ? { sandbox: 'none' as const } : {}),
+				...(sandboxLabel(options.sandbox) ? { sandbox: sandboxLabel(options.sandbox) } : {}),
 				durationMs,
 				totalRuns: plannedRuns(options.plan),
 				...(typeof evalId === 'string' && evalId ? { evalId } : {}),

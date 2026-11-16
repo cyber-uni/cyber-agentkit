@@ -21,7 +21,7 @@ import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
 import type { TestPlan } from './test-plan.js'
 import { plannedRuns } from './test-progress.js'
 import { type Reply, readPromptfooOutput, readReplies, type TestResult } from './test-result.js'
-import type { SandboxTemplate } from './test-sandbox.js'
+import { type SandboxSettings, sandboxLabel } from './test-sandbox.js'
 
 /**
  * `skill test` on Claude Code's own `claude plugin eval` (E-CC-H8). The plan becomes an eval suite in a copy of the
@@ -357,8 +357,11 @@ export type PluginEvalTestOptions = {
 	listPlugins?: PluginList | undefined
 	/** How the test gets the script sandbox a case's setup script runs in; `installScriptSandbox` when absent. */
 	scriptSandbox?: ScriptSandboxInstall | undefined
-	/** The sandbox template (#302): `folder-only` runs each setup script without the script sandbox. */
-	sandbox?: SandboxTemplate | undefined
+	/**
+	 * The sandbox settings (#302): with `scripts.sandbox` false each setup script runs without the script sandbox. The
+	 * shell and file-tool settings do not reach `claude plugin eval`, which runs each case itself. The claude-code template when absent.
+	 */
+	sandbox?: SandboxSettings | undefined
 }
 
 /** A plugin holding just the skill, for a skill not developed in one. */
@@ -425,7 +428,7 @@ export async function runPluginEvalTest(
 			}
 		// A setup script runs only contained (R157): when the sandbox cannot start, no case runs. A folder-only test
 		// (#302) runs it without one.
-		let sandbox: ScriptSandbox | 'none' | undefined = options.sandbox === 'folder-only' ? 'none' : undefined
+		let sandbox: ScriptSandbox | 'none' | undefined = options.sandbox?.scripts.sandbox === false ? 'none' : undefined
 		if (!sandbox && plan.cases.some((item) => item.setup)) {
 			const got = await (options.scriptSandbox ?? installScriptSandbox)(join(folder, 'script-sandbox'))
 			if ('problem' in got) return { code: 'sandbox', problem: got.problem }
@@ -514,7 +517,7 @@ export async function runPluginEvalTest(
 		return {
 			result: {
 				...result,
-				...(options.sandbox === 'folder-only' ? { sandbox: 'none' as const } : {}),
+				...(options.sandbox && sandboxLabel(options.sandbox) ? { sandbox: sandboxLabel(options.sandbox) } : {}),
 				durationMs: Date.now() - started,
 				totalRuns: plannedRuns(plan),
 			},

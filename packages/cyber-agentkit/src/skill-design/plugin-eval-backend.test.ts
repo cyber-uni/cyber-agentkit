@@ -16,7 +16,7 @@ import {
 	setupFailedMarker,
 	writePluginEvalSuite,
 } from './plugin-eval-backend.js'
-import { goodSkill } from './skill-design.fixtures.js'
+import { goodSkill, shippedSandbox } from './skill-design.fixtures.js'
 import { runTest } from './skill-test.js'
 import { planTest, type TestPlan } from './test-plan.js'
 
@@ -330,7 +330,7 @@ describe('runPluginEvalTest', () => {
 				asked = true
 				return { problem: 'the script sandbox cannot start: bwrap missing' }
 			},
-			sandbox: 'folder-only',
+			sandbox: shippedSandbox('folder-only'),
 		})
 		expect(asked).toBe(false)
 		expect(calls.length).toBeGreaterThan(0)
@@ -362,7 +362,11 @@ describe('runPluginEvalTest', () => {
 		expect(ran.result).toMatchObject({ version: 1, baseline: 'without the skill', cost: 0.24, totalRuns: 24 })
 
 		// The same keys as a promptfoo run's result.
-		const promptfoo = await runTest({ ...options, run: async () => ({ output: { results: { results: [] } } }) })
+		const promptfoo = await runTest({
+			...options,
+			sandbox: shippedSandbox('claude-code'),
+			run: async () => ({ output: { results: { results: [] } } }),
+		})
 		if ('problem' in promptfoo) throw new Error(promptfoo.problem)
 		const keys = (value: object) =>
 			Object.keys(value)

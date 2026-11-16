@@ -1,13 +1,14 @@
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { cli } from 'clibuilder'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
 import type { PluginEvalRun } from './plugin-eval-backend.js'
 import type { PluginList } from './plugin-load.js'
 import { createSkillCommand } from './skill.command.js'
-import { goodEvals, goodSkill } from './skill-design.fixtures.js'
+import { goodEvals, goodSkill, shippedSandbox } from './skill-design.fixtures.js'
 import { acceptResult, keptAcceptedResults, type PromptfooRun } from './skill-test.js'
 import type { TestResult } from './test-result.js'
 
@@ -29,7 +30,9 @@ afterEach(() => {
 const loaded: PluginList = async (folders) => ({
 	plugins: folders.map((installPath) => ({ installPath, enabled: true })),
 })
-const offline = { listPlugins: loaded, installedPlugins: async () => [] }
+/** This package as the plugin tier, as the CLI passes it, so its sandbox templates resolve (#302). */
+const ownPlugin = { name: 'cyber-agentkit', root: fileURLToPath(new URL('../..', import.meta.url)) }
+const offline = { listPlugins: loaded, installedPlugins: async () => [], plugin: ownPlugin }
 const printed = () => stdout.mock.calls.map(([chunk]) => String(chunk)).join('')
 
 /** A fake promptfoo: every run fires and passes every check, and the config it was given is kept. */
@@ -540,7 +543,7 @@ describe('skill test', () => {
 
 			// the text report names it too, its rate in each result, this run last
 			const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
-				createSkillCommand({ runPromptfoo: fakeRun({}) }),
+				createSkillCommand({ runPromptfoo: fakeRun({}), plugin: ownPlugin }),
 			)
 			await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root])
 			expect(printed()).toContain('moved across accepted results: trigger-1 1 of 3 → 3 of 3 → now 3 of 3')
@@ -1537,15 +1540,18 @@ describe('skill test sandbox (#302)', () => {
 	const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
 	const providers = (seen: { config?: Record<string, unknown> }) =>
 		seen.config?.['providers'] as { config: Record<string, unknown> }[]
-	const choose = (folder: string, template: string) => {
+	const choose = (folder: string, text: string) => {
 		mkdirSync(join(folder, '.agents', 'references'), { recursive: true })
-		writeFileSync(join(folder, '.agents', 'references', 'skill-design.test.sandbox.yaml'), `template: ${template}\n`)
+		writeFileSync(join(folder, '.agents', 'references', 'skill-design.test.sandbox.yaml'), text)
 	}
+	const folderOnly = 'extends: skill-design.test.sandbox.folder-only\n'
+	const box = (seen: { config?: Record<string, unknown> }) =>
+		providers(seen).map((p) => p.config['sandbox'] as { shell: { sandbox: boolean }; scripts: { sandbox: boolean } })
 
 	it('runs in the default sandbox and records none of it when nothing chooses one', async () => {
 		const seen: { config?: Record<string, unknown> } = {}
 		expect(await test(goodSkill().folder, fakeRun(seen), repo())).toBe(0)
-		expect(providers(seen).every((p) => p.config['unsandboxed'] === undefined)).toBe(true)
+		expect(box(seen)).toEqual([shippedSandbox('claude-code'), shippedSandbox('claude-code')])
 		expect(JSON.parse(printed()).sandbox).toBeUndefined()
 		expect(errors()).not.toContain('no-sandbox')
 	})
@@ -1553,29 +1559,32 @@ describe('skill test sandbox (#302)', () => {
 	it('runs folder-only with --sandbox folder-only, says so, and records sandbox none', async () => {
 		const seen: { config?: Record<string, unknown> } = {}
 		expect(await test(goodSkill().folder, fakeRun(seen), repo(), '--sandbox', 'folder-only')).toBe(0)
-		expect(providers(seen).map((p) => p.config['unsandboxed'])).toEqual([true, true])
+		expect(box(seen)).toEqual([shippedSandbox('folder-only'), shippedSandbox('folder-only')])
 		expect(JSON.parse(printed()).sandbox).toBe('none')
-		expect(errors()).toContain('warning: no-sandbox: the folder-only sandbox (--sandbox)')
+		expect(errors()).toContain(
+			'warning: no-sandbox: the folder-only template (--sandbox) runs shell commands, setup scripts, and script checks without a sandbox, with the network open',
+		)
 	})
 
 	it('takes the template the repo tier chooses, and --sandbox over it', async () => {
 		const root = repo()
-		choose(root, 'folder-only')
+		choose(root, `${folderOnly}scripts:\n  sandbox: true\n  network: closed\n`)
 		const seen: { config?: Record<string, unknown> } = {}
 		expect(await test(goodSkill().folder, fakeRun(seen), root)).toBe(0)
-		expect(providers(seen)[0]?.config['unsandboxed']).toBe(true)
+		expect(box(seen)[0]).toMatchObject({ shell: { sandbox: false }, scripts: { sandbox: true } })
+		expect(JSON.parse(printed()).sandbox).toBe('scripts-only')
 		expect(errors()).toContain('skill-design.test.sandbox in the repo tier')
 		const again: { config?: Record<string, unknown> } = {}
 		expect(await test(goodSkill().folder, fakeRun(again), root, '--sandbox', 'default')).toBe(0)
-		expect(providers(again)[0]?.config['unsandboxed']).toBeUndefined()
+		expect(box(again)[0]).toEqual(shippedSandbox('claude-code'))
 	})
 
 	it("never takes the template from the skill's own folder", async () => {
-		const skill = goodSkill({ 'references/skill-design.test.sandbox.default.yaml': 'template: folder-only\n' })
-		choose(skill.folder, 'folder-only')
+		const skill = goodSkill({ 'references/skill-design.test.sandbox.default.yaml': folderOnly })
+		choose(skill.folder, folderOnly)
 		const seen: { config?: Record<string, unknown> } = {}
 		expect(await test(skill.folder, fakeRun(seen), repo())).toBe(0)
-		expect(providers(seen)[0]?.config['unsandboxed']).toBeUndefined()
+		expect(box(seen)[0]).toEqual(shippedSandbox('claude-code'))
 	})
 
 	it('refuses an unknown template, and a tier document it cannot read, before any run', async () => {
@@ -1585,9 +1594,11 @@ describe('skill test sandbox (#302)', () => {
 			return { problem: 'x' }
 		}
 		expect(await test(goodSkill().folder, never, repo(), '--sandbox', 'none')).toBe(2)
-		expect(errors()).toContain('error: unknown-sandbox: no sandbox template none; use default or folder-only')
+		expect(errors()).toContain(
+			'error: unknown-sandbox: no sandbox template none: no tier holds skill-design.test.sandbox.none',
+		)
 		const root = repo()
-		choose(root, 'off')
+		choose(root, `${folderOnly}shell:\n  sandbox: off\n`)
 		expect(await test(goodSkill().folder, never, root)).toBe(1)
 		expect(errors()).toContain('error: sandbox-invalid:')
 		expect(ran).toBe(false)
@@ -1637,6 +1648,6 @@ describe('skill test sandbox (#302)', () => {
 				'json',
 			])
 		expect(typeof code === 'number' ? code : 0).toBe(0)
-		expect(seen['providers'][0].config.unsandboxed).toBe(true)
+		expect(seen['providers'][0].config.sandbox).toEqual(shippedSandbox('folder-only'))
 	})
 })
