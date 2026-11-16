@@ -27,8 +27,9 @@ trigger:
   - { prompt: "Teach me how to use our date library's parse function.", expect: skip }
   - { prompt: "Add a hooks component to this plugin's plugin.json.", expect: skip }
 # files/samples holds two sample skills (R79): release-notes passes every check; release-notes-flawed passes every
-# script check but fails TRG-3 (its description says how it works), CRI-3 ("The notes are clear"), and SHP-3 (its
-# grouping step is prose a script could do).
+# critical script check but fails TRG-3 (its description says how it works), CRI-3 ("The notes are clear"), SHP-3 (its
+# grouping step is prose a script could do), and the VER-12 warning (its setup writes .git/hooks and repository git
+# config, #294).
 outcome:
   # check-passing and check-flawed ask for two closing lines, so a check reads the verdict, not the prose around it.
   - id: check-passing
@@ -57,6 +58,7 @@ outcome:
         - regex: "Failed:[^\\n]*TRG-3"
         - regex: "Failed:[^\\n]*CRI-3"
         - regex: "Failed:[^\\n]*SHP-3"
+        - regex: "Failed:[^\\n]*VER-12"
   # A name, not a path: /skill looks it up in the repository's and the user's skills folders, and says so. Without
   # "with /skill" the request does not call the skill.
   - id: check-missing

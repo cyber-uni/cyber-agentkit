@@ -162,9 +162,77 @@ export function isPunctuationOnly(kind: string, value: unknown): boolean {
 	return !/[\p{L}\p{N}]/u.test(text)
 }
 
-/** VER-1 to VER-5, VER-9, and VER-11, the default Verification aspect's script checks. */
+/** A command or call that writes, copies, links, or makes the path that follows it on the line. */
+const writeVerb =
+	/(?:^|[\s;&|(`])(?:cp|mv|ln|install|tee|touch|mkdir|chmod|rm|rsync|dd|sed\s+-i\S*|(?:write|append|copy)File(?:Sync)?|symlink(?:Sync)?|mkdirSync)\b/
+/** A path under the run's `.git/hooks`, or its `.git/config`. */
+const gitPath = /\.git\/(?:hooks|config)\b/
+/** A shell redirection into one of those paths. */
+const redirect = /[^<]>>?\s*["']?[^\s"']*\.git\/(?:hooks|config)\b/
+/** `git config` and what follows it up to the end of the command, and `git -C <dir> config`. */
+const gitConfig = /\bgit(?:\s+-C\s+\S+)*\s+config\b([^;&|#]*)/g
+/** `git config` options and subcommands that read, or write a file other than the repository's. */
+const readsOrElsewhere = new Set([
+	'--global',
+	'--system',
+	'--file',
+	'-f',
+	'--blob',
+	'--get',
+	'--get-all',
+	'--get-regexp',
+	'--get-urlmatch',
+	'--get-color',
+	'--get-colorbool',
+	'--list',
+	'-l',
+	'get',
+	'list',
+])
+/** `git config` options and subcommands that write whatever their arguments. */
+const writes = new Set([
+	'--unset',
+	'--unset-all',
+	'--add',
+	'--replace-all',
+	'--rename-section',
+	'--remove-section',
+	'--edit',
+	'-e',
+	'set',
+	'unset',
+	'rename-section',
+	'remove-section',
+	'edit',
+])
+
+/** Whether a `git config` command's arguments write the repository's own config. */
+function writesRepoConfig(args: string): boolean {
+	const words = args.trim().split(/\s+/).filter(Boolean)
+	if (words.some((word) => readsOrElsewhere.has(word.split('=')[0] as string))) return false
+	if (words.some((word) => writes.has(word))) return true
+	return words.filter((word) => !word.startsWith('-')).length >= 2
+}
+
+/**
+ * The lines of a setup script that write under `.git/hooks` or to the repository's git config (VER-12), as
+ * `line <n>: <text>`: a write verb or a redirection into `.git/hooks` or `.git/config`, or `git config` without
+ * `--global` that sets a value. A comment line is skipped. It matches shell text, so it can be wrong both ways.
+ */
+export function gitWriteLines(script: string): string[] {
+	return script.split(/\r?\n/).flatMap((raw, index) => {
+		const line = raw.trim()
+		if (!line || line.startsWith('#') || line.startsWith('//')) return []
+		const code = line.replace(/\s#.*$/, '')
+		const path = gitPath.test(code) && (writeVerb.test(code) || redirect.test(` ${code}`))
+		const config = [...code.matchAll(gitConfig)].some((match) => writesRepoConfig(match[1] ?? ''))
+		return path || config ? [`line ${index + 1}: \`${line}\``] : []
+	})
+}
+
+/** VER-1 to VER-5, VER-9, VER-11, and VER-12, the default Verification aspect's script checks. */
 export function checkVerification(skill: SkillFiles): CheckOutcome[] {
-	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9', 'VER-11']
+	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9', 'VER-11', 'VER-12']
 	const blocked = (message: string): CheckOutcome[] => [
 		{ id: 'VER-1', status: 'fail', message, file },
 		...later.map((id): CheckOutcome => ({ id, status: 'not-checked', message: 'VER-1 failed' })),
@@ -284,6 +352,23 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 					file,
 				}
 			: { id: 'VER-11', status: 'pass' },
+	)
+
+	const gitWrites = (evals.outcome ?? []).flatMap((item) => {
+		if (item.setup === undefined) return []
+		const path = join(skill.folder, 'evals', item.setup)
+		if (!isFile(path)) return []
+		return gitWriteLines(readFileSync(path, 'utf8')).map((line) => `case ${item.id}: evals/${item.setup} ${line}`)
+	})
+	outcomes.push(
+		gitWrites.length
+			? {
+					id: 'VER-12',
+					status: 'fail',
+					message: `${gitWrites.join('; ')} writes \`.git/hooks\` or \`.git/config\`, which are read-only in a run; install hooks from a tracked \`hooks/\` folder with \`git config --global core.hooksPath "$PWD/hooks"\`, and set other git config with \`--global\``,
+					file,
+				}
+			: { id: 'VER-12', status: 'pass' },
 	)
 	return outcomes
 }

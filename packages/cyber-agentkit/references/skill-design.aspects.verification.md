@@ -244,6 +244,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   wording accepts the ways of saying the same thing, and a `not-` check matches only what the criterion rules out.
 - **VER-11** [script, warning] No `contains`, `not-contains`, `regex`, or `not-regex` check is a punctuation mark
   alone: once a regex's escapes such as `\b` and `\s` are dropped, its value holds a letter or a digit.
+- **VER-12** [script, warning] No outcome case's setup script writes under `.git/hooks` or to the repository's git
+  config (`git config` without `--global`, or a write to `.git/config`): both are read-only in a run.
 
 ## Fix
 
@@ -257,6 +259,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   the files or the skill calls, or the parts of the reply that outcome always has, such as lettered options for a
   stop. Widen a wording check to the ways of saying the same thing, and narrow a `not-` check to what the criterion
   rules out. Keep what the criterion asks for.
+- VER-12: install a hook from a tracked `hooks/` folder with `git config --global core.hooksPath "$PWD/hooks"`, and set
+  any other git config with `--global`, as Cases says. Try the setup with `skill case try`.
 
 ## Enhance
 

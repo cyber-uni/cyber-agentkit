@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { byId, goodEvals, goodSkill, goodSkillMd, makeSkill } from './skill-design.fixtures.js'
-import { checkVerification, evalsProblems } from './verification-checks.js'
+import { checkVerification, evalsProblems, gitWriteLines } from './verification-checks.js'
 
 describe('checkVerification', () => {
 	it('passes a complete evals file', () => {
 		expect(checkVerification(goodSkill()).map((outcome) => outcome.status)).toEqual([
+			'pass',
 			'pass',
 			'pass',
 			'pass',
@@ -189,5 +190,61 @@ describe('checkVerification', () => {
 			id: 'VER-11',
 			status: 'pass',
 		})
+	})
+
+	it('flags a setup script line that writes .git/hooks or repository git config, and passes --global (VER-12)', () => {
+		const evals = goodEvals.replace('files: files/two-prs', 'files: files/two-prs, setup: setup/two-prs.sh')
+		const setup = [
+			'#!/bin/sh',
+			'# cp hooks/commit-msg .git/hooks/commit-msg is a comment',
+			'git config --global core.hooksPath "$PWD/hooks"',
+			'cp hooks/commit-msg .git/hooks/commit-msg',
+			'git config user.name tester',
+			'',
+		].join('\n')
+		expect(
+			byId(checkVerification(goodSkill({ 'evals/evals.yaml': evals, 'evals/setup/two-prs.sh': setup })))['VER-12'],
+		).toMatchObject({
+			status: 'fail',
+			message: expect.stringMatching(
+				/^case two-prs: evals\/setup\/two-prs\.sh line 4: `cp hooks\/commit-msg \.git\/hooks\/commit-msg`; case two-prs: evals\/setup\/two-prs\.sh line 5: `git config user\.name tester` writes .*core\.hooksPath/,
+			),
+		})
+		const clean = 'git config --global user.name tester\ngit config --get user.name\n'
+		expect(
+			byId(checkVerification(goodSkill({ 'evals/evals.yaml': evals, 'evals/setup/two-prs.sh': clean })))['VER-12'],
+		).toEqual({ id: 'VER-12', status: 'pass' })
+	})
+
+	it('finds the lines of a setup script that write under .git/hooks or to .git/config (VER-12)', () => {
+		const flagged = [
+			'cp hooks/pre-commit .git/hooks/',
+			'ln -s ../../hooks/pre-commit .git/hooks/pre-commit',
+			'chmod +x .git/hooks/pre-commit',
+			'mkdir -p .git/hooks',
+			'echo "exit 0" > .git/hooks/pre-commit',
+			"printf '[user]\\n' >> .git/config",
+			'cat <<EOF > .git/hooks/commit-msg',
+			'git config user.email a@example.com',
+			'git config --local core.hooksPath hooks',
+			'git -C repo config commit.gpgsign false',
+			'git config --unset user.name',
+			'git config set user.name tester',
+			'git add . && git config user.name tester && git commit -m start',
+		]
+		for (const line of flagged) expect(gitWriteLines(line), line).toEqual([`line 1: \`${line}\``])
+		const passed = [
+			'git config --global user.name tester',
+			'git config --system core.autocrlf false',
+			'git config --file other.cfg user.name tester',
+			'git config user.name',
+			'git config --get user.name',
+			'git config --list',
+			'test -f .git/hooks/pre-commit',
+			'cat .git/config',
+			'# git config user.name tester',
+			'git commit -m "touch the config"',
+		]
+		for (const line of passed) expect(gitWriteLines(line), line).toEqual([])
 	})
 })
