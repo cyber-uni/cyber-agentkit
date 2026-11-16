@@ -53,6 +53,13 @@ export type Blocked = {
 	what: 'read' | 'write' | 'network'
 	target: string
 }
+/** A path outside the run's folders that a shell command of a folder-only run named and changed (#302). */
+export type WroteOutside = {
+	case: string
+	arm: 'skill' | 'baseline'
+	run: number
+	target: string
+}
 /** A run the test sandbox broke (R154): `fault` names the known error (`sandbox-faults.ts`), `text` is its text. */
 export type SandboxFailure = {
 	case: string
@@ -91,6 +98,8 @@ export type ResumeOptions = {
 	judge?: string
 	baseline?: string
 	trustScripts?: true
+	/** The sandbox template given with `--sandbox` (#302); a resume runs with it again. */
+	sandbox?: string
 }
 
 /** The saved result of `skill test`, the shape every Verification implementation writes (`test.md`). */
@@ -101,6 +110,14 @@ export type TestResult = {
 	folder?: string
 	at: string
 	verification: string
+	/**
+	 * Which sandbox did not run (#302): `none` when shell commands, setup scripts, and `script` checks all ran without one,
+	 * as the `folder-only` template has it; `shell-only` when only shell commands ran in one, `scripts-only` when only
+	 * scripts did. Left out when both sandboxes ran.
+	 */
+	sandbox?: 'none' | 'shell-only' | 'scripts-only'
+	/** In a result whose shell commands ran without a sandbox, each path outside a run's folders that one changed (#302). */
+	wroteOutside?: WroteOutside[]
 	/**
 	 * The model the cases ran on unless one names its own (R161): the model passed to the harness, or `default` when
 	 * the harness picked it. Results saved before it was recorded lack it, and their model is unknown.
@@ -186,6 +203,7 @@ export type Row = {
 			fired?: boolean
 			checks?: Record<string, { pass: boolean; detail?: string }>
 			blocked?: { what: Blocked['what']; target: string }[]
+			wroteOutside?: string[]
 			sandboxFault?: { fault: string; text: string }
 			/** The usage limit ended the run, or it found the limit reached and never started (R162). */
 			limitReached?: { text: string; resets?: string; started?: boolean }
@@ -473,6 +491,14 @@ export function readPromptfooOutput(
 			target: item.target,
 		})),
 	)
+	const wroteOutside: WroteOutside[] = rows.flatMap((row) =>
+		(row.response?.metadata?.wroteOutside ?? []).map((target) => ({
+			case: row.testCase?.description ?? '?',
+			arm: row.provider?.label === main ? ('skill' as const) : ('baseline' as const),
+			run: (row.repeatIndex ?? 0) + 1,
+			target,
+		})),
+	)
 	return {
 		version: 1,
 		skill: meta.skill,
@@ -488,6 +514,7 @@ export function readPromptfooOutput(
 		...(plan.only ? { partial: { cases: plan.only } } : {}),
 		notRun,
 		...(blocked.length ? { blocked } : {}),
+		...(wroteOutside.length ? { wroteOutside } : {}),
 		...(sandboxFailures.length ? { sandboxFailures } : {}),
 		...(limit && left.length
 			? {

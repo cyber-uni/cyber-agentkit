@@ -16,6 +16,7 @@ import {
 	type Status,
 	type TestResult,
 } from '../skill-design/test-result.js'
+import type { SandboxSettings } from '../skill-design/test-sandbox.js'
 import { textHash, type Wording } from './wording.js'
 
 /** The two arms of a comparison, in the order the author named the wordings. */
@@ -193,6 +194,8 @@ export type CompareOptions = {
 	run: PromptfooRun
 	/** The harness each run drives; Claude Code when absent. */
 	harness?: SkillTestHarness | undefined
+	/** The sandbox settings each run takes, as `skill-design.test.sandbox` resolved them (#302). */
+	sandbox: SandboxSettings
 	progress?: Pick<ProgressWatch, 'write' | 'heartbeatMs' | 'pollMs' | 'now'> | undefined
 }
 
@@ -222,6 +225,7 @@ export async function runCompare(
 			skillFolder: '',
 			arms: armLabels.map((label) => ({ label, arm: label, instruction: options.wordings[label].text })),
 			description: `instruction compare: ${options.instruction}`,
+			sandbox: options.sandbox,
 			model: options.model,
 			judge: options.judge,
 			provider: './provider.mjs',

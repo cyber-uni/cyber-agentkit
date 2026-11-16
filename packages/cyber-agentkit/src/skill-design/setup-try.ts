@@ -7,6 +7,7 @@ import { promptfooProviderSource } from './promptfoo-provider-source.js'
 import { type PromptfooRun, setupProblem } from './skill-test.js'
 import type { SkillTestHarness } from './skill-test-harness.js'
 import type { TestPlan } from './test-plan.js'
+import type { SandboxSettings } from './test-sandbox.js'
 
 /**
  * `skill case try`: runs one outcome case's setup script alone, as a `skill test` run runs it, in the same provider,
@@ -40,6 +41,8 @@ export async function trySetup(options: {
 	harness: SkillTestHarness
 	keep: string
 	run: PromptfooRun
+	/** The sandbox settings the setup runs in, as `skill-design.test.sandbox` resolved them (#302). */
+	sandbox: SandboxSettings
 }): Promise<TriedSetup | { code: TryProblemCode; problem: string }> {
 	const item = options.plan.cases[0]
 	if (item?.kind !== 'outcome' || item.setup === undefined)
@@ -54,6 +57,7 @@ export async function trySetup(options: {
 		skillFolder: options.skillFolder,
 		provider: './provider.mjs',
 		description: `skill case try: ${options.skillName} ${item.id}`,
+		sandbox: options.sandbox,
 	}) as { providers: { config: Record<string, unknown> }[]; tests: { assert: unknown[] }[] }
 	// One arm, no assertion: the provider stops after the setup, so nothing is judged and no model is called.
 	const [arm] = config.providers

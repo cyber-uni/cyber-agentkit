@@ -1,0 +1,28 @@
+# The default sandbox template of `skill test`: every setting, so a file that extends it changes only what it names.
+# The run's own folders (its folder, home, and plugin copy) and the node install are added when the run starts.
+
+# The agent's shell commands run in Claude Code's OS sandbox (bubblewrap and socat on Linux and WSL, Seatbelt on macOS).
+shell:
+  sandbox: true
+  # Stop the run when the sandbox cannot start, rather than run a command outside it.
+  failIfUnavailable: true
+  # Never let a command ask to run outside the sandbox.
+  allowUnsandboxedCommands: false
+  # case-hosts: the network is closed but for the hosts the case lists. open needs sandbox: false.
+  network: case-hosts
+  # Refuse reads of the home folders and the system temp folder, but for the run's own folders.
+  hideHome: true
+
+# Setup scripts and `script` checks run in the script sandbox (srt), writing only to the run's folders.
+scripts:
+  sandbox: true
+  # closed: no network. open needs sandbox: false.
+  network: closed
+
+# Claude Code's file tools read and write only the run's folders.
+fileTools:
+  blockReadsOutsideWorkingDirectories: true
+  blockWritesOutsideWorkingDirectories: true
+
+# A PreToolUse hook refuses a file tool outside the run's folders first, so the result can name what was refused.
+hook: true

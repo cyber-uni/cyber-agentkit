@@ -205,12 +205,30 @@ outcome:
     files: files/samples
     network: [github.com, api.github.com, codeload.github.com, skills.sh]
     criteria: [C10]
+  # files/test-sandbox-unavailable holds release-notes and test-error.txt, what `skill test` printed on a machine whose
+  # script sandbox cannot start (#302). That cannot be caused on demand, so the case acts on the saved output.
+  - id: test-sandbox-unavailable
+    prompt: With /skill, test .agents/skills/release-notes. I already ran it once
+      and saved what it printed to test-error.txt, so don't run it again. What
+      should I do?
+    files: files/test-sandbox-unavailable
+    criteria: [C23]
+  # files/test-no-sandbox holds release-notes and test-report.json, a result of the folder-only sandbox: `sandbox: none`
+  # and two `wroteOutside` paths (#302). The same result is saved as latest.json. A run without the skill reports them
+  # too (3 of 3 in the first test of #302), so the case is a guard: it keeps the skill from losing what a run does anyway.
+  - id: test-no-sandbox
+    prompt: "With /skill, report the test of .agents/skills/release-notes: I already
+      ran it and saved what it printed to test-report.json, so don't run it again.
+      How did it go?"
+    files: files/test-no-sandbox
+    guard: true
+    criteria: [C24]
 # The spec criteria each rubric tests, in the skill-design spec and its children. A rubric checks the outcome those
 # criteria state; for a stop, the Stop outcome of the spec's decision graph (R167) on edge E1, E2, or E3.
 #   C1 R1 | C2 R18, R21 | C3 R17, R19 | C4 R7 | C5 R6 (E1) | C6 R39 | C7 R37, R38 | C8 R94, R96 | C9 R92, R93
 #   C10 R142 to R147, R149 | C11 R5, R166 (E4) | C12 none yet | C13 R150 | C14 R166, R167 (E2)
 #   C15 R74, R167 (E3) | C16 R150, R167 (E1 to E3) | C17 R152, R153 (E3) | C18 none yet | C19 R154 | C20 none yet
-#   C21 R155, R159 | C22 none yet
+#   C21 R155, R159 | C22 none yet | C23 R168 | C24 R168
 rubrics:
   C1:
     - regex: "deploy-notes"
@@ -336,3 +354,21 @@ rubrics:
         && grep -qF '| Draft the changelog for 2.0 from the merged PRs. | fire | 3 of 3 | pass |' $f
         && grep -q '^## Research' $f
     - script: "test -z \"$(git status --porcelain --untracked-files=all | grep -v ' .agents/skills/release-notes/README.md$')\""
+  C23:
+    # Says the sandbox could not start, in its words or the error's.
+    - regex: "[Ss]andbox[^\\n]{0,80}\\b(start|run|unavailable|available|work)|(start|run|unavailable)[^\\n]{0,60}\\b[Ss]andbox"
+    # Offers the folder-only template, by its option or its reference.
+    - regex: "--sandbox[ =]folder-only|skill-design\\.test\\.sandbox\\.folder-only"
+    # Asks: a question, or lettered options.
+    - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
+    # Takes none itself: no result saved and no override written.
+    - script: "test ! -e .agents/skill-design/results/release-notes/latest.json && test -z \"$(git status --porcelain --untracked-files=all)\""
+  C24:
+    # Says the runs had no sandbox, before any pass rate (a count such as "3 of 3", or a percentage).
+    # Accepts the ways runs say it: "no sandbox", "neither ... sandbox", "**Sandbox:** `none`", "the sandbox was `none`",
+    # "the sandbox didn't run", "unsandboxed" (first test run of #302).
+    - regex: "^((?!\\d+ ?(of|/) ?\\d+|\\d+ ?%)[\\s\\S])*?(\\b[Nn]o (OS |script )?sandbox|\\b[Nn]either[^\\n]{0,60}sandbox|without (a |any |the )?(OS |script )?sandbox|[Ss]andbox[*:`'\" ]{1,8}none\\b|[Ss]andbox (was|is) `?none\\b|[Ss]andbox (didn't|did not|wasn't|was not|never) (run|on|used)|[Uu]nsandboxed|\\bno isolation)"
+    # Names each path written outside the run folder.
+    - regex: "/home/dev/\\.config/release-notes/cache\\.json"
+    - regex: "/tmp/release-notes-draft\\.md"
+    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""

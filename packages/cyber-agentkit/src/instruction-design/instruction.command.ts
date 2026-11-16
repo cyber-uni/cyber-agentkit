@@ -7,6 +7,7 @@ import { CliError, type Format, result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
 import { type HarnessId, harnessIds } from '../harness/harness-id.js'
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
+import { testSandbox } from '../skill-design/skill.command.js'
 import { loadAspect } from '../skill-design/skill-aspects.js'
 import { type PromptfooRun, runPromptfoo } from '../skill-design/skill-test.js'
 import { skillTestHarness, skillTestHarnesses } from '../skill-design/skill-test-harness.js'
@@ -223,6 +224,7 @@ function compareCommand({
 				plugin,
 			})
 			const verification = loadAspect('skill-design.aspects.verification', layers, display)
+			const sandbox = testSandbox(layers, undefined)
 			// Progress goes to stderr, never into the result, and `--silent` turns it off.
 			const report =
 				this.ui?.displayLevel === 'none' ? undefined : (text: string) => void process.stderr.write(`${text}\n`)
@@ -238,6 +240,7 @@ function compareCommand({
 				verification: `${verification.name} from ${verification.implementation}`,
 				at: new Date().toISOString(),
 				harness,
+				sandbox,
 				run,
 				progress: report ? { ...progress, write: report } : undefined,
 			})

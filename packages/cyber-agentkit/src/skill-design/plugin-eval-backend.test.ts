@@ -16,7 +16,7 @@ import {
 	setupFailedMarker,
 	writePluginEvalSuite,
 } from './plugin-eval-backend.js'
-import { goodSkill } from './skill-design.fixtures.js'
+import { goodSkill, shippedSandbox } from './skill-design.fixtures.js'
 import { runTest } from './skill-test.js'
 import { planTest, type TestPlan } from './test-plan.js'
 
@@ -132,7 +132,10 @@ describe('writePluginEvalSuite setup scripts (R155, R157)', () => {
 	if (process.env['SKILL_TEST_REQUIRE_SANDBOX'] && !sandboxStarts)
 		throw new Error(`the script sandbox does not start on this machine: ${down}`)
 
-	function scaffold(setup: string): { workspace: string; outside: string; run: () => string } {
+	function scaffold(
+		setup: string,
+		sandbox: { node: string; cli: string } | 'none' = { node: process.execPath, cli },
+	): { workspace: string; outside: string; run: () => string; script: string } {
 		const skill = goodSkill({
 			'evals/evals.yaml': `outcome:
   - { id: two-prs, prompt: write the notes, files: files/two-prs, setup: setup/two-prs.sh }
@@ -147,7 +150,7 @@ rubrics:
 		const planned = planTest(skill, { threads: 8 })
 		if ('problem' in planned) throw new Error(planned.problem)
 		const target = mkdtempSync(join(tmpdir(), 'plugin-eval-suite-'))
-		writePluginEvalSuite(planned.plan, target, 'release-notes', undefined, { node: process.execPath, cli })
+		writePluginEvalSuite(planned.plan, target, 'release-notes', undefined, sandbox)
 		const workspace = mkdtempSync(join(tmpdir(), 'plugin-eval-workspace-'))
 		const outside = mkdtempSync(join(tmpdir(), 'plugin-eval-outside-'))
 		const run = () =>
@@ -157,8 +160,26 @@ rubrics:
 				stdio: 'pipe',
 				env: { ...process.env, OUTSIDE: outside },
 			})
-		return { workspace, outside, run }
+		return { workspace, outside, run, script: readFileSync(join(target, pluginEvalDir, 'two-prs', 'setup.sh'), 'utf8') }
 	}
+
+	it('in a folder-only test, runs the setup script in the workspace with no script sandbox, and fails the scaffold with the marker (#302)', () => {
+		const passing = scaffold('set -e\necho draft > draft.txt\n', 'none')
+		expect(passing.script).not.toContain('srt.json')
+		passing.run()
+		expect(execFileSync('git', ['status', '--porcelain'], { cwd: passing.workspace, encoding: 'utf8' }).trim()).toBe(
+			'?? draft.txt',
+		)
+		const failing = scaffold('echo broke >&2\nexit 3\n', 'none')
+		let said = ''
+		try {
+			failing.run()
+		} catch (error) {
+			said = String((error as { stderr?: string }).stderr)
+		}
+		expect(said).toContain('broke')
+		expect(said).toContain(setupFailedMarker)
+	})
 
 	it.skipIf(!sandboxStarts)('runs the setup script in the workspace after the case files are committed', () => {
 		const { workspace, run } = scaffold(
@@ -288,6 +309,34 @@ describe('runPluginEvalTest', () => {
 		expect(calls).toEqual([])
 	})
 
+	it('in a folder-only test, needs no script sandbox for a setup script, and records sandbox none (#302)', async () => {
+		const skill = goodSkill({
+			'evals/evals.yaml':
+				'outcome:\n  - { id: two-prs, prompt: write the notes, setup: setup/two-prs.sh }\nrubrics:\n  C1:\n    - contains: x\n  C2:\n    - contains: x\n',
+			'evals/setup/two-prs.sh': 'true\n',
+		})
+		const planned = planTest(skill, { threads: 8 })
+		if ('problem' in planned) throw new Error(planned.problem)
+		const calls: string[][] = []
+		let asked = false
+		const ran = await runPluginEvalTest({
+			plan: planned.plan,
+			skill,
+			skillName: 'release-notes',
+			verification: 'v',
+			at: '2026-11-15T00:00:00.000Z',
+			run: fakePluginEval(calls),
+			scriptSandbox: async () => {
+				asked = true
+				return { problem: 'the script sandbox cannot start: bwrap missing' }
+			},
+			sandbox: shippedSandbox('folder-only'),
+		})
+		expect(asked).toBe(false)
+		expect(calls.length).toBeGreaterThan(0)
+		expect('result' in ran && ran.result.sandbox).toBe('none')
+	})
+
 	it('runs triggers with one arm and outcomes beside the no-plugin arm, giving the result a promptfoo run gives', async () => {
 		const skill = goodSkill()
 		const calls: string[][] = []
@@ -313,7 +362,11 @@ describe('runPluginEvalTest', () => {
 		expect(ran.result).toMatchObject({ version: 1, baseline: 'without the skill', cost: 0.24, totalRuns: 24 })
 
 		// The same keys as a promptfoo run's result.
-		const promptfoo = await runTest({ ...options, run: async () => ({ output: { results: { results: [] } } }) })
+		const promptfoo = await runTest({
+			...options,
+			sandbox: shippedSandbox('claude-code'),
+			run: async () => ({ output: { results: { results: [] } } }),
+		})
 		if ('problem' in promptfoo) throw new Error(promptfoo.problem)
 		const keys = (value: object) =>
 			Object.keys(value)

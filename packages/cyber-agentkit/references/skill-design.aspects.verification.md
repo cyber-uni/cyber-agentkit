@@ -178,6 +178,22 @@ say so before the first run in a session.
   Anthropic's sandbox runtime (`@anthropic-ai/sandbox-runtime`, pinned and run through the same `npx` install): it
   writes only to the run's own folders and reaches no network. When that sandbox cannot start (on Linux and WSL it
   needs bubblewrap, socat, and ripgrep), `test` stops with `error: sandbox:` and runs no script outside it.
+- The sandbox settings are data: the YAML reference `skill-design.test.sandbox`, which names a template in `extends`
+  and may change any of its settings key by key (`shell`, `scripts`, `fileTools`, `hook`). The plugin ships two
+  templates. `skill-design.test.sandbox.claude-code`, the default, is the sandbox the two items above describe.
+  `skill-design.test.sandbox.folder-only` runs shell commands, setup scripts, and `script` checks with no sandbox and
+  with the network open, on both engines, for a machine that cannot run the sandbox. Each run still gets a fresh
+  folder holding only the skill and its case files, an empty home and config folder, so no other skill or plugin
+  loads, and file tools that reach only the run's folder. `--sandbox <template>` on `test` or `skill case try` loads
+  `skill-design.test.sandbox.<template>` for one run, and `default` names `claude-code`; a tier may add a template of
+  its own the same way. Only the managed, repo, and user tiers choose or change the settings, the file-tool limits
+  included; another plugin's copy, a skill's own, and a project section are not read. An unknown key, a bad value, or
+  an open network inside a sandbox stops the test before any run with `error: sandbox-invalid:`. A result whose
+  shell commands had no sandbox lists in `wroteOutside` each path outside the run's folders that a shell command named
+  and changed; a write to a path a command builds as it runs goes unlisted, and with no sandbox a shell command can
+  write anywhere the user's account can. To make folder-only the default for a repository, write
+  `.agents/references/skill-design.test.sandbox.yaml` holding `extends: skill-design.test.sandbox.folder-only`, or the
+  same file under `~/.agents/references/` for one user.
 - When the skill's folder is outside the repository (`--root`, else the one holding the current directory), `test`
   lists each setup script and `script` check before the first run, with `warning: untrusted-scripts:`, and runs none of
   them unless `--trust-scripts` is given; the cases that need them are reported as not run. Read them before passing

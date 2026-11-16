@@ -1,0 +1,14 @@
+# How `skill test` and `skill case try` contain each run. This file names the template the runs take, and may change
+# any of its settings key by key. To choose another for a repository, for yourself, or for a managed machine, put a
+# file of this name in that tier's references folder (`.agents/references/`, `~/.agents/references/`, or the managed
+# one), such as:
+#
+#   extends: skill-design.test.sandbox.folder-only
+#
+# or pick one for one run with `skill test --sandbox folder-only`. The plugin ships two templates:
+#   skill-design.test.sandbox.claude-code   Claude Code's OS sandbox and the script sandbox (the default)
+#   skill-design.test.sandbox.folder-only   no sandbox, for a machine that cannot run one
+#
+# Only the managed, repo, and user tiers and --sandbox choose or change these settings; another plugin's copy, or a
+# skill's own, is not read. An unknown key or a bad value stops the test before any run.
+extends: skill-design.test.sandbox.claude-code

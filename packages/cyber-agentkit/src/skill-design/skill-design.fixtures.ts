@@ -1,7 +1,8 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { readSkill, type SkillFiles } from './skill-files.js'
+import { parseSandbox, type SandboxSettings } from './test-sandbox.js'
 
 export const goodSkillMd = `---
 name: release-notes
@@ -62,3 +63,12 @@ export function goodSkill(extra: Record<string, string> = {}): SkillFiles {
 
 export const byId = <T extends { id: string }>(outcomes: T[]): Record<string, T> =>
 	Object.fromEntries(outcomes.map((outcome) => [outcome.id, outcome]))
+
+/** The settings of a sandbox template the plugin ships (`references/skill-design.test.sandbox.<template>.yaml`). */
+export function shippedSandbox(template: 'claude-code' | 'folder-only'): SandboxSettings {
+	const read = parseSandbox(
+		readFileSync(new URL(`../../references/skill-design.test.sandbox.${template}.yaml`, import.meta.url), 'utf8'),
+	)
+	if ('problem' in read) throw new Error(read.problem)
+	return read.settings as SandboxSettings
+}

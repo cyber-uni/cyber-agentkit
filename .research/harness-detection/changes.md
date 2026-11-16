@@ -272,3 +272,9 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
 - Added E-CC-D22: a dependency copy without `.mcp.json` made the Bash sandbox fail every command with `bwrap: Can't find
   source path`. `skill test` now makes each mount point ahead in every dependency copy, and counts a run that hits the
   error as a sandbox failure ([cyber-agentkit#289](https://github.com/cyber-uni/cyber-agentkit/issues/289)).
+
+## 2026-11-15 (the file-tool limits hold with the OS sandbox off)
+
+- Added E-CC-D23: with `sandbox: { enabled: false }`, the two `permissions.block*OutsideWorkingDirectories` settings
+  still refuse Read, Write, Grep, and Glob outside the working folder. `skill test`'s folder-only sandbox template
+  keeps them and turns only the OS sandbox off ([cyber-agentkit#302](https://github.com/cyber-uni/cyber-agentkit/issues/302)).
