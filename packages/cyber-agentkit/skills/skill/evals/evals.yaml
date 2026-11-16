@@ -139,7 +139,7 @@ outcome:
       Check the skill in .agents/skills/release-notes-flawed, then fix what the check finds. I approve every change;
       don't ask again.
     files: files/samples
-    criteria: [C6, C7]
+    criteria: [C6, C7, C25]
   # files/long-skill holds issue-triage, which fails only SHP-1: an inline label catalog, two commands, and a section
   # for a removed --legacy option (#224). Fix offers ways to trim with estimates, not a bare "shorten it".
   - id: fix-too-long
@@ -361,7 +361,7 @@ rubrics:
     - regex: "/home/dev/\\.config/release-notes/cache\\.json"
     - regex: "/tmp/release-notes-draft\\.md"
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
-  # `update` ends with both results: the check, and either the test or the budget line that says why it did not run.
+  # `update` and `fix` end with both results: the check, and either the test or the budget line that says why it did not run.
   # A nested `skill test` cannot complete in the sandbox, so the budget line or a test result is what the reply shows.
   C25:
     - regex: "[Cc]heck"

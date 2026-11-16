@@ -275,5 +275,5 @@ Before reporting done, check each against the result, and report any that fails.
 - **C21.** New cases came from `skill case`, history in setup scripts.
 - **C23.** On `error: sandbox:`, the folder-only sandbox was offered, not taken.
 - **C24.** A result's `sandbox` and each `wroteOutside` path were said before any pass rate.
-- **C25.** `update` ended with the final `check` result and the `test` result per criterion, or the `Test budget:` line
+- **C25.** `update` and `fix` each ended with the final `check` result and the `test` result per criterion, or the `Test budget:` line
   and why `test` did not run.
