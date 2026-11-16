@@ -14,7 +14,12 @@ the author asks to accept one, or when the first passing run saves one (see Save
 
 ## 2. Run
 
-Run the cases as Verification's Run says. Pass a judge only when the author named one. Pass `--model` only when the
+Run the cases as Verification's Run says. Pass a judge only when the author named one. Before the run, list each
+criterion whose checks are all `judge`. When the author named no judge, say those criteria will be reported as not
+tested and ask which model should judge them (lettered options: name one for `--judge <model>`, run without, or
+replace the `judge` with a `regex` or `script` through `fix`); a request that names the runs to make is not an answer, so
+run the rest and offer the rerun at the end. After a run without a judge, never read the replies and grade a
+not-tested criterion yourself: report it as not tested, and offer `--judge`. Pass `--model` only when the
 author named a model or a tier; without it the runs take the harness's mid-tier model. A case marked as having an
 outside effect is not run, and is reported as such. Each run is contained to its own folder, and reaches the network
 only for the hosts its case lists. When the test stops with `error: login:`, `error: sandbox:`, `error: dependency-missing:`,
