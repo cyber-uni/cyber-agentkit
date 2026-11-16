@@ -435,9 +435,7 @@ function removeVanished(resultsRoot: string, current: string): void {
 			}
 			if (typeof latest.folder === 'string' && latest.folder !== '' && !existsSync(latest.folder))
 				rmSync(join(resultsRoot, entry.name), { recursive: true, force: true })
-		} catch {
-			// unreadable: leave it alone
-		}
+		} catch {}
 	}
 }
 
