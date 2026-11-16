@@ -1,0 +1,23 @@
+packages/cyber-agentkit/skills/skill/SKILL.md
+  s_fef3169257779e::t_c6dbe0d35eceb1 278
+packages/cyber-agentkit/skills/skill/evals/evals.yaml
+  s_fef3169257779e::t_c6dbe0d35eceb1 142,364
+packages/cyber-agentkit/skills/skill/references/fix.md
+  s_fef3169257779e::t_c6dbe0d35eceb1 45-47,53-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "ecbd19ce73116f99799be1fadce1971a62353bf8",
+  "prompts": {},
+  "sessions": {
+    "s_fef3169257779e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "64f52d1d-9f20-414e-9ce6-82ab9965ce2a",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "unional <homawong@gmail.com>"
+    }
+  }
+}
