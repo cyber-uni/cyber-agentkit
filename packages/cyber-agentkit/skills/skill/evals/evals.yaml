@@ -214,12 +214,14 @@ outcome:
     files: files/test-sandbox-unavailable
     criteria: [C23]
   # files/test-no-sandbox holds release-notes and test-report.json, a result of the folder-only sandbox: `sandbox: none`
-  # and two `wroteOutside` paths (#302). The same result is saved as latest.json.
+  # and two `wroteOutside` paths (#302). The same result is saved as latest.json. A run without the skill reports them
+  # too (3 of 3 in the first test of #302), so the case is a guard: it keeps the skill from losing what a run does anyway.
   - id: test-no-sandbox
     prompt: "With /skill, report the test of .agents/skills/release-notes: I already
       ran it and saved what it printed to test-report.json, so don't run it again.
       How did it go?"
     files: files/test-no-sandbox
+    guard: true
     criteria: [C24]
 # The spec criteria each rubric tests, in the skill-design spec and its children. A rubric checks the outcome those
 # criteria state; for a stop, the Stop outcome of the spec's decision graph (R167) on edge E1, E2, or E3.
@@ -363,7 +365,9 @@ rubrics:
     - script: "test ! -e .agents/skill-design/results/release-notes/latest.json && test -z \"$(git status --porcelain --untracked-files=all)\""
   C24:
     # Says the runs had no sandbox, before any pass rate (a count such as "3 of 3", or a percentage).
-    - regex: "^((?!\\d+ ?(of|/) ?\\d+|\\d+ ?%)[\\s\\S])*?([Nn]o sandbox|without (a |any |the )?(OS |script )?sandbox|sandbox: ?`?none|[Uu]nsandboxed)"
+    # Accepts the ways runs say it: "no sandbox", "neither ... sandbox", "**Sandbox:** `none`", "the sandbox was `none`",
+    # "the sandbox didn't run", "unsandboxed" (first test run of #302).
+    - regex: "^((?!\\d+ ?(of|/) ?\\d+|\\d+ ?%)[\\s\\S])*?(\\b[Nn]o (OS |script )?sandbox|\\b[Nn]either[^\\n]{0,60}sandbox|without (a |any |the )?(OS |script )?sandbox|[Ss]andbox[*:`'\" ]{1,8}none\\b|[Ss]andbox (was|is) `?none\\b|[Ss]andbox (didn't|did not|wasn't|was not|never) (run|on|used)|[Uu]nsandboxed|\\bno isolation)"
     # Names each path written outside the run folder.
     - regex: "/home/dev/\\.config/release-notes/cache\\.json"
     - regex: "/tmp/release-notes-draft\\.md"
