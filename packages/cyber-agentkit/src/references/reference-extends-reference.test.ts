@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { checkReferences } from './reference-check.js'
 import type { ReferenceLayer } from './reference-layers.js'
 import { resolveReference } from './resolve-reference.js'
 
@@ -79,12 +80,12 @@ describe('an extends step that names another reference', () => {
 		expect(resolved.content).not.toContain('base')
 	})
 
-	it('treats a missing named reference as a missing step', () => {
+	it('warns about a missing named reference and skips the step', () => {
 		const resolved = resolveReference('A', [
 			layer('user', { 'A.md': md('extends: [acme/Gone]', '## Own\n\nmine') }),
 			layer('plugin', { 'A.md': '## Own\n\nplugin\n' }, 'acme'),
 		])
-		expect(codes(resolved)).toContain('extends-step-missing')
+		expect(codes(resolved)).toContain('extends-reference-missing')
 	})
 })
 
@@ -127,5 +128,42 @@ describe('data references that extend', () => {
 		const plugin = layer('plugin', { 'cfg.yaml': 'a: 1\nb: 2\n' }, 'acme')
 		const user = layer('user', { 'cfg.yaml': 'a: 9\n' })
 		expect(resolveReference('cfg', [user, plugin]).content).toBe('a: 9\n')
+	})
+})
+
+describe('check with a step that names another reference', () => {
+	it('fails when the named reference is missing, and when the chain is a cycle', () => {
+		const missing = checkReferences(
+			[
+				layer('user', { 'A.md': md('extends: [acme/Gone]', '## Own\n\nmine') }),
+				layer('plugin', { 'A.md': '## Own\n\nplugin\n' }, 'acme'),
+			],
+			{ names: ['A'] },
+		)
+		expect(missing[0]?.status).toBe('failed')
+		expect(missing[0]?.failures[0]?.message).toContain('extends-reference-missing')
+
+		const cycle = checkReferences(
+			[
+				layer('user', { 'A.md': md('extends: [acme/B]', '## Own\n\nmine') }),
+				layer('plugin', { 'B.md': md('extends: [base]', 'x') }, 'acme'),
+				layer('plugin', { 'B.md': md('extends: [acme]', 'y') }, 'base'),
+			],
+			{ names: ['A'] },
+		)
+		expect(cycle[0]?.status).toBe('ambiguous')
+		expect(cycle[0]?.failures[0]?.message).toContain('acme/B → base/B → acme/B')
+	})
+
+	it('fails when a merged data file does not parse', () => {
+		const result = checkReferences(
+			[
+				layer('user', { 'cfg.yaml': 'a: [\n', 'cfg.meta.md': '---\nextends: [acme/base]\n---\n' }),
+				layer('plugin', { 'base.yaml': 'a: 1\n' }, 'acme'),
+			],
+			{ names: ['cfg'] },
+		)
+		expect(result[0]?.status).toBe('failed')
+		expect(result[0]?.failures[0]?.message).toContain('data-merge-invalid')
 	})
 })

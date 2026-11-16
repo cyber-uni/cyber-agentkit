@@ -224,7 +224,7 @@ function expand(
 			result.missing.push({ target: step.target, reason: found.reason })
 			if (step.target !== 'default') {
 				warn(
-					'extends-step-missing',
+					name === refName ? 'extends-step-missing' : 'extends-reference-missing',
 					`the step ${shown} in ${chain.at(-1) ?? owner}'s extends ${found.reason}; it is skipped`,
 				)
 			}

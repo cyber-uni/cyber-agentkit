@@ -49,7 +49,13 @@ export function isLegacyMerge(value: unknown): value is LegacyMerge {
 function overriddenPlugins(value: unknown): string[] | undefined {
 	const list: unknown[] | undefined = typeof value === 'string' ? [value] : Array.isArray(value) ? value : undefined
 	if (!list?.length || !list.every((item) => typeof item === 'string' && item.trim())) return undefined
-	return [...new Set((list as string[]).map((item) => (item.split('/')[0] as string).trim()))]
+	return [...new Set((list as string[]).map((item) => item.trim()))]
+}
+
+/** Whether `overrides` holds a `<plugin>/<name>` entry: version 1 read it as the plugin, and `extends` now reads it as another reference. */
+function holdsSlashEntry(value: unknown): boolean {
+	const list: unknown[] = typeof value === 'string' ? [value] : Array.isArray(value) ? value : []
+	return list.some((item) => typeof item === 'string' && item.includes('/'))
 }
 
 /** The plugin or `default` each `extends` step names, as written; `undefined` when it is not a list of steps. */
@@ -130,6 +136,15 @@ function overridesFinding(
 		return { form: 'overrides', from, to: 'removed: a project section carries no extends', reads }
 	}
 	if (!plugins) return { form: 'overrides', from, manual: '`overrides` is not a list of plugin names', reads }
+	if (holdsSlashEntry(value)) {
+		return {
+			form: 'overrides',
+			from,
+			manual:
+				'a `<plugin>/<name>` entry names another reference in `extends` now, not a plugin; write the plugin alone in `extends`, or the reference you mean as `<plugin>/<reference>`, then remove `overrides`',
+			reads: 'it is ignored, and a slash entry is not read as a plugin',
+		}
+	}
 	const written = metadata['extends']
 	if (written === undefined) {
 		keys['overrides'] = undefined

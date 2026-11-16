@@ -22,6 +22,7 @@ export const checkWarningClass = {
 	'extends-invalid': 'defect',
 	'extends-self': 'defect',
 	'extends-step-not-allowed': 'defect',
+	'extends-reference-missing': 'defect',
 	'data-not-merged': 'defect',
 	'data-merge-invalid': 'defect',
 	'extends-step-missing': 'environment',

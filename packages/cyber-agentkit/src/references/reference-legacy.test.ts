@@ -68,14 +68,23 @@ describe('legacy forms at load (R119)', () => {
 		expect(legacyWarnings(resolved)[0]?.message).toMatch(/its 2.0 form is merge: replace/)
 	})
 
-	it('ignores overrides, naming extends as its 2.0 form', () => {
+	it('warns that a <plugin>/<name> entry in overrides is not read as a plugin', () => {
 		const resolved = resolveReference(name, [
 			plugin('b', { [`${name}.md`]: doc('overrides: [a/tracker]', '## Create\n\nb create\n') }),
 			plugin('a', { [`${name}.md`]: base }),
 		])
 
+		expect(legacyWarnings(resolved)[0]?.message).toMatch(/names another reference in `extends` now/)
+	})
+
+	it('ignores overrides, naming extends as its 2.0 form', () => {
+		const resolved = resolveReference(name, [
+			plugin('b', { [`${name}.md`]: doc('overrides: [a]', '## Create\n\nb create\n') }),
+			plugin('a', { [`${name}.md`]: base }),
+		])
+
 		expect(resolved.status).toBe('ambiguous')
-		expect(legacyWarnings(resolved)[0]?.message).toMatch(/`overrides: \[a\/tracker\]`.*its 2.0 form is extends: \[a\]/)
+		expect(legacyWarnings(resolved)[0]?.message).toMatch(/`overrides: \[a\]`.*its 2.0 form is extends: \[a\]/)
 	})
 
 	it("names the plugin's author as the one who fixes an installed plugin's file", () => {
