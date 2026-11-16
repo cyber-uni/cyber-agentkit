@@ -7,11 +7,22 @@ check-script: ../skills/skill/scripts/check-verification.mjs
 
 ## Draft
 
+Three things are easy to confuse. An **eval** is a model run of the skill on a case. A **check** grades that run:
+a deterministic one (`script`, `regex`, `contains`, `file-exists`, and the like) or a `judge`. An **ordinary test** is
+a test in the project's own suite. A deterministic check is not an alternative to an eval: it grades the same run, and
+it removes the grader's variation, not the run's. The run is nondeterministic whichever check grades it, which is why
+a case runs several times.
+
+A behavior leaves the eval for an ordinary test when a program does the same thing every time: a bundled script,
+parsing, validation. Give that script a native test in the project's suite. The eval checks only what the skill's
+instructions make the model do: whether it triggers, what it does, and what it reports.
+
 1. **Trigger cases.** Write at least three requests that should fire the skill, phrased the way different users
    would ask, and at least three near misses: requests a user could plausibly make that belong to another job, taken
    from the near misses Trigger listed. Keep each to what a user would type. A name-only skill (see `/skill`'s Trigger)
    is never matched to a request, so write only the near misses for it, as `skip` cases.
-2. **Outcome cases.** Write at least one case per criterion: a request and the files it works on. Put the files under
+2. **Outcome cases.** Write at least one case per criterion, and list each criterion in the `criteria` of at least one
+   case: a request and the files it works on. Put the files under
    `evals/files/<case id>/`. Use small, made-up inputs; never copy private data into a case. Add and remove a case with
    `skill case add <skill folder> <case id> --prompt <request>` and `skill case remove <skill folder> <case id>`,
    never by deleting or rewriting case folders in the shell.
@@ -30,8 +41,10 @@ check-script: ../skills/skill/scripts/check-verification.mjs
    not the kept copy.
    A run has no user to answer a question, so a case whose skill asks before it writes states the approval in its
    prompt, such as "I approve writing it; don't ask again".
-3. **Rubrics.** For each Criteria ID, write the checks that decide it from a run's output. Prefer a deterministic
-   check. Use `judge` only when no deterministic check decides the criterion, and say so to the author.
+3. **Rubrics.** For each Criteria ID, write the checks that decide it from a run's output. Call them all checks; the
+   `evals.yaml` key stays `rubrics`. Prefer a deterministic check: when the criterion names something in the files, the
+   git state, or a reply line the prompt can require, a `script` or `regex` decides it. Use `judge` only when no
+   deterministic check decides the criterion, and say so to the author.
    A check tests what the outcome left behind: a file changed or left unchanged (a `script` on `git status`), a
    report or section present, the options a stop listed, or a skill called (`.skill-test/skill-calls.jsonl`). It
    never tests one exact phrasing or a punctuation mark. Where a check must read the reply's wording, it accepts the
@@ -262,6 +275,10 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   alone: once a regex's escapes such as `\b` and `\s` are dropped, its value holds a letter or a digit.
 - **VER-12** [script, warning] No outcome case's setup script writes under `.git/hooks` or to the repository's git
   config (`git config` without `--global`, or a write to `.git/config`): both are read-only in a run.
+- **VER-13** [script, warning] Every Criteria ID is listed in the `criteria` of at least one outcome case; a case with
+  no `criteria` lists them all.
+- **VER-14** [read, warning] No `judge` check decides a criterion that names something in the files, the git state, or
+  a reply line the prompt can require; a `script` or `regex` would decide it.
 
 ## Fix
 
@@ -277,11 +294,15 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   rules out. Keep what the criterion asks for.
 - VER-12: install a hook from a tracked `hooks/` folder with `git config --global core.hooksPath "$PWD/hooks"`, and set
   any other git config with `--global`, as Cases says. Try the setup with `skill case try`.
+- VER-13: list the criterion in the `criteria` of an outcome case that tests it, or add a case for it with
+  `skill case add ... --criteria`.
+- VER-14: replace the `judge` with a `script` or `regex` on the files, the git state, or the reply line.
 
 ## Enhance
 
 - A trigger miss or a wrong result seen while the skill was used: add it as a case.
 - A case that passes with and without the skill alike: it does not show what the skill adds.
-- A `judge` rubric that a deterministic check could replace.
+- A `judge` rubric that a deterministic check could replace (VER-14).
+- A behavior of a bundled script that an eval checks: move it to an ordinary test in the project's suite.
 - A check that failed a run whose reply did the right thing: rewrite it as VER-10 says, and replay the saved replies
   (the result's `replies` file) to show the right replies now pass and a wrong one still fails.

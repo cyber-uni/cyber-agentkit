@@ -230,9 +230,9 @@ export function gitWriteLines(script: string): string[] {
 	})
 }
 
-/** VER-1 to VER-5, VER-9, VER-11, and VER-12, the default Verification aspect's script checks. */
+/** VER-1 to VER-5, VER-9, VER-11, VER-12, and VER-13, the default Verification aspect's script checks. */
 export function checkVerification(skill: SkillFiles): CheckOutcome[] {
-	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9', 'VER-11', 'VER-12']
+	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9', 'VER-11', 'VER-12', 'VER-13']
 	const blocked = (message: string): CheckOutcome[] => [
 		{ id: 'VER-1', status: 'fail', message, file },
 		...later.map((id): CheckOutcome => ({ id, status: 'not-checked', message: 'VER-1 failed' })),
@@ -370,5 +370,23 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 				}
 			: { id: 'VER-12', status: 'pass' },
 	)
+
+	// A case with no `criteria` lists every criterion, as `skill test` runs it.
+	if (!items) outcomes.push({ id: 'VER-13', status: 'not-checked', message: 'the skill has no `## Done when`' })
+	else {
+		const ids = items.ids.filter((id): id is string => id !== undefined)
+		const cases = evals.outcome ?? []
+		const unlisted = ids.filter((id) => !cases.some((item) => (item.criteria ?? ids).includes(id)))
+		outcomes.push(
+			unlisted.length
+				? {
+						id: 'VER-13',
+						status: 'fail',
+						message: `no outcome case lists ${unlisted.join(', ')} in its \`criteria\`; \`test\` reports ${unlisted.length === 1 ? 'it' : 'them'} as not tested`,
+						file,
+					}
+				: { id: 'VER-13', status: 'pass' },
+		)
+	}
 	return outcomes
 }
