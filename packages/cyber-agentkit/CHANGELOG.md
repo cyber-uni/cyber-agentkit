@@ -1,5 +1,44 @@
 # cyber-agentkit
 
+## 2.10.0
+
+### Minor Changes
+
+- 1e8c822: A reference's `extends` step can now name another reference as `<plugin>/<reference>`, and YAML and JSON references
+  merge key by key. A file in the managed, repo, or user tier picks the reference; a plugin's own `extends` cannot, and is
+  skipped with a warning. A data file that writes `extends` merges over what its steps bring: mappings merge, an array
+  replaces the lower one, and `null` removes a key. TOML and plain text still answer whole, and `check` warns. A cycle
+  in a written `extends` is now reported, like one among plugins. `customize` writes only the keys you change plus the
+  `extends` line, and `check` fails on a named reference that is missing, a cycle, or data that does not parse. A
+  generated document's sources record the reference a step named. A `<plugin>/<name>` entry in a version 1 `overrides`
+  is no longer read as the plugin: `reference migrate` leaves it to you, with a warning. The reference format is now
+  2.1, because an older reader treats an `extends` list holding a slash step as not written.
+  
+  `skill test`'s sandbox takes its `extends` from the reference system. Put `extends:
+  [cyber-agentkit/skill-design.test.sandbox.<template>]` in `skill-design.test.sandbox.meta.md` beside a YAML file of
+  only the settings you change. The `extends` key inside the YAML still works, with a warning to move it.
+- c8a2d0b: `skill test`, `skill case try`, and `instruction compare` take their sandbox settings from the new YAML reference
+  `skill-design.test.sandbox`. The plugin ships two templates for it to extend. `skill-design.test.sandbox.claude-code`,
+  the default, is the sandbox they used before. `skill-design.test.sandbox.folder-only` is for a machine that cannot run
+  a sandbox: it runs shell commands, setup scripts, and `script` checks with no sandbox, on both backends, and the file
+  tools still reach only the run's folder. A managed, repo, or user file picks a template with
+  `extends: skill-design.test.sandbox.<template>` and may change any setting on top of it. `skill test --sandbox
+  <template>` picks one for a single run. An unknown key or a bad value stops the test before any run. A result records
+  which sandbox did not run, and lists in `wroteOutside` each path outside the run's folders that a shell command
+  changed.
+- cae9530: The default Verification reference now says plainly that an eval is the model run and that every check, deterministic
+  or `judge`, grades it, so a run varies whichever check grades it. It also says when a behavior gets an ordinary test
+  in the project's own suite instead of an eval: a program that does the same thing every time, such as a bundled
+  script. `skill check` has two new warnings. VER-13 names each `## Done when` criterion that no outcome case lists in
+  its `criteria`, before any paid `test` run. VER-14, a check you read, flags a `judge` on a criterion that a `script`
+  or `regex` would decide.
+
+### Patch Changes
+
+- d975c2d: `skill test` no longer hangs on a skill whose plugin declares dependencies. Each dependency copy now gets its sandbox
+  mount points once, and the step that makes them no longer walks into the folders it made, so the copies stop growing
+  about eightfold with every run.
+
 ## 2.9.0
 
 ### Minor Changes
