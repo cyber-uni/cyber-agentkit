@@ -1,0 +1,21 @@
+packages/cyber-agentkit/skills/skill/references/test.md
+  s_fef3169257779e::t_e9f0715b3539e5 17-22
+packages/cyber-agentkit/references/skill-design.aspects.verification.md
+  s_fef3169257779e::t_6c9f40c2a5ffe9 48-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "b0d71cbec48cb9e5512a0659fa1a0ffe9fea3342",
+  "prompts": {},
+  "sessions": {
+    "s_fef3169257779e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "64f52d1d-9f20-414e-9ce6-82ab9965ce2a",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "unional <homawong@gmail.com>"
+    }
+  }
+}
