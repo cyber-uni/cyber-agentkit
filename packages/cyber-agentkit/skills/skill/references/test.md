@@ -23,8 +23,10 @@ only for the hosts its case lists. When the test stops with `error: login:`, `er
 
 A case's setup script and `script` checks run contained, as Verification's Run says. When the test stops with
 `error: sandbox:` because this machine cannot run the sandbox, say so, and offer the folder-only sandbox: one test with
-`--sandbox folder-only`, or every test by setting `template: folder-only` in `skill-design.test.sandbox`, as
-Verification's Run says. Never pick it on your own: it runs the skill's shell commands and scripts with no sandbox.
+`--sandbox folder-only`, or every test with a `skill-design.test.sandbox` that extends
+`skill-design.test.sandbox.folder-only`, as Verification's Run says. Never pick it on your own: it runs the skill's
+shell commands and scripts with no sandbox. When the test stops with `error: sandbox-invalid:` or
+`error: sandbox-missing:`, pass the reason on as it is said; no run was made.
 When the test warns
 `untrusted-scripts:`, the skill is from outside this repository: name each script it lists to the author, and pass
 `--trust-scripts` only when the author has read them and says to run them. Never pass it on your own. To add or
@@ -140,10 +142,12 @@ then the whole test has to run again. Estimate a resume against the test budget 
 `blocked`, left out when nothing was, lists what a run tried that its containment refused: `what` is `read`, `write`,
 or `network`, and `target` the path or host. A refused attempt does not by itself fail a criterion.
 
-`sandbox` is `none` when the runs took the folder-only sandbox template, and is left out otherwise. Such a result
-carries `wroteOutside`, left out when empty: each path outside a run's folders that one of its shell commands named
-and changed, with its `case`, `arm`, and `run`. When the result has `sandbox: none`, say that the runs had no sandbox,
-and name each `wroteOutside` path before any pass rate.
+`sandbox` names the sandbox the runs went without: `none` when neither ran, as the folder-only template has it,
+`shell-only` when only shell commands ran in one, and `scripts-only` when only setup scripts and script checks did. It
+is left out when both ran. A result whose shell commands had no sandbox carries `wroteOutside`, left out when empty:
+each path outside a run's folders that one of its shell commands named and changed, with its `case`, `arm`, and
+`run`. When the result has `sandbox`, say which sandbox the runs went without, and name each `wroteOutside` path,
+before any pass rate.
 
 `cases` holds each case's status: an outcome case passes when every criterion it tests meets the threshold in it.
 A case marked `guard: true` in `evals.yaml` carries `guard: true` and, when the baseline ran, `baseline`: its baseline
