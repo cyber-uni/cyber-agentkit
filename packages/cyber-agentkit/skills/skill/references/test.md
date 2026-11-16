@@ -23,8 +23,8 @@ only for the hosts its case lists. When the test stops with `error: login:`, `er
 
 A case's setup script and `script` checks run contained, as Verification's Run says. When the test stops with
 `error: sandbox:` because this machine cannot run the sandbox, say so, and offer the folder-only sandbox: one test with
-`--sandbox folder-only`, or every test with a `skill-design.test.sandbox` that extends
-`skill-design.test.sandbox.folder-only`, as Verification's Run says. Never pick it on your own: it runs the skill's
+`--sandbox folder-only`, or every test with a `skill-design.test.sandbox.meta.md` beside a `skill-design.test.sandbox.yaml` in the repo or user references folder, holding
+`extends: [cyber-agentkit/skill-design.test.sandbox.folder-only]` (the YAML holds only the settings it changes), as Verification's Run says. Never pick it on your own: it runs the skill's
 shell commands and scripts with no sandbox. When the test stops with `error: sandbox-invalid:` or
 `error: sandbox-missing:`, pass the reason on as it is said; no run was made.
 When the test warns
