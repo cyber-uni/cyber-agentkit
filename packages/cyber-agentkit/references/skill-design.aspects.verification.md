@@ -178,6 +178,17 @@ say so before the first run in a session.
   Anthropic's sandbox runtime (`@anthropic-ai/sandbox-runtime`, pinned and run through the same `npx` install): it
   writes only to the run's own folders and reaches no network. When that sandbox cannot start (on Linux and WSL it
   needs bubblewrap, socat, and ripgrep), `test` stops with `error: sandbox:` and runs no script outside it.
+- The sandbox is a template that the YAML reference `skill-design.test.sandbox` names (`template: <name>`), or that
+  `--sandbox <name>` names for one test or `skill case try`. `default`, which the plugin ships, is the sandbox the two
+  items above describe. `folder-only` runs shell commands, setup scripts, and `script` checks with no sandbox and with
+  the network open, on both engines, for a machine that cannot run the sandbox. Each run still gets a fresh folder
+  holding only the skill and its case files, an empty home and config folder, so no other skill or plugin loads, and
+  file tools that reach only the run's folder. Only the managed, repo, and user tiers choose the template; a plugin's
+  or a skill's own copy is not read. A folder-only result records `sandbox: none` and lists in `wroteOutside` each
+  path outside the run's folders that a shell command named and changed; a write to a path a command builds as it
+  runs goes unlisted. To make folder-only the default for a repository, write
+  `.agents/references/skill-design.test.sandbox.yaml` holding `template: folder-only`, or the same file under
+  `~/.agents/references/` for one user.
 - When the skill's folder is outside the repository (`--root`, else the one holding the current directory), `test`
   lists each setup script and `script` check before the first run, with `warning: untrusted-scripts:`, and runs none of
   them unless `--trust-scripts` is given; the cases that need them are reported as not run. Read them before passing

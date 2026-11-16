@@ -82,6 +82,9 @@ contract apply here; IDs are shared across the parent and its children.
     After the reset, the author runs only the runs left and they join the incomplete result.
   - **UC6.23** The estimate for the runs is over the test budget, whichever command starts `test` and at every
     autonomy level. No run starts, and the run stops, offering to run every case, to run some cases, or not to run.
+  - **UC6.24** The author's machine cannot run the sandbox, or the author's team chose to test without one. The
+    author, the team, or an administrator picks the folder-only sandbox, for one test or for every test. The runs,
+    setup scripts and script checks included, go on with no sandbox, and the result says they did.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -195,6 +198,13 @@ contract apply here; IDs are shared across the parent and its children.
 - R166 (UC1, UC6.23; E2): Before any run, `test` estimates the runs and their cost against the test budget, whichever
   command starts it. Over the budget, no run starts, and the run stops with the Stop outcome R167 states; the decision
   gives the run count and the estimate, and offers to run every case, to run some cases, or not to run.
+- R168 (UC6.24): The sandbox each run takes is a choice among named templates. The default is the full sandbox of
+  R23 and R157. The folder-only template runs the agent's shell commands, setup scripts, and script checks with no
+  sandbox, on every engine. Each run still gets a fresh folder holding only the skill and its case files, loads no other
+  skill or plugin, and keeps its file tools to its own folder. Only the administrator, the repository, the user, or an
+  option given for one test may choose the template; nothing the skill or a plugin ships can loosen it. A folder-only
+  result records that it ran without a sandbox and lists the paths outside the run's folder its shell commands
+  changed. It can be accepted as the expected result like any other.
 - R163 (UC6.22): `test` asked to resume runs only the runs an incomplete result has left, and the result holds the
   runs it had and the new ones, as one run of the whole test would. It refuses, and runs nothing, when the last result
   is not incomplete, or when the skill or its eval cases changed since that result.
