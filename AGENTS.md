@@ -35,14 +35,6 @@ what users run. `plugin.json` maps each one to its TypeScript source.
 - After a rebase, rebuild with `pnpm plugin:build` instead of resolving a conflict in a built script by
   hand, then run `pnpm plugin:check`.
 
-## Editing skills
-
-Before you edit any file of a skill (a `SKILL.md`, or a file under its `references/`, `scripts/`, `assets/`, or
-`evals/`), including the skill-design references under `packages/cyber-agentkit/references/` that the `skill` command
-loads, load the `cyber-agentkit:skill` skill and follow its steps: add a case for each behavior the change adds, run
-`check` and `test`, follow `fix` for what they find, and report the result with the work. Do this even when the request
-never says "skill".
-
 ## Skill Augmentations
 
 When loading any skill, also check `.agents/skills/<name>/SKILL.md` for project-level additions and merge them with the base skill. Files in `.agents/skills/` extend (not replace) the installed skill.
