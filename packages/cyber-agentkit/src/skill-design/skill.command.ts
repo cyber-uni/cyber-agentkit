@@ -50,6 +50,7 @@ import { defaultTestBudget, estimateTest, estimateText, parseTestBudget } from '
 import { planScripts, planTest, withoutScripts } from './test-plan.js'
 import { planLine } from './test-progress.js'
 import type { CaseStatus, Incomplete, ResumeOptions, Row, TestResult } from './test-result.js'
+import { resolveTestSandbox, type SandboxTemplate, sandboxReferenceName, sandboxTemplates } from './test-sandbox.js'
 import { type GitHubGet, githubGet, type JsonGet, jsonGet, type SupplyChainSignals } from './vet-signals.js'
 import { cloneSource, type FetchSource, parseVetSource } from './vet-source.js'
 import { readTrustList, trustListName } from './vet-trust.js'
@@ -253,6 +254,29 @@ function guardLine(item: CaseStatus, threshold: number): string {
 	return `guard ${item.case}: ${item.status}${rate}${base}${note ? ` — ${note}` : ''}`
 }
 
+/**
+ * The sandbox template a test or a try runs in (#302), from `--sandbox` or the managed, repo, or user tier. Writes its
+ * warnings, and a warning that the runs take no sandbox; exits on an unknown or unreadable template.
+ */
+function testSandbox(layers: Parameters<typeof resolveTestSandbox>[0], flag: string | undefined): SandboxTemplate {
+	const chosen = resolveTestSandbox(layers, flag)
+	if ('problem' in chosen) {
+		process.stderr.write(`error: ${chosen.code}: ${chosen.problem}\n`)
+		throw CliError.reported(chosen.code === 'unknown-sandbox' ? exitCodes.usage : exitCodes.error)
+	}
+	for (const warning of chosen.warnings) process.stderr.write(`warning: ${warning}\n`)
+	if (chosen.template === 'folder-only')
+		process.stderr.write(
+			`warning: no-sandbox: the folder-only sandbox (${chosen.from === 'flag' ? '--sandbox' : `${sandboxReferenceName} in the ${chosen.from} tier`}) runs shell commands, setup scripts, and script checks without a sandbox, with the network open; only the file tools are held to each run's folder\n`,
+		)
+	return chosen.template
+}
+
+const sandboxOption = {
+	description: `The sandbox template each run takes: ${sandboxTemplates.join(' or ')}. \`folder-only\` runs shell commands, setup scripts, and \`script\` checks without a sandbox, keeping only each run's own folder and the file-tool limits. Defaults to the template \`${sandboxReferenceName}\` names in the managed, repo, or user tier, else \`default\`.`,
+	type: t.string().optional(),
+}
+
 /** The text report; `folder` is where the result was saved, so the replies file is named in full. */
 function testText(result: TestResult, folder?: string): string {
 	const lines = [
@@ -304,6 +328,12 @@ function testText(result: TestResult, folder?: string): string {
 	}
 	for (const item of result.cases) if (item.guard) lines.push(guardLine(item, result.threshold))
 	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
+	if (result.sandbox === 'none')
+		lines.push(
+			'sandbox: none — the runs took the folder-only template, with no sandbox around shell commands or scripts',
+		)
+	for (const item of result.wroteOutside ?? [])
+		lines.push(`wrote outside: ${item.case} run ${item.run} (${item.arm}) changed ${item.target}`)
 	for (const item of result.blocked ?? [])
 		lines.push(
 			`blocked: ${item.case} run ${item.run} (${item.arm}) tried to ${item.what === 'network' ? 'reach' : item.what} ${item.target}`,
@@ -364,6 +394,7 @@ function testCommand({
 				description: `The harness each run drives: ${skillTestHarnesses.join(' or ')}. Defaults to claude-code.`,
 				type: t.string().optional(),
 			},
+			sandbox: sandboxOption,
 			backend: {
 				description:
 					"What runs the cases: `promptfoo` (the default), or `plugin-eval` for Claude Code's own `claude plugin eval`, which drives claude-code only and cannot run `script` checks.",
@@ -458,6 +489,7 @@ function testCommand({
 			args: {
 				folder: string
 				harness?: string | undefined
+				sandbox?: string | undefined
 				backend?: string | undefined
 				model?: string
 				judge?: string
@@ -487,9 +519,9 @@ function testCommand({
 			// A resume runs again with the options the incomplete result was made with (R163).
 			let resume: { rows: Row[]; latest: TestResult; incomplete: Incomplete } | undefined
 			if (args.resume) {
-				const given = (['case', 'model', 'judge', 'baseline', 'harness', 'backend', 'estimate'] as const).filter(
-					(key) => args[key] !== undefined,
-				)
+				const given = (
+					['case', 'model', 'judge', 'baseline', 'harness', 'backend', 'sandbox', 'estimate'] as const
+				).filter((key) => args[key] !== undefined)
 				if (given.length) {
 					process.stderr.write(
 						`error: resume-options: --resume runs with the options of the result it resumes; drop ${given.map((key) => `--${key}`).join(', ')}\n`,
@@ -529,6 +561,7 @@ function testCommand({
 				args.judge = incomplete.options.judge
 				args.baseline = incomplete.options.baseline
 				args['trust-scripts'] = incomplete.options.trustScripts
+				args.sandbox = incomplete.options.sandbox
 			}
 			const harnessId = args.harness ?? 'claude-code'
 			if (!(harnessIds as readonly string[]).includes(harnessId)) {
@@ -641,6 +674,7 @@ function testCommand({
 				)
 				return result(estimate, { render: { text: () => estimateText(estimate) } })
 			}
+			const sandbox = testSandbox(layers, args.sandbox)
 			const verification = loadAspect('skill-design.aspects.verification', layers, (path) => collapseHome(home, path))
 			const name =
 				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
@@ -665,10 +699,18 @@ function testCommand({
 			}
 			const ran =
 				backend === 'plugin-eval'
-					? await runPluginEvalTest({ ...common, run: pluginEval, progress: report, listPlugins: list, scriptSandbox })
+					? await runPluginEvalTest({
+							...common,
+							run: pluginEval,
+							progress: report,
+							listPlugins: list,
+							scriptSandbox,
+							sandbox,
+						})
 					: await runTest({
 							...common,
 							harness,
+							sandbox,
 							run,
 							listPlugins: list,
 							dependencies: {
@@ -697,6 +739,7 @@ function testCommand({
 				...(args.judge !== undefined ? { judge: args.judge } : {}),
 				...(args.baseline !== undefined ? { baseline: args.baseline } : {}),
 				...(args['trust-scripts'] ? { trustScripts: true } : {}),
+				...(sandbox === 'folder-only' ? { sandbox } : {}),
 			}
 			const toSave: TestResult =
 				ran.result.incomplete && fingerprint
@@ -1023,7 +1066,7 @@ function caseFailure(failed: { code: string; problem: string }): never {
 	)
 }
 
-function caseCommand({ runPromptfoo: run = runPromptfoo }: SkillCommandOptions): cli.Command {
+function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandOptions): cli.Command {
 	const skillOf = (folder: string) => {
 		const skill = readSkill(folder)
 		if (!skill) {
@@ -1161,6 +1204,7 @@ function caseCommand({ runPromptfoo: run = runPromptfoo }: SkillCommandOptions):
 			{ name: 'case', description: 'The outcome case whose setup to try.', type: t.string() },
 		],
 		options: {
+			sandbox: sandboxOption,
 			harness: {
 				description: `The harness whose isolation the run takes, which sets where its home and config live: ${skillTestHarnesses.join(', ')}. Defaults to claude-code.`,
 				type: t.string().optional(),
@@ -1188,6 +1232,7 @@ function caseCommand({ runPromptfoo: run = runPromptfoo }: SkillCommandOptions):
 				folder: string
 				case: string
 				harness?: string | undefined
+				sandbox?: string | undefined
 				root?: string | undefined
 				'trust-scripts'?: boolean | undefined
 			},
@@ -1222,6 +1267,14 @@ function caseCommand({ runPromptfoo: run = runPromptfoo }: SkillCommandOptions):
 			const ignore = join(results, '..', '.gitignore')
 			mkdirSync(join(results, '..'), { recursive: true })
 			if (!existsSync(ignore)) writeFileSync(ignore, '*\n')
+			const layers = await referenceLayers({
+				root: args.root,
+				cwd: process.cwd(),
+				home: homedir(),
+				platform: process.platform,
+				env: process.env,
+				plugin,
+			})
 			const tried = await trySetup({
 				plan: planned.plan,
 				skillFolder: skill.folder,
@@ -1229,6 +1282,7 @@ function caseCommand({ runPromptfoo: run = runPromptfoo }: SkillCommandOptions):
 				harness,
 				keep: join(results, 'try', args.case),
 				run,
+				sandbox: testSandbox(layers, args.sandbox),
 			})
 			if ('problem' in tried) {
 				process.stderr.write(`error: ${tried.code}: ${tried.problem}\n`)

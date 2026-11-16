@@ -1,0 +1,14 @@
+# How `skill test` and `skill case try` contain each run. Name one template:
+#
+#   default      The agent's shell commands run in Claude Code's OS sandbox, and setup scripts and `script`
+#                checks run in the script sandbox (srt): writes only to the run's folders, no network but the
+#                hosts a case lists.
+#   folder-only  No sandbox. Each run still gets a fresh folder holding only the skill and its case files, an
+#                empty home and config folder, so no other skill or plugin loads, and the file tools still
+#                reach only the run's folder. Shell commands, setup scripts, and `script` checks run with no
+#                sandbox, so they can read and write anything your account can. The result records
+#                `sandbox: none` and each path outside the run's folders a shell command changed.
+#
+# Only the managed, repo, and user tiers, or `skill test --sandbox <template>`, choose the template; a plugin's or
+# a skill's own copy is not read.
+template: default

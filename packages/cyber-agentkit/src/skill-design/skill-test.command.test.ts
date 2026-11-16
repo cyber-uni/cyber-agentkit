@@ -1532,3 +1532,111 @@ describe('skill case try (#290)', () => {
 		expect(run).not.toHaveBeenCalled()
 	})
 })
+
+describe('skill test sandbox (#302)', () => {
+	const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+	const providers = (seen: { config?: Record<string, unknown> }) =>
+		seen.config?.['providers'] as { config: Record<string, unknown> }[]
+	const choose = (folder: string, template: string) => {
+		mkdirSync(join(folder, '.agents', 'references'), { recursive: true })
+		writeFileSync(join(folder, '.agents', 'references', 'skill-design.test.sandbox.yaml'), `template: ${template}\n`)
+	}
+
+	it('runs in the default sandbox and records none of it when nothing chooses one', async () => {
+		const seen: { config?: Record<string, unknown> } = {}
+		expect(await test(goodSkill().folder, fakeRun(seen), repo())).toBe(0)
+		expect(providers(seen).every((p) => p.config['unsandboxed'] === undefined)).toBe(true)
+		expect(JSON.parse(printed()).sandbox).toBeUndefined()
+		expect(errors()).not.toContain('no-sandbox')
+	})
+
+	it('runs folder-only with --sandbox folder-only, says so, and records sandbox none', async () => {
+		const seen: { config?: Record<string, unknown> } = {}
+		expect(await test(goodSkill().folder, fakeRun(seen), repo(), '--sandbox', 'folder-only')).toBe(0)
+		expect(providers(seen).map((p) => p.config['unsandboxed'])).toEqual([true, true])
+		expect(JSON.parse(printed()).sandbox).toBe('none')
+		expect(errors()).toContain('warning: no-sandbox: the folder-only sandbox (--sandbox)')
+	})
+
+	it('takes the template the repo tier chooses, and --sandbox over it', async () => {
+		const root = repo()
+		choose(root, 'folder-only')
+		const seen: { config?: Record<string, unknown> } = {}
+		expect(await test(goodSkill().folder, fakeRun(seen), root)).toBe(0)
+		expect(providers(seen)[0]?.config['unsandboxed']).toBe(true)
+		expect(errors()).toContain('skill-design.test.sandbox in the repo tier')
+		const again: { config?: Record<string, unknown> } = {}
+		expect(await test(goodSkill().folder, fakeRun(again), root, '--sandbox', 'default')).toBe(0)
+		expect(providers(again)[0]?.config['unsandboxed']).toBeUndefined()
+	})
+
+	it("never takes the template from the skill's own folder", async () => {
+		const skill = goodSkill({ 'references/skill-design.test.sandbox.default.yaml': 'template: folder-only\n' })
+		choose(skill.folder, 'folder-only')
+		const seen: { config?: Record<string, unknown> } = {}
+		expect(await test(skill.folder, fakeRun(seen), repo())).toBe(0)
+		expect(providers(seen)[0]?.config['unsandboxed']).toBeUndefined()
+	})
+
+	it('refuses an unknown template, and a tier document it cannot read, before any run', async () => {
+		let ran = false
+		const never: PromptfooRun = async () => {
+			ran = true
+			return { problem: 'x' }
+		}
+		expect(await test(goodSkill().folder, never, repo(), '--sandbox', 'none')).toBe(2)
+		expect(errors()).toContain('error: unknown-sandbox: no sandbox template none; use default or folder-only')
+		const root = repo()
+		choose(root, 'off')
+		expect(await test(goodSkill().folder, never, root)).toBe(1)
+		expect(errors()).toContain('error: sandbox-invalid:')
+		expect(ran).toBe(false)
+	})
+
+	it('lists each path a folder-only run changed outside its folders, in the result and the text', async () => {
+		const run: PromptfooRun = async (folder, config, output) => {
+			const base = await fakeRun({})(folder, config, output)
+			if ('problem' in base) return base
+			const rows = (base.output as { results: { results: { response: { metadata: Record<string, unknown> } }[] } })
+				.results.results
+			if (rows[0]) rows[0].response.metadata['wroteOutside'] = ['/home/someone/.bashrc']
+			return base
+		}
+		expect(await test(goodSkill().folder, run, repo(), '--sandbox', 'folder-only')).toBe(0)
+		expect(JSON.parse(printed()).wroteOutside).toEqual([
+			expect.objectContaining({ arm: 'skill', run: 1, target: '/home/someone/.bashrc' }),
+		])
+	})
+
+	it('runs skill case try in the template chosen, as a test would', async () => {
+		const skill = goodSkill({
+			'evals/evals.yaml': 'outcome:\n  - { id: two-prs, prompt: write the notes, setup: setup/two-prs.sh }\n',
+			'evals/setup/two-prs.sh': '#!/bin/sh\necho hi\n',
+		})
+		let seen: Record<string, any> = {}
+		const run: PromptfooRun = async (folder, config) => {
+			seen = parse(readFileSync(join(folder, config), 'utf8'))
+			const tried = { status: '', said: 'hi', failed: false }
+			return { output: { results: { results: [{ response: { metadata: { tried } } }] } } }
+		}
+		const code = await cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' })
+			.command(createSkillCommand({ ...offline, runPromptfoo: run }))
+			.parse<number | undefined>([
+				'node',
+				'cyber-agentkit',
+				'skill',
+				'case',
+				'try',
+				skill.folder,
+				'two-prs',
+				'--root',
+				join(skill.folder, '..'),
+				'--sandbox',
+				'folder-only',
+				'--format',
+				'json',
+			])
+		expect(typeof code === 'number' ? code : 0).toBe(0)
+		expect(seen['providers'][0].config.unsandboxed).toBe(true)
+	})
+})

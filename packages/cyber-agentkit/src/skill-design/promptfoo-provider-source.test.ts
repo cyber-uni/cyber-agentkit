@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
@@ -80,7 +80,9 @@ function runProvider(
 		dependencies,
 		instruction,
 		caseInstructions,
+		unsandboxed,
 	}: {
+		unsandboxed?: boolean
 		platform?: string
 		network?: string[]
 		plugin?: boolean
@@ -102,7 +104,7 @@ function runProvider(
 	writeFileSync(
 		join(root, 'run.mjs'),
 		`${platform ? `Object.defineProperty(process, 'platform', { value: ${JSON.stringify(platform)} })\n` : ''}const { default: Provider } = await import('./provider.mjs')
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, ${instruction === undefined ? '' : `instruction: ${JSON.stringify(instruction)}, `}${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${plugin ? ` pluginName: 'kit', pluginDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${dependencies ? ` dependencyDirs: ${JSON.stringify(dependencies)},` : ''} } })
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, ${unsandboxed ? 'unsandboxed: true, ' : ''}${instruction === undefined ? '' : `instruction: ${JSON.stringify(instruction)}, `}${withSkill ? `skillDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${plugin ? ` pluginName: 'kit', pluginDir: ${JSON.stringify(join(root, 'skill'))},` : ''}${dependencies ? ` dependencyDirs: ${JSON.stringify(dependencies)},` : ''} } })
 const response = await provider.callApi('hi', { vars: { kind: 'outcome', files: ${JSON.stringify(join(root, 'files'))}, rubrics: '{}'${network ? `, network: ${JSON.stringify(JSON.stringify(network))}` : ''} } })
 console.log(response.output)
 `,
@@ -199,6 +201,21 @@ describe('promptfooProviderSource containment (R107)', () => {
 		})
 	})
 
+	it('in a folder-only run, turns the OS sandbox off and keeps the file-tool limits (#302, E-CC-D23)', () => {
+		const { sandbox, settings } = runProvider(true, { unsandboxed: true })
+		expect(sandbox).toEqual({ enabled: false })
+		expect(settings.permissions).toEqual({
+			blockReadsOutsideWorkingDirectories: true,
+			blockWritesOutsideWorkingDirectories: true,
+		})
+	})
+
+	it('in a folder-only run, makes no sandbox mount point in a plugin copy or a dependency copy (#302)', () => {
+		const dependency = mkdtempSync(join(tmpdir(), 'provider-dependency-'))
+		runProvider(false, { plugin: true, dependencies: [dependency], unsandboxed: true })
+		expect(existsSync(join(dependency, '.mcp.json'))).toBe(false)
+	})
+
 	it('lets a run read and write its own plugin copy, as a working folder', () => {
 		const { sandbox, settings, additionalDirectories, plugins } = runProvider(false, { plugin: true })
 		const copy = plugins[0].path
@@ -284,6 +301,51 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 		)
 		return { ...response, outside }
 	}
+
+	/** A fake inner provider for a folder-only run: a shell command writes outside the run, another only reads there. */
+	const writing = String.raw`
+const fs = require('node:fs')
+exports.loadApiProvider = async (_id, { options }) => ({
+  callApi: async () => {
+    const c = options.config
+    const pre = (input) => Promise.all(c.hooks.PreToolUse.flatMap((entry) => entry.hooks.map((hook) => hook(input))))
+    const post = (input) => c.hooks.PostToolUse[0].hooks[0](input)
+    const target = process.env.OUTSIDE + '/escaped.txt'
+    fs.writeFileSync(target, 'escaped')
+    await post({ tool_name: 'Bash', tool_input: { command: 'echo escaped > ' + target }, tool_response: { stdout: '', stderr: '' } })
+    await post({ tool_name: 'Bash', tool_input: { command: 'cat ' + process.env.OUTSIDE + '/old.txt' }, tool_response: { stdout: 'old', stderr: '' } })
+    await post({ tool_name: 'Bash', tool_input: { command: 'echo hi > ' + c.working_dir + '/inside.txt' }, tool_response: { stdout: '', stderr: '' } })
+    const readOutside = await pre({ tool_name: 'Read', tool_input: { file_path: process.env.OUTSIDE + '/old.txt' } })
+    return { output: 'done', metadata: { readOutside, sandbox: c.sandbox } }
+  },
+})
+`
+
+	it('in a folder-only run, still refuses a file tool outside the run, and records each outside path a shell command changed (#302)', () => {
+		const root = mkdtempSync(join(tmpdir(), 'provider-unsandboxed-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), writing)
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		const outside = mkdtempSync(join(tmpdir(), 'provider-outside-'))
+		writeFileSync(join(outside, 'old.txt'), 'old')
+		const long = new Date(Date.now() - 3_600_000)
+		utimesSync(join(outside, 'old.txt'), long, long)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}, unsandboxed: true } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
+`,
+		)
+		const { metadata } = JSON.parse(
+			execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8', env: { ...process.env, OUTSIDE: outside } }),
+		)
+		expect(metadata.sandbox).toEqual({ enabled: false })
+		expect(metadata.readOutside[1]).toMatchObject({ hookSpecificOutput: { permissionDecision: 'deny' } })
+		expect(metadata.wroteOutside).toEqual([join(outside, 'escaped.txt')])
+		expect(metadata.blocked).toEqual([{ what: 'read', target: join(outside, 'old.txt') }])
+	})
 
 	it('refuses a file tool outside the run folder, lets one inside through, and records each refusal', () => {
 		const { metadata } = probe()
@@ -934,7 +996,9 @@ describe('promptfooProviderSource setup scripts and script checks (R155, R156, R
 		rubrics = {},
 		writes,
 		keep,
+		unsandboxed,
 	}: {
+		unsandboxed?: boolean
 		setup?: string
 		rubrics?: Record<string, Record<string, unknown>[]>
 		writes?: string
@@ -947,7 +1011,8 @@ describe('promptfooProviderSource setup scripts and script checks (R155, R156, R
 		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
 		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
 		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), fakePromptfoo)
-		linkSandbox(root)
+		// A folder-only run needs no script sandbox, so none is installed beside promptfoo for one.
+		if (!unsandboxed) linkSandbox(root)
 		mkdirSync(join(root, 'files'))
 		writeFileSync(join(root, 'files', 'notes.txt'), 'hello\n')
 		if (setup !== undefined) writeFileSync(join(root, 'setup.sh'), setup)
@@ -962,14 +1027,20 @@ describe('promptfooProviderSource setup scripts and script checks (R155, R156, R
 		writeFileSync(
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
-const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}${keep ? `, keep: ${JSON.stringify(keep)}` : ''} } })
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {}${keep ? `, keep: ${JSON.stringify(keep)}` : ''}${unsandboxed ? ', unsandboxed: true' : ''} } })
 console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify(vars)} })))
 `,
 		)
 		const response = JSON.parse(
 			execFileSync('node', [join(root, 'run.mjs')], {
 				encoding: 'utf8',
-				env: { ...process.env, OUTSIDE: outside, ...(writes ? { FAKE_RUN_WRITES: writes } : {}) },
+				env: {
+					...process.env,
+					OUTSIDE: outside,
+					...(writes ? { FAKE_RUN_WRITES: writes } : {}),
+					// pnpm's bin shim puts this package's own node_modules, which holds the script sandbox, on NODE_PATH.
+					...(unsandboxed ? { NODE_PATH: '' } : {}),
+				},
 			}),
 		)
 		return { response, outside }
@@ -1080,6 +1151,42 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: ${JSON.stringify
 	it.skipIf(!sandboxStarts)("still refuses a script check a write to the run repository's .git/config", () => {
 		const { response } = scripted({ rubrics: { C1: [{ script: 'echo "[core]" >> .git/config' }] } })
 		expect(response.metadata.checks.C1.pass).toBe(false)
+	})
+
+	it('in a folder-only run, runs the setup script and script checks with no script sandbox installed (#302)', () => {
+		const { response } = scripted({
+			unsandboxed: true,
+			setup: '#!/bin/sh\nset -e\necho changed >> notes.txt\n',
+			rubrics: { C1: [{ script: 'grep -q changed notes.txt' }], C2: [{ script: 'exit 1' }] },
+		})
+		expect(response.error).toBeUndefined()
+		expect(JSON.parse(response.output).status).toBe('M notes.txt')
+		expect(response.metadata.checks).toEqual({ C1: { pass: true }, C2: { pass: false, detail: expect.any(String) } })
+	})
+
+	it('in a folder-only run, ends the run as not run with the output of a setup script that fails (#302)', () => {
+		const { response } = scripted({ unsandboxed: true, setup: 'echo "no such branch: main" >&2\nexit 3\n' })
+		expect(response.error).toBe('setup script failed: no such branch: main')
+	})
+
+	it('without a script sandbox, refuses a scripted run unless it is folder-only (R157, #302)', () => {
+		const root = mkdtempSync(join(tmpdir(), 'provider-nosrt-'))
+		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
+		writeFileSync(join(root, 'node_modules', 'promptfoo', 'index.js'), fakePromptfoo)
+		writeFileSync(join(root, 'provider.mjs'), promptfooProviderSource)
+		writeFileSync(
+			join(root, 'run.mjs'),
+			`import Provider from './provider.mjs'
+const provider = new Provider({ config: { arm: 'skill', skillName: 'demo', isolation: ${isolation}, inner: {} } })
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: JSON.stringify({ C1: [{ script: 'true' }] }) } })))
+`,
+		)
+		// pnpm's bin shim puts this package's own node_modules on NODE_PATH, which holds the script sandbox.
+		const response = JSON.parse(
+			execFileSync('node', [join(root, 'run.mjs')], { encoding: 'utf8', env: { ...process.env, NODE_PATH: '' } }),
+		)
+		expect(response.error).toMatch(/^sandbox: the script sandbox \(@anthropic-ai\/sandbox-runtime\) is not installed/)
 	})
 })
 

@@ -21,6 +21,7 @@ import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
 import type { TestPlan } from './test-plan.js'
 import { plannedRuns } from './test-progress.js'
 import { type Reply, readPromptfooOutput, readReplies, type TestResult } from './test-result.js'
+import type { SandboxTemplate } from './test-sandbox.js'
 
 /**
  * `skill test` on Claude Code's own `claude plugin eval` (E-CC-H8). The plan becomes an eval suite in a copy of the
@@ -190,7 +191,8 @@ const quote = (text: string) => `'${text.replace(/'/g, `'\\''`)}'`
  * Writes the plan as a suite under `<plugin>/skill-test-evals/`: one `case.yaml` per case, tagged `trigger` or
  * `outcome`, with a scaffold script that copies the case's files and commits them in a new git repository, as a
  * promptfoo run's folder starts. A case's setup script, copied beside the scaffold, then runs in the workspace inside
- * the script sandbox, writing only there and reaching no network (R155, R157); its output goes to stderr, which
+ * the script sandbox, writing only there and reaching no network (R155, R157), or, with `sandbox` `none` (the
+ * `folder-only` template, #302), as a plain command in the workspace; its output goes to stderr, which
  * `claude plugin eval` keeps as the run's error when it fails (E-CC-H12). A trigger case has one grader, `fired`, on
  * the Skill tool; an outcome case has one grader per check, named after its criterion.
  */
@@ -199,7 +201,7 @@ export function writePluginEvalSuite(
 	plugin: string,
 	skillName: string,
 	model?: string,
-	sandbox?: ScriptSandbox,
+	sandbox?: ScriptSandbox | 'none',
 ): void {
 	const root = join(plugin, pluginEvalDir)
 	rmSync(root, { recursive: true, force: true })
@@ -220,18 +222,24 @@ export function writePluginEvalSuite(
 			if (!sandbox) throw new Error(`case ${item.id} has a setup script, and no script sandbox was given`)
 			copyFileSync(item.setup, join(folder, 'skill-test-setup.sh'))
 			chmodSync(join(folder, 'skill-test-setup.sh'), 0o755)
-			const settings = JSON.stringify(scriptSandboxSettings('%s'))
-			const folders = ' "$PWD"'.repeat(settings.split('%s').length - 1)
-			// The sandbox starts in an empty folder of its own, and the script changes into the workspace first, so it
-			// sees no placeholder for what the sandbox protects (E23).
-			const command = `cd "$SKILL_TEST_WORKSPACE" || exit 1\n${quote(join(folder, 'skill-test-setup.sh'))}`
-			script.push(
-				'settings=$(mktemp -d)',
-				`printf '${settings}'${folders} > "$settings/srt.json"`,
-				'mkdir "$settings/start"',
-				`(export SKILL_TEST_WORKSPACE="$PWD" && cd "$settings/start" && ${quote(sandbox.node)} ${quote(sandbox.cli)} --settings "$settings/srt.json" -c ${quote(command)}) >&2 || { status=$?; echo ${quote(setupFailedMarker)} >&2; exit $status; }`,
-				'rm -rf "$settings"',
-			)
+			if (sandbox === 'none')
+				script.push(
+					`${quote(join(folder, 'skill-test-setup.sh'))} >&2 || { status=$?; echo ${quote(setupFailedMarker)} >&2; exit $status; }`,
+				)
+			else {
+				const settings = JSON.stringify(scriptSandboxSettings('%s'))
+				const folders = ' "$PWD"'.repeat(settings.split('%s').length - 1)
+				// The sandbox starts in an empty folder of its own, and the script changes into the workspace first, so it
+				// sees no placeholder for what the sandbox protects (E23).
+				const command = `cd "$SKILL_TEST_WORKSPACE" || exit 1\n${quote(join(folder, 'skill-test-setup.sh'))}`
+				script.push(
+					'settings=$(mktemp -d)',
+					`printf '${settings}'${folders} > "$settings/srt.json"`,
+					'mkdir "$settings/start"',
+					`(export SKILL_TEST_WORKSPACE="$PWD" && cd "$settings/start" && ${quote(sandbox.node)} ${quote(sandbox.cli)} --settings "$settings/srt.json" -c ${quote(command)}) >&2 || { status=$?; echo ${quote(setupFailedMarker)} >&2; exit $status; }`,
+					'rm -rf "$settings"',
+				)
+			}
 		}
 		writeFileSync(join(folder, 'setup.sh'), `${script.join('\n')}\n`, { mode: 0o755 })
 		const graders: Record<string, unknown>[] = []
@@ -349,6 +357,8 @@ export type PluginEvalTestOptions = {
 	listPlugins?: PluginList | undefined
 	/** How the test gets the script sandbox a case's setup script runs in; `installScriptSandbox` when absent. */
 	scriptSandbox?: ScriptSandboxInstall | undefined
+	/** The sandbox template (#302): `folder-only` runs each setup script without the script sandbox. */
+	sandbox?: SandboxTemplate | undefined
 }
 
 /** A plugin holding just the skill, for a skill not developed in one. */
@@ -413,9 +423,10 @@ export async function runPluginEvalTest(
 					break
 				}
 			}
-		// A setup script runs only contained (R157): when the sandbox cannot start, no case runs.
-		let sandbox: ScriptSandbox | undefined
-		if (plan.cases.some((item) => item.setup)) {
+		// A setup script runs only contained (R157): when the sandbox cannot start, no case runs. A folder-only test
+		// (#302) runs it without one.
+		let sandbox: ScriptSandbox | 'none' | undefined = options.sandbox === 'folder-only' ? 'none' : undefined
+		if (!sandbox && plan.cases.some((item) => item.setup)) {
 			const got = await (options.scriptSandbox ?? installScriptSandbox)(join(folder, 'script-sandbox'))
 			if ('problem' in got) return { code: 'sandbox', problem: got.problem }
 			sandbox = got
@@ -503,6 +514,7 @@ export async function runPluginEvalTest(
 		return {
 			result: {
 				...result,
+				...(options.sandbox === 'folder-only' ? { sandbox: 'none' as const } : {}),
 				durationMs: Date.now() - started,
 				totalRuns: plannedRuns(plan),
 			},

@@ -4,7 +4,9 @@
  * wrapper makes each run's folder: a fresh copy of the case's files committed in a new git repository, plus the
  * skill under the harness's project skills folder (`.claude/skills/<name>/` for Claude Code) in the arm that has it (excluded from git status), or, for a skill developed in a plugin, a fresh copy of that arm's plugin loaded as a local plugin (R91), committed in a git repository of its own whose git folder is kept outside it, holding ahead each path the harness's shell sandbox mounts over (E-CC-D20), as each dependency copy also does (E-CC-D22), and named to script checks by `SKILL_TEST_PLUGIN`, or its skills copied into the project skills folder for a harness with no local-plugin flag. Claude Code runs through promptfoo's Agent SDK provider; another harness (`config.harness`) runs through its own CLI (`config.command`). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. A case's setup script (`vars.setup`) runs in the
  * folder after the files are committed and before the model starts, and it and each `script` check run in the script
- * sandbox (R155, R157). After the run it decides the rubric checks that
+ * sandbox (R155, R157). With the config's `unsandboxed` (the `folder-only` sandbox template, #302), shell commands,
+ * the setup script, and `script` checks run with no sandbox, the file-tool limits stay, and the response's
+ * `metadata.wroteOutside` lists each path outside the run's folders a shell command named and changed. After the run it decides the rubric checks that
  * need no judge in that folder, records whether the skill fired, and removes the folder. Each run also gets an empty home folder.
  * It resolves promptfoo from the npx install running it.
  *
@@ -95,7 +97,9 @@ function isolatedEnv(isolation, home) {
 // folders that hold programs stay readable. Writes go only to the run's own folders. The network is closed but for
 // the hosts the case lists (allowedDomains with strictAllowlist), and the sandbox notes each host it denied in the
 // command's output (<sandbox_violations>).
-function containment({ dir, home, plugin, dependencies = [], network }) {
+// A folder-only run (unsandboxed, #302) keeps the file-tool limits and the hook, which hold with the OS sandbox off
+// (E-CC-D23), and runs shell commands with no OS sandbox: they reach whatever the user's own account can.
+function containment({ dir, home, plugin, dependencies = [], network, unsandboxed = false }) {
   const real = (p) => { try { return fs.realpathSync(p) } catch { return p } }
   const nodeInstall = path.dirname(path.dirname(real(process.execPath)))
   const own = [...new Set([dir, home, plugin].filter(Boolean).flatMap((p) => [p, real(p)]))]
@@ -104,8 +108,9 @@ function containment({ dir, home, plugin, dependencies = [], network }) {
   return {
     readable: [...own, ...needed],
     writable: own,
+    network: network ?? [],
     settings: { permissions: { blockReadsOutsideWorkingDirectories: true, blockWritesOutsideWorkingDirectories: true } },
-    sandbox: {
+    sandbox: unsandboxed ? { enabled: false } : {
       enabled: true, failIfUnavailable: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false,
       network: { allowedDomains: network ?? [], strictAllowlist: true },
       filesystem: { denyRead: [...new Set([os.tmpdir(), real(os.tmpdir()), os.homedir()])], allowRead: [...own, ...needed, nodeInstall], allowWrite: own },
@@ -168,6 +173,15 @@ function runContained(cli, command, { cwd, own, needed = [], env, timeout }) {
   } finally { try { fs.rmSync(settingsDir, { recursive: true, force: true }) } catch {} }
 }
 
+// Runs a setup script or a script check: in the script sandbox, or, in a folder-only run (unsandboxed, #302), as a
+// plain shell command in cwd with the same environment and time limit. Throws as execSync does when it exits non-zero.
+function runScript(command, { cwd, own, needed = [], env, timeout, unsandboxed = false }) {
+  if (unsandboxed) return execFileSync('/bin/sh', ['-c', command], { cwd, env, stdio: 'pipe', timeout, encoding: 'utf8' })
+  const sandbox = scriptSandbox()
+  if (sandbox.problem) throw new Error(sandbox.problem)
+  return runContained(sandbox.cli, command, { cwd, own, needed, env, timeout })
+}
+
 const inside = (roots, p) => roots.some((root) => p === root || p.startsWith(root.endsWith(path.sep) ? root : root + path.sep))
 
 // Records what the containment refused, as { what: 'read' | 'write' | 'network', target }. A file tool (the
@@ -175,8 +189,12 @@ const inside = (roots, p) => roots.some((root) => p === root || p.startsWith(roo
 // own notes and a host a command asked to reach beyond the case's list, and counts a path the command names that exists outside the run but that the command could not find,
 // read or write as refused: the sandbox hides it. A path the command builds as it runs is still refused, but may go
 // unrecorded.
-function watchContainment({ dir, readable, writable, fileTools, network = [] }, blocked) {
+// With no OS sandbox (unsandboxed, #302) nothing refuses a shell command's write, so each path a command names outside
+// the run's folders that changed since the run started is recorded in wrote. A write to a path the command builds as
+// it runs, or one a program it starts makes, goes unrecorded.
+function watchContainment({ dir, readable, writable, fileTools, network = [], unsandboxed = false, since = 0 }, blocked, wrote = []) {
   const note = (what, target) => { if (!blocked.some((b) => b.what === what && b.target === target) && blocked.length < 50) blocked.push({ what, target }) }
+  const changed = (target) => { try { return fs.lstatSync(target).mtimeMs >= since } catch { return false } }
   // A shell command may ask for more hosts than the case lists (Bash's allowed_domains). Claude Code refuses that
   // before the command runs, since the sandbox's allowlist is the whole list, and no hook sees it; the refusal names
   // no host, so the run's tool calls are read for it afterwards (review).
@@ -209,6 +227,7 @@ function watchContainment({ dir, readable, writable, fileTools, network = [] }, 
     const command = String(input.tool_input?.command ?? '')
     for (const match of command.matchAll(/(?:^|[\s'"=:(<>])(\/[^\s'"|;&<>()$*?]+)/g)) {
       const target = match[1].replace(/\/+$/, '') || '/'
+      if (unsandboxed && target !== '/' && !inside(writable, target) && changed(target) && !wrote.includes(target) && wrote.length < 50) wrote.push(target)
       if (target === '/' || inside(readable, target) || !fs.existsSync(target)) continue
       const failed = new RegExp(target.replace(/[.*+?^$(){}|[\]\\]/g, '\\$&') + '[^\n]*(No such file|Permission denied|Operation not permitted|Read-only file system)').exec(said)
       if (failed) note(/Read-only/.test(failed[1]) ? 'write' : 'read', target)
@@ -312,15 +331,11 @@ function makeMountPoints(root, { files, folders }) {
 // A script check finds the run's own plugin copy at SKILL_TEST_PLUGIN.
 // A script check runs contained (R157), with the run's own environment; a run that needs one when the script sandbox
 // cannot start never reaches here (callApi answers the sandbox error first).
-function finish(response, { arm, vars, dir, home, plugin, dependencies = [], env: runEnv = {}, fired, blocked, sandboxFault, limits }) {
+function finish(response, { arm, vars, dir, home, plugin, dependencies = [], env: runEnv = {}, fired, blocked, wrote, sandboxFault, limits, unsandboxed = false }) {
   const output = typeof response.output === 'string' ? response.output : JSON.stringify(response.output ?? '')
   const checks = {}
   const env = { ...process.env, ...runEnv, ...(plugin ? { SKILL_TEST_PLUGIN: plugin } : {}) }
-  const script = (command) => {
-    const sandbox = scriptSandbox()
-    if (sandbox.problem) throw new Error(sandbox.problem)
-    return runContained(sandbox.cli, command, { cwd: dir, own: [dir, home, plugin].filter(Boolean), needed: dependencies, env, timeout: 60000 })
-  }
+  const script = (command) => runScript(command, { cwd: dir, own: [dir, home, plugin].filter(Boolean), needed: dependencies, env, timeout: 60000, unsandboxed })
   if (!response.error)
     for (const [id, list] of Object.entries(JSON.parse(vars.rubrics || '{}'))) {
       const results = list.map((check) => decide(check, output, dir, script))
@@ -328,7 +343,7 @@ function finish(response, { arm, vars, dir, home, plugin, dependencies = [], env
       checks[id] = failed ? { pass: false, detail: failed.detail } : { pass: true }
     }
   const limitReached = limits?.hit(response.error)
-  response.metadata = { ...response.metadata, arm, fired, checks, ...(blocked ? { blocked } : {}), ...(sandboxFault ? { sandboxFault } : {}), ...(limitReached ? { limitReached } : {}) }
+  response.metadata = { ...response.metadata, arm, fired, checks, ...(blocked ? { blocked } : {}), ...(wrote?.length ? { wroteOutside: wrote } : {}), ...(sandboxFault ? { sandboxFault } : {}), ...(limitReached ? { limitReached } : {}) }
   return response
 }
 
@@ -496,7 +511,7 @@ export default class SkillRun {
   constructor(options) { this.options = options; this.config = options.config }
   id() { return this.options.id || 'skill-run' }
   async callApi(prompt, context) {
-    const { arm, skillDir, skillName, pluginDir, pluginName, dependencyDirs = [], instruction, inner, timeout = 300, harness = 'claude-code', isolation, command, sandboxFaults = [], usageLimits = [], limitFile, costCap, keep } = this.config
+    const { arm, skillDir, skillName, pluginDir, pluginName, dependencyDirs = [], instruction, inner, timeout = 300, harness = 'claude-code', isolation, command, sandboxFaults = [], usageLimits = [], limitFile, costCap, keep, unsandboxed = false } = this.config
     // A skill loaded from a plugin is called <plugin>:<skill> (research E21).
     const names = pluginName ? [skillName, pluginName + ':' + skillName] : [skillName]
     const vars = context.vars
@@ -516,7 +531,7 @@ export default class SkillRun {
     }
     // A run that needs a script needs the script sandbox; when it cannot start, the run does not start either (R157).
     const scripted = !!vars.setup || Object.values(JSON.parse(vars.rubrics || '{}')).some((list) => list.some((check) => 'script' in check))
-    if (scripted) {
+    if (scripted && !unsandboxed) {
       const sandbox = scriptSandbox()
       if (sandbox.problem) return { error: sandbox.problem, metadata: { arm } }
     }
@@ -561,7 +576,7 @@ export default class SkillRun {
         fs.copyFileSync(vars.setup, script)
         fs.chmodSync(script, 0o755)
         try {
-          const said = runContained(scriptSandbox().cli, "'" + script.replace(/'/g, "'\''") + "'", { cwd: dir, own: [dir, home], env: { ...process.env, ...env }, timeout: 120000 })
+          const said = runScript("'" + script.replace(/'/g, "'\''") + "'", { cwd: dir, own: [dir, home], env: { ...process.env, ...env }, timeout: 120000, unsandboxed })
           if (keep) return keepTried(keep, dir, home, { said: cap(String(said ?? '').trim()) }, arm)
         } catch (error) {
           const said = String([error.stdout, error.stderr].filter(Boolean).join('\n') || error.message).trim()
@@ -573,12 +588,12 @@ export default class SkillRun {
       if (keep) return keepTried(keep, dir, home, { said: '' }, arm)
       if (plugin) {
         fs.cpSync(pluginDir, plugin, { recursive: true })
-        commit(plugin, 'plugin', { gitDir: pluginGit, force: isolation.containment?.mountPoints ? makeMountPoints(plugin, isolation.containment.mountPoints) : [] })
+        commit(plugin, 'plugin', { gitDir: pluginGit, force: isolation.containment?.mountPoints && !unsandboxed ? makeMountPoints(plugin, isolation.containment.mountPoints) : [] })
       }
       // The sandbox holds each dependency copy read-only as it holds the plugin, and fails every shell command on a
       // mount point a copy does not have (E-CC-D20, E-CC-D22), so each copy gets them too. The copies are shared by
       // every run and are no git repository; a later run finds them made and writes nothing.
-      if (isolation.containment?.mountPoints) for (const dependency of dependencyDirs) makeMountPoints(dependency, isolation.containment.mountPoints)
+      if (isolation.containment?.mountPoints && !unsandboxed) for (const dependency of dependencyDirs) makeMountPoints(dependency, isolation.containment.mountPoints)
       const skills = path.join(dir, isolation.projectSkills)
       if (skillDir) fs.cpSync(skillDir, path.join(skills, skillName), { recursive: true })
       // A harness with no flag to load a local plugin gets the plugin's skills as project skills.
@@ -591,7 +606,7 @@ export default class SkillRun {
       const children = []
       if (harness !== 'claude-code') {
         const response = await runCli({ command, isolation, prompt, names, vars, dir, env, timeout, marker, callLog })
-        return finish(response, { arm, vars, dir, home, plugin, dependencies: readOnly, env, fired: response.metadata?.fired ?? false, limits })
+        return finish(response, { arm, vars, dir, home, plugin, dependencies: readOnly, env, fired: response.metadata?.fired ?? false, limits, unsandboxed })
       }
       // A trigger case only needs to know which skill the request chose. A hook records each Skill call and ends a trigger run at the first
       // one, counting it as fired when it is the skill under test; a turn cap of three backs it up for a run that calls none. The SDK
@@ -612,9 +627,10 @@ export default class SkillRun {
       let contained
       let watch
       const blocked = []
+      const wrote = []
       if (isolation.containment) {
-        contained = containment({ dir, home, plugin, dependencies: readOnly, network: vars.network ? JSON.parse(vars.network) : undefined })
-        watch = watchContainment({ dir, ...contained, fileTools: isolation.containment.fileTools, network: contained.sandbox.network.allowedDomains }, blocked)
+        contained = containment({ dir, home, plugin, dependencies: readOnly, network: vars.network ? JSON.parse(vars.network) : undefined, unsandboxed })
+        watch = watchContainment({ dir, ...contained, fileTools: isolation.containment.fileTools, unsandboxed, since: Date.now() - 1000 }, blocked, wrote)
         hooks = {
           PreToolUse: [skillHook, ...spend.hooks, ...watch.hooks.PreToolUse],
           PostToolUse: [...watch.hooks.PostToolUse, ...faults.hooks.PostToolUse],
@@ -635,7 +651,7 @@ export default class SkillRun {
       const answer = provider.callApi(prompt, context, { abortSignal: controller.signal }).catch((error) => ({ error: String(error?.message ?? error) }))
       const first = await Promise.race([answer, timedOut])
       clearTimeout(limit)
-      if (first === 'time limit') return { error: 'time limit', metadata: { arm, timedOut: true, ...(contained ? { blocked } : {}), ...(faults.hit() ? { sandboxFault: faults.hit() } : {}) } }
+      if (first === 'time limit') return { error: 'time limit', metadata: { arm, timedOut: true, ...(contained ? { blocked } : {}), ...(wrote.length ? { wroteOutside: wrote } : {}), ...(faults.hit() ? { sandboxFault: faults.hit() } : {}) } }
       const response = first
       // A trigger case only needs to know whether the skill fired, so it ends there or at the turn cap; running out of turns is its normal end.
       if (vars.kind === 'trigger' && /maximum number of turns/.test(response.error ?? '')) {
@@ -647,7 +663,7 @@ export default class SkillRun {
       watch?.review(response.metadata?.toolCalls)
       const calls = response.metadata?.skillCalls ?? []
       const fired = hookFired || calls.some((call) => names.includes(call.name) || names.includes(call.input?.skill))
-      return finish(response, { arm, vars, dir, home, plugin, dependencies: readOnly, env, fired, blocked: contained ? blocked : undefined, sandboxFault: faults.hit(), limits })
+      return finish(response, { arm, vars, dir, home, plugin, dependencies: readOnly, env, fired, blocked: contained ? blocked : undefined, wrote, sandboxFault: faults.hit(), limits, unsandboxed })
     } finally {
       for (const folder of [dir, home, plugin, pluginGit].filter(Boolean)) try { fs.rmSync(folder, { recursive: true, force: true }) } catch {}
     }

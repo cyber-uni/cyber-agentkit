@@ -1,6 +1,7 @@
 import { sandboxFaults } from './sandbox-faults.js'
 import type { SkillTestHarness } from './skill-test-harness.js'
 import type { TestPlan } from './test-plan.js'
+import type { SandboxTemplate } from './test-sandbox.js'
 import { usageLimits } from './usage-limits.js'
 
 /** The sandbox runtime version that contains a case's setup script and `script` checks (research E22). */
@@ -45,6 +46,11 @@ export type ConfigOptions = {
 	 * `baseline`). Each becomes a test of its own that runs once, and the provider skips the arms it does not name.
 	 */
 	slots?: { case: string; run: number; arms: string[] }[] | undefined
+	/**
+	 * The sandbox template each run takes (#302): `folder-only` runs shell commands, setup scripts, and `script` checks
+	 * without a sandbox. `default` when absent.
+	 */
+	sandbox?: SandboxTemplate | undefined
 	/** The config's description; `skill test: <skill name>` when absent. */
 	description?: string | undefined
 }
@@ -101,6 +107,7 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 					: skillDir
 						? { skillDir }
 						: {}),
+			...(options.sandbox === 'folder-only' ? { unsandboxed: true } : {}),
 			costCap: runCostCap,
 			inner: inner(options.model),
 		},
