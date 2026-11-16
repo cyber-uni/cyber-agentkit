@@ -239,10 +239,22 @@ else. `reference customize <name> --extends <step>...` writes one:
 npx -y cyber-agentkit reference customize project-tracker.capabilities.github --extends repobuddy house-style
 ```
 
-A step is a plugin name, `<plugin>:<merge>` such as `house-style:combine`, or `default`. `--extends none`
+A step is a plugin name, `<plugin>:<merge>` such as `house-style:combine`, `default`, or
+`<plugin>/<reference>`, which builds on another reference that plugin ships. A bare plugin step takes the name of the
+file whose `extends` it sits in, so `acme` and `acme/A` in file `A` are one step, and that name follows the file being
+read down the chain. A chain merges from the bottom up. A cycle makes the name ambiguous, `check` names the loop, and a
+diamond applies the shared base once. Only a step written in a managed, repo, or user file may pick another
+reference; a plugin's own `extends` naming one is skipped with an `extends-step-not-allowed` warning. A step whose
+plugin does not hold the reference is skipped, and `check` fails on it. `--extends none`
 removes the picks. `--extends-file <file>` reads the whole list from YAML when a step needs more keys.
 A step can also carry `sections`, a list of top-level headings that limits it to those sections, each
 with its own operation. A section the step lacks is skipped with a `section-not-held` warning.
+
+A YAML or JSON reference whose file writes `extends` (in its metadata file) merges over what its steps bring, key by
+key: mappings merge, an array replaces the lower one whole, and `null` removes a key. The merged answer is written out
+again, so comments in the lower files do not survive. A data file listed above another in one `extends` merges over it
+too. TOML and plain text answer whole, and `check` warns with `data-not-merged`. `customize` writes only the keys you
+change plus the `extends` line. A generated document's `sources` record the reference a step named, as `name`.
 
 A qualified name, `<plugin>/<name>`, builds that plugin's own stack. A written `extends` is not used
 for it, and managed, repo, and user contributions still apply over it.
