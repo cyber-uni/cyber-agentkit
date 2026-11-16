@@ -62,7 +62,7 @@
 		"dev": "tsx src/index.ts",
 		"lint": "biome check .",
 		"prepack": "pnpm build",
-		"test": "pnpm build && vitest run src",
+		"test": "pnpm build && node scripts/run-tests.mjs",
 		"test:watch": "vitest",
 		"typecheck": "tsc --noEmit",
 		"verify": "pnpm typecheck && pnpm lint && pnpm test"
