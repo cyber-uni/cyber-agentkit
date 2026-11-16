@@ -129,9 +129,7 @@ export function watchProgress(options: ProgressWatch): { stop: () => void } {
 		let data: Buffer | undefined
 		try {
 			data = readFileSync(file)
-		} catch {
-			// not written yet
-		}
+		} catch {}
 		if (data && data.length > offset) {
 			const fresh = data.subarray(offset)
 			const end = fresh.lastIndexOf(10)
@@ -140,9 +138,7 @@ export function watchProgress(options: ProgressWatch): { stop: () => void } {
 				for (const text of fresh.subarray(0, end).toString('utf8').split('\n')) {
 					try {
 						handle(JSON.parse(text) as ProgressLine)
-					} catch {
-						// a line that is not ours: skip it
-					}
+					} catch {}
 				}
 			}
 		}

@@ -30,9 +30,7 @@ export function findSkillPlugin(skillFolder: string): SkillPlugin | undefined {
 				const name = manifest['name']
 				if (typeof name === 'string' && name !== '' && skillsFolders(folder, manifest).includes(dirname(skill)))
 					return { root: folder, name }
-			} catch {
-				// an unreadable manifest is not this skill's plugin
-			}
+			} catch {}
 		}
 		const parent = dirname(folder)
 		if (parent === folder) return undefined

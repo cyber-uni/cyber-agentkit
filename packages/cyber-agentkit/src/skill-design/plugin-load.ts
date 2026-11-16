@@ -84,9 +84,7 @@ export const listPlugins: PluginList = (folders) =>
 			try {
 				const plugins: unknown = JSON.parse(stdout)
 				if (Array.isArray(plugins)) return done({ plugins: plugins as ListedPlugin[] })
-			} catch {
-				// not JSON: answered below
-			}
+			} catch {}
 			done({ problem: error?.message ?? 'claude plugin list printed no JSON' })
 		})
 	})
