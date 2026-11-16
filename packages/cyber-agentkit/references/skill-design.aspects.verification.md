@@ -45,6 +45,10 @@ instructions make the model do: whether it triggers, what it does, and what it r
    `evals.yaml` key stays `rubrics`. Prefer a deterministic check: when the criterion names something in the files, the
    git state, or a reply line the prompt can require, a `script` or `regex` decides it. Use `judge` only when no
    deterministic check decides the criterion, and say so to the author.
+   A criterion whose checks are all `judge` is not tested unless the run names a judge, so a reply that lists parts or
+   asks a question is a `regex` or `contains` check that accepts the ways of saying it, not a `judge`. When a `judge`
+   cannot be avoided, name the criterion to the author and ask which model should judge (a tier or a model ID); the
+   test then runs with `--judge <model>`. Never leave the choice unasked, and never write a judge model into a case.
    A check tests what the outcome left behind: a file changed or left unchanged (a `script` on `git status`), a
    report or section present, the options a stop listed, or a skill called (`.skill-test/skill-calls.jsonl`). It
    never tests one exact phrasing or a punctuation mark. Where a check must read the reply's wording, it accepts the
