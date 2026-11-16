@@ -223,12 +223,17 @@ outcome:
     files: files/test-no-sandbox
     guard: true
     criteria: [C24]
+  - id: update-reports
+    prompt: "Implement issue #70: the release-notes skill in .agents/skills should
+      also fire when a user asks for a changelog. Report what you did when done."
+    files: files/samples
+    criteria: [C25]
 # The spec criteria each rubric tests, in the skill-design spec and its children. A rubric checks the outcome those
 # criteria state; for a stop, the Stop outcome of the spec's decision graph (R167) on edge E1, E2, or E3.
 #   C1 R1 | C2 R18, R21 | C3 R17, R19 | C4 R7 | C5 R6 (E1) | C6 R39 | C7 R37, R38 | C8 R94, R96 | C9 R92, R93
 #   C10 R142 to R147, R149 | C11 R5, R166 (E4) | C12 none yet | C13 R150 | C14 R166, R167 (E2)
 #   C15 R74, R167 (E3) | C16 R150, R167 (E1 to E3) | C17 R152, R153 (E3) | C18 none yet | C19 R154 | C20 none yet
-#   C21 R155, R159 | C23 R168 | C24 R168
+#   C21 R155, R159 | C23 R168 | C24 R168 | C25 none yet
 rubrics:
   C1:
     - regex: "deploy-notes"
@@ -356,3 +361,8 @@ rubrics:
     - regex: "/home/dev/\\.config/release-notes/cache\\.json"
     - regex: "/tmp/release-notes-draft\\.md"
     - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+  # `update` ends with both results: the check, and either the test or the budget line that says why it did not run.
+  # A nested `skill test` cannot complete in the sandbox, so the budget line or a test result is what the reply shows.
+  C25:
+    - regex: "[Cc]heck"
+    - regex: "Test budget:|[Tt]est (result|ran|passed|failed)|criteri(on|a)"
