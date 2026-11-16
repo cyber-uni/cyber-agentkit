@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { parse as parseYaml } from 'yaml'
 import type { ReferenceLayers } from '../references/reference-layers.js'
 import { resolveReference } from '../references/resolve-reference.js'
@@ -164,11 +166,33 @@ function complete(settings: Partial2): SandboxSettings | { problem: string } {
 type Found = { content: string; path: string; tier: 'managed' | 'repo' | 'user' | 'plugin' }
 
 /**
+ * The `references/` folder this package ships, found from this file up to the `cyber-agentkit` package root, whether
+ * it runs from `src/`, `dist/`, or a bundled skill script. Undefined when it is not there, such as in a skill folder
+ * copied out of the package.
+ */
+export function shippedReferences(): string | undefined {
+	let at = dirname(fileURLToPath(import.meta.url))
+	for (;;) {
+		try {
+			const manifest = JSON.parse(readFileSync(join(at, 'package.json'), 'utf8')) as { name?: unknown }
+			if (manifest.name === sandboxPlugin && existsSync(join(at, 'references'))) return join(at, 'references')
+		} catch {}
+		const up = dirname(at)
+		if (up === at) return undefined
+		at = up
+	}
+}
+
+/**
  * The document that answers `name` from a tier allowed to: the highest of the managed, repo, and user tiers that holds
  * it, else this plugin's own copy. Another plugin's copy, a skill's default, and a project section are passed over, so
  * nothing a skill or another plugin ships can choose or loosen the sandbox; `skipped` names a plugin copy passed over.
  */
-function allowedAnswer(name: string, layers: ReferenceLayers): { found?: Found; skipped: string[] } {
+function allowedAnswer(
+	name: string,
+	layers: ReferenceLayers,
+	shipped: string | null,
+): { found?: Found; skipped: string[] } {
 	const resolved = resolveReference(name, layers)
 	const skipped: string[] = []
 	for (const entry of resolved.trace.layers) {
@@ -185,6 +209,11 @@ function allowedAnswer(name: string, layers: ReferenceLayers): { found?: Found; 
 			}
 		} catch {}
 	}
+	// No tier gave the plugin's copy, as for a library caller that passes no plugin, or an installed plugin older than
+	// the running code: the copy this package ships answers.
+	const own = shipped && join(shipped, `${name}.yaml`)
+	if (own && existsSync(own))
+		return { found: { content: readFileSync(own, 'utf8'), path: own, tier: 'plugin' }, skipped }
 	return { skipped }
 }
 
@@ -195,7 +224,12 @@ function allowedAnswer(name: string, layers: ReferenceLayers): { found?: Found; 
  * by key. Answers a problem, rather than run in a sandbox the user did not mean, for an unknown template, a document
  * with an unknown key or a bad value, an `extends` cycle, or settings left incomplete.
  */
-export function resolveTestSandbox(layers: ReferenceLayers, flag: string | undefined): TestSandbox | SandboxProblem {
+export function resolveTestSandbox(
+	layers: ReferenceLayers,
+	flag: string | undefined,
+	/** The package's own references folder the plugin copy falls back to; `null` for none. */
+	shipped: string | null = shippedReferences() ?? null,
+): TestSandbox | SandboxProblem {
 	const warnings: string[] = []
 	let name = sandboxReferenceName
 	if (flag !== undefined) {
@@ -217,7 +251,7 @@ export function resolveTestSandbox(layers: ReferenceLayers, flag: string | undef
 				problem: `${sandboxReferenceName}: extends forms a cycle: ${[...chain, at].join(' → ')}`,
 			}
 		chain.push(at)
-		const { found, skipped } = allowedAnswer(at, layers)
+		const { found, skipped } = allowedAnswer(at, layers, shipped)
 		for (const plugin of skipped)
 			warnings.push(
 				`sandbox-not-chosen: ${at} from plugin ${plugin} is not read; only the managed, repo, and user tiers, --sandbox, and ${sandboxPlugin}'s own copy set the sandbox`,

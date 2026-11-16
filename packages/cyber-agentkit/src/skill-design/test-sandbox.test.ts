@@ -5,7 +5,13 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { ReferenceLayer } from '../references/reference-layers.js'
 import { shippedSandbox } from './skill-design.fixtures.js'
-import { parseSandbox, resolveTestSandbox, sandboxLabel, sandboxReferenceName } from './test-sandbox.js'
+import {
+	parseSandbox,
+	resolveTestSandbox,
+	sandboxLabel,
+	sandboxReferenceName,
+	shippedReferences,
+} from './test-sandbox.js'
 
 /** A tier holding the given sandbox documents, each `<name suffix>: <yaml>` ('' for the name itself). */
 function tier(
@@ -25,7 +31,8 @@ const own = (): ReferenceLayer => {
 	cpSync(fileURLToPath(new URL('../../references', import.meta.url)), dir, { recursive: true })
 	return { tier: 'plugin', dir, plugin: 'cyber-agentkit' }
 }
-const resolve = (layers: ReferenceLayer[], flag?: string) => resolveTestSandbox({ layers, harnesses: [] }, flag)
+/** Resolves with no shipped fallback, so each test sees only the tiers it gives. */
+const resolve = (layers: ReferenceLayer[], flag?: string) => resolveTestSandbox({ layers, harnesses: [] }, flag, null)
 const claudeCode = shippedSandbox('claude-code')
 const folderOnly = shippedSandbox('folder-only')
 
@@ -180,6 +187,23 @@ describe('resolveTestSandbox (#302)', () => {
 			code: 'sandbox-missing',
 		})
 		expect(resolve([])).toMatchObject({ code: 'sandbox-missing' })
+	})
+
+	it('falls back to the templates this package ships when no tier gives the plugin copy, as for a library caller', () => {
+		expect(shippedReferences()).toBe(fileURLToPath(new URL('../../references', import.meta.url)))
+		expect(resolveTestSandbox({ layers: [], harnesses: [] }, undefined)).toEqual({
+			settings: claudeCode,
+			templates: ['claude-code'],
+			from: 'plugin',
+			warnings: [],
+		})
+		expect(resolveTestSandbox({ layers: [], harnesses: [] }, 'folder-only')).toMatchObject({ settings: folderOnly })
+		// A tier above still chooses, over the shipped copy.
+		const user = tier('user', { '': 'extends: skill-design.test.sandbox.folder-only\n' })
+		expect(resolveTestSandbox({ layers: [user], harnesses: [] }, undefined)).toMatchObject({
+			settings: folderOnly,
+			from: 'user',
+		})
 	})
 
 	it('refuses an open network inside a sandbox, which no sandbox is set up to hold', () => {

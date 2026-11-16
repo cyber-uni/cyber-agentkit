@@ -1619,6 +1619,27 @@ describe('skill test sandbox (#302)', () => {
 		])
 	})
 
+	it('runs in the shipped claude-code template for a library caller that passes no plugin', async () => {
+		const seen: { config?: Record<string, unknown> } = {}
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
+			createSkillCommand({ listPlugins: loaded, installedPlugins: async () => [], runPromptfoo: fakeRun(seen) }),
+		)
+		const code = await app.parse([
+			'node',
+			'cyber-agentkit',
+			'skill',
+			'test',
+			goodSkill().folder,
+			'--root',
+			repo(),
+			'--format',
+			'json',
+		])
+		expect(typeof code === 'number' ? code : 0).toBe(0)
+		expect(box(seen)).toEqual([shippedSandbox('claude-code'), shippedSandbox('claude-code')])
+		expect(errors()).not.toContain('sandbox-missing')
+	})
+
 	it('runs skill case try in the template chosen, as a test would', async () => {
 		const skill = goodSkill({
 			'evals/evals.yaml': 'outcome:\n  - { id: two-prs, prompt: write the notes, setup: setup/two-prs.sh }\n',
