@@ -274,3 +274,5 @@ Before reporting done, check each against the result, and report any that fails.
 - **C20.** `report` wrote the results as `skill report` printed them, and changed no other file.
 - **C21.** New cases came from `skill case`, history in setup scripts.
 - **C22.** Each description `create` or `fix` wrote passes TRG-10.
+- **C23.** On `error: sandbox:`, the folder-only sandbox was offered, not taken.
+- **C24.** A result's `sandbox` and each `wroteOutside` path were said before any pass rate.

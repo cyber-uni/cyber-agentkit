@@ -1,0 +1,2 @@
+skill test: release-notes: 30 runs, 3 per case, 7 at once
+error: sandbox: the script sandbox cannot start, so no setup script or script check can be contained: bwrap: setting up uid map: Permission denied. On Linux and WSL it needs bubblewrap, socat, and ripgrep installed.

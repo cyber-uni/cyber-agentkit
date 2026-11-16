@@ -1,0 +1,165 @@
+{
+	"version": 1,
+	"skill": "release-notes",
+	"at": "2026-11-14T18:20:00Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"sandbox": "none",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"trigger": [
+		{
+			"case": "trigger-1",
+			"prompt": "Write the release notes for this release.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"prompt": "Draft the changelog for 2.0 from the merged PRs.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"prompt": "What shipped this release? Put it in the release notes.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"prompt": "Summarize pull request 14 for a reviewer.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"prompt": "Write a commit message for my staged changes.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"prompt": "Review my diff before I push.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		}
+	],
+	"criteria": [
+		{
+			"id": "C1",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C2",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C3",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		},
+		{
+			"id": "C4",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 0,
+				"ran": 3
+			}
+		}
+	],
+	"cases": [
+		{
+			"case": "trigger-1",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-2",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-3",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-4",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-5",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-6",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "two-prs",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		}
+	],
+	"notRun": [],
+	"noPrevious": true,
+	"cost": 0.94,
+	"durationMs": 312000,
+	"totalRuns": 42,
+	"wroteOutside": [
+		{
+			"case": "two-prs",
+			"arm": "skill",
+			"run": 2,
+			"target": "/home/dev/.config/release-notes/cache.json"
+		},
+		{
+			"case": "two-prs",
+			"arm": "baseline",
+			"run": 1,
+			"target": "/tmp/release-notes-draft.md"
+		}
+	]
+}
