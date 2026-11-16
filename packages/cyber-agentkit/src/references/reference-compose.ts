@@ -19,6 +19,8 @@ export type OrderedContribution = {
 	from: OperationSource
 	/** A step's `sections`: only these top-level sections of the contribution apply (R52). */
 	sections?: readonly PickedSection[] | undefined
+	/** A stack entry that merges data over the one below it even when its file writes no `extends`. */
+	layered?: boolean | undefined
 }
 
 /**
@@ -70,7 +72,10 @@ export function composeOrder(order: readonly OrderedContribution[], warnAt: (whe
 		const contribution = picked(item, warnAt)
 		const { entry } = contribution
 		if (contribution.whole && contribution.hasBody) {
-			const merged = whole && contribution.steps !== undefined ? mergedWhole(whole, contribution, warnAt) : undefined
+			const merged =
+				whole && (contribution.steps !== undefined || item.layered)
+					? mergedWhole(whole, contribution, warnAt)
+					: undefined
 			if (merged) {
 				entry.operation = 'patch'
 				entry.operationFrom = 'default'
@@ -80,7 +85,11 @@ export function composeOrder(order: readonly OrderedContribution[], warnAt: (whe
 				used.push(contribution)
 				continue
 			}
-			if (contribution.steps !== undefined && !mergesByKey(contribution.format) && (whole || applied.length)) {
+			if (
+				(contribution.steps !== undefined || item.layered) &&
+				!mergesByKey(contribution.format) &&
+				(whole || applied.length)
+			) {
 				warnAt(contribution.label)(
 					'data-not-merged',
 					`it answers whole: only YAML and JSON merge key by key, and this is ${contribution.format}`,

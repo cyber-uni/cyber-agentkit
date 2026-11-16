@@ -146,6 +146,11 @@ export type ResolveOptions = {
 	below?: string | undefined
 	/** `false` reads no project section, so `check` checks the main document alone (R118). */
 	projectSections?: boolean | undefined
+	/**
+	 * The plugins whose own copy may answer a name with no written `extends` choosing it. Every other plugin is still
+	 * read for a step that names it, so a managed, repo, or user `extends` can take its file, but it never answers alone.
+	 */
+	answeringPlugins?: ReadonlySet<string> | undefined
 }
 
 type Source = ReferenceLayers | readonly ReferenceLayer[]
@@ -216,7 +221,7 @@ export function resolveReference(
 export function resolveAdjusted(
 	input: string | ReferenceName,
 	source: Source,
-	{ display = (path) => path, without, below, projectSections = true }: ResolveOptions,
+	{ display = (path) => path, without, below, projectSections = true, answeringPlugins }: ResolveOptions,
 	adjust: ContributionAdjust | undefined,
 ): ResolvedReference {
 	const asked = typeof input === 'string' ? parseReferenceName(input) : input
@@ -338,7 +343,10 @@ export function resolveAdjusted(
 		return found
 	}
 
-	const decided = plan(ref, tiered, holders, lookup, defaultContribution, warn)
+	const answering = answeringPlugins
+		? new Map([...holders].filter(([plugin]) => answeringPlugins.has(plugin)))
+		: holders
+	const decided = plan(ref, tiered, answering, lookup, defaultContribution, warn)
 	if ('status' in decided) {
 		if (decided.status === 'ambiguous') {
 			for (const { entry } of contributions) if (entry.outcome === '') entry.outcome = 'ambiguous'
@@ -375,7 +383,7 @@ export function resolveAdjusted(
 					? `not used (${replaced.step}'s extends replaced by ${decided.replacedBy})`
 					: 'not used (not in extends)'
 	}
-	if (ref.plugin === undefined) warnUndecided(ref.name, decided, holders, inStack, warnAt)
+	if (ref.plugin === undefined) warnUndecided(ref.name, decided, answering, inStack, warnAt)
 
 	const order: OrderedContribution[] = [
 		...decided.entries,

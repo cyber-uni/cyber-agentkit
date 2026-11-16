@@ -125,6 +125,8 @@ export type StackEntry = {
 	from: OperationSource
 	/** The step's `sections`: only these top-level sections are contributed (R52). */
 	sections?: StepSection[]
+	/** A data file listed above another one in a written `extends`: it merges over it key by key, whether or not it writes `extends` itself. */
+	layered?: boolean
 }
 
 /** How a stack entry shows in the trace: the plugin, with `/<reference>` when it is not the name being resolved. */
@@ -245,6 +247,7 @@ function expand(
 		const from: OperationSource = step.merge ? 'step' : found.merge ? 'contribution' : 'default'
 		const entry: StackEntry = { target: step.target, name, contribution: found, operation, from }
 		if (step.sections) entry.sections = step.sections
+		if (mode === 'written' && result.entries.length > 0) entry.layered = true
 		result.entries.push(entry)
 		placed.add(key)
 	}

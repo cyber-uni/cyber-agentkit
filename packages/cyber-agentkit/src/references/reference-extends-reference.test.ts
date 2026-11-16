@@ -106,6 +106,13 @@ describe('data references that extend', () => {
 		expect(resolved.content).toBe('shell:\n  sandbox: true\n  network: open\nlist:\n  - x\n')
 	})
 
+	it('merges a data file listed above another in one extends, though it writes none', () => {
+		const one = layer('plugin', { 'base.yaml': 'a: 1\nb: 2\n' }, 'one')
+		const two = layer('plugin', { 'base.yaml': 'b: 3\n' }, 'two')
+		const user = layer('user', { 'cfg.meta.md': sidecar('extends: [one/base, two/base]') })
+		expect(resolveReference('cfg', [user, one, two]).content).toBe('a: 1\nb: 3\n')
+	})
+
 	it('merges JSON the same way', () => {
 		const plugin = layer('plugin', { 'base.json': '{"a":{"b":1,"c":2},"d":[1]}' }, 'acme')
 		const user = layer('user', {
