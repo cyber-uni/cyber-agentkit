@@ -1,0 +1,19 @@
+.changeset/skill-description-load-on-edit.md
+  s_fef3169257779e::t_145856b9b93ee6 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "405794343d8e5c1d4b8061124b33561086afd03b",
+  "prompts": {},
+  "sessions": {
+    "s_fef3169257779e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "64f52d1d-9f20-414e-9ce6-82ab9965ce2a",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "unional <homawong@gmail.com>"
+    }
+  }
+}
