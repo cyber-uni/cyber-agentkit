@@ -25,6 +25,16 @@ function tier(
 	return { tier, dir, ...extra }
 }
 
+/** A tier holding a sandbox document in the current form: the YAML of settings, and the `extends` in its metadata file. */
+function chosen(tierName: ReferenceLayer['tier'], extendsLine: string, yaml = '', suffix = ''): ReferenceLayer {
+	const layer = tier(tierName, { [suffix]: yaml })
+	writeFileSync(
+		join(layer.dir, `${sandboxReferenceName}${suffix ? `.${suffix}` : ''}.meta.md`),
+		`---\nextends: [${extendsLine}]\n---\n`,
+	)
+	return layer
+}
+
 /** This package's own references folder, as the plugin tier reads it. */
 const own = (): ReferenceLayer => {
 	const dir = mkdtempSync(join(tmpdir(), 'sandbox-own-'))
@@ -60,14 +70,11 @@ describe('the shipped sandbox templates (#302)', () => {
 })
 
 describe('parseSandbox', () => {
-	it('reads extends and the settings a document sets', () => {
-		expect(parseSandbox('extends: skill-design.test.sandbox.folder-only\nshell:\n  hideHome: true\n')).toEqual({
-			extends: 'skill-design.test.sandbox.folder-only',
-			settings: { shell: { hideHome: true } },
-		})
+	it('reads the settings a document sets', () => {
+		expect(parseSandbox('shell:\n  hideHome: true\n')).toEqual({ settings: { shell: { hideHome: true } } })
 	})
 
-	it('refuses an unknown key, a bad value, and an extends outside the templates, naming the key', () => {
+	it('refuses an unknown key, a bad value, and an extends inside the YAML, naming the key', () => {
 		expect(parseSandbox('shel: {}\n')).toEqual({ problem: expect.stringContaining('unknown key shel') })
 		expect(parseSandbox('shell:\n  sandbx: true\n')).toEqual({
 			problem: expect.stringContaining('unknown key shell.sandbx'),
@@ -79,7 +86,7 @@ describe('parseSandbox', () => {
 			problem: expect.stringContaining('scripts.network must be closed or open'),
 		})
 		expect(parseSandbox('hook: 1\n')).toEqual({ problem: expect.stringContaining('hook must be true or false') })
-		expect(parseSandbox('extends: house-style\n')).toEqual({ problem: expect.stringContaining('extends must name') })
+		expect(parseSandbox('extends: house-style\n')).toEqual({ problem: expect.stringContaining('metadata file') })
 		expect(parseSandbox('- a\n')).toEqual({ problem: expect.stringContaining('mapping') })
 		expect(parseSandbox('shell: [\n')).toEqual({ problem: expect.stringContaining('not YAML') })
 	})
@@ -104,6 +111,54 @@ describe('resolveTestSandbox (#302)', () => {
 			})
 	})
 
+	it('takes the template a metadata file extends, naming the plugin that ships it', () => {
+		for (const name of ['managed', 'repo', 'user'] as const)
+			expect(resolve([chosen(name, 'cyber-agentkit/skill-design.test.sandbox.folder-only'), own()])).toMatchObject({
+				settings: folderOnly,
+				templates: ['folder-only'],
+				from: name,
+				warnings: [],
+			})
+	})
+
+	it('lays only the changed keys over the template, and leaves a list or a null to the generic merge', () => {
+		const layer = chosen(
+			'repo',
+			'cyber-agentkit/skill-design.test.sandbox.claude-code',
+			'shell:\n  hideHome: false\nhook: false\n',
+		)
+		expect(resolve([layer, own()])).toMatchObject({
+			settings: { ...claudeCode, shell: { ...claudeCode.shell, hideHome: false }, hook: false },
+			from: 'repo',
+		})
+	})
+
+	it('takes a template from another plugin that a managed, repo, or user file names', () => {
+		const company = tier('plugin', { house: 'hook: false\n' }, { plugin: 'company' })
+		const user = chosen(
+			'user',
+			`cyber-agentkit/${sandboxReferenceName}.claude-code, company/${sandboxReferenceName}.house`,
+		)
+		const result = resolve([user, company, own()])
+		expect(result).toMatchObject({ settings: { ...claudeCode, hook: false }, from: 'user' })
+	})
+
+	it('fails closed when a step names a template no plugin holds', () => {
+		expect(resolve([chosen('repo', `cyber-agentkit/${sandboxReferenceName}.gone`), own()])).toMatchObject({
+			code: 'sandbox-missing',
+		})
+		expect(resolve([chosen('repo', `nobody/${sandboxReferenceName}.claude-code`), own()])).toMatchObject({
+			code: 'sandbox-missing',
+		})
+	})
+
+	it('reads the extends inside the YAML as it was first written (#303), with a warning to move it', () => {
+		const layer = tier('user', { '': 'extends: skill-design.test.sandbox.folder-only\nhook: false\n' })
+		const result = resolve([layer, own()])
+		expect(result).toMatchObject({ settings: { ...folderOnly, hook: false }, from: 'user' })
+		expect('warnings' in result && result.warnings).toEqual([expect.stringContaining('sandbox-extends-legacy')])
+	})
+
 	it('lays a document’s own settings over the template it extends, key by key, the file-tool limits included', () => {
 		const chosen = resolve([
 			tier('user', {
@@ -123,7 +178,7 @@ describe('resolveTestSandbox (#302)', () => {
 	})
 
 	it('lets a tier define a template of its own that --sandbox names', () => {
-		const repo = tier('repo', { strict: 'extends: skill-design.test.sandbox.claude-code\nhook: false\n' })
+		const repo = chosen('repo', 'cyber-agentkit/skill-design.test.sandbox.claude-code', 'hook: false\n', 'strict')
 		expect(resolve([repo, own()], 'strict')).toMatchObject({
 			settings: { ...claudeCode, hook: false },
 			templates: ['strict', 'claude-code'],
@@ -170,12 +225,12 @@ describe('resolveTestSandbox (#302)', () => {
 		expect(resolve([tier('repo', { '': 'shell:\n  sandbox: off\n' }), own()])).toMatchObject({
 			code: 'sandbox-invalid',
 		})
-		expect(
-			resolve([
-				tier('repo', { '': 'extends: skill-design.test.sandbox.a\n', a: 'extends: skill-design.test.sandbox.a\n' }),
-				own(),
-			]),
-		).toMatchObject({
+		const loop = tier('plugin', { b: 'hook: true\n' }, { plugin: 'loop' })
+		writeFileSync(join(loop.dir, `${sandboxReferenceName}.b.meta.md`), '---\nextends: [cyber-agentkit]\n---\n')
+		const back = own()
+		writeFileSync(join(back.dir, `${sandboxReferenceName}.b.meta.md`), '---\nextends: [loop]\n---\n')
+		writeFileSync(join(back.dir, `${sandboxReferenceName}.b.yaml`), 'hook: true\n')
+		expect(resolve([chosen('repo', `cyber-agentkit/${sandboxReferenceName}.b`), back, loop])).toMatchObject({
 			code: 'sandbox-invalid',
 			problem: expect.stringContaining('cycle'),
 		})
@@ -183,7 +238,7 @@ describe('resolveTestSandbox (#302)', () => {
 			code: 'sandbox-invalid',
 			problem: expect.stringContaining('it sets no shell'),
 		})
-		expect(resolve([tier('repo', { '': 'extends: skill-design.test.sandbox.gone\n' }), own()])).toMatchObject({
+		expect(resolve([chosen('repo', `cyber-agentkit/${sandboxReferenceName}.gone`), own()])).toMatchObject({
 			code: 'sandbox-missing',
 		})
 		expect(resolve([])).toMatchObject({ code: 'sandbox-missing' })

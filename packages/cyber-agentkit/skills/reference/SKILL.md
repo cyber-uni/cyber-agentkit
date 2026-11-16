@@ -9,7 +9,7 @@ Route the request to one mode, then follow that mode.
 
 A **reference** is a document read by name. Each place that holds a **contribution** to a name is a **tier**:
 
-- the plugins that ship the name, and the loading skill's **default** (`references/<name>.default.md` in its folder). They form the stack, bottom first, in the order `extends` gives.
+- the plugins that ship the name, and the loading skill's **default** (`references/<name>.default.md` in its folder). They form the stack, bottom first, in the order `extends` gives. A step is a plugin, `default`, or `<plugin>/<reference>`, which brings that plugin's file for another reference. A YAML or JSON reference whose file writes `extends` merges over what is below key by key; TOML and text answer whole.
 - `user`: `~/.agents/references/`, for one person in every repository. It applies over the stack.
 - `repo`: `.agents/references/` at the repository root, for everyone working in it. It applies over `user`.
 - a **project section**: `.agents/references/<name>.md` in a folder below the root. It states only what differs for work in that folder, and follows the main document.

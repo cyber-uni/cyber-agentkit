@@ -7,7 +7,7 @@ import type { PluginOrigin, ReferenceLayer, ReferenceLayers, ReferenceTier } fro
  * skill, when one does. A source with no version is stale only when it is gone.
  */
 export type ReferenceSource =
-	| { plugin: string; version?: string }
+	| { plugin: string; name?: string; version?: string }
 	| { default: string; plugin?: string; version?: string }
 
 /**
@@ -30,6 +30,8 @@ export type ReferenceSourcePlugin = {
 /** One recorded source, as the trace reports it: its recorded and installed versions, and whether it changed. */
 export type ReferenceTraceSource = {
 	plugin?: string
+	/** The plugin's reference when it is not the one the document is for. */
+	name?: string
 	default?: string
 	recorded?: string
 	installed?: string
@@ -61,6 +63,7 @@ function readSource(value: unknown): ReferenceSource | undefined {
 	if (!isRecord(value)) return undefined
 	const plugin = text(value['plugin'])
 	const version = text(value['version'])
+	const reference = text(value['name'])
 	const skill = text(value['default'])
 	if (skill !== undefined) {
 		return {
@@ -70,7 +73,11 @@ function readSource(value: unknown): ReferenceSource | undefined {
 		}
 	}
 	if (plugin === undefined) return undefined
-	return version === undefined ? { plugin } : { plugin, version }
+	return {
+		plugin,
+		...(reference !== undefined ? { name: reference } : {}),
+		...(version !== undefined ? { version } : {}),
+	}
 }
 
 /**
@@ -151,6 +158,7 @@ export function compareSources(
 		const row: ReferenceTraceSource = { status: 'current' }
 		if ('default' in source) row.default = source.default
 		if (source.plugin !== undefined) row.plugin = source.plugin
+		if (!('default' in source) && source.name !== undefined) row.name = source.name
 		if (source.version !== undefined) row.recorded = source.version
 		if (source.plugin === undefined) {
 			// A standalone skill's default: gone only when every skill folder was read and none holds it.
@@ -169,7 +177,10 @@ export function compareSources(
 }
 
 function describeSource(row: ReferenceTraceSource): string {
-	const what = row.default !== undefined ? `the default of ${row.default}` : `plugin ${row.plugin}`
+	const what =
+		row.default !== undefined
+			? `the default of ${row.default}`
+			: `plugin ${row.plugin}${row.name !== undefined ? `'s ${row.name}` : ''}`
 	if (row.status === 'missing') {
 		return row.plugin !== undefined && row.default !== undefined
 			? `${what} (plugin ${row.plugin}) is not installed`
@@ -226,9 +237,17 @@ export function recordedSources(
 					: { default: defaultSkill.skill, plugin: shipped.plugin, version: shipped.version },
 			]
 		}
-		const installed = catalog.plugins.get(target)
+		// A `<plugin>/<reference>` entry records the reference too, so the document goes stale when that plugin changes it.
+		const [plugin, name] = target.split('/') as [string, string | undefined]
+		const installed = catalog.plugins.get(plugin)
 		if (!installed) return []
-		return [installed.version === undefined ? { plugin: target } : { plugin: target, version: installed.version }]
+		return [
+			{
+				plugin,
+				...(name !== undefined ? { name } : {}),
+				...(installed.version !== undefined ? { version: installed.version } : {}),
+			},
+		]
 	})
 }
 

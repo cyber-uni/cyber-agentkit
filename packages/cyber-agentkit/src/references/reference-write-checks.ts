@@ -4,14 +4,16 @@ import { parse as parseYaml } from 'yaml'
 import { implementationTemplate, readTemplate, type Template, titleOf } from './create-reference.js'
 import { baseLayers, resolveBase } from './reference-base.js'
 import { interfaceLookup } from './reference-check.js'
+import { layerNames } from './reference-contribution.js'
 import { hasBody, isMergeOperation, type MergeOperation, parseDocument } from './reference-document.js'
 import { ReferenceFailure } from './reference-error.js'
 import { dataExtensions, formatOfFile, type ReferenceFormat } from './reference-format.js'
 import { fitsName, type ReferenceInterface } from './reference-interface.js'
 import { isDirectory, type ReferenceLayers } from './reference-layers.js'
-import { namePattern, parseReferenceName, type ReferenceName } from './reference-name.js'
+import { parseReferenceName, type ReferenceName } from './reference-name.js'
 import { gitIgnores } from './reference-projects.js'
 import { isGenerated } from './reference-sources.js'
+import { readAddress, stepLabel } from './reference-stack.js'
 import {
 	answeringFile,
 	bareName,
@@ -126,11 +128,12 @@ function readPicks(values: readonly string[], name: string): Picks {
 			const at = value.indexOf(':')
 			const step = at === -1 ? value : value.slice(0, at)
 			const merge = at === -1 ? undefined : value.slice(at + 1)
+			// `<plugin>/<this name>` is the plugin; any other `<plugin>/<reference>` names that reference.
 			const target = step.endsWith(`/${name}`) ? step.slice(0, -name.length - 1) : step
-			if (!namePattern.test(target)) {
+			if (readAddress(target) === undefined) {
 				throw new ReferenceFailure(
 					'option-invalid',
-					`--extends takes a plugin, \`<plugin>/${name}\`, or default, each optionally \`:<merge>\`; got "${value}".`,
+					`--extends takes a plugin, \`<plugin>/<reference>\`, or default, each optionally \`:<merge>\`; got "${value}".`,
 				)
 			}
 			if (merge === undefined) return target
@@ -421,12 +424,12 @@ function readGiven(path: string, flag: string): string {
 }
 
 function isStep(value: unknown): boolean {
-	if (typeof value === 'string') return namePattern.test(value)
+	if (typeof value === 'string') return readAddress(value) !== undefined
 	if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
 	const entries = Object.entries(value)
 	if (entries.length !== 1) return false
 	const [target, keys] = entries[0] as [string, unknown]
-	if (!namePattern.test(target)) return false
+	if (readAddress(target) === undefined) return false
 	if (keys === null || keys === undefined) return true
 	if (typeof keys === 'string') return isMergeOperation(keys)
 	if (typeof keys !== 'object' || Array.isArray(keys)) return false
@@ -487,7 +490,21 @@ function checkSteps(steps: readonly ExtendsStep[], name: string, before: Resolve
 			tier === 'plugin' && plugin !== undefined && file && readable.has(plugin) ? [plugin] : [],
 		),
 	)
-	const wrong = steps.map(({ target }) => target).filter((target) => target !== 'default' && !holders.has(target))
+	// A step naming another reference needs that plugin to hold it.
+	const holdsOther = (plugin: string, other: string) =>
+		layers.layers.some(
+			(layer) =>
+				layer.tier === 'plugin' && layer.plugin === plugin && !layer.skipped && layerNames(layer).includes(other),
+		)
+	const wrong = steps
+		.filter(({ target, name: other }) =>
+			target === 'default'
+				? false
+				: other !== undefined && other !== name
+					? !holdsOther(target, other)
+					: !holders.has(target),
+		)
+		.map((step) => stepLabel(step))
 	if (!wrong.length) return
 	throw new ReferenceFailure(
 		'step-invalid',

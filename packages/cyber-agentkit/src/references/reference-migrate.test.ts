@@ -105,8 +105,7 @@ describe('migrate previews by default and applies with write (R121)', () => {
 	it('leaves load with no reference-legacy-format warning afterwards (R126)', () => {
 		const { home, layers } = setup(
 			{
-				'.agents/references/tracker.md':
-					'---\noverrides: [a/tracker]\nmerge: merge-sections\n---\n\n## Create\n\nmine\n',
+				'.agents/references/tracker.md': '---\noverrides: [a]\nmerge: merge-sections\n---\n\n## Create\n\nmine\n',
 			},
 			{ a: { 'tracker.md': base } },
 		)
@@ -121,15 +120,26 @@ describe('migrate previews by default and applies with write (R121)', () => {
 })
 
 describe('overrides (R122, UC22.2)', () => {
-	it('becomes extends, each qualified entry reduced to its plugin', () => {
+	it('becomes extends', () => {
 		const { root, home, layers } = setup({
-			'.agents/references/tracker.md': '---\noverrides: [a/tracker, b]\n---\n\nmine\n',
+			'.agents/references/tracker.md': '---\noverrides: [a, b]\n---\n\nmine\n',
 		})
 
 		const [row] = migrateReferences(layers, { home, write: true }).rows
 
-		expect(row).toMatchObject({ form: 'overrides', from: 'overrides: [a/tracker, b]', to: 'extends: [a, b]' })
+		expect(row).toMatchObject({ form: 'overrides', from: 'overrides: [a, b]', to: 'extends: [a, b]' })
 		expect(read(join(root, '.agents/references/tracker.md'))).toBe('---\nextends: [a, b]\n---\n\nmine\n')
+	})
+
+	it('is a manual row for a <plugin>/<name> entry, which extends now reads as another reference', () => {
+		const content = '---\noverrides: [a/tracker, b]\n---\n\nmine\n'
+		const { root, home, layers } = setup({ '.agents/references/tracker.md': content })
+
+		const [row] = migrateReferences(layers, { home, write: true }).rows
+
+		expect(row?.manual).toMatch(/another reference/)
+		expect(row?.to).toBeUndefined()
+		expect(read(join(root, '.agents/references/tracker.md'))).toBe(content)
 	})
 
 	it('is a manual row beside an extends that leaves one of its plugins out, and the file is not changed', () => {

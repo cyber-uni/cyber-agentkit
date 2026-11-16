@@ -205,8 +205,9 @@ say so before the first run in a session.
   shell commands had no sandbox lists in `wroteOutside` each path outside the run's folders that a shell command named
   and changed; a write to a path a command builds as it runs goes unlisted, and with no sandbox a shell command can
   write anywhere the user's account can. To make folder-only the default for a repository, write
-  `.agents/references/skill-design.test.sandbox.yaml` holding `extends: skill-design.test.sandbox.folder-only`, or the
-  same file under `~/.agents/references/` for one user.
+  `.agents/references/skill-design.test.sandbox.meta.md` holding
+  `extends: [cyber-agentkit/skill-design.test.sandbox.folder-only]` beside a `skill-design.test.sandbox.yaml` of only
+  the settings to change, or the same files under `~/.agents/references/` for one user.
 - When the skill's folder is outside the repository (`--root`, else the one holding the current directory), `test`
   lists each setup script and `script` check before the first run, with `warning: untrusted-scripts:`, and runs none of
   them unless `--trust-scripts` is given; the cases that need them are reported as not run. Read them before passing

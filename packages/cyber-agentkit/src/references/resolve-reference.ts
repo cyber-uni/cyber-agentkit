@@ -28,7 +28,7 @@ import {
 } from './reference-project-sections.js'
 import { renameTable } from './reference-renames.js'
 import { checkGenerated, type ReferenceTraceSource, sourceCatalog, staleMessage } from './reference-sources.js'
-import { type Lookup, namesDefault, type Plan, pickValues, plan, readDeclined } from './reference-stack.js'
+import { entryLabel, type Lookup, namesDefault, type Plan, pickValues, plan, readDeclined } from './reference-stack.js'
 
 export { candidateFiles, contributionLabel, layerNames } from './reference-contribution.js'
 export type { ReferenceName } from './reference-name.js'
@@ -74,6 +74,8 @@ export type ReferenceTraceLayer = {
 	empty?: boolean
 	/** A file filed under an older name of the name (R97): that older name. */
 	alias?: string
+	/** Set on a plugin's file for another reference that a `<plugin>/<reference>` step brought in: that reference. */
+	name?: string
 }
 
 export type ReferenceTraceContribution = {
@@ -144,6 +146,11 @@ export type ResolveOptions = {
 	below?: string | undefined
 	/** `false` reads no project section, so `check` checks the main document alone (R118). */
 	projectSections?: boolean | undefined
+	/**
+	 * The plugins whose own copy may answer a name with no written `extends` choosing it. Every other plugin is still
+	 * read for a step that names it, so a managed, repo, or user `extends` can take its file, but it never answers alone.
+	 */
+	answeringPlugins?: ReadonlySet<string> | undefined
 }
 
 type Source = ReferenceLayers | readonly ReferenceLayer[]
@@ -173,7 +180,13 @@ function emptyTrace(harnesses: readonly string[]): ReferenceTrace {
 function stackOrder(layers: readonly ReferenceTraceLayer[], stack: readonly string[]): ReferenceTraceLayer[] {
 	const rank = (layer: ReferenceTraceLayer) => {
 		if (layer.tier !== 'plugin' && layer.tier !== 'default') return -1
-		const at = stack.indexOf(layer.tier === 'default' ? 'default' : (layer.plugin ?? ''))
+		const at = stack.indexOf(
+			layer.tier === 'default'
+				? 'default'
+				: layer.name === undefined
+					? (layer.plugin ?? '')
+					: `${layer.plugin}/${layer.name}`,
+		)
 		return at === -1 ? stack.length : stack.length - 1 - at
 	}
 	return layers
@@ -208,7 +221,7 @@ export function resolveReference(
 export function resolveAdjusted(
 	input: string | ReferenceName,
 	source: Source,
-	{ display = (path) => path, without, below, projectSections = true }: ResolveOptions,
+	{ display = (path) => path, without, below, projectSections = true, answeringPlugins }: ResolveOptions,
 	adjust: ContributionAdjust | undefined,
 ): ResolvedReference {
 	const asked = typeof input === 'string' ? parseReferenceName(input) : input
@@ -277,9 +290,28 @@ export function resolveAdjusted(
 	const defaultContribution = contributions.find(({ layer }) => layer.tier === 'default')
 	const tiered = contributions.filter(({ layer }) => layer.tier !== 'plugin' && layer.tier !== 'default')
 	const readable = new Set(layers.flatMap(({ plugin, skipped }) => (plugin && !skipped ? [plugin] : [])))
-	const lookup: Lookup = (target) => {
+	// A step that names another reference reads that plugin's file for it, once, from the plugin tier alone.
+	const foreign = new Map<string, Contribution | undefined>()
+	const lookup: Lookup = (target, name) => {
 		if (target === 'default') return defaultContribution ?? { reason: 'has no default' }
-		return holders.get(target) ?? { reason: readable.has(target) ? `holds no ${ref.name}` : 'is not installed' }
+		if (name === ref.name) {
+			return holders.get(target) ?? { reason: readable.has(target) ? `holds no ${name}` : 'is not installed' }
+		}
+		const key = `${target}/${name}`
+		if (!foreign.has(key)) {
+			let read: Contribution | undefined
+			for (const layer of layers) {
+				if (layer.tier !== 'plugin' || layer.plugin !== target || layer.skipped) continue
+				const entry: ReferenceTraceLayer = { tier: 'plugin', plugin: target, path: layer.dir, outcome: 'missing', name }
+				read = readContribution(layer, name, entry, { display, without, warnAt })
+				if (read) {
+					trace.layers.push(entry)
+					break
+				}
+			}
+			foreign.set(key, read)
+		}
+		return foreign.get(key) ?? { reason: readable.has(target) ? `holds no ${name}` : 'is not installed' }
 	}
 	const options = () => [
 		...[...holders.keys()].map((plugin) => `${plugin}/${ref.name}`),
@@ -311,7 +343,10 @@ export function resolveAdjusted(
 		return found
 	}
 
-	const decided = plan(ref, tiered, holders, lookup, defaultContribution, warn)
+	const answering = answeringPlugins
+		? new Map([...holders].filter(([plugin]) => answeringPlugins.has(plugin)))
+		: holders
+	const decided = plan(ref, tiered, answering, lookup, defaultContribution, warn)
 	if ('status' in decided) {
 		if (decided.status === 'ambiguous') {
 			for (const { entry } of contributions) if (entry.outcome === '') entry.outcome = 'ambiguous'
@@ -331,7 +366,7 @@ export function resolveAdjusted(
 	if (!layers.some(({ tier }) => tier === 'default') && contributions.some(({ steps }) => namesDefault(steps))) {
 		trace.layers.push({ tier: 'default', path: '(no skill folder given)', outcome: 'not read (no default)' })
 	}
-	trace.stack = decided.entries.map(({ target }) => target)
+	trace.stack = decided.entries.map((entry) => entryLabel(entry, ref.name))
 	trace.builtBy = decided.builtBy
 	trace.layers = stackOrder(trace.layers, trace.stack)
 	const inStack = new Set(trace.stack)
@@ -348,7 +383,7 @@ export function resolveAdjusted(
 					? `not used (${replaced.step}'s extends replaced by ${decided.replacedBy})`
 					: 'not used (not in extends)'
 	}
-	if (ref.plugin === undefined) warnUndecided(ref.name, decided, holders, inStack, warnAt)
+	if (ref.plugin === undefined) warnUndecided(ref.name, decided, answering, inStack, warnAt)
 
 	const order: OrderedContribution[] = [
 		...decided.entries,

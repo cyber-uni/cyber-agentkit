@@ -55,7 +55,7 @@ Run `create`; never write the file by hand:
 
 If `create` refuses, report its reason and write nothing. An existing file with a body means Customize mode, or Update mode for a file the user wrote by hand.
 
-A plugin's file or a skill's default that changes how another plugin's reference reads, such as a house style, lists `extends: [<other plugin>]` in its frontmatter and holds only the sections it changes. `create` records in `sources` the version of each plugin it extends, so `check` warns the author when that plugin moves on. Never give such a file `merge: replace`; `create` refuses it.
+A plugin's file or a skill's default that changes how another plugin's reference reads, such as a house style, lists `extends: [<other plugin>]` in its frontmatter and holds only the sections it changes. It may also build on another reference of that plugin as `<plugin>/<reference>`, but only a repo, user, or managed file may choose another reference; a plugin's own `extends` naming one is skipped with a warning. `create` records in `sources` the version of each plugin it extends, so `check` warns the author when that plugin moves on. Never give such a file `merge: replace`; `create` refuses it.
 
 ## 5. Stub an interface
 

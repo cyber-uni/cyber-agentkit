@@ -1,9 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parse as parseYaml } from 'yaml'
-import type { ReferenceLayers } from '../references/reference-layers.js'
-import { resolveReference } from '../references/resolve-reference.js'
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
+import type { ReferenceLayer, ReferenceLayers } from '../references/reference-layers.js'
+import { layerNames, resolveReference } from '../references/resolve-reference.js'
 
 /** The reference that holds how `skill test` contains each run (#302), a YAML file layered across the tiers. */
 export const sandboxReferenceName = 'skill-design.test.sandbox'
@@ -79,7 +80,7 @@ const shape: Record<keyof SandboxSettings, Shape | 'boolean'> = {
 type Partial2 = {
 	[K in keyof SandboxSettings]?: SandboxSettings[K] extends object ? Partial<SandboxSettings[K]> : SandboxSettings[K]
 }
-type Parsed = { extends?: string; settings: Partial2 }
+type Parsed = { settings: Partial2 }
 
 const kind = (value: unknown) => (Array.isArray(value) ? 'a list' : value === null ? 'null' : typeof value)
 
@@ -91,7 +92,10 @@ function checkValue(key: string, value: unknown, rule: readonly string[] | 'bool
 		: `${key} must be ${rule.join(' or ')}, not ${JSON.stringify(value)}`
 }
 
-/** Reads one sandbox document: its `extends` and the settings it sets, every key and value checked. */
+/**
+ * Reads one sandbox document: the settings it sets, every key and value checked. Which template it builds on is its
+ * metadata file's `extends`, never a key inside the YAML.
+ */
 export function parseSandbox(content: string): Parsed | { problem: string } {
 	let value: unknown
 	try {
@@ -104,16 +108,12 @@ export function parseSandbox(content: string): Parsed | { problem: string } {
 	const parsed: Parsed = { settings: {} }
 	for (const [key, given] of Object.entries(value as Record<string, unknown>)) {
 		if (key === 'extends') {
-			if (typeof given !== 'string' || !given.startsWith(sandboxTemplatePrefix) || given === sandboxTemplatePrefix)
-				return {
-					problem: `extends must name a ${sandboxTemplatePrefix}<template> reference, not ${JSON.stringify(given)}`,
-				}
-			parsed.extends = given
-			continue
+			return {
+				problem: `extends does not go inside the YAML; put \`extends: [<plugin>/${sandboxReferenceName}.<template>]\` in its metadata file ${sandboxReferenceName}.meta.md`,
+			}
 		}
 		const rule = shape[key as keyof SandboxSettings]
-		if (rule === undefined)
-			return { problem: `unknown key ${key}; the keys are extends, ${Object.keys(shape).join(', ')}` }
+		if (rule === undefined) return { problem: `unknown key ${key}; the keys are ${Object.keys(shape).join(', ')}` }
 		if (rule === 'boolean') {
 			const wrong = checkValue(key, given, rule)
 			if (wrong) return { problem: wrong }
@@ -136,14 +136,6 @@ export function parseSandbox(content: string): Parsed | { problem: string } {
 	return parsed
 }
 
-/** The settings of `over` laid on `under`, key by key. */
-function layer(under: Partial2, over: Partial2): Partial2 {
-	const merged: Record<string, unknown> = { ...under }
-	for (const [key, value] of Object.entries(over))
-		merged[key] = typeof value === 'object' ? { ...((under as Record<string, object>)[key] ?? {}), ...value } : value
-	return merged as Partial2
-}
-
 /** Answers a problem for settings that miss a key, or that ask for a network rule no sandbox is verified to hold. */
 function complete(settings: Partial2): SandboxSettings | { problem: string } {
 	for (const [key, rule] of Object.entries(shape)) {
@@ -163,8 +155,6 @@ function complete(settings: Partial2): SandboxSettings | { problem: string } {
 	return full
 }
 
-type Found = { content: string; path: string; tier: 'managed' | 'repo' | 'user' | 'plugin' }
-
 /**
  * The `references/` folder this package ships, found from this file up to the `cyber-agentkit` package root, whether
  * it runs from `src/`, `dist/`, or a bundled skill script. Undefined when it is not there, such as in a skill folder
@@ -183,46 +173,75 @@ export function shippedReferences(): string | undefined {
 	}
 }
 
+const missingCodes = new Set(['extends-step-missing', 'extends-reference-missing', 'extends-all-missing'])
+const invalidCodes = new Set([
+	'extends-invalid',
+	'extends-self',
+	'extends-step-not-allowed',
+	'data-merge-invalid',
+	'data-not-merged',
+	'format-mismatch',
+	'file-ignored',
+])
+
 /**
- * The document that answers `name` from a tier allowed to: the highest of the managed, repo, and user tiers that holds
- * it, else this plugin's own copy. Another plugin's copy, a skill's default, and a project section are passed over, so
- * nothing a skill or another plugin ships can choose or loosen the sandbox; `skipped` names a plugin copy passed over.
+ * A tier's `<name>.yaml` that still writes `extends` inside the YAML, as `skill test` first read it (#303), read the
+ * new way: a copy of its folder with the key taken out and the pick in a metadata file beside it. The original is
+ * never changed.
  */
-function allowedAnswer(
+function readLegacy(
+	layer: ReferenceLayer,
 	name: string,
-	layers: ReferenceLayers,
-	shipped: string | null,
-): { found?: Found; skipped: string[] } {
-	const resolved = resolveReference(name, layers)
-	const skipped: string[] = []
-	for (const entry of resolved.trace.layers) {
-		if (!entry.file) continue
-		const own = entry.tier === 'plugin' && entry.plugin === sandboxPlugin
-		if (!choosingTiers.has(entry.tier) && !own) {
-			if (entry.tier === 'plugin') skipped.push(entry.plugin ?? '?')
+	into: string,
+	warnings: string[],
+): ReferenceLayer | { problem: string } {
+	for (const extension of ['.yaml', '.yml']) {
+		const file = join(layer.dir, `${name}${extension}`)
+		let text: string
+		try {
+			text = readFileSync(file, 'utf8')
+		} catch {
 			continue
 		}
+		let value: unknown
 		try {
+			value = parseYaml(text)
+		} catch {
+			return layer
+		}
+		if (!value || typeof value !== 'object' || Array.isArray(value) || !('extends' in value)) return layer
+		const given = (value as Record<string, unknown>)['extends']
+		const metadata = join(layer.dir, `${name}.meta.md`)
+		if (existsSync(metadata) && /^extends\s*:/m.test(readFileSync(metadata, 'utf8'))) return layer
+		if (typeof given !== 'string' || !given.startsWith(sandboxTemplatePrefix) || given === sandboxTemplatePrefix) {
 			return {
-				found: { content: readFileSync(entry.path, 'utf8'), path: entry.path, tier: entry.tier as Found['tier'] },
-				skipped,
+				problem: `${file}: extends must name a ${sandboxTemplatePrefix}<template> reference, not ${JSON.stringify(given)}`,
 			}
-		} catch {}
+		}
+		const { extends: _moved, ...rest } = value as Record<string, unknown>
+		const dir = mkdtempSync(join(into, 'legacy-'))
+		mkdirSync(dir, { recursive: true })
+		writeFileSync(join(dir, `${name}${extension}`), stringifyYaml(rest))
+		const extra = `---\nextends: [${sandboxPlugin}/${given}]\n---\n`
+		writeFileSync(join(dir, `${name}.meta.md`), extra)
+		warnings.push(
+			`sandbox-extends-legacy: ${file} writes extends inside the YAML; read as ${name}.meta.md with extends: [${sandboxPlugin}/${given}]. Move it there`,
+		)
+		return { ...layer, dir }
 	}
-	// No tier gave the plugin's copy, as for a library caller that passes no plugin, or an installed plugin older than
-	// the running code: the copy this package ships answers.
-	const own = shipped && join(shipped, `${name}.yaml`)
-	if (own && existsSync(own))
-		return { found: { content: readFileSync(own, 'utf8'), path: own, tier: 'plugin' }, skipped }
-	return { skipped }
+	return layer
 }
 
 /**
  * The sandbox a test runs in (#302). `--sandbox <template>` loads `skill-design.test.sandbox.<template>` (`default`
- * names `claude-code`); otherwise `skill-design.test.sandbox` itself. The document that answers comes from the managed,
- * repo, or user tier, or this plugin's own copy, and it may name a template in `extends`, whose settings it changes key
- * by key. Answers a problem, rather than run in a sandbox the user did not mean, for an unknown template, a document
- * with an unknown key or a bad value, an `extends` cycle, or settings left incomplete.
+ * names `claude-code`); otherwise `skill-design.test.sandbox` itself, which is the claude-code template when no tier
+ * writes it. The reference system resolves the name from the managed, repo, and user tiers and this plugin's own copy:
+ * a metadata file's `extends` names a template, `<plugin>/skill-design.test.sandbox.<template>`, and the file's own
+ * settings merge over it key by key. Another plugin's copy, a skill's default, and a project section never answer on
+ * their own, so nothing a skill or another plugin ships can choose or loosen the sandbox; a managed, repo, or user
+ * file may still take a template from another plugin by naming it. Answers a problem, rather than run in a sandbox the
+ * user did not mean, for an unknown template, a document with an unknown key or a bad value, a missing step, an
+ * `extends` cycle, or settings left incomplete.
  */
 export function resolveTestSandbox(
 	layers: ReferenceLayers,
@@ -241,40 +260,95 @@ export function resolveTestSandbox(
 			}
 		name = `${sandboxTemplatePrefix}${template}`
 	}
-	const chain: string[] = []
-	const docs: Parsed[] = []
-	let from: TestSandbox['from'] | undefined
-	for (let at: string | undefined = name; at !== undefined; ) {
-		if (chain.includes(at))
-			return {
-				code: 'sandbox-invalid',
-				problem: `${sandboxReferenceName}: extends forms a cycle: ${[...chain, at].join(' → ')}`,
+	const scratch = mkdtempSync(join(tmpdir(), 'sandbox-legacy-'))
+	try {
+		// The tiers that may choose and the plugins, never a skill's default or a project section; this package's own
+		// copy is the shipped folder when no tier gave it, as for a library caller.
+		let held = layers.layers.filter(({ tier }) => choosingTiers.has(tier) || tier === 'plugin')
+		if (shipped && !held.some(({ tier, plugin }) => tier === 'plugin' && plugin === sandboxPlugin))
+			held = [...held, { tier: 'plugin', dir: shipped, plugin: sandboxPlugin }]
+		const read = (at: string): ReturnType<typeof resolveReference> | SandboxProblem => {
+			const prepared: ReferenceLayer[] = []
+			for (const layer of held) {
+				const next = choosingTiers.has(layer.tier) ? readLegacy(layer, at, scratch, warnings) : layer
+				if ('problem' in next) return { code: 'sandbox-invalid', problem: next.problem }
+				prepared.push(next)
 			}
-		chain.push(at)
-		const { found, skipped } = allowedAnswer(at, layers, shipped)
-		for (const plugin of skipped)
-			warnings.push(
-				`sandbox-not-chosen: ${at} from plugin ${plugin} is not read; only the managed, repo, and user tiers, --sandbox, and ${sandboxPlugin}'s own copy set the sandbox`,
+			return resolveReference(
+				at,
+				{ layers: prepared, harnesses: [] },
+				{ projectSections: false, answeringPlugins: new Set([sandboxPlugin]) },
 			)
-		if (!found) {
-			if (at === name && flag !== undefined)
-				return { code: 'unknown-sandbox', problem: `no sandbox template ${flag}: no tier holds ${at}` }
-			return {
-				code: 'sandbox-missing',
-				problem: `no tier holds ${at}${at === name ? '' : `, which ${chain.at(-2)} extends`}`,
+		}
+		let resolved = read(name)
+		if ('problem' in resolved) return resolved
+		const fromTier = (r: ReturnType<typeof resolveReference>) =>
+			r.trace.layers.find((entry) => choosingTiers.has(entry.tier) && entry.file !== undefined)?.tier as
+				| 'managed'
+				| 'repo'
+				| 'user'
+				| undefined
+		// No tier writes the name: the plugin's own copy is only its comments, so the default template answers.
+		if (flag === undefined && fromTier(resolved) === undefined) {
+			name = `${sandboxTemplatePrefix}${defaultTemplate}`
+			resolved = read(name)
+			if ('problem' in resolved) return resolved
+		}
+		if (resolved.status === 'invalid')
+			return { code: 'unknown-sandbox', problem: `no sandbox template ${flag}: ${resolved.message}` }
+		if (resolved.status === 'missing') {
+			return flag !== undefined
+				? { code: 'unknown-sandbox', problem: `no sandbox template ${flag}: no tier holds ${name}` }
+				: { code: 'sandbox-missing', problem: `no tier holds ${name}` }
+		}
+		if (resolved.status === 'ambiguous')
+			return { code: 'sandbox-invalid', problem: `${sandboxReferenceName}: ${resolved.message}` }
+		const missing = resolved.warnings.find(({ code }) => missingCodes.has(code))
+		if (missing) return { code: 'sandbox-missing', problem: `${name}: ${missing.message}` }
+		const invalid = resolved.warnings.find(({ code }) => invalidCodes.has(code))
+		if (invalid) return { code: 'sandbox-invalid', problem: `${name}: ${invalid.message}` }
+		if (resolved.format !== 'yaml' && resolved.format !== 'json')
+			return { code: 'sandbox-invalid', problem: `${name}: it must be YAML, not ${resolved.format}` }
+		const parsed = parseSandbox(resolved.content ?? '')
+		if ('problem' in parsed) return { code: 'sandbox-invalid', problem: `${name}: ${parsed.problem}` }
+		const settings = complete(parsed.settings)
+		if ('problem' in settings) return { code: 'sandbox-invalid', problem: `${name}: ${settings.problem}` }
+		// The chosen name first, then each template the stack builds on, top down.
+		const templates = [
+			...new Set(
+				[
+					name,
+					...[...resolved.trace.stack]
+						.reverse()
+						.map((label) => (label.includes('/') ? label.slice(label.indexOf('/') + 1) : name)),
+				]
+					.filter((at) => at.startsWith(sandboxTemplatePrefix))
+					.map((at) => at.slice(sandboxTemplatePrefix.length)),
+			),
+		]
+		// A copy another plugin holds of a name the chain read is passed over, and says so.
+		for (const at of new Set([
+			flag === undefined ? sandboxReferenceName : name,
+			...templates.map((template) => `${sandboxTemplatePrefix}${template}`),
+		])) {
+			for (const layer of held) {
+				if (layer.tier !== 'plugin' || layer.plugin === sandboxPlugin || layer.skipped) continue
+				const used = resolved.trace.layers.some(
+					(entry) => entry.plugin === layer.plugin && (entry.name ?? name) === at && entry.outcome === 'used',
+				)
+				if (!used && layerNames(layer).includes(at))
+					warnings.push(
+						`sandbox-not-chosen: ${at} from plugin ${layer.plugin} is not read; only the managed, repo, and user tiers, --sandbox, and ${sandboxPlugin}'s own copy set the sandbox`,
+					)
 			}
 		}
-		from ??= flag !== undefined ? 'flag' : found.tier
-		const parsed = parseSandbox(found.content)
-		if ('problem' in parsed) return { code: 'sandbox-invalid', problem: `${at} at ${found.path}: ${parsed.problem}` }
-		docs.push(parsed)
-		at = parsed.extends
+		return {
+			settings,
+			templates,
+			from: flag !== undefined ? 'flag' : (fromTier(resolved) ?? 'plugin'),
+			warnings: [...new Set(warnings)],
+		}
+	} finally {
+		rmSync(scratch, { recursive: true, force: true })
 	}
-	const merged = docs.reduceRight<Partial2>((under, doc) => layer(under, doc.settings), {})
-	const settings = complete(merged)
-	if ('problem' in settings) return { code: 'sandbox-invalid', problem: `${name}: ${settings.problem}` }
-	const templates = chain
-		.filter((at) => at.startsWith(sandboxTemplatePrefix))
-		.map((at) => at.slice(sandboxTemplatePrefix.length))
-	return { settings, templates, from: from ?? 'plugin', warnings: [...new Set(warnings)] }
 }

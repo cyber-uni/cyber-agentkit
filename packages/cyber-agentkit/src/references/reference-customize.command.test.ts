@@ -49,6 +49,17 @@ describe('customize --extends (UC9, R79, R80)', () => {
 		)
 	})
 
+	it('writes a step that names another reference a plugin holds, and refuses one it does not', async () => {
+		const root = repo()
+		plugins(root, { a: { name: base, other: '## Create\n\nother\n' } })
+
+		expect(await customize('name', { root, extends: ['a/other'] })).toBe(0)
+		expect(readFileSync(repoFile(root), 'utf8')).toBe('---\nextends: [a/other]\ndeclined: [a]\n---\n')
+
+		expect(await customize('name', { root, extends: ['a/gone'] })).not.toBe(0)
+		expect(lastError()).toMatchObject({ code: 'step-invalid', error: expect.stringContaining('a/gone') })
+	})
+
 	it('keeps the body and other keys, changing only extends (R79, UC18.9)', async () => {
 		const root = repo()
 		plugins(root, { a: { name: base }, b: { name: base } })
