@@ -2,9 +2,12 @@
 'cyber-agentkit': minor
 ---
 
-`skill test` and `skill case try` take their sandbox from the new YAML reference `skill-design.test.sandbox`, or
-from `--sandbox <template>` for one run. The `default` template is the sandbox they used before. On a machine
-that cannot run that sandbox, the `folder-only` template runs shell commands, setup scripts, and `script` checks
-with no sandbox, on both backends, and the file tools still reach only the run's folder. Only the managed, repo,
-and user tiers choose the template. A folder-only result records `sandbox: none`, and lists in `wroteOutside` each
-path outside the run's folders that a shell command changed.
+`skill test`, `skill case try`, and `instruction compare` take their sandbox settings from the new YAML reference
+`skill-design.test.sandbox`. The plugin ships two templates for it to extend. `skill-design.test.sandbox.claude-code`,
+the default, is the sandbox they used before. `skill-design.test.sandbox.folder-only` is for a machine that cannot run
+a sandbox: it runs shell commands, setup scripts, and `script` checks with no sandbox, on both backends, and the file
+tools still reach only the run's folder. A managed, repo, or user file picks a template with
+`extends: skill-design.test.sandbox.<template>` and may change any setting on top of it. `skill test --sandbox
+<template>` picks one for a single run. An unknown key or a bad value stops the test before any run. A result records
+which sandbox did not run, and lists in `wroteOutside` each path outside the run's folders that a shell command
+changed.
