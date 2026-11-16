@@ -1,0 +1,19 @@
+.changeset/skill-update-command.md
+  s_fef3169257779e::t_e10242f1ba4efc 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "dd538fc925e6fadeea83090d0aaf5d145370d24d",
+  "prompts": {},
+  "sessions": {
+    "s_fef3169257779e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "64f52d1d-9f20-414e-9ce6-82ab9965ce2a",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "unional <homawong@gmail.com>"
+    }
+  }
+}
