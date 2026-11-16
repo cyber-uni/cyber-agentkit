@@ -27,6 +27,18 @@ export const referenceCodes = {
 	'remove-body-ignored': { kind: 'warning', when: 'a `remove` with a body (R49)' },
 	'extends-invalid': { kind: 'warning', when: 'a malformed `extends` (R106)' },
 	'extends-self': { kind: 'warning', when: 'a plugin listing itself (R54)' },
+	'data-not-merged': {
+		kind: 'warning',
+		when: 'a TOML or plain-text file that writes `extends`, which is answered whole (only YAML and JSON merge key by key)',
+	},
+	'data-merge-invalid': {
+		kind: 'warning',
+		when: 'a YAML or JSON file in a merge that does not parse or is not a mapping',
+	},
+	'extends-step-not-allowed': {
+		kind: 'warning',
+		when: "a plugin's or a default's own `extends` naming another reference, which only a managed, repo, or user file may pick",
+	},
 	'extends-step-missing': { kind: 'warning', when: 'a step that cannot be used (R55)' },
 	'extends-all-missing': { kind: 'warning', when: 'every step cannot be used (R55)' },
 	'extends-not-used': {

@@ -1,5 +1,6 @@
 import type { WarnFn } from './reference-codes.js'
 import type { Contribution } from './reference-contribution.js'
+import { mergeDataText, mergesByKey } from './reference-data-merge.js'
 import {
 	applyContribution,
 	type Composed,
@@ -38,6 +39,25 @@ function picked(item: OrderedContribution, warnAt: (where: string) => WarnFn): C
 	return { ...contribution, body: cut.body, hasBody: hasBody(cut.body) }
 }
 
+/**
+ * A data contribution that writes `extends` laid over the data file below it, key by key; `undefined` when it
+ * answers whole instead (another format, or a file that does not parse, which warns).
+ */
+function mergedWhole(
+	below: Contribution,
+	over: Contribution,
+	warnAt: (where: string) => WarnFn,
+): Contribution | undefined {
+	if (!mergesByKey(over.format) || below.format !== over.format) return undefined
+	const result = mergeDataText(below.body, over.body, over.format)
+	if ('problem' in result) {
+		const at = result.problem === 'over' ? over : below
+		warnAt(at.label)('data-merge-invalid', `${result.why}; ${over.label} answers whole instead of merging`)
+		return undefined
+	}
+	return { ...over, body: result.content }
+}
+
 /** Applies the contributions bottom first, each with its operation, recording what each did to the trace. */
 export function composeOrder(order: readonly OrderedContribution[], warnAt: (where: string) => WarnFn) {
 	let composed: Composed = emptyComposed()
@@ -50,6 +70,22 @@ export function composeOrder(order: readonly OrderedContribution[], warnAt: (whe
 		const contribution = picked(item, warnAt)
 		const { entry } = contribution
 		if (contribution.whole && contribution.hasBody) {
+			const merged = whole && contribution.steps !== undefined ? mergedWhole(whole, contribution, warnAt) : undefined
+			if (merged) {
+				entry.operation = 'patch'
+				entry.operationFrom = 'default'
+				entry.outcome = 'used'
+				applied = [...applied, contribution]
+				whole = merged
+				used.push(contribution)
+				continue
+			}
+			if (contribution.steps !== undefined && !mergesByKey(contribution.format) && (whole || applied.length)) {
+				warnAt(contribution.label)(
+					'data-not-merged',
+					`it answers whole: only YAML and JSON merge key by key, and this is ${contribution.format}`,
+				)
+			}
 			entry.operation = 'replace'
 			entry.operationFrom = 'default'
 			for (const below of applied) below.entry.outcome = `shadowed by ${contribution.label} (replace)`

@@ -36,7 +36,8 @@ describe('metadata files (K31, R65, R70, R93, R94)', () => {
 
 		expect(resolved).toMatchObject({
 			status: 'found',
-			content: json,
+			// A data file that writes `extends` merges over the plugin's, so the answer is regenerated.
+			content: '{\n  "a": 1\n}\n',
 			format: 'json',
 			metadata: { description: 'The checks', tags: ['ci'] },
 		})

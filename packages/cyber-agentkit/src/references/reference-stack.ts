@@ -12,7 +12,29 @@ export type StepSection = { heading: string; merge?: MergeOperation }
  * One `extends` entry: a plugin or `default`, with the keys to use for it in place of its own. With
  * `sections`, it contributes only those top-level sections (R52).
  */
-export type ExtendsStep = { target: string; merge?: MergeOperation; extends?: ExtendsStep[]; sections?: StepSection[] }
+export type ExtendsStep = {
+	target: string
+	/** The reference a `<plugin>/<reference>` step names; absent for a bare plugin, which takes the name of the file it sits in. */
+	name?: string
+	merge?: MergeOperation
+	extends?: ExtendsStep[]
+	sections?: StepSection[]
+}
+
+/** Reads a step's address: `<plugin>`, `default`, or `<plugin>/<reference>`; `undefined` when it is none of them. */
+function readAddress(value: string): { target: string; name?: string } | undefined {
+	const parts = value.split('/')
+	if (parts.length === 1) return namePattern.test(value) ? { target: value } : undefined
+	const [target, name] = parts as [string, string]
+	if (parts.length !== 2 || target === 'default' || !namePattern.test(target) || !namePattern.test(name))
+		return undefined
+	return { target, name }
+}
+
+/** The step as it is written: `<plugin>`, or `<plugin>/<reference>`. */
+export function stepLabel(step: Pick<ExtendsStep, 'target' | 'name'>): string {
+	return step.name === undefined ? step.target : `${step.target}/${step.name}`
+}
 
 /** Reads `extends`: a plugin or `default` per step, bottom first. `undefined` when it is not written or malformed. */
 export function readExtends(value: unknown, warn: WarnFn): ExtendsStep[] | undefined {
@@ -36,13 +58,16 @@ const stepKeys: readonly string[] = ['merge', 'extends', 'sections']
 
 function readStep(item: unknown, warn: WarnFn): ExtendsStep | string {
 	if (typeof item === 'string') {
-		return namePattern.test(item) ? { target: item } : `names "${item}", which is not a plugin name or default`
+		const address = readAddress(item)
+		return address ? address : `names "${item}", which is not a plugin name, default, or <plugin>/<reference>`
 	}
 	if (!isRecord(item) || Object.keys(item).length !== 1) return `holds ${JSON.stringify(item)}, which is not a step`
-	const [target, keys] = Object.entries(item)[0] as [string, unknown]
-	if (!namePattern.test(target)) return `names "${target}", which is not a plugin name or default`
-	if (keys === null || keys === undefined) return { target }
-	const step: ExtendsStep = { target }
+	const [written, keys] = Object.entries(item)[0] as [string, unknown]
+	const address = readAddress(written)
+	if (!address) return `names "${written}", which is not a plugin name, default, or <plugin>/<reference>`
+	const target = stepLabel(address)
+	if (keys === null || keys === undefined) return address
+	const step: ExtendsStep = address
 	if (typeof keys === 'string') {
 		step.merge = readStepMerge(keys, target, warn)
 		return step
@@ -91,12 +116,20 @@ function readStepMerge(value: unknown, target: string, warn: WarnFn): MergeOpera
 }
 
 export type StackEntry = {
+	/** The plugin, or `default`. */
 	target: string
+	/** The reference this entry's file answers: the name being resolved, or the one a `<plugin>/<reference>` step names. */
+	name: string
 	contribution: Contribution
 	operation: MergeOperation
 	from: OperationSource
 	/** The step's `sections`: only these top-level sections are contributed (R52). */
 	sections?: StepSection[]
+}
+
+/** How a stack entry shows in the trace: the plugin, with `/<reference>` when it is not the name being resolved. */
+export function entryLabel(entry: Pick<StackEntry, 'target' | 'name'>, resolving: string): string {
+	return entry.target === 'default' || entry.name === resolving ? entry.target : `${entry.target}/${entry.name}`
 }
 
 type Ambiguity = { cause: AmbiguousCause; message: string }
@@ -112,79 +145,114 @@ type Expansion = {
 	ambiguous?: Ambiguity
 }
 
-export type Lookup = (target: string) => Contribution | { reason: string }
+/** Finds the contribution a plugin or `default` holds for a reference. */
+export type Lookup = (target: string, name: string) => Contribution | { reason: string }
+
+/** One step with the reference it addresses, which a bare plugin step takes from the file it sits in. */
+type Placed = { step: ExtendsStep; name: string; key: string }
 
 /**
  * Expands a list of steps bottom first: each step brings its own `extends` beneath it, recursively.
- * Under a written list (`written`), bringing in stops silently at a plugin already in the stack;
- * among the plugins' own `extends`, a cycle makes the name ambiguous.
+ * A step is a (plugin, reference) pair; a bare plugin takes the name of the file whose `extends` it
+ * sits in, and that name follows the file being read down the walk. Under a written list, bringing in
+ * stops silently at a step already in the stack; a cycle makes the name ambiguous in both modes, and a
+ * diamond is not a cycle, so a shared base applies once. Only a written step may name another
+ * reference; the same step in a plugin's or a default's own `extends` is skipped with a warning.
  */
-function expand(top: readonly ExtendsStep[], owner: string, mode: 'written' | 'plugins', lookup: Lookup, warn: WarnFn) {
+function expand(
+	top: readonly ExtendsStep[],
+	owner: string,
+	mode: 'written' | 'plugins',
+	refName: string,
+	lookup: Lookup,
+	warn: WarnFn,
+) {
 	const result: Expansion = { entries: [], missing: [], allMissing: false, replaced: [] }
 	const placed = new Set<string>()
 	const inProgress = new Set<string>()
-	const normalize = (steps: readonly ExtendsStep[], who: string, self?: string): ExtendsStep[] => {
-		const out: ExtendsStep[] = []
+	const keyOf = (step: ExtendsStep, inner: string) =>
+		step.target === 'default' ? 'default' : `${step.target}/${step.name ?? inner}`
+	const nameOf = (step: ExtendsStep, inner: string) => (step.target === 'default' ? refName : (step.name ?? inner))
+	const normalize = (
+		steps: readonly ExtendsStep[],
+		who: string,
+		inner: string,
+		trusted: boolean,
+		self?: string,
+	): Placed[] => {
+		const out: Placed[] = []
 		for (const step of steps) {
-			if (step.target === self) {
+			const item: Placed = { step, name: nameOf(step, inner), key: keyOf(step, inner) }
+			if (!trusted && item.name !== inner) {
+				warn(
+					'extends-step-not-allowed',
+					`${who} names ${stepLabel(step)} in its extends; only a managed, repo, or user file may pick another reference, so that entry is skipped`,
+				)
+				continue
+			}
+			if (item.key === self) {
 				warn('extends-self', `${who} lists itself in its extends; that entry is ignored`)
 				continue
 			}
-			if (out.at(-1)?.target === step.target) continue
-			if (out.some(({ target }) => target === step.target) && !result.ambiguous) {
-				result.ambiguous = { cause: 'repeat', message: `${who}'s extends lists ${step.target} at two places` }
+			if (out.at(-1)?.key === item.key) continue
+			if (out.some(({ key }) => key === item.key) && !result.ambiguous) {
+				result.ambiguous = { cause: 'repeat', message: `${who}'s extends lists ${stepLabel(step)} at two places` }
 			}
-			out.push(step)
+			out.push(item)
 		}
 		return out
 	}
-	const listed = normalize(top, owner)
-	const listedTargets = new Set(listed.map(({ target }) => target))
-	const visit = (step: ExtendsStep, isTop: boolean, chain: readonly string[]) => {
-		if (result.ambiguous || placed.has(step.target)) return
-		if (inProgress.has(step.target)) {
-			if (mode === 'plugins') {
-				result.ambiguous = {
-					cause: 'cycle',
-					message: `the plugins' own extends form a cycle: ${[...chain, step.target].join(' → ')}`,
-				}
+	const listed = normalize(top, owner, refName, mode === 'written')
+	const listedKeys = new Set(listed.map(({ key }) => key))
+	const visit = (item: Placed, isTop: boolean, chain: readonly string[], trusted: boolean) => {
+		const { step, name, key } = item
+		if (result.ambiguous || placed.has(key)) return
+		const shown = name === refName ? step.target : `${step.target}/${name}`
+		if (inProgress.has(key)) {
+			result.ambiguous = {
+				cause: 'cycle',
+				message:
+					mode === 'plugins'
+						? `the plugins' own extends form a cycle: ${[...chain, shown].join(' → ')}`
+						: `${owner}'s extends forms a cycle: ${[...chain, shown].join(' → ')}`,
 			}
 			return
 		}
-		if (!isTop && listedTargets.has(step.target)) return
-		const found = lookup(step.target)
+		if (!isTop && listedKeys.has(key)) return
+		const found = lookup(step.target, name)
 		if ('reason' in found) {
 			result.missing.push({ target: step.target, reason: found.reason })
 			if (step.target !== 'default') {
 				warn(
 					'extends-step-missing',
-					`the step ${step.target} in ${chain.at(-1) ?? owner}'s extends ${found.reason}; it is skipped`,
+					`the step ${shown} in ${chain.at(-1) ?? owner}'s extends ${found.reason}; it is skipped`,
 				)
 			}
 			return
 		}
-		inProgress.add(step.target)
+		inProgress.add(key)
 		const own = found.steps ?? []
 		if (step.extends) {
 			const kept = new Set(step.extends.map(({ target }) => target))
 			for (const { target } of own) if (!kept.has(target)) result.replaced.push({ target, step: step.target })
 		}
-		for (const sub of normalize(step.extends ?? own, `plugin ${step.target}`, step.target)) {
-			visit(sub, false, [...chain, step.target])
+		const nested = step.extends !== undefined
+		for (const sub of normalize(step.extends ?? own, `plugin ${shown}`, name, trusted && nested, key)) {
+			visit(sub, false, [...chain, shown], trusted && nested)
 		}
-		inProgress.delete(step.target)
+		inProgress.delete(key)
 		const operation = step.merge ?? found.merge ?? 'patch'
 		const from: OperationSource = step.merge ? 'step' : found.merge ? 'contribution' : 'default'
-		const entry: StackEntry = { target: step.target, contribution: found, operation, from }
+		const entry: StackEntry = { target: step.target, name, contribution: found, operation, from }
 		if (step.sections) entry.sections = step.sections
 		result.entries.push(entry)
-		placed.add(step.target)
+		placed.add(key)
 	}
-	for (const step of listed) visit(step, true, [])
+	for (const item of listed) visit(item, true, [], mode === 'written')
 	result.allMissing =
 		listed.length > 0 &&
-		listed.every(({ target }) => !placed.has(target)) &&
-		listed.some(({ target }) => target !== 'default')
+		listed.every(({ key }) => !placed.has(key)) &&
+		listed.some(({ step }) => step.target !== 'default')
 	return result
 }
 
@@ -223,8 +291,8 @@ export function plan(
 			continue
 		}
 		if (built) {
-			const lower = expand(contribution.steps, contribution.label, 'written', lookup, noWarn)
-			if (lower.entries.map(({ target }) => target).join(' ') !== built.targets) {
+			const lower = expand(contribution.steps, contribution.label, 'written', ref.name, lookup, noWarn)
+			if (lower.entries.map((entry) => entryLabel(entry, ref.name)).join(' ') !== built.targets) {
 				contribution.entry.extendsOutcome = `not used (${built.builder.label}'s extends builds the stack)`
 				warn(
 					'extends-not-used',
@@ -233,7 +301,7 @@ export function plan(
 			}
 			continue
 		}
-		const expansion = expand(contribution.steps, contribution.label, 'written', lookup, warn)
+		const expansion = expand(contribution.steps, contribution.label, 'written', ref.name, lookup, warn)
 		if (expansion.ambiguous) return { status: 'ambiguous', ...expansion.ambiguous }
 		if (expansion.allMissing) {
 			contribution.entry.extendsOutcome = 'not used (every step is missing)'
@@ -246,14 +314,14 @@ export function plan(
 			replaced: expansion.replaced,
 			replacedBy: contribution.label,
 			builder: contribution,
-			targets: expansion.entries.map(({ target }) => target).join(' '),
+			targets: expansion.entries.map((entry) => entryLabel(entry, ref.name)).join(' '),
 		}
 	}
 	if (built) return built
 	if (ref.plugin !== undefined) {
-		const found = lookup(ref.plugin)
+		const found = lookup(ref.plugin, ref.name)
 		if ('reason' in found) return { status: 'missing', message: `the plugin ${ref.plugin} ${found.reason}` }
-		const expansion = expand([{ target: ref.plugin }], `plugin ${ref.plugin}`, 'plugins', lookup, warn)
+		const expansion = expand([{ target: ref.plugin }], `plugin ${ref.plugin}`, 'plugins', ref.name, lookup, warn)
 		if (expansion.ambiguous) return { status: 'ambiguous', ...expansion.ambiguous }
 		return { entries: expansion.entries, builtBy: 'qualified name', replaced: [], replacedBy: '' }
 	}
@@ -272,6 +340,7 @@ function planFromPlugins(
 			? [
 					{
 						target: 'default',
+						name,
 						contribution: defaultContribution,
 						operation: defaultContribution.merge ?? 'patch',
 						from: defaultContribution.merge ? 'contribution' : 'default',
@@ -282,9 +351,17 @@ function planFromPlugins(
 	if (!names.length) return { entries: defaultEntry(), builtBy: 'none', replaced: [], replacedBy: '' }
 	const reach = new Map<string, Set<string>>()
 	for (const holder of names) {
-		const closure = expand([{ target: holder }], `plugin ${holder}`, 'plugins', lookup, noWarn)
+		const closure = expand([{ target: holder }], `plugin ${holder}`, 'plugins', name, lookup, noWarn)
 		if (closure.ambiguous) return { status: 'ambiguous', ...closure.ambiguous }
-		reach.set(holder, new Set(closure.entries.map(({ target }) => target).filter((target) => target !== holder)))
+		reach.set(
+			holder,
+			new Set(
+				closure.entries
+					.filter((entry) => entry.name === name)
+					.map(({ target }) => target)
+					.filter((target) => target !== holder),
+			),
+		)
 	}
 	const tops = names.filter((holder) => !names.some((other) => other !== holder && reach.get(other)?.has(holder)))
 	const unordered = (): Failure => ({
@@ -294,9 +371,9 @@ function planFromPlugins(
 	})
 	if (tops.length !== 1) return unordered()
 	const top = tops[0] as string
-	const expansion = expand([{ target: top }], `plugin ${top}`, 'plugins', lookup, warn)
+	const expansion = expand([{ target: top }], `plugin ${top}`, 'plugins', name, lookup, warn)
 	if (expansion.ambiguous) return { status: 'ambiguous', ...expansion.ambiguous }
-	const placed = new Set(expansion.entries.map(({ target }) => target))
+	const placed = new Set(expansion.entries.filter((entry) => entry.name === name).map(({ target }) => target))
 	if (names.some((holder) => !placed.has(holder))) return unordered()
 	const entries = expansion.entries
 	if (defaultContribution && !placed.has('default')) {
@@ -331,7 +408,7 @@ export function readDeclined(value: unknown, warn: WarnFn): string[] {
 /** The `--extends` values that write `steps` again, or `undefined` when a step holds keys only `--extends-file` takes. */
 export function pickValues(steps: readonly ExtendsStep[]): string[] | undefined {
 	if (steps.some((step) => step.extends !== undefined || step.sections !== undefined)) return undefined
-	return steps.map(({ target, merge }) => (merge ? `${target}:${merge}` : target))
+	return steps.map((step) => (step.merge ? `${stepLabel(step)}:${step.merge}` : stepLabel(step)))
 }
 
 export function namesDefault(steps: readonly ExtendsStep[] | undefined): boolean {
