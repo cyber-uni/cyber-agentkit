@@ -11,6 +11,7 @@ outcome:
   - id: two-prs
     prompt: Write the release notes.
     files: files/two-prs   # a feature, a fix, an internal change, and a merge commit
+    setup: setup/two-prs.sh   # writes .git/hooks and repository git config (VER-12)
 rubrics:
   C5:
     - judge: Pass when the notes are clear.
