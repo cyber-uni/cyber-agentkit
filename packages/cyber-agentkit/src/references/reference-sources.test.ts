@@ -103,6 +103,17 @@ describe('the generated record (C4, K25)', () => {
 		expect(recordedSources(['default'], catalog, { skill: 'loner' })).toEqual([{ default: 'loner' }])
 	})
 
+	it('records the reference a <plugin>/<reference> step names, and reads it back', () => {
+		const catalog = sourceCatalog([plugin('a', '1.0.0')], { tier: 'repo' })
+		const recorded = recordedSources(['a/base'], catalog)
+
+		expect(recorded).toEqual([{ plugin: 'a', name: 'base', version: '1.0.0' }])
+		expect(readGeneratedRecord({ sources: recorded }).sources).toEqual(recorded)
+		expect(compareSources(recorded, catalog)).toEqual([
+			{ plugin: 'a', name: 'base', recorded: '1.0.0', installed: '1.0.0', status: 'current' },
+		])
+	})
+
 	it("records only the harness's enabled plugins, and the host, for a user document (R84, C6)", () => {
 		const layers = [plugin('host', '1.0.0', {}, 'host'), plugin('a', '1.0.0'), plugin('dep', '1.0.0', {}, 'dependency')]
 

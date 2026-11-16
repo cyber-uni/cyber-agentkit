@@ -250,6 +250,8 @@ function declinedBy(plan: CustomizePlan, picks: unknown): string[] | undefined {
 	const placed = new Set<string>()
 	const place = (list: readonly ExtendsStep[]): void => {
 		for (const step of list) {
+			// A step naming another reference places that plugin's file for it, not its own for this name.
+			if (step.name !== undefined && step.name !== plan.name.name) continue
 			if (placed.has(step.target)) continue
 			placed.add(step.target)
 			place(step.extends ?? readExtends(own.get(step.target), () => {}) ?? [])

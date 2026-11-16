@@ -22,7 +22,7 @@ export type ExtendsStep = {
 }
 
 /** Reads a step's address: `<plugin>`, `default`, or `<plugin>/<reference>`; `undefined` when it is none of them. */
-function readAddress(value: string): { target: string; name?: string } | undefined {
+export function readAddress(value: string): { target: string; name?: string } | undefined {
 	const parts = value.split('/')
 	if (parts.length === 1) return namePattern.test(value) ? { target: value } : undefined
 	const [target, name] = parts as [string, string]
