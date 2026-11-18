@@ -52,14 +52,36 @@ const unlinkAnchors = (text) => text.replace(/\[([^\]]+)\]\(#[^)]*\)/g, '$1')
 
 // ---- skills ---------------------------------------------------------------------------------
 
-/** The `skill` skill's bundled command, committed on `main`; it renders every skill's Evals section, so there is one renderer. */
-const skillScript = join(repo, 'packages/cyber-agentkit/skills/skill/scripts/skill.mjs')
+/**
+ * The `cyber-agentkit` CLI that renders every skill's Evals section, so there is one renderer. It runs
+ * from a snapshot of the built package, taken once, for the reason `snapshotCli` gives.
+ */
+let reportBin
+function reportCli() {
+	if (reportBin) return reportBin
+	ensureBuilt('cyber-agentkit', ['dist/cli.js'])
+	const source = join(repo, 'packages', 'cyber-agentkit')
+	const scratch = mkdtempSync(join(tmpdir(), 'docs-report-'))
+	process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
+	for (let attempt = 0; ; attempt++) {
+		const copy = join(scratch, `cli-${attempt}`)
+		try {
+			for (const entry of ['bin', 'dist', 'references', 'plugin.json', 'package.json'])
+				cpSync(join(source, entry), join(copy, entry), { recursive: true })
+			reportBin = join(copy, 'bin', 'cyber-agentkit.mjs')
+			return reportBin
+		} catch (error) {
+			if (attempt >= 20) throw error
+			sleep(1500)
+		}
+	}
+}
 
 /** A skill's Evals section, from its saved `evals/expected.json`, by `skill report`. */
 function evalsSection(skillDir) {
 	return execFileSync(
 		process.execPath,
-		[skillScript, 'report', skillDir, '--test-link', '/cyber-agentkit/packages/cyber-agentkit/skills/skill/'],
+		[reportCli(), 'skill', 'report', skillDir, '--test-link', '/cyber-agentkit/packages/cyber-agentkit/skills/skill/'],
 		{ encoding: 'utf8' },
 	)
 }
