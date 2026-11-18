@@ -27,6 +27,19 @@ describe('findStaleScripts', () => {
 		assert.equal(stale.length, 1)
 	})
 
+	it('also flags a launcher that is missing or stale, naming its entry as the source', () => {
+		const stale = findStaleScripts({
+			scripts: [],
+			launchers: [
+				{ path: 'bin/a', entry: 'bin/a.mjs', status: 'unchanged' },
+				{ path: 'bin/b', entry: 'bin/b.mjs', status: 'missing' },
+			],
+		})
+		assert.deepEqual(stale, [
+			{ path: 'packages/cyber-agentkit/bin/b', source: 'packages/cyber-agentkit/bin/b.mjs', status: 'missing' },
+		])
+	})
+
 	it('throws when the report carries no scripts list, rather than passing', () => {
 		assert.throws(() => findStaleScripts({}), /lists no scripts/)
 	})

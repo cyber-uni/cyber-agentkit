@@ -6,7 +6,7 @@
  * committed on `main` are what users run. This check asks `universal-plugin plugin build --dry-run`
  * whether a fresh build would change any of them, and fails naming each one that it would.
  *
- * Only the scripts are checked. The dry run reports the vendor manifests as `built` whether or not
+ * Launchers (`bin/<name>`) are checked the same way. Only scripts and launchers are checked. The dry run reports the vendor manifests as `built` whether or not
  * they would change, so it cannot tell a stale manifest from a current one.
  */
 
@@ -25,7 +25,10 @@ export function findStaleScripts(report) {
 	if (!Array.isArray(report?.scripts)) {
 		throw new Error('the build report lists no scripts; has the universal-plugin output changed?')
 	}
-	return report.scripts
+	// A launcher reports its `entry` where a script reports its `source`; a report without a launchers
+	// list (an older universal-plugin) checks scripts only.
+	const launchers = (report.launchers ?? []).map(({ path, entry, status }) => ({ path, source: entry, status }))
+	return [...report.scripts, ...launchers]
 		.filter((script) => script.status !== 'unchanged')
 		.map(({ path, source, status }) => ({
 			path: `${PLUGIN_ROOT}/${path}`,
@@ -37,10 +40,10 @@ export function findStaleScripts(report) {
 /** Formats the failure message for the stale scripts. */
 export function formatStale(stale) {
 	return [
-		`${stale.length} prebuilt skill script(s) do not match a fresh build of their source:`,
+		`${stale.length} prebuilt skill script(s) or launcher(s) do not match a fresh build:`,
 		...stale.map(({ path, source, status }) => `  ${path} (${status}, built from ${source})`),
 		'',
-		`Run \`${FIX_COMMAND}\` and commit the rebuilt scripts.`,
+		`Run \`${FIX_COMMAND}\` and commit the rebuilt files.`,
 	].join('\n')
 }
 
@@ -72,5 +75,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 		process.stderr.write(`${formatStale(stale)}\n`)
 		process.exit(1)
 	}
-	process.stdout.write(`${report.scripts.length} prebuilt skill scripts match their source.\n`)
+	process.stdout.write(
+		`${report.scripts.length} prebuilt skill scripts and ${report.launchers?.length ?? 0} launchers match a fresh build.\n`,
+	)
 }
