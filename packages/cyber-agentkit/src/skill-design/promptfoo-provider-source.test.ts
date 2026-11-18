@@ -386,7 +386,7 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 	}
 
 	/** A fake inner provider for a folder-only run: a shell command writes outside the run, another only reads there. */
-	const writing = String.raw`
+	const writing = `
 const fs = require('node:fs')
 exports.loadApiProvider = async (_id, { options }) => ({
   callApi: async () => {
@@ -459,7 +459,7 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 
 describe('promptfooProviderSource login check (R108)', () => {
 	/** A fake Claude Code that answers `auth status` as logged in only when its config folder is the real one, or always when LOGIN_SHARED=1. */
-	const claude = String.raw`#!/usr/bin/env node
+	const claude = `#!/usr/bin/env node
 const env = process.env
 const loggedIn = env.LOGIN_SHARED === '1' || !/skill-test-home-/.test(env.CLAUDE_CONFIG_DIR || '')
 process.stdout.write(JSON.stringify({ loggedIn: env.LOGIN_NONE === '1' ? false : loggedIn }))
@@ -522,7 +522,7 @@ describe('promptfooProviderSource time limit (F8)', () => {
 	 * answers. That process starts a long-lived one of its own in a session of its own (detached), as Claude Code does
 	 * with each shell command, and both write their process IDs. It runs on Linux, macOS, and Windows.
 	 */
-	const hanging = String.raw`
+	const hanging = `
 exports.loadApiProvider = async (_id, { options }) => ({
   callApi: async () => {
     const grandchild = "require('node:fs').writeFileSync(process.env.PID_FILE, String(process.pid)); setInterval(() => {}, 1000)"
@@ -597,7 +597,7 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 
 describe('promptfooProviderSource trigger runs (F9)', () => {
 	/** A fake inner provider for a trigger run: it sees the turn cap and the Skill hook, calls the hook as Claude would, then hits the cap. */
-	const capped = String.raw`
+	const capped = `
 exports.loadApiProvider = async (_id, { options }) => ({
   callApi: async () => {
     const c = options.config
@@ -775,7 +775,7 @@ describe('promptfooProviderSource sandbox failures (R154)', () => {
 	const bwrap =
 		"bwrap: Can't create file at /tmp/skill-test-plugin-Xa1b2C/references/.claude/launch.json: Read-only file system"
 	/** A fake inner provider that plays shell commands through every PostToolUse and PostToolUseFailure hook it is given. */
-	const shell = (failing: boolean, error = bwrap) => String.raw`
+	const shell = (failing: boolean, error = bwrap) => `
 exports.loadApiProvider = async (_id, { options }) => ({
   callApi: async () => {
     const all = (event, input) => Promise.all(options.config.hooks[event].flatMap((entry) => entry.hooks.map((hook) => hook(input))))
@@ -1282,7 +1282,7 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 describe('promptfooProviderSource usage limit (R162)', () => {
 	const limitText = "You've hit your 5-hour limit · resets 4:40am (America/Los_Angeles)"
 	/** A fake inner provider that counts its calls in a file and answers the usage-limit error each time. */
-	const limited = (calls: string) => String.raw`
+	const limited = (calls: string) => `
 const fs = require('node:fs')
 exports.loadApiProvider = async () => ({
   callApi: async () => {
