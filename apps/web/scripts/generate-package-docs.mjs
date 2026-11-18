@@ -346,7 +346,8 @@ for (const pkg of readdirSync(join(repo, 'packages'))) {
 		)
 	}
 
-	const bins = existsSync(join(repo, 'packages', pkg, 'bin')) ? readdirSync(join(repo, 'packages', pkg, 'bin')) : []
+	const bins = existsSync(join(repo, 'packages', pkg, 'bin')) ? readdirSync(join(repo, 'packages', pkg, 'bin')).filter((file) => file.endsWith('.mjs')) : []
+	// Only the `.mjs` entry runs as a module; an extensionless `bin/<name>` is the plugin launcher shell shim.
 	if (bins[0]) {
 		ensureBuilt(pkg, ['dist/cli.js'])
 		cliPages(pkg, bins[0], data)
