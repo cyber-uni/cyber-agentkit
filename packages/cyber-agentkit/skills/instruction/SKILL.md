@@ -24,7 +24,8 @@ node <this skill's folder>/scripts/instruction.mjs <subcommand> ...
 ```
 
 `scripts/instruction.mjs` is the package's `instruction` command bundled into one file. When it is missing or cannot
-run, use `pnpm exec cyber-agentkit instruction` when the package is a direct dependency, else
+run, use `cyber-agentkit instruction` when the plugin's launcher is on the PATH, else
+`pnpm exec cyber-agentkit instruction` when the package is a direct dependency, else
 `npx -y cyber-agentkit@2.10.0 instruction`, with the same arguments.
 
 ## Rules
