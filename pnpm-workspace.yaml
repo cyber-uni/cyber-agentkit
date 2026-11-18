@@ -26,3 +26,5 @@ minimumReleaseAgeStrict: true
 minimumReleaseAgeExclude:
   # Renovate security update: astro@7.2.8
   - astro@7.2.8
+  # Council-approved waiver: universal-plugin@0.22.0 (published 2026-11-18). Remove after 2026-11-19, once it has aged 24h.
+  - universal-plugin@0.22.0
