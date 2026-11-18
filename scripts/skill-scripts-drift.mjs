@@ -6,8 +6,9 @@
  * committed on `main` are what users run. This check asks `universal-plugin plugin build --dry-run`
  * whether a fresh build would change any of them, and fails naming each one that it would.
  *
- * Only the scripts are checked. The dry run reports the vendor manifests as `built` whether or not
- * they would change, so it cannot tell a stale manifest from a current one.
+ * Only the scripts are checked. `pnpm plugin:check` runs `plugin build --check` first, which covers the
+ * vendor manifests and catalogs. This check stays beside it because `plugin build` 0.23.0 can exit 0
+ * while a script entry fails (universal-plugin#295); the JSON report names each failed entry.
  */
 
 import { execFileSync } from 'node:child_process'
