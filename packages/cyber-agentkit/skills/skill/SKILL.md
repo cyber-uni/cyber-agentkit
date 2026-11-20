@@ -169,14 +169,11 @@ the first sentence as Draft says.
 ## Run the command
 
 ```sh
-node <this skill's folder>/scripts/skill.mjs <subcommand> ...
+node <this skill's folder>/scripts/cyber-agentkit.mjs skill <subcommand> ...
 ```
 
 Run it from the working folder, by the script's path. Never `cd` into this skill's folder or its plugin's, not even
-for one command: either may be read-only, and a shell left there fails every later command. When the
-script is missing or cannot run, use
-`pnpm exec cyber-agentkit skill` when the package is a direct dependency, else `npx -y cyber-agentkit@2.10.0 skill`,
-with the same arguments.
+for one command: either may be read-only, and a shell left there fails every later command.
 
 ## Autonomy
 
@@ -210,7 +207,7 @@ was applied on that reason alone.
 `skill-design.autonomy` also holds the test budget under `## test budget`, `$10 or 60 runs` when it sets none. Before any `test` run, whichever command starts it, run
 
 ```sh
-node <this skill's folder>/scripts/skill.mjs test <skill folder> --estimate --format json
+node <this skill's folder>/scripts/cyber-agentkit.mjs skill test <skill folder> --estimate --format json
 ```
 
 It makes no run, reads that budget, and prints `within`, `last`, and `line`. Write `line` on a line of its own,

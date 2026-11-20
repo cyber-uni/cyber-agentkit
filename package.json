@@ -13,7 +13,7 @@
 		"test:scripts": "node --test \"scripts/**/*.test.mjs\"",
 		"typecheck": "turbo typecheck",
 		"plugin:build": "universal-plugin plugin build --root packages/cyber-agentkit && biome format --write packages/cyber-agentkit",
-		"plugin:check": "node scripts/skill-scripts-drift.mjs",
+		"plugin:check": "universal-plugin plugin build --root packages/cyber-agentkit --check",
 		"plugin:sync": "universal-plugin publish sync-version --root packages/cyber-agentkit && node packages/cyber-agentkit/scripts/sync-skill-pin.mjs && pnpm plugin:build",
 		"up": "pnpm --filter ./packages/cyber-agentkit",
 		"verify": "turbo verify",
@@ -28,7 +28,7 @@
 		"@repobuddy/biome": "^2.3.1",
 		"husky": "^9.1.7",
 		"turbo": "^2.9.16",
-		"universal-plugin": "^0.22.0"
+		"universal-plugin": "^0.23.1"
 	},
 	"packageManager": "pnpm@12.21.0+sha512.66fd8278ee28935ce951792d34367ff3af5c432a2756445823029533835b8da529bbe0be5130afd56ed0713fb8789e47bad82d93bd5ae2fe54b15562d6276ef0",
 	"engines": {

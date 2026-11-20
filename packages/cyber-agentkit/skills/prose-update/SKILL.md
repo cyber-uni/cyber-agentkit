@@ -20,10 +20,10 @@ Read no file the caller did not name. If one of the three is missing, say which 
 ## Run
 
 ```sh
-node <this skill's folder>/scripts/prose-update.mjs classify --offered-from <file> --found-from <file> --history-from <file> --format json
+node <this skill's folder>/scripts/cyber-agentkit.mjs prose-update classify --offered-from <file> --found-from <file> --history-from <file> --format json
 ```
 
-Pass `--offered`, `--found`, or `--history` with the text itself instead of the `-from` form, and `--retired` (repeatable, newest first) in place of a history text. Each of the three takes one form, not both. If the script is missing or cannot run, use `pnpm exec cyber-agentkit prose-update` when the package is a direct dependency, else `npx -y cyber-agentkit@2.10.0 prose-update`, with the same arguments.
+Pass `--offered`, `--found`, or `--history` with the text itself instead of the `-from` form, and `--retired` (repeatable, newest first) in place of a history text. Each of the three takes one form, not both.
 
 An empty offered wording exits 1 with `error: empty-offered`. Report it and stop.
 
@@ -55,7 +55,7 @@ Return the recommended prose, then for each part its outcome, and for each sente
 
 ## Retire a wording
 
-When the tool ships a new wording, add the old one to the history: `node <this skill's folder>/scripts/prose-update.mjs retire --history-from <file> --wording-from <file> --date <date> --reason "<why>"` prints the new history text, with the new entry first. Save that text as the history file as printed, and only after the user approves; never add the entry by hand. Write new wordings so that they only add sentences after the old ones: such a revision merges without collision.
+When the tool ships a new wording, add the old one to the history: `node <this skill's folder>/scripts/cyber-agentkit.mjs prose-update retire --history-from <file> --wording-from <file> --date <date> --reason "<why>"` prints the new history text, with the new entry first. Save that text as the history file as printed, and only after the user approves; never add the entry by hand. Write new wordings so that they only add sentences after the old ones: such a revision merges without collision.
 
 ## Done when
 

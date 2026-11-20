@@ -13,7 +13,7 @@ Find the skill as [check](check.md) does.
 Run the command; it reads the results, so never write the tables by hand:
 
 ```sh
-node <this skill's folder>/scripts/skill.mjs report <skill folder>
+node <this skill's folder>/scripts/cyber-agentkit.mjs skill report <skill folder>
 ```
 
 It prints the Evals section as Markdown, starting at its `## Evals` heading: the summary line and cost, the gap over
