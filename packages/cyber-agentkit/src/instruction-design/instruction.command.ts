@@ -12,6 +12,7 @@ import { loadAspect } from '../skill-design/skill-aspects.js'
 import { type PromptfooRun, runPromptfoo } from '../skill-design/skill-test.js'
 import { skillTestHarness, skillTestHarnesses } from '../skill-design/skill-test-harness.js'
 import { plannedRuns } from '../skill-design/test-progress.js'
+import { notRunLine } from '../skill-design/test-result.js'
 import { defaultCasesPath, planCases, readCases } from './instruction-cases.js'
 import {
 	type CompareResult,
@@ -65,7 +66,7 @@ export function compareText(result: CompareResult, folder?: string): string {
 					`  ${arm} ${failure.case} run ${failure.run}: ${failure.output.split('\n').slice(0, 3).join(' ').slice(0, 200)}`,
 				)
 	}
-	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
+	for (const item of result.notRun) lines.push(notRunLine(item))
 	for (const item of result.blocked ?? [])
 		lines.push(
 			`blocked: ${item.case} run ${item.run} (${item.arm}) tried to ${item.what === 'network' ? 'reach' : item.what} ${item.target}`,

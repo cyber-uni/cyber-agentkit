@@ -6,6 +6,8 @@ import {
 	compareWithHistory,
 	compareWithPrevious,
 	limitReached,
+	notRunKind,
+	notRunLine,
 	readPromptfooOutput,
 	readReplies,
 	readRows,
@@ -135,7 +137,11 @@ describe('readPromptfooOutput', () => {
 		]
 		const result = readPromptfooOutput(output(rows), plan, meta)
 		expect(result.criteria[0]).toMatchObject({ id: 'C1', status: 'fail', passed: 1, ran: 1 })
-		expect(result.notRun).toContainEqual({ case: 'two-prs (with-skill, run 1)', reason: 'max turns reached' })
+		expect(result.notRun).toContainEqual({
+			case: 'two-prs (with-skill, run 1)',
+			reason: 'max turns reached',
+			kind: 'failed',
+		})
 		expect(result.trigger[0]).toMatchObject({ status: 'not-run', ran: 0 })
 	})
 
@@ -160,6 +166,28 @@ describe('readPromptfooOutput', () => {
 			baselineRan: false,
 		})
 		expect(result.criteria[0]).not.toHaveProperty('baseline')
+	})
+})
+
+describe('notRunKind (#327)', () => {
+	it('reads the kind a result records', () => {
+		expect(notRunKind({ case: 'post-it', reason: 'x', kind: 'skipped' })).toBe('skipped')
+		expect(notRunKind({ case: 'post-it', reason: 'x', kind: 'failed' })).toBe('failed')
+	})
+
+	it('reads an entry saved before the kind as a failure when it names a run, else as a skip', () => {
+		expect(notRunKind({ case: 'two-prs (with-skill, run 2)', reason: 'Not logged in' })).toBe('failed')
+		expect(notRunKind({ case: 'trigger-1 (baseline, run 1)', reason: 'time limit' })).toBe('failed')
+		expect(notRunKind({ case: 'post-to-github', reason: 'outside effect' })).toBe('skipped')
+	})
+
+	it('names the kind in the text line', () => {
+		expect(notRunLine({ case: 'post-it', reason: 'outside effect', kind: 'skipped' })).toBe(
+			'skipped: post-it — outside effect',
+		)
+		expect(notRunLine({ case: 'two-prs (with-skill, run 1)', reason: 'Not logged in', kind: 'failed' })).toBe(
+			'failed to run: two-prs (with-skill, run 1) — Not logged in',
+		)
 	})
 })
 
@@ -192,7 +220,11 @@ describe('shortReason (R137)', () => {
 			plan,
 			meta,
 		)
-		expect(result.notRun).toContainEqual({ case: 'two-prs (with-skill, run 1)', reason: 'Not logged in' })
+		expect(result.notRun).toContainEqual({
+			case: 'two-prs (with-skill, run 1)',
+			reason: 'Not logged in',
+			kind: 'failed',
+		})
 	})
 })
 
@@ -511,7 +543,11 @@ describe('sandbox failures (R154)', () => {
 	it('still counts a run that errored for a reason it cannot name as not run (R32)', () => {
 		const result = readPromptfooOutput(output([{ case: 'two-prs', run: 0, error: 'socket hang up' }]), plan, meta)
 		expect(result.sandboxFailures).toBeUndefined()
-		expect(result.notRun).toContainEqual({ case: 'two-prs (with-skill, run 1)', reason: 'socket hang up' })
+		expect(result.notRun).toContainEqual({
+			case: 'two-prs (with-skill, run 1)',
+			reason: 'socket hang up',
+			kind: 'failed',
+		})
 	})
 
 	it('leaves the fields out when no run was a sandbox failure', () => {
@@ -568,8 +604,8 @@ describe('setup script failures (R156)', () => {
 		expect(result.criteria[0]).toMatchObject({ id: 'C1', status: 'pass', passed: 1, ran: 1 })
 		expect(result.cases.find((item) => item.case === 'two-prs')).toMatchObject({ status: 'pass', passed: 1, ran: 1 })
 		expect(result.notRun).toEqual([
-			{ case: 'two-prs (with-skill, run 2)', reason: 'setup script failed: no such branch: main' },
-			{ case: 'two-prs (with-skill, run 3)', reason: 'setup script failed: no such branch: main' },
+			{ case: 'two-prs (with-skill, run 2)', reason: 'setup script failed: no such branch: main', kind: 'failed' },
+			{ case: 'two-prs (with-skill, run 3)', reason: 'setup script failed: no such branch: main', kind: 'failed' },
 		])
 	})
 

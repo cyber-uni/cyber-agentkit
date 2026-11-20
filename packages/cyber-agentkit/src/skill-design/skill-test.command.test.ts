@@ -448,6 +448,63 @@ describe('skill test', () => {
 				expect(report.notSavedAsExpected).toBe('not every trigger case and criterion passed: 2 not tested')
 			})
 
+			describe('a planned skip is no failure, a harness failure is (#327)', () => {
+				const outside = '  - { id: post-it, prompt: post the notes, effects: outside }\n'
+				const onlyOutside = `outcome:\n${outside}rubrics:\n  C1:\n    - contains: "## Release notes"\n  C2:\n    - not-regex: "x"\n`
+
+				it('exits 0 when every case is a planned skip, saves nothing as expected, and says so', async () => {
+					const skill = goodSkill({ 'evals/evals.yaml': onlyOutside })
+					const root = gitRepo()
+					expect(await test(skill.folder, fakeRun({}), root)).toBe(0)
+					expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+					const report = JSON.parse(printed())
+					expect(report).not.toHaveProperty('savedAsExpected')
+					expect(report.notSavedAsExpected).toBe('every case was skipped before running')
+					expect(report.notRun).toEqual([
+						{ case: 'post-it', reason: 'it has an outside effect the run cannot contain', kind: 'skipped' },
+					])
+				})
+
+				it('exits 0 when a planned skip sits beside passes, and does not save it as expected', async () => {
+					const skill = goodSkill({ 'evals/evals.yaml': goodEvals.replace('rubrics:', `${outside}rubrics:`) })
+					const root = gitRepo()
+					expect(await test(skill.folder, fakeRun({}), root)).toBe(0)
+					const report = JSON.parse(printed())
+					expect(report.criteria.every((item: { status: string }) => item.status === 'pass')).toBe(true)
+					expect(report.notRun).toEqual([expect.objectContaining({ case: 'post-it', kind: 'skipped' })])
+				})
+
+				it('exits 1 on one run that errored among passes, and names it a failure', async () => {
+					const skill = goodSkill()
+					const root = gitRepo()
+					const oneErrors: PromptfooRun = async (folder, config, out) => {
+						const ran = await fakeRun({})(folder, config, out)
+						if (!('output' in ran)) return ran
+						const rows = (ran.output as { results: { results: Record<string, any>[] } }).results.results
+						const row = rows.find(
+							(item) => item['testCase'].description === 'two-prs' && item['provider'].label === 'with-skill',
+						) as Record<string, any>
+						row['response'].error = unavailable
+						return ran
+					}
+					expect(await test(skill.folder, oneErrors, root)).toBe(1)
+					const report = JSON.parse(printed())
+					expect(report.criteria.some((item: { status: string }) => item.status === 'fail')).toBe(false)
+					expect(report.notRun).toEqual([{ case: 'two-prs (with-skill, run 1)', reason: unavailable, kind: 'failed' }])
+				})
+
+				it('reports which entries were skipped and which failed to run', async () => {
+					const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
+						createSkillCommand({ ...offline, runPromptfoo: erroring }),
+					)
+					const skill = goodSkill({ 'evals/evals.yaml': goodEvals.replace('rubrics:', `${outside}rubrics:`) })
+					await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', gitRepo()])
+					const lines = printed().split('\n')
+					expect(lines).toContain('skipped: post-it — it has an outside effect the run cannot contain')
+					expect(lines).toContain(`failed to run: two-prs (with-skill, run 1) — ${unavailable}`)
+				})
+			})
+
 			it('still saves a result where every trigger case and criterion passes', async () => {
 				const skill = goodSkill()
 				const root = gitRepo()
@@ -1191,6 +1248,7 @@ describe('skill test scripts from outside the repository (R158)', () => {
 		expect(report.notRun).toContainEqual({
 			case: 'two-prs',
 			reason: 'it runs a script from outside this repository; read it, then pass --trust-scripts',
+			kind: 'skipped',
 		})
 	})
 

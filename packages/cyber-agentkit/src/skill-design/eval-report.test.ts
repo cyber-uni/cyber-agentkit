@@ -74,7 +74,16 @@ describe('reportMarkdown', () => {
 		const text = md(result)
 		expect(text).toContain('| `two-prs` | pass |')
 		expect(text).not.toContain('| `trigger-1` |')
-		expect(text).toContain('Not run, and not counted as a pass: `trigger-2 (with-skill, run 1)` (time limit).')
+		expect(text).toContain('Failed to run, and not counted as a pass: `trigger-2 (with-skill, run 1)` (time limit).')
+	})
+
+	it('lists a planned skip apart from a run that failed (#327)', () => {
+		const text = md({
+			...result,
+			notRun: [...result.notRun, { case: 'post-it', reason: 'outside effect', kind: 'skipped' }],
+		})
+		expect(text).toContain('Skipped before running, and not counted as a pass: `post-it` (outside effect).')
+		expect(text).not.toContain('`post-it` (outside effect); ')
 	})
 
 	it('shows the cost in dollars with the run count, and not the duration', () => {

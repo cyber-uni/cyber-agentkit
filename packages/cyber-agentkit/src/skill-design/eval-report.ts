@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { type AttestationView, attestationsIn, skillFingerprint, viewAttestations } from './attestation.js'
 import { acceptedHistory, expectedPath } from './skill-test.js'
-import type { RatePoint, SandboxFailure, Status, TestResult } from './test-result.js'
-import { compareWithHistory } from './test-result.js'
+import type { NotRun, RatePoint, SandboxFailure, Status, TestResult } from './test-result.js'
+import { compareWithHistory, notRunKind } from './test-result.js'
 
 /** Where `skill test` is documented; the Markdown links it when it says how a result is saved. */
 export const defaultTestLink = 'https://cyber-uni.github.io/cyber-agentkit/packages/cyber-agentkit/skills/skill/'
@@ -67,7 +67,7 @@ export type EvalReport = {
 		baseline?: Count
 		result: string
 	}[]
-	notRun?: { case: string; reason: string }[]
+	notRun?: NotRun[]
 	/** The runs the test sandbox broke, in either arm; they count toward no pass rate. */
 	sandboxFailures?: SandboxFailure[]
 	/** The kept accepted results, oldest first, the expected one last; left out with fewer than two. */
@@ -369,11 +369,12 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 
 	out.push(...attestedMarkdown(report.attested))
 
-	if (report.notRun?.length)
-		out.push(
-			`Not run, and not counted as a pass: ${report.notRun.map((n) => `\`${n.case}\` (${n.reason})`).join('; ')}.`,
-			'',
-		)
+	const notRunOf = (kind: 'skipped' | 'failed') => (report.notRun ?? []).filter((n) => notRunKind(n) === kind)
+	const listed = (entries: NotRun[]) => entries.map((n) => `\`${n.case}\` (${n.reason})`).join('; ')
+	if (notRunOf('skipped').length)
+		out.push(`Skipped before running, and not counted as a pass: ${listed(notRunOf('skipped'))}.`, '')
+	if (notRunOf('failed').length)
+		out.push(`Failed to run, and not counted as a pass: ${listed(notRunOf('failed'))}.`, '')
 	if (report.sandboxFailures?.length) {
 		const arm = (f: SandboxFailure) => (f.arm === 'skill' ? 'with the skill' : 'without')
 		out.push(

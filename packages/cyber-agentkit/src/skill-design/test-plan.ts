@@ -54,8 +54,8 @@ export type TestPlan = {
 	criteria: string[]
 	/** Criteria reported as not tested before anything runs, with the reason. */
 	notTested: { id: string; reason: string }[]
-	/** Cases not run, with the reason. */
-	notRun: { case: string; reason: string }[]
+	/** Cases the plan leaves out before running, with the reason: every one a planned skip (#327). */
+	notRun: { case: string; reason: string; kind: 'skipped' }[]
 }
 
 export type PlanResult =
@@ -174,7 +174,7 @@ export function planEvals(
 	})
 	for (const item of evals.outcome ?? []) {
 		if (item.effects === 'outside') {
-			notRun.push({ case: item.id, reason: 'it has an outside effect the run cannot contain' })
+			notRun.push({ case: item.id, reason: 'it has an outside effect the run cannot contain', kind: 'skipped' })
 			continue
 		}
 		const ids = (item.criteria ?? criteria).filter((id) => criteria.includes(id) && !untested.has(id))
@@ -257,6 +257,6 @@ export function withoutScripts(plan: TestPlan, reason: string): TestPlan {
 	return {
 		...plan,
 		cases: plan.cases.filter((item) => !scripted.has(item.id)),
-		notRun: [...plan.notRun, ...[...scripted].map((id) => ({ case: id, reason }))],
+		notRun: [...plan.notRun, ...[...scripted].map((id) => ({ case: id, reason, kind: 'skipped' as const }))],
 	}
 }

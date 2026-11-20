@@ -10,6 +10,7 @@ import type { TestPlan } from '../skill-design/test-plan.js'
 import { type ProgressWatch, plannedRuns, watchProgress } from '../skill-design/test-progress.js'
 import {
 	type Failure,
+	type NotRun,
 	type Reply,
 	readPromptfooOutput,
 	readReplies,
@@ -63,7 +64,7 @@ export type CompareResult = {
 	winner: ArmLabel | 'tie' | 'none'
 	/** Criteria won by each arm, and tied. */
 	score: { A: number; B: number; tie: number }
-	notRun: { case: string; reason: string }[]
+	notRun: NotRun[]
 	blocked?: CompareBlocked[]
 	cost?: number
 	durationMs?: number

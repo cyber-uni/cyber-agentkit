@@ -101,7 +101,7 @@ describe('planTest', () => {
 		const planned = planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': evals }))
 		if (!('plan' in planned)) throw new Error(planned.problem)
 		expect(planned.plan.notRun).toEqual([
-			{ case: 'two-prs', reason: 'it has an outside effect the run cannot contain' },
+			{ case: 'two-prs', reason: 'it has an outside effect the run cannot contain', kind: 'skipped' },
 		])
 		expect(planned.plan.cases.some((item) => item.id === 'two-prs')).toBe(false)
 	})
@@ -171,8 +171,8 @@ describe('setup scripts in the plan (R155, R158)', () => {
 		const kept = withoutScripts(planned.plan, 'untrusted')
 		expect(kept.cases.filter((item) => item.kind === 'outcome')).toEqual([])
 		expect(kept.notRun).toEqual([
-			{ case: 'two-prs', reason: 'untrusted' },
-			{ case: 'plain', reason: 'untrusted' },
+			{ case: 'two-prs', reason: 'untrusted', kind: 'skipped' },
+			{ case: 'plain', reason: 'untrusted', kind: 'skipped' },
 		])
 	})
 
