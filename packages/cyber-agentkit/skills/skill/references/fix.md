@@ -21,8 +21,9 @@ that still fails, and never add one to make `test` pass.
 ## 3. Repair each one
 
 1. If the skill came from an installed plugin, say before the first edit that a plugin update will overwrite it.
-2. For each failure, apply its aspect's Fix: for Intent, Shape, and Trigger, the one under
-   [Core aspect fixes](#core-aspect-fixes); for any other aspect, the Fix in its reference. Change only the part the
+2. For each failure, apply its aspect's Fix: for Shape and Trigger, the one under
+   [Core aspect fixes](#core-aspect-fixes); for Intent, its Fix in `SKILL.md`; for any other aspect, the Fix in its
+   reference. Change only the part the
    failure named.
 3. A repair that needs the author's decision, such as a new Intent, stops the run as Autonomy says.
 4. At `apply-safe`, keep a repair only when the failed check now passes and no other check
@@ -32,10 +33,7 @@ that still fails, and never add one to make `test` pass.
 
 ### Core aspect fixes
 
-The Fix for each core aspect `SKILL.md` writes out. "Draft" names that aspect's Draft in `SKILL.md`.
-
-**Intent.** Changing the Intent is the author's decision: propose the change and ask, at every autonomy level. Removing
-a repeat or a stale reference under INT-3 is not a change to the Intent.
+The Fix for Shape and Trigger, the core aspects `SKILL.md` writes out. "Draft" names that aspect's Draft in `SKILL.md`.
 
 **Shape.** Move the text or the step as Draft says, and update the links. For SHP-1, offer the ways to trim in
 [SHP-1: ways to trim](#shp-1-ways-to-trim). For SHP-5, propose the reference and the interface the skill should depend

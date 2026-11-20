@@ -50,7 +50,7 @@ Each aspect lists its checks as `- **<ID>** [<how>] <statement>`; a warning chec
 `script`: a script decides it from the files alone; `read`: you decide it by reading the skill; `run`: only running
 the skill decides it ([test](references/test.md)). A check marked
 `warning` may wait; every other check is `critical`, and a failure of it must be fixed before a commit.
-The Fix for a failed check of Intent, Shape, or Trigger is in [fix](references/fix.md#core-aspect-fixes).
+The Fix for a failed check of Shape or Trigger is in [fix](references/fix.md#core-aspect-fixes).
 
 ### Intent
 
@@ -62,6 +62,9 @@ could confuse the two. It is for the people who keep the skill; `SKILL.md` carri
 - **INT-3** [read, warning] Nothing in the body works on a job the Intent does not name, says again what another part
   of the skill already says, or composes a skill, reference, or command that no longer exists or no longer does what
   the body expects.
+
+**Fix.** Changing the Intent is the author's decision: propose the change and ask, at every autonomy level. Removing a
+repeat or a stale reference under INT-3 is not a change to the Intent.
 
 ### Shape
 
@@ -190,7 +193,7 @@ node <this skill's folder>/scripts/cyber-agentkit.mjs skill test <skill folder> 
 ```
 
 It makes no run, reads that budget, and prints `within`, `last`, and `line`. Write `line` on a line of its own,
-exactly as printed, prefix included, such as `Test budget: over (24 runs, $4.32; budget $0.01 or 1 runs)`. When `within` is true, start `test` without asking. When it is false, stop.
+exactly as printed, prefix included. When `within` is true, start `test` without asking. When it is false, stop.
 
 ### Stops
 
