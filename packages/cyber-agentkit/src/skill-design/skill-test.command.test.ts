@@ -530,15 +530,19 @@ describe('skill test', () => {
 				return ran
 			}
 
-			it('does not save a passing first result as expected, and says it held it', async () => {
+			it('does not save a passing first result as expected, says it held it, and fails (#327)', async () => {
 				const skill = goodSkill()
 				const root = gitRepo()
-				expect(await test(skill.folder, breaking(), root)).toBe(0)
+				expect(await test(skill.folder, breaking(), root)).toBe(1)
 				expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
 				const report = JSON.parse(printed())
 				expect(report.expectedHeld).toBe(true)
 				expect(report).not.toHaveProperty('savedAsExpected')
 				expect(report.sandboxFailures.length).toBeGreaterThan(0)
+				expect(report.cases.find((item: { case: string }) => item.case === 'two-prs')).toMatchObject({
+					status: 'pass',
+					sandboxFailed: 1,
+				})
 			})
 
 			it('holds it back from --accept too, and accepts it by skill accept, with a warning', async () => {

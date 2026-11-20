@@ -473,7 +473,7 @@ function testCommand({
 	return command({
 		name: 'test',
 		description:
-			"Run a skill's evals (evals/evals.yaml) on promptfoo or `claude plugin eval`, several runs per case, each in a fresh folder, beside a run without the skill, and save the result. Makes model calls. Exits 1 when a case or criterion fails, a run errors, or the usage limit stops the test; a case the plan skips, such as one with an outside effect, is no failure.",
+			"Run a skill's evals (evals/evals.yaml) on promptfoo or `claude plugin eval`, several runs per case, each in a fresh folder, beside a run without the skill, and save the result. Makes model calls. Exits 1 when a case or criterion fails, a run errors or is a sandbox failure, or the usage limit stops the test; a case the plan skips, such as one with an outside effect, is no failure.",
 		arguments: [
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
 		],
@@ -844,11 +844,12 @@ function testCommand({
 			const failed = entries.some((item) => item.status === 'fail')
 			// A test in which no run finished is no pass (#322): every case not run.
 			const noneRan = saved.cases.length > 0 && saved.cases.every((item) => item.status === 'not-run')
-			// A planned skip is no failure, but a harness failure is (#327): a run that started and errored, or a test in
-			// which no run finished though the plan ran some case, as when the sandbox broke every run.
+			// A planned skip is no failure, but a harness failure is (#327): a run that started and errored, a run the
+			// sandbox broke (R154), even with the rest passing, or a test in which no run finished though the plan ran some case.
 			const skipped = new Set(saved.notRun.filter((item) => notRunKind(item) === 'skipped').map((item) => item.case))
 			const harnessFailed =
 				saved.notRun.some((item) => notRunKind(item) === 'failed') ||
+				!!saved.sandboxFailures?.length ||
 				(noneRan && saved.cases.some((item) => !skipped.has(item.case)))
 			const candidate = !failed && !saved.partial && !saved.incomplete && !readExpected(skill.folder)
 			// The first run that passes becomes the expected result when there is none (R80): at least one entry, and every
