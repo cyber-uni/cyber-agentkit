@@ -774,7 +774,7 @@ describe('skill test progress (UC6)', () => {
 			const root = gitRepo()
 			writeFileSync(
 				join(skill.folder, 'evals', 'expected.json'),
-				JSON.stringify({ cases: [], cost: 2, durationMs: 90_000 }),
+				JSON.stringify({ at: '2026-01-01T00:00:00.000Z', cases: [], cost: 2, durationMs: 90_000 }),
 			)
 			await testWith(skill.folder, fakeRun({}), root)
 			// an expected result saved before the run count was recorded: the count is unknown, never guessed

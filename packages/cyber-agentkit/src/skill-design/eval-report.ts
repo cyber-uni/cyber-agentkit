@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { type LiveView, livePasses, skillFingerprint, viewLivePasses } from './live-evidence.js'
 import { acceptedHistory, expectedPath } from './skill-test.js'
 import type { RatePoint, SandboxFailure, Status, TestResult } from './test-result.js'
 import { compareWithHistory } from './test-result.js'
@@ -11,8 +12,16 @@ export type Count = { passed: number; ran: number }
 /** A skill's accepted eval results, laid out for docs: `skill report` prints it as JSON, or as Markdown by `reportMarkdown`. */
 export type EvalReport = {
 	skill: string
-	/** False when the skill has no accepted result (`evals/expected.json`); every other field but `skill` is then left out. */
+	/**
+	 * False when the skill has no accepted run result in `evals/expected.json`; every other field but `skill` and `live`
+	 * is then left out.
+	 */
 	hasResult: boolean
+	/**
+	 * The passes the author recorded from the skill's real use instead of a run (#323), each with its evidence and no
+	 * pass rate; `stale` when the skill changed since it was recorded. Left out when there is none.
+	 */
+	live?: LiveView[]
 	at?: string
 	runs?: number
 	threshold?: number
@@ -126,9 +135,15 @@ function gapOf(result: TestResult): { with: Count; without: Count } | undefined 
 export function evalReport(
 	skill: string,
 	result: TestResult | undefined,
-	{ labels = {}, history = [] }: { labels?: Record<string, string>; history?: TestResult[] } = {},
+	{
+		labels = {},
+		history = [],
+		live = [],
+	}: { labels?: Record<string, string>; history?: TestResult[]; live?: LiveView[] } = {},
 ): EvalReport {
-	if (!result) return { skill, hasResult: false }
+	const liveOf = live.length ? { live } : {}
+	if (!result) return { skill, hasResult: false, ...liveOf }
+	const liveIn = (id: string) => live.find((entry) => entry.case === undefined && entry.id === id)
 	const brokenIn = new Map((result.cases ?? []).map((c) => [c.case, c.sandboxFailed]))
 	const report: EvalReport = {
 		skill,
@@ -138,6 +153,7 @@ export function evalReport(
 		threshold: result.threshold,
 		baseline: result.baseline,
 		baselineRan: result.baseline === 'without the skill',
+		...liveOf,
 	}
 	if (result.model) report.model = result.model
 	const caseModels = (result.cases ?? []).flatMap((c) => (c.model ? [{ case: c.case, model: c.model }] : []))
@@ -165,7 +181,8 @@ export function evalReport(
 	report.criteria = (result.criteria ?? [])
 		.map((c, i) => ({ c, i }))
 		.sort((a, b) => gapOfCriterion(b.c) - gapOfCriterion(a.c) || a.i - b.i)
-		.map(({ c }) => ({
+		.map(({ c }) => ({ c, seen: liveIn(c.id) }))
+		.map(({ c, seen }) => ({
 			id: c.id,
 			...(labels[c.id] ? { text: labels[c.id] } : {}),
 			status: c.status,
@@ -173,11 +190,13 @@ export function evalReport(
 			...(typeof c.passed === 'number' ? { with: { passed: c.passed, ran: c.ran ?? 0 } } : {}),
 			...(typeof c.passed === 'number' && c.baseline ? { without: c.baseline } : {}),
 			...(c.guard ? { guard: true as const } : {}),
-			result: c.guard
-				? guardText(c.status, { status: c.status, ...(c.baseline ? { baseline: c.baseline } : {}) }, result.threshold)
-				: typeof c.passed === 'number'
-					? c.status
-					: `${c.status}${c.reason ? `: ${c.reason}` : ''}`,
+			result: `${
+				c.guard
+					? guardText(c.status, { status: c.status, ...(c.baseline ? { baseline: c.baseline } : {}) }, result.threshold)
+					: typeof c.passed === 'number'
+						? c.status
+						: `${c.status}${c.reason ? `: ${c.reason}` : ''}`
+			}${seen ? `; verified live (${seen.evidence})${seen.stale ? ', skill changed since' : ''}` : ''}`,
 		}))
 
 	report.cases = (result.cases ?? [])
@@ -217,8 +236,13 @@ export function readEvalReport(skill: string, folder: string, labels: Record<str
 	} catch (error) {
 		throw new Error(`${path} is not valid JSON: ${(error as Error).message}`)
 	}
-	if (typeof result?.at !== 'string') throw new Error(`${path} is not a saved test result: it has no \`at\``)
-	return evalReport(skill, result, { labels, history: acceptedHistory(folder) })
+	const live = viewLivePasses(livePasses(result), skillFingerprint(folder))
+	// A file that holds only live passes (#323) has no run to report, only them.
+	if (typeof result?.at !== 'string') {
+		if (live.length) return evalReport(skill, undefined, { live })
+		throw new Error(`${path} is not a saved test result: it has no \`at\``)
+	}
+	return evalReport(skill, result, { labels, history: acceptedHistory(folder), live })
 }
 
 const cell = (text: unknown) =>
@@ -237,9 +261,10 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 	const out = ['## Evals', '']
 	if (!report.hasResult) {
 		out.push(
-			`This skill has no saved eval result yet. [\`skill test\`](${testLink}) saves one when its author accepts a run.`,
+			`This skill has no saved eval ${report.live ? 'run' : 'result'} yet. [\`skill test\`](${testLink}) saves one when its author accepts a run.`,
 			'',
 		)
+		out.push(...liveMarkdown(report.live))
 		return out.join('\n')
 	}
 	const runs = report.runs ?? 0
@@ -342,6 +367,8 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 			)
 	}
 
+	out.push(...liveMarkdown(report.live))
+
 	if (report.notRun?.length)
 		out.push(
 			`Not run, and not counted as a pass: ${report.notRun.map((n) => `\`${n.case}\` (${n.reason})`).join('; ')}.`,
@@ -362,4 +389,23 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 		'',
 	)
 	return out.join('\n')
+}
+
+/** The live passes' section (#323): where each was seen, never a pass rate, and a stale one says so. */
+function liveMarkdown(live: LiveView[] | undefined): string[] {
+	if (!live?.length) return []
+	const out = [
+		'### Verified live',
+		'',
+		"Passes the skill's author recorded from its real use, not from a run, so they carry no pass rate.",
+		'',
+		'| Criterion or case | Evidence | Recorded | Note |',
+		'| --- | --- | --- | --- |',
+	]
+	for (const entry of live)
+		out.push(
+			`| ${entry.case !== undefined ? `\`${cell(entry.case)}\`` : `**${cell(entry.id)}**`} | [verified live](${entry.evidence.replaceAll(')', '%29').replaceAll('|', '%7C')}) | ${entry.at.slice(0, 10)}${entry.by ? ` by ${cell(entry.by)}` : ''} | ${[entry.note ? cell(entry.note) : '', entry.stale ? 'skill changed since' : ''].filter(Boolean).join('; ') || '—'} |`,
+		)
+	out.push('')
+	return out
 }

@@ -14,6 +14,7 @@ describe('checkVerification', () => {
 			'pass',
 			'pass',
 			'pass',
+			'pass',
 		])
 	})
 

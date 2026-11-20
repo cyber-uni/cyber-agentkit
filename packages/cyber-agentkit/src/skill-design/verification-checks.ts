@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse } from 'yaml'
+import { readLivePasses, skillFingerprint } from './live-evidence.js'
 import { isNameOnly } from './name-only-skills.js'
 import type { CheckOutcome } from './skill-check-types.js'
 import { criteriaItems, type SkillFiles } from './skill-files.js'
@@ -230,9 +231,9 @@ export function gitWriteLines(script: string): string[] {
 	})
 }
 
-/** VER-1 to VER-5, VER-9, VER-11, VER-12, and VER-13, the default Verification aspect's script checks. */
+/** VER-1 to VER-5, VER-9, VER-11 to VER-13, and VER-15, the default Verification aspect's script checks. */
 export function checkVerification(skill: SkillFiles): CheckOutcome[] {
-	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9', 'VER-11', 'VER-12', 'VER-13']
+	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9', 'VER-11', 'VER-12', 'VER-13', 'VER-15']
 	const blocked = (message: string): CheckOutcome[] => [
 		{ id: 'VER-1', status: 'fail', message, file },
 		...later.map((id): CheckOutcome => ({ id, status: 'not-checked', message: 'VER-1 failed' })),
@@ -268,6 +269,9 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 	)
 
 	const items = criteriaItems(skill)
+	// A criterion the author recorded as passing in real use (#323) counts as covered; VER-15 warns that it has no rubric.
+	const live = readLivePasses(skill.folder)
+	const liveIds = new Set(live.flatMap((entry) => (entry.case === undefined ? [entry.id as string] : [])))
 	if (!items) outcomes.push({ id: 'VER-3', status: 'not-checked', message: 'the skill has no `## Done when`' })
 	else {
 		const ids = items.ids.filter((id): id is string => id !== undefined)
@@ -278,7 +282,7 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 			const testing = cases.filter((item) => (item.criteria ?? ids).includes(id))
 			return testing.length > 0 && testing.every((item) => item.checks && id in item.checks)
 		}
-		const without = ids.filter((id) => !covered(id))
+		const without = ids.filter((id) => !covered(id) && !liveIds.has(id))
 		const unknown = rubrics.filter((id) => !ids.includes(id))
 		const unknownChecks = [
 			...new Set(cases.flatMap((item) => Object.keys(item.checks ?? {})).filter((id) => !ids.includes(id))),
@@ -376,7 +380,7 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 	else {
 		const ids = items.ids.filter((id): id is string => id !== undefined)
 		const cases = evals.outcome ?? []
-		const unlisted = ids.filter((id) => !cases.some((item) => (item.criteria ?? ids).includes(id)))
+		const unlisted = ids.filter((id) => !liveIds.has(id) && !cases.some((item) => (item.criteria ?? ids).includes(id)))
 		outcomes.push(
 			unlisted.length
 				? {
@@ -386,6 +390,31 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 						file,
 					}
 				: { id: 'VER-13', status: 'pass' },
+		)
+	}
+
+	if (!live.length) outcomes.push({ id: 'VER-15', status: 'pass' })
+	else {
+		const ids = items ? items.ids.filter((id): id is string => id !== undefined) : []
+		const rubrics = Object.keys(evals.rubrics ?? {})
+		const cases = evals.outcome ?? []
+		const hasRubric = (id: string) =>
+			rubrics.includes(id) ||
+			cases.some((item) => (item.criteria ?? ids).includes(id) && item.checks && id in item.checks)
+		const fingerprint = skillFingerprint(skill.folder)
+		const liveOnly = [...liveIds].filter((id) => ids.includes(id) && !hasRubric(id))
+		const unknown = [...liveIds].filter((id) => !ids.includes(id))
+		const stale = live.filter((entry) => entry.skillFingerprint !== fingerprint)
+		const name = (entry: (typeof live)[number]) => (entry.case !== undefined ? `case ${entry.case}` : entry.id)
+		const message = [
+			...(liveOnly.length ? [`${liveOnly.join(', ')} verified live, no rubric`] : []),
+			...(unknown.length ? [`live pass for ${unknown.join(', ')} names no criterion`] : []),
+			...(stale.length ? [`live pass for ${stale.map(name).join(', ')} is stale: skill changed since`] : []),
+		].join('; ')
+		outcomes.push(
+			message
+				? { id: 'VER-15', status: 'fail', message, file: 'evals/expected.json' }
+				: { id: 'VER-15', status: 'pass' },
 		)
 	}
 	return outcomes

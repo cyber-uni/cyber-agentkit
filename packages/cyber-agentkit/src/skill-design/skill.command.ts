@@ -14,6 +14,15 @@ import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckRepor
 import { addCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
 import { doneWhenCriteria, type EvalReport, readEvalReport, reportMarkdown } from './eval-report.js'
 import {
+	type LivePass,
+	type LiveView,
+	liveTarget,
+	readLivePasses,
+	recordLivePass,
+	skillFingerprint,
+	viewLivePasses,
+} from './live-evidence.js'
+import {
 	type PluginEvalRun,
 	runPluginEval,
 	runPluginEvalTest,
@@ -27,9 +36,9 @@ import { checkSkill } from './skill-check.js'
 import { readSkill } from './skill-files.js'
 import {
 	acceptResult,
-	expectedPath,
 	lastResult,
 	type PromptfooRun,
+	readExpected,
 	readLatest,
 	resultsFolder,
 	runPromptfoo,
@@ -304,6 +313,49 @@ const sandboxOption = {
 	type: t.string().optional(),
 }
 
+/**
+ * The entries the first-pass rule reads (#322), with a `not-tested` one that has a current live pass (#323) counted as
+ * passed: a live pass is a skipped variant, not a failure. A stale one counts for nothing, and a run's own `fail` or
+ * `not-run` is never changed.
+ */
+function withLiveStatus(
+	entries: ({ case: string; status: string } | { id: string; status: string })[],
+	skillFolder: string,
+): { status: string }[] {
+	const live = viewLivePasses(readLivePasses(skillFolder), skillFingerprint(skillFolder)).filter((item) => !item.stale)
+	if (!live.length) return entries
+	return entries.map((item) => {
+		if (item.status !== 'not-tested') return item
+		const seen = live.some((entry) =>
+			'case' in item ? entry.case === item.case : entry.case === undefined && entry.id === item.id,
+		)
+		return seen ? { ...item, status: 'pass' } : item
+	})
+}
+
+/** A `test` report with the skill's live passes beside the run (#323), each marked stale when the skill changed since. */
+function withLive(result: TestResult, skillFolder: string): TestResult {
+	const live = readLivePasses(skillFolder)
+	return live.length ? { ...result, live: viewLivePasses(live, skillFingerprint(skillFolder)) } : result
+}
+
+/**
+ * A live pass's line in a `test` report (#323): where it was seen, never a pass rate. When this run fails the same
+ * criterion or case, the line says the run decides, so an older live pass hides no failure.
+ */
+export function liveLine(item: LiveView, result: Pick<TestResult, 'criteria' | 'cases'>): string {
+	const run =
+		item.case !== undefined
+			? result.cases.find((other) => other.case === item.case)?.status
+			: result.criteria.find((other) => other.id === item.id)?.status
+	const parts = [`live ${liveTarget(item)}: verified live (${item.evidence})`]
+	if (item.stale) parts.push(', stale: skill changed since')
+	if (item.note) parts.push(` — ${item.note}`)
+	parts.push(` (${item.by ? `by ${item.by}, ` : ''}${item.at.slice(0, 10)})`)
+	if (run === 'fail') parts.push('; this run fails it, and the run decides')
+	return parts.join('')
+}
+
 /** The text report; `folder` is where the result was saved, so the replies file is named in full. */
 function testText(result: TestResult, folder?: string): string {
 	const lines = [
@@ -354,6 +406,7 @@ function testText(result: TestResult, folder?: string): string {
 			)
 	}
 	for (const item of result.cases) if (item.guard) lines.push(guardLine(item, result.threshold))
+	for (const item of result.live ?? []) lines.push(liveLine(item, result))
 	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
 	if (result.sandbox)
 		lines.push(
@@ -783,11 +836,11 @@ function testCommand({
 				ran.replies,
 				'rows' in ran ? (ran.rows as Row[]) : undefined,
 			)
-			const entries = [...saved.trigger, ...saved.criteria]
+			const entries = withLiveStatus([...saved.trigger, ...saved.criteria], skill.folder)
 			const failed = entries.some((item) => item.status === 'fail')
 			// A test in which no run finished is no pass (#322): every case not run.
 			const noneRan = saved.cases.length > 0 && saved.cases.every((item) => item.status === 'not-run')
-			const candidate = !failed && !saved.partial && !saved.incomplete && !existsSync(expectedPath(skill.folder))
+			const candidate = !failed && !saved.partial && !saved.incomplete && !readExpected(skill.folder)
 			// The first run that passes becomes the expected result when there is none (R80): at least one entry, and every
 			// one `pass`, so a result of `not-run` or `not-tested` entries never does (#322); an incomplete one never does (R162).
 			const allPass = entries.length > 0 && entries.every((item) => item.status === 'pass')
@@ -796,13 +849,16 @@ function testCommand({
 			// A result with sandbox failures becomes the expected one only by `skill accept`, once the author has seen it (R154).
 			const held = (args.accept || firstPass) && !!saved.sandboxFailures?.length && !saved.incomplete
 			if ((args.accept || firstPass) && !held && !saved.incomplete) acceptResult(saved, skill.folder)
-			const reported: TestResult = held
-				? { ...saved, expectedHeld: true }
-				: !args.accept && firstPass
-					? { ...saved, savedAsExpected: true }
-					: !args.accept && notSaved
-						? { ...saved, notSavedAsExpected: notSaved }
-						: saved
+			const reported: TestResult = withLive(
+				held
+					? { ...saved, expectedHeld: true }
+					: !args.accept && firstPass
+						? { ...saved, savedAsExpected: true }
+						: !args.accept && notSaved
+							? { ...saved, notSavedAsExpected: notSaved }
+							: saved,
+				skill.folder,
+			)
 			const answer = result(reported, { render: { text: () => testText(reported, resultFolder) } })
 			if (failed || saved.incomplete || noneRan) answerThenFail(answer, this.format)
 			return answer
@@ -822,25 +878,116 @@ function notSavedReason(entries: { status: string }[], noneRan: boolean): string
 	return `not every trigger case and criterion passed: ${parts.join(', ')}`
 }
 
+/** Records a live pass for `skill accept --live` (#323); exits with a usage error on a target it cannot name. */
+function acceptLive(
+	skill: NonNullable<ReturnType<typeof readSkill>>,
+	name: string,
+	args: {
+		criterion?: string | undefined
+		case?: string | undefined
+		live: string
+		note?: string | undefined
+		by?: string | undefined
+	},
+) {
+	const usage = (code: string, message: string): never => {
+		process.stderr.write(`error: ${code}: ${message}\n`)
+		throw CliError.reported(exitCodes.usage)
+	}
+	if ((args.criterion === undefined) === (args.case === undefined))
+		usage('live-target', '--live needs one of --criterion or --case, the criterion or case that passed')
+	let url: URL | undefined
+	try {
+		url = new URL(args.live)
+	} catch {}
+	if (!url || !/^https?:$/.test(url.protocol))
+		usage('live-evidence', `--live takes the link to where it passed, an http or https URL; got ${args.live}`)
+	if (args.criterion !== undefined) {
+		const ids = Object.keys(doneWhenCriteria(skill.body))
+		if (!ids.includes(args.criterion))
+			usage(
+				'unknown-criterion',
+				`${args.criterion} is not a criterion of ${name}'s \`## Done when\`${ids.length ? `; it has ${ids.join(', ')}` : ''}`,
+			)
+	} else {
+		const plan = planTest(skill)
+		if ('problem' in plan) usage('unknown-case', `${name} has no case ${args.case}: ${plan.problem}`)
+		else {
+			const ids = [...plan.plan.cases.map((item) => item.id), ...plan.plan.notRun.map((item) => item.case)]
+			if (!ids.includes(args.case as string))
+				usage('unknown-case', `${args.case} is not a case of ${name}; it has ${ids.join(', ')}`)
+		}
+	}
+	const entry = {
+		...(args.case !== undefined ? { case: args.case } : { id: args.criterion as string }),
+		status: 'pass',
+		source: 'live',
+		evidence: args.live,
+		...(args.note ? { note: args.note } : {}),
+		...(args.by ? { by: args.by } : {}),
+		at: new Date().toISOString(),
+		skillFingerprint: skillFingerprint(skill.folder),
+	} as LivePass
+	let path: string
+	try {
+		path = recordLivePass(skill.folder, name, entry)
+	} catch (error) {
+		process.stderr.write(`error: result-unreadable: ${(error as Error).message}\n`)
+		throw CliError.reported(exitCodes.error)
+	}
+	return result(
+		{ skill: name, live: entry, expected: path },
+		{ render: { text: () => `recorded ${liveTarget(entry)} as verified live (${entry.evidence}) in ${path}\n` } },
+	)
+}
+
 function acceptCommand(_options: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'accept',
 		description:
-			"Write the skill's last saved test result to its `evals/expected.json` as the expected result, without running the test or spending anything. The expected result it replaces moves to `evals/accepted/`, which keeps the 3 newest. Fails when there is no saved result.",
+			"Write the skill's last saved test result to its `evals/expected.json` as the expected result, without running the test or spending anything. The expected result it replaces moves to `evals/accepted/`, which keeps the 3 newest. Fails when there is no saved result. With `--live` and `--criterion` or `--case`, record instead that the criterion or case passed where the link shows, in the skill's real use, not in a run; only the skill's author records one.",
 		arguments: [{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() }],
 		options: {
 			root: {
 				description: 'The repository root the result was saved under. Defaults to the nearest folder holding `.git`.',
 				type: t.string().optional(),
 			},
+			live: {
+				description:
+					'The link to where the criterion or case passed in real use, such as a merge request thread or pipeline. Records a live pass in `evals/expected.json` instead of accepting a run; needs `--criterion` or `--case`.',
+				type: t.string().optional(),
+			},
+			criterion: {
+				description: 'With `--live`: the `## Done when` criterion that passed, such as `C3`.',
+				type: t.string().optional(),
+			},
+			case: { description: 'With `--live`: the eval case that passed, by its ID.', type: t.string().optional() },
+			note: { description: 'With `--live`: what happened there, in a sentence.', type: t.string().optional() },
+			by: { description: 'With `--live`: who saw it pass.', type: t.string().optional() },
 		},
 		examples: [
 			{
 				command: 'cyber-agentkit skill accept .agents/skills/release-notes',
 				description: 'Keep the last saved result as the expected result',
 			},
+			{
+				command:
+					'cyber-agentkit skill accept .agents/skills/review-mr --criterion C3 --live https://gitlab.example.com/group/app/-/merge_requests/58#note_16308023 --note "held the design-question thread"',
+				description: 'Record that C3 passed on a real merge request',
+			},
 		],
-		async run(this: { format: Format }, args: { folder: string; root?: string | undefined }) {
+		async run(
+			this: { format: Format },
+			args: {
+				folder: string
+				root?: string | undefined
+				live?: string | undefined
+				criterion?: string | undefined
+				case?: string | undefined
+				note?: string | undefined
+				by?: string | undefined
+			},
+		) {
 			const skill = readSkill(args.folder)
 			if (!skill) {
 				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
@@ -848,6 +995,14 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 			}
 			const name =
 				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+			if (args.live !== undefined) return acceptLive(skill, name, { ...args, live: args.live })
+			const stray = (['criterion', 'case', 'note', 'by'] as const).filter((key) => args[key] !== undefined)
+			if (stray.length) {
+				process.stderr.write(
+					`error: live-missing: ${stray.map((key) => `--${key}`).join(', ')} only goes with --live, the link to where it passed\n`,
+				)
+				throw CliError.reported(exitCodes.usage)
+			}
 			const latest = readLatest(resultsFolder(resultsBase(args.root, homedir()), name))
 			if (!latest) {
 				process.stderr.write(`error: no-result: no saved test result for ${name}; run \`skill test\` first\n`)
