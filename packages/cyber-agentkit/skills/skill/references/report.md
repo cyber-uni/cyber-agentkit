@@ -26,6 +26,9 @@ A criterion or case the author attested as passing in real use (see [attest](att
 link, beside the criterion and in an `### Attested` section, never as a pass rate, and a stale one says `stale: skill
 changed since`.
 
+A case or criterion marked known to fail (see [fails](fails.md)) shows as `known failure (<reason>)`, never as a pass
+rate, and in a `### Known failures` section.
+
 When it prints `This skill has no saved eval result yet`, say so plainly, and point to `test`; write nothing.
 
 ## 3. Put it where the author asked

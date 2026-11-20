@@ -35,4 +35,4 @@ keeps the list. A second attestation of the same target replaces the first.
 
 ## Report
 
-Say what was attested, the link, and the file written. Recording a failure seen in real use is not supported yet.
+Say what was attested, the link, and the file written. A failure seen in real use is not attested: write a case that reproduces it, and mark it with [fails](fails.md).
