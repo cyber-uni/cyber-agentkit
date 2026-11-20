@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { type LiveView, livePasses, skillFingerprint, viewLivePasses } from './live-evidence.js'
+import { type AttestationView, attestationsIn, skillFingerprint, viewAttestations } from './attestation.js'
 import { acceptedHistory, expectedPath } from './skill-test.js'
 import type { RatePoint, SandboxFailure, Status, TestResult } from './test-result.js'
 import { compareWithHistory } from './test-result.js'
@@ -13,7 +13,7 @@ export type Count = { passed: number; ran: number }
 export type EvalReport = {
 	skill: string
 	/**
-	 * False when the skill has no accepted run result in `evals/expected.json`; every other field but `skill` and `live`
+	 * False when the skill has no accepted run result in `evals/expected.json`; every other field but `skill` and `attested`
 	 * is then left out.
 	 */
 	hasResult: boolean
@@ -21,7 +21,7 @@ export type EvalReport = {
 	 * The passes the author recorded from the skill's real use instead of a run (#323), each with its evidence and no
 	 * pass rate; `stale` when the skill changed since it was recorded. Left out when there is none.
 	 */
-	live?: LiveView[]
+	attested?: AttestationView[]
 	at?: string
 	runs?: number
 	threshold?: number
@@ -138,12 +138,12 @@ export function evalReport(
 	{
 		labels = {},
 		history = [],
-		live = [],
-	}: { labels?: Record<string, string>; history?: TestResult[]; live?: LiveView[] } = {},
+		attested = [],
+	}: { labels?: Record<string, string>; history?: TestResult[]; attested?: AttestationView[] } = {},
 ): EvalReport {
-	const liveOf = live.length ? { live } : {}
-	if (!result) return { skill, hasResult: false, ...liveOf }
-	const liveIn = (id: string) => live.find((entry) => entry.case === undefined && entry.id === id)
+	const attestedOf = attested.length ? { attested } : {}
+	if (!result) return { skill, hasResult: false, ...attestedOf }
+	const attestedIn = (id: string) => attested.find((entry) => entry.case === undefined && entry.id === id)
 	const brokenIn = new Map((result.cases ?? []).map((c) => [c.case, c.sandboxFailed]))
 	const report: EvalReport = {
 		skill,
@@ -153,7 +153,7 @@ export function evalReport(
 		threshold: result.threshold,
 		baseline: result.baseline,
 		baselineRan: result.baseline === 'without the skill',
-		...liveOf,
+		...attestedOf,
 	}
 	if (result.model) report.model = result.model
 	const caseModels = (result.cases ?? []).flatMap((c) => (c.model ? [{ case: c.case, model: c.model }] : []))
@@ -181,7 +181,7 @@ export function evalReport(
 	report.criteria = (result.criteria ?? [])
 		.map((c, i) => ({ c, i }))
 		.sort((a, b) => gapOfCriterion(b.c) - gapOfCriterion(a.c) || a.i - b.i)
-		.map(({ c }) => ({ c, seen: liveIn(c.id) }))
+		.map(({ c }) => ({ c, seen: attestedIn(c.id) }))
 		.map(({ c, seen }) => ({
 			id: c.id,
 			...(labels[c.id] ? { text: labels[c.id] } : {}),
@@ -196,7 +196,7 @@ export function evalReport(
 					: typeof c.passed === 'number'
 						? c.status
 						: `${c.status}${c.reason ? `: ${c.reason}` : ''}`
-			}${seen ? `; verified live (${seen.evidence})${seen.stale ? ', skill changed since' : ''}` : ''}`,
+			}${seen ? `; attested${seen.stale ? ', stale: skill changed since' : ''} (${seen.evidence})` : ''}`,
 		}))
 
 	report.cases = (result.cases ?? [])
@@ -236,13 +236,13 @@ export function readEvalReport(skill: string, folder: string, labels: Record<str
 	} catch (error) {
 		throw new Error(`${path} is not valid JSON: ${(error as Error).message}`)
 	}
-	const live = viewLivePasses(livePasses(result), skillFingerprint(folder))
-	// A file that holds only live passes (#323) has no run to report, only them.
+	const attested = viewAttestations(attestationsIn(result), skillFingerprint(folder))
+	// A file that holds only attested passes (#323) has no run to report, only them.
 	if (typeof result?.at !== 'string') {
-		if (live.length) return evalReport(skill, undefined, { live })
+		if (attested.length) return evalReport(skill, undefined, { attested })
 		throw new Error(`${path} is not a saved test result: it has no \`at\``)
 	}
-	return evalReport(skill, result, { labels, history: acceptedHistory(folder), live })
+	return evalReport(skill, result, { labels, history: acceptedHistory(folder), attested })
 }
 
 const cell = (text: unknown) =>
@@ -261,10 +261,10 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 	const out = ['## Evals', '']
 	if (!report.hasResult) {
 		out.push(
-			`This skill has no saved eval ${report.live ? 'run' : 'result'} yet. [\`skill test\`](${testLink}) saves one when its author accepts a run.`,
+			`This skill has no saved eval ${report.attested ? 'run' : 'result'} yet. [\`skill test\`](${testLink}) saves one when its author accepts a run.`,
 			'',
 		)
-		out.push(...liveMarkdown(report.live))
+		out.push(...attestedMarkdown(report.attested))
 		return out.join('\n')
 	}
 	const runs = report.runs ?? 0
@@ -367,7 +367,7 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 			)
 	}
 
-	out.push(...liveMarkdown(report.live))
+	out.push(...attestedMarkdown(report.attested))
 
 	if (report.notRun?.length)
 		out.push(
@@ -391,20 +391,20 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 	return out.join('\n')
 }
 
-/** The live passes' section (#323): where each was seen, never a pass rate, and a stale one says so. */
-function liveMarkdown(live: LiveView[] | undefined): string[] {
-	if (!live?.length) return []
+/** The attested passes' section (#323): where each was seen, never a pass rate, and a stale one says so. */
+function attestedMarkdown(attested: AttestationView[] | undefined): string[] {
+	if (!attested?.length) return []
 	const out = [
-		'### Verified live',
+		'### Attested',
 		'',
-		"Passes the skill's author recorded from its real use, not from a run, so they carry no pass rate.",
+		"Passes the skill's author attested from its real use, not from a run, so they carry no pass rate.",
 		'',
 		'| Criterion or case | Evidence | Recorded | Note |',
 		'| --- | --- | --- | --- |',
 	]
-	for (const entry of live)
+	for (const entry of attested)
 		out.push(
-			`| ${entry.case !== undefined ? `\`${cell(entry.case)}\`` : `**${cell(entry.id)}**`} | [verified live](${entry.evidence.replaceAll(')', '%29').replaceAll('|', '%7C')}) | ${entry.at.slice(0, 10)}${entry.by ? ` by ${cell(entry.by)}` : ''} | ${[entry.note ? cell(entry.note) : '', entry.stale ? 'skill changed since' : ''].filter(Boolean).join('; ') || '—'} |`,
+			`| ${entry.case !== undefined ? `\`${cell(entry.case)}\`` : `**${cell(entry.id)}**`} | [attested](${entry.evidence.replaceAll(')', '%29').replaceAll('|', '%7C')}) | ${entry.at.slice(0, 10)}${entry.by ? ` by ${cell(entry.by)}` : ''} | ${[entry.note ? cell(entry.note) : '', entry.stale ? 'stale: skill changed since' : ''].filter(Boolean).join('; ') || '—'} |`,
 		)
 	out.push('')
 	return out

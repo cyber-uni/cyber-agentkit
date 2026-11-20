@@ -13,7 +13,7 @@ import {
 import { tmpdir } from 'node:os'
 import { basename, join, relative } from 'node:path'
 import { stringify } from 'yaml'
-import { readLivePasses } from './live-evidence.js'
+import { readAttestations } from './attestation.js'
 import { checkPluginsLoad, type DependencySources, type PluginList, resolveDependencyPlugins } from './plugin-load.js'
 import { promptfooConfig, promptfooPackages } from './promptfoo-config.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
@@ -313,7 +313,7 @@ export function expectedPath(skillFolder: string): string {
 }
 
 /**
- * The run result in the skill's `evals/expected.json`. A file that holds only live passes (#323), or that cannot be
+ * The run result in the skill's `evals/expected.json`. A file that holds only attested passes (#323), or that cannot be
  * read, holds none.
  */
 export function readExpected(skillFolder: string): TestResult | undefined {
@@ -456,14 +456,14 @@ export function acceptResult(result: TestResult, skillFolder: string): string {
 	const path = expectedPath(skillFolder)
 	mkdirSync(join(skillFolder, 'evals'), { recursive: true })
 	const replaced = existsSync(path) ? readResult(path) : undefined
-	// The live passes the author recorded (#323) outlive the run they were recorded beside.
-	const live = readLivePasses(skillFolder)
+	// The passes the author attested (#323) outlive the run they were recorded beside.
+	const attested = readAttestations(skillFolder)
 	if (replaced && replaced.at !== result.at) {
 		mkdirSync(acceptedFolder(skillFolder), { recursive: true })
 		renameSync(path, join(acceptedFolder(skillFolder), `${stem(replaced.at)}.json`))
 	}
-	const { folder: _folder, replies: _replies, evalId: _evalId, live: _live, ...shared } = result
-	writeFileSync(path, `${JSON.stringify(live.length ? { ...shared, live } : shared, null, '\t')}\n`)
+	const { folder: _folder, replies: _replies, evalId: _evalId, attested: _attested, ...shared } = result
+	writeFileSync(path, `${JSON.stringify(attested.length ? { ...shared, attested } : shared, null, '\t')}\n`)
 	pruneAccepted(skillFolder)
 	return path
 }

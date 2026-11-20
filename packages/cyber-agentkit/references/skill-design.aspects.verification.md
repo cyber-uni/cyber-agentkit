@@ -130,10 +130,10 @@ outcome:
 A criterion counts as having a rubric (VER-3) when it has `rubrics.<ID>` or when every outcome case that tests it has
 `checks.<ID>`. An ID in `checks` that is not a Criteria ID fails VER-3.
 
-A criterion that a run cannot judge cheaply, such as one that needs a real merge request, can rest on a live pass
-instead: `skill accept <folder> --criterion <ID> --live <url>` records that it passed where the link shows, in the
-skill's real use. It counts as covered for VER-3 and VER-13, and VER-15 warns that it has no rubric. Only the skill's
-author records a live pass, when they ask for one; an agent never records one on its own judgment.
+A criterion that a run cannot judge cheaply, such as one that needs a real merge request, can rest on an attested
+pass instead: `skill attest <folder> <ID> <url>` records that it passed where the link shows, in the skill's real use.
+It counts as covered for VER-3 and VER-13, and VER-15 warns that it has no rubric. Only the skill's author attests a
+pass, when they ask for one; an agent never records one on its own judgment.
 
 ## Run
 
@@ -289,8 +289,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   no `criteria` lists them all.
 - **VER-14** [read, warning] No `judge` check decides a criterion that names something in the files, the git state, or
   a reply line the prompt can require; a `script` or `regex` would decide it.
-- **VER-15** [script, warning] No criterion rests on a live pass alone, every live pass in `evals/expected.json` names a
-  Criteria ID, and none is stale: each was recorded on the skill's current `SKILL.md` and `references/`.
+- **VER-15** [script, warning] No criterion rests on an attested pass alone, every attested pass in
+  `evals/expected.json` names a Criteria ID, and none is stale: each was recorded on the skill's current `SKILL.md` and `references/`.
 
 ## Fix
 
@@ -309,8 +309,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 - VER-13: list the criterion in the `criteria` of an outcome case that tests it, or add a case for it with
   `skill case add ... --criteria`.
 - VER-14: replace the `judge` with a `script` or `regex` on the files, the git state, or the reply line.
-- VER-15: a criterion verified live with no rubric may stay so when a run cannot judge it cheaply; otherwise give it a
-  rubric. For a stale live pass, ask the author to check the changed skill in real use again and record the new
+- VER-15: an attested criterion with no rubric may stay so when a run cannot judge it cheaply; otherwise give it a
+  rubric. For a stale attested pass, ask the author to check the changed skill in real use again and record the new
   evidence; never record it for them.
 
 ## Enhance
