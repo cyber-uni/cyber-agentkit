@@ -1,5 +1,11 @@
 # cyber-agentkit
 
+## 2.11.1
+
+### Patch Changes
+
+- 0a070a7: `reference defaults` and the skill audit now read a load line whose reference name contains a dot, such as `project-tracker.levels`. A dotted name no longer goes unread, so its bundled `<name>.default.md` is no longer reported as an orphan, and an interface with a dotted id gets its copy.
+
 ## 2.11.0
 
 ### Minor Changes
