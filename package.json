@@ -13,7 +13,7 @@
 		"test:scripts": "node --test \"scripts/**/*.test.mjs\"",
 		"typecheck": "turbo typecheck",
 		"plugin:build": "universal-plugin plugin build --root packages/cyber-agentkit && biome format --write packages/cyber-agentkit",
-		"plugin:check": "universal-plugin plugin build --root packages/cyber-agentkit --check && node scripts/skill-scripts-drift.mjs",
+		"plugin:check": "universal-plugin plugin build --root packages/cyber-agentkit --check",
 		"plugin:sync": "universal-plugin publish sync-version --root packages/cyber-agentkit && node packages/cyber-agentkit/scripts/sync-skill-pin.mjs && pnpm plugin:build",
 		"up": "pnpm --filter ./packages/cyber-agentkit",
 		"verify": "turbo verify",

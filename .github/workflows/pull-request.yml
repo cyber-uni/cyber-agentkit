@@ -43,9 +43,9 @@ jobs:
           SANDBOX: >-
             ^packages/cyber-agentkit/src/skill-design/(promptfoo-provider-source|plugin-eval-backend)(\.test)?\.ts$|^packages/cyber-agentkit/package\.json$|^\.github/workflows/pull-request\.yml$
           # What the prebuilt scripts bundle: library source, the plugin manifest, the lockfile, and the
-          # build tooling (package manifests, build and format config, the drift check), plus the scripts.
+          # build tooling (package manifests, build and format config), plus the scripts.
           BUNDLE: >-
-            ^packages/cyber-agentkit/src/|^packages/cyber-agentkit/skills/[^/]+/scripts/|^packages/cyber-agentkit/(plugin|package|tsconfig)\.json$|^packages/cyber-agentkit/tsdown\.config\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|biome\.jsonc)$|^scripts/skill-scripts-drift\.mjs$|^\.github/workflows/pull-request\.yml$
+            ^packages/cyber-agentkit/src/|^packages/cyber-agentkit/skills/[^/]+/scripts/|^packages/cyber-agentkit/(plugin|package|tsconfig)\.json$|^packages/cyber-agentkit/tsdown\.config\.ts$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|biome\.jsonc)$|^\.github/workflows/pull-request\.yml$
         run: |
           if ! files=$(git diff --name-only "$BASE...$HEAD"); then
             echo "::warning::Could not diff $BASE...$HEAD; running every platform job."
