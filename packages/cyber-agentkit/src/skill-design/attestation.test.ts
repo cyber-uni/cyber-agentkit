@@ -188,6 +188,24 @@ describe('skill attest (#323)', () => {
 		expect(existsSync(join(folder, 'evals', 'accepted'))).toBe(false) // an attested-only file is no past run
 	})
 
+	it('exits 0 when the only case is a planned skip covered by an attested pass (#327)', async () => {
+		const { folder } = goodSkill({
+			'evals/evals.yaml': `outcome:
+  - { id: post-it, prompt: post the notes, effects: outside }
+rubrics:
+  C1:
+    - contains: "## Release notes"
+`,
+		})
+		const root = gitRepo()
+		expect(await skill(['attest', folder, 'post-it', url])).toBe(0)
+		expect(await skill(['test', folder, '--root', root])).toBe(0)
+		const report = JSON.parse(printed().slice(printed().lastIndexOf('{"version"')))
+		expect(report.notRun).toEqual([expect.objectContaining({ case: 'post-it', kind: 'skipped' })])
+		expect(report.attested).toEqual([expect.objectContaining({ case: 'post-it' })])
+		expect(report).not.toHaveProperty('savedAsExpected')
+	})
+
 	it('does not count a stale attested pass toward saving the first run (#322)', async () => {
 		const { folder } = noRubricForC2()
 		const root = gitRepo()

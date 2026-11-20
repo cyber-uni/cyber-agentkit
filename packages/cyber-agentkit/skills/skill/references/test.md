@@ -91,7 +91,7 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
     { "case": "two-prs", "status": "fail", "passed": 1, "ran": 3 },
     { "case": "fix-flawed", "status": "pass", "passed": 2, "ran": 2, "sandboxFailed": 1 }
   ],
-  "notRun": [{ "case": "post-to-github", "reason": "outside effect" }],
+  "notRun": [{ "case": "post-to-github", "reason": "outside effect", "kind": "skipped" }],
   "blocked": [{ "case": "two-prs", "arm": "skill", "run": 1, "what": "network", "target": "api.github.com" }],
   "sandboxFailures": [
     {
@@ -121,8 +121,12 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
 }
 ```
 
-`status` is `pass`, `fail`, `not-tested` (with a `reason`), or `not-run` (with a `reason`). A run that errors or hits a
-limit is in `notRun` and never counts as a pass. A run whose setup script failed is in `notRun` with the reason
+`status` is `pass`, `fail`, `not-tested` (with a `reason`), or `not-run` (with a `reason`). Each `notRun` entry has a
+`kind`. `skipped` is a planned skip: a case the plan left out before running, such as one with an outside effect or one
+whose scripts were not trusted to run. `failed` is a harness failure: a run that started and errored, its `case` naming
+the run, as `two-prs (with-skill, run 1)`. The text report starts each line with `skipped:` or `failed to run:`. Results
+saved before `kind` was recorded lack it; an entry whose `case` names a run is a failure, any other a skip. A run that
+errors or hits a limit is in `notRun` and never counts as a pass. A run whose setup script failed is in `notRun` with the reason
 `setup script failed: …`, its reply's `error` holds the script's whole output, and it counts toward no pass rate; it
 is the case's setup that broke, not the skill, so offer to fix the script, not the skill. A `notRun` reason is one
 short line, the error without the Agent SDK's
@@ -186,7 +190,11 @@ as the expected one and its report carries `savedAsExpected: true`: tell the aut
 saves none. Nor does one with no trigger case or criterion, or with any that is `not-run` or `not-tested`: its report
 carries `notSavedAsExpected` with the reason, such as `no run finished` or
 `not every trigger case and criterion passed: 2 not tested`; tell the author, and offer `skill accept` if they want it
-kept anyway. A test in which no run finished, every case `not-run`, fails like a test with a fail. A result with sandbox failures is saved as expected by neither that rule nor `--accept`: the report carries
+kept anyway; a result whose every case was a planned skip says `every case was skipped before running`. `skill test`
+exits 1 on a fail, on an incomplete result, and on a harness failure: a `failed` entry in `notRun`, a sandbox failure
+even when the other runs pass, or no run finished though the plan ran some case. A result held for sandbox failures
+still reports the pass rates of its finished runs. A planned skip, a `not-tested` criterion, and an attested pass exit 0: they never count as
+a pass, but they are no failure. A result with sandbox failures is saved as expected by neither that rule nor `--accept`: the report carries
 `expectedHeld: true`, and only `skill accept <folder>`, run after the author has seen it, saves it. Otherwise only the author's request makes a result the expected result, and nothing else writes into the skill's
 folder. `skill test <folder> --accept` runs the test as usual, then writes that result to `<skill folder>/evals/expected.json`,
 in the same shape as `latest.json` but without `folder`, `replies`, or `evalId`, since the file is committed and those name

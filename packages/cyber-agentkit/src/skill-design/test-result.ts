@@ -70,6 +70,27 @@ export type SandboxFailure = {
 	text: string
 }
 
+/**
+ * A case or run left out of the pass rates (#327). `kind` is `skipped` for a case the test plan left out before running
+ * (an outside effect, a `--case` filter, scripts not trusted to run) and `failed` for a run that started and errored,
+ * such as the model being unavailable or a setup script failing. Results saved before it was recorded lack it; read it
+ * with `notRunKind`.
+ */
+export type NotRun = { case: string; reason: string; kind?: 'skipped' | 'failed' }
+
+/**
+ * Whether a not-run entry was a planned skip or a harness failure (#327). An entry saved before `kind` was recorded is a
+ * failure when its case names a run, as `two-prs (with-skill, run 2)`, the way only a run that errored was ever named.
+ */
+export function notRunKind(entry: NotRun): 'skipped' | 'failed' {
+	return entry.kind ?? (/ \([^()]*, run \d+\)$/.test(entry.case) ? 'failed' : 'skipped')
+}
+
+/** A not-run entry's line in a text report (#327): `skipped:` for a planned skip, `failed to run:` for a harness failure. */
+export function notRunLine(entry: NotRun): string {
+	return `${notRunKind(entry) === 'skipped' ? 'skipped' : 'failed to run'}: ${entry.case} — ${entry.reason}`
+}
+
 /** One run of a case in one arm: what a result has left when it is incomplete (R162). */
 export type RunSlot = { case: string; arm: 'skill' | 'baseline'; run: number }
 
@@ -132,7 +153,7 @@ export type TestResult = {
 	cases: CaseStatus[]
 	/** Set when only the named cases ran (R102): the result covers them alone, is compared for them alone, and is never the expected result. */
 	partial?: { cases: string[] }
-	notRun: { case: string; reason: string }[]
+	notRun: NotRun[]
 	/** What the runs' containment refused (R107): a read or write outside the run's folder, or a host the case does not list. */
 	blocked?: Blocked[]
 	/** The runs, in either arm, that the test sandbox broke (R154); they count toward no pass rate. Left out when none was. */
@@ -340,7 +361,7 @@ export function readPromptfooOutput(
 	const other = meta.arms?.other ?? 'baseline'
 	const byCase = (id: string, label: string) =>
 		rows.filter((row) => row.testCase?.description === id && row.provider?.label === label)
-	const notRun = [...plan.notRun]
+	const notRun: NotRun[] = [...plan.notRun]
 	const sandboxFailures: SandboxFailure[] = []
 	const left: RunSlot[] = []
 	let limit: { text: string; resets?: string } | undefined
@@ -368,6 +389,7 @@ export function readPromptfooOutput(
 			notRun.push({
 				case: `${row.testCase?.description ?? '?'} (${row.provider?.label ?? '?'}, run ${(row.repeatIndex ?? 0) + 1})`,
 				reason: shortReason(error),
+				kind: 'failed',
 			})
 	}
 	// A run that errored, that the sandbox broke, or that the usage limit ended, never counts toward a pass rate (R32,

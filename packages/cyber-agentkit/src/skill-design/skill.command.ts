@@ -59,6 +59,7 @@ import { defaultTestBudget, estimateTest, estimateText, parseTestBudget } from '
 import { planScripts, planTest, withoutScripts } from './test-plan.js'
 import { planLine } from './test-progress.js'
 import type { CaseStatus, Incomplete, ResumeOptions, Row, TestResult } from './test-result.js'
+import { notRunKind, notRunLine } from './test-result.js'
 import {
 	defaultTemplate,
 	resolveTestSandbox,
@@ -410,7 +411,7 @@ function testText(result: TestResult, folder?: string): string {
 	}
 	for (const item of result.cases) if (item.guard) lines.push(guardLine(item, result.threshold))
 	for (const item of result.attested ?? []) lines.push(attestedLine(item, result))
-	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
+	for (const item of result.notRun) lines.push(notRunLine(item))
 	if (result.sandbox)
 		lines.push(
 			`sandbox: ${result.sandbox} — ${{ none: 'no sandbox around shell commands or scripts', 'shell-only': 'setup scripts and script checks ran without the script sandbox', 'scripts-only': 'shell commands ran without the OS sandbox' }[result.sandbox]}`,
@@ -472,7 +473,7 @@ function testCommand({
 	return command({
 		name: 'test',
 		description:
-			"Run a skill's evals (evals/evals.yaml) on promptfoo or `claude plugin eval`, several runs per case, each in a fresh folder, beside a run without the skill, and save the result. Makes model calls. Exits 1 when a case or criterion fails.",
+			"Run a skill's evals (evals/evals.yaml) on promptfoo or `claude plugin eval`, several runs per case, each in a fresh folder, beside a run without the skill, and save the result. Makes model calls. Exits 1 when a case or criterion fails, a run errors or is a sandbox failure, or the usage limit stops the test; a case the plan skips, such as one with an outside effect, is no failure.",
 		arguments: [
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
 		],
@@ -843,12 +844,19 @@ function testCommand({
 			const failed = entries.some((item) => item.status === 'fail')
 			// A test in which no run finished is no pass (#322): every case not run.
 			const noneRan = saved.cases.length > 0 && saved.cases.every((item) => item.status === 'not-run')
+			// A planned skip is no failure, but a harness failure is (#327): a run that started and errored, a run the
+			// sandbox broke (R154), even with the rest passing, or a test in which no run finished though the plan ran some case.
+			const skipped = new Set(saved.notRun.filter((item) => notRunKind(item) === 'skipped').map((item) => item.case))
+			const harnessFailed =
+				saved.notRun.some((item) => notRunKind(item) === 'failed') ||
+				!!saved.sandboxFailures?.length ||
+				(noneRan && saved.cases.some((item) => !skipped.has(item.case)))
 			const candidate = !failed && !saved.partial && !saved.incomplete && !readExpected(skill.folder)
 			// The first run that passes becomes the expected result when there is none (R80): at least one entry, and every
 			// one `pass`, so a result of `not-run` or `not-tested` entries never does (#322); an incomplete one never does (R162).
 			const allPass = entries.length > 0 && entries.every((item) => item.status === 'pass')
 			const firstPass = candidate && allPass
-			const notSaved = candidate && !allPass ? notSavedReason(entries, noneRan) : undefined
+			const notSaved = candidate && !allPass ? notSavedReason(entries, noneRan, noneRan && !harnessFailed) : undefined
 			// A result with sandbox failures becomes the expected one only by `skill accept`, once the author has seen it (R154).
 			const held = (args.accept || firstPass) && !!saved.sandboxFailures?.length && !saved.incomplete
 			if ((args.accept || firstPass) && !held && !saved.incomplete) acceptResult(saved, skill.folder)
@@ -863,15 +871,15 @@ function testCommand({
 				skill.folder,
 			)
 			const answer = result(reported, { render: { text: () => testText(reported, resultFolder) } })
-			if (failed || saved.incomplete || noneRan) answerThenFail(answer, this.format)
+			if (failed || saved.incomplete || harnessFailed) answerThenFail(answer, this.format)
 			return answer
 		},
 	})
 }
 
 /** Why a first result with no fail is still not saved as the expected one (#322). */
-function notSavedReason(entries: { status: string }[], noneRan: boolean): string {
-	if (noneRan) return 'no run finished'
+function notSavedReason(entries: { status: string }[], noneRan: boolean, planned: boolean): string {
+	if (noneRan) return planned ? 'every case was skipped before running' : 'no run finished'
 	if (entries.length === 0) return 'it has no trigger case or criterion'
 	const count = (status: string) => entries.filter((item) => item.status === status).length
 	const parts = [
