@@ -31,6 +31,9 @@ To decide SHP-5 and SHP-6, run the `reference` skill's `audit <skill folder>` (i
 pattern leads with their lines and the references the skill loads with no default. A lead is a candidate, not a failure:
 SHP-5 fails only for a choice you judge another team would make differently. Changes nothing.
 
+To decide SHP-3, go through each step of the body: a step that filters, sorts, groups, counts, or formats data by
+fixed rules fails it, however short, unless it runs a script that does that work.
+
 To decide SHP-19, find each line where the body reads a file named `<name>.default.md` from a `references/` folder. A
 read is fine only as the fallback for a command that cannot run; a read the body makes by default, with the `reference`
 skill as the way to load it, fails SHP-19 and names the line.
