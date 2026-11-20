@@ -153,6 +153,32 @@ describe('bundleSkill: an interface the skill loads', () => {
 	})
 })
 
+describe('bundleSkill: dotted names', () => {
+	const load = [
+		'Load `project-tracker.levels` with the `reference` skill of `cyber-agentkit`.',
+		'Load the implementations of the `project-tracker.capabilities` interface with the `reference` skill of `cyber-agentkit`.',
+		'',
+	].join('\n')
+
+	it('treats the copies of dotted names as current, not orphans, and finds the interface copy', () => {
+		const folder = plugin('project-tracker.levels', '## Levels\n', load)
+		put(join(root, 'references', 'project-tracker.capabilities.interface.md'), '## Capabilities\n')
+		put(join(folder, 'references/project-tracker.levels.default.md'), '## Levels\n')
+		put(join(folder, 'references/project-tracker.capabilities.interface.default.md'), '## Capabilities\n')
+		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: false })
+
+		expect(report.entries).toEqual([
+			{
+				name: 'project-tracker.capabilities.interface',
+				state: 'current',
+				file: 'references/project-tracker.capabilities.interface.default.md',
+			},
+			{ name: 'project-tracker.levels', state: 'current', file: 'references/project-tracker.levels.default.md' },
+		])
+		expect(report.ok).toBe(true)
+	})
+})
+
 describe('pluginRootOf', () => {
 	it('finds the nearest folder above a skill that carries a plugin manifest', () => {
 		plugin('bug-title', '## Title\n')
