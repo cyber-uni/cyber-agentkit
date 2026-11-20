@@ -344,9 +344,11 @@ rubrics:
   C13:
     - regex: "[Aa]utonomy:\\W{0,4}(ask|apply-safe|apply)\\b"
   C14:
+    # A test run saves latest.json under the results folder. `skill case try` keeps a try/ folder there, but starts no
+    # test run, so the folder alone is no sign of one.
     - script: >-
         f=$(ls .agents/skills/*/SKILL.md) && test -n "$f" && grep -q '^## Done when' $f
-        && test ! -e .agents/skill-design/results
+        && test -z "$(find .agents/skill-design/results -name latest.json 2>/dev/null)"
     # The budget line in any case or markup, such as `Test budget: over` or **`test` budget:** over.
     - regex: "[Tt]est\\W{0,4}[Bb]udget\\W{0,6}over\\b"
     - regex: "\\b\\d+ runs\\b"

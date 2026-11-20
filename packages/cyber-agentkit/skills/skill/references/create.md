@@ -18,7 +18,9 @@ author, that applies at `ask`; at `apply` or `apply-safe`, the report shows it i
 
 Load the aspects as `SKILL.md` says. For each of Intent, Research, Criteria, Shape, and Trigger, in that order:
 
-1. Draft the aspect as its Draft says, from the description and the aspects written before it. Research's Draft
+1. Draft the aspect as its Draft says, from the description and the aspects written before it. Intent's Draft: write
+   the paragraph in four sentences or fewer, and ask the author when the job could be read two ways, and when the
+   result is not named. Research's Draft
    researches the drafted Intent, and may change it: redraft the Intent from its recommendation before Criteria, and
    when Research stops to ask whether to adopt or extend an existing skill, write no `SKILL.md` before the answer.
    On adopt, create nothing: `vet` the skill and report it.

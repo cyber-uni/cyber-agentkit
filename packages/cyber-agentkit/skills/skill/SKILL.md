@@ -18,7 +18,7 @@ Route the request to one command, load that command's file from this skill's fol
 | `check [skill]` | the author wants to know whether a skill as written meets each aspect, without running it | [check.md](references/check.md) |
 | `test [skill]` | the author wants the skill's evals run: does it fire on the right requests, and does its result meet its Criteria | [test.md](references/test.md) |
 | `fix [skill]` | `check` or `test` found failures to repair | [fix.md](references/fix.md) |
-| `update [skill] [change]` | other work edits an existing skill (a request, an issue, a bug): make the change, add cases, then `check` and `test` it | [update.md](references/update.md) |
+| `update [skill] [change]` | other work edits an existing skill: a request, an issue, a bug | [update.md](references/update.md) |
 | `enhance [skill] [prompt]` | the skill passes `check`, and the author wants it better, from its use or their own request | [enhance.md](references/enhance.md) |
 | `vet <source>` | the author wants a third-party skill vetted before installing it: its Security checks, an install verdict, and who publishes it | [vet.md](references/vet.md) |
 | `attest [skill] <criterion or case> <link>` | the author saw a criterion or case pass in the skill's real use and names the link, for a check a run cannot judge cheaply | [attest.md](references/attest.md) |
@@ -37,8 +37,7 @@ When other work adds a skill, such as implementing an issue, follow `create`. Wh
 
 An aspect is one step of designing a skill: what it receives, what it produces, and the checks on its output. The
 core aspects, in the order `create` walks them, are Intent, Criteria, Shape, Trigger, then Verification. Every other
-aspect is open: `check`, `fix`, and `enhance` use it, and `create` does not walk it, except Research, which `create`
-runs after the Intent draft and before Criteria.
+aspect is open: `check`, `fix`, and `enhance` use it, and of them `create` walks only Research.
 
 Intent, Shape, and Trigger are written below. Criteria, Verification, and every open aspect are references a team can
 swap. Load `skill-design.aspects.criteria` and `skill-design.aspects.verification` with the `reference` skill of
@@ -49,18 +48,15 @@ When a load reports a chosen implementation missing, tell the author which aspec
 
 Each aspect lists its checks as `- **<ID>** [<how>] <statement>`; a warning check adds `, warning` after `<how>`.
 `script`: a script decides it from the files alone; `read`: you decide it by reading the skill; `run`: only running
-the skill decides it, so `check` reports it as not checked and points to `test`. A check marked
+the skill decides it ([test](references/test.md)). A check marked
 `warning` may wait; every other check is `critical`, and a failure of it must be fixed before a commit.
+The Fix for a failed check of Shape or Trigger is in [fix](references/fix.md#core-aspect-fixes).
 
 ### Intent
 
 Produces the opening paragraph of the skill's `README.md`, right under its `#` title: the one job the skill does, who
 asks for it, and the result it hands back. It may also name the nearest job it does not do, when readers
 could confuse the two. It is for the people who keep the skill; `SKILL.md` carries no Intent paragraph.
-
-**Draft.** From the author's description, write the
-paragraph in four sentences or fewer. Ask the author when the job could be read two ways, and when the result is
-not named.
 
 - **INT-1** [read, warning] The opening paragraph of `README.md` names one job and the result the skill hands back.
 - **INT-3** [read, warning] Nothing in the body works on a job the Intent does not name, says again what another part
@@ -76,7 +72,7 @@ Produces the skill's folder layout: what stays in `SKILL.md`, and what moves to 
 
 **Draft.** Keep everything in `SKILL.md` while its body stays under 500 lines. Move to `references/` text read only on
 some paths, such as one command's steps, and link each file from the step that needs it. Move to `scripts/` any step a
-program does the same way every time, such as parsing or validating a file. At `ask`, propose the layout to the author.
+program does the same way every time, such as parsing or validating a file.
 
 - **SHP-1** [script, warning] The `SKILL.md` body is at most 500 lines and about 5,000 tokens, at four characters a
   token.
@@ -119,16 +115,6 @@ program does the same way every time, such as parsing or validating a file. At `
   that skill, and reads the reference's bundled `<name>.default.md` directly only as the fallback for when the command
   cannot run.
 
-**Fix.** Move the text or the step as Draft says, and update the links. For SHP-1, offer the ways to trim in
-[fix](references/fix.md#shp-1-ways-to-trim). For SHP-5, propose the reference and the
-interface the skill should depend on, and the author decides each move. Apply an approved one with the `reference` skill: Create the default, then
-Wire a skill. For SHP-6, ship the default. For SHP-7 to SHP-11, move the file or folder the check names, and update
-what links or names it. For SHP-12, write the body as steps or sections. For SHP-13, make the script print what the
-step needs, and point the step at that. For SHP-14, add the flag. For SHP-15 and SHP-16, delete the text. For SHP-17, keep
-as the default the option most runs need, and name the condition under which the step does otherwise. For SHP-18, move
-the prose to stderr or behind `--verbose`. For SHP-19, make the step load the reference through the `reference` skill,
-and keep the default only as the fallback; `fix` and `enhance` never replace a reference load with a direct read.
-
 ### Trigger
 
 Produces the `description` in the skill's front matter, and the near misses Verification turns into `skip` cases.
@@ -162,12 +148,6 @@ does not apply as skipped.
 - **TRG-10** [script, warning] The description's first sentence is at most 100 characters and opens with what the
   skill does, not a lead-in.
 
-**Fix.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result. For TRG-5 and
-TRG-6, set the description to exactly `By name only` and move what it said to the body or `README.md`. For TRG-7, name
-the job and the words users type for it. For TRG-8, change whichever of the description and the body is out of date. For
-TRG-9, add an `argument-hint` that lists what the user types, such as `"<command> [skill]"`. For TRG-10, rewrite
-the first sentence as Draft says.
-
 ## Run the command
 
 ```sh
@@ -200,20 +180,20 @@ exactly `Autonomy: <level> (<source>: <reason>)`, even when the run stops or cha
 
 A level set for `check` or `test` does nothing: say so.
 
-At `apply`, `fix` and `enhance` undo a change after which `check` fails. Report each decision made for the author,
+Report each decision made for the author,
 such as a name or a place: what was chosen, why, and whether `check` and `test` showed it safe or it
 was applied on that reason alone.
 
 ### Test budget
 
-`skill-design.autonomy` also holds the test budget under `## test budget`, `$10 or 60 runs` when it sets none. Before any `test` run, whichever command starts it, run
+`skill-design.autonomy` also sets the test budget, `$10 or 60 runs` by default. Before any `test` run, whichever command starts it, run
 
 ```sh
 node <this skill's folder>/scripts/cyber-agentkit.mjs skill test <skill folder> --estimate --format json
 ```
 
 It makes no run, reads that budget, and prints `within`, `last`, and `line`. Write `line` on a line of its own,
-exactly as printed, prefix included, such as `Test budget: over (24 runs, $4.32; budget $0.01 or 1 runs)`. When `within` is true, start `test` without asking. When it is false, stop.
+exactly as printed, prefix included. When `within` is true, start `test` without asking. When it is false, stop.
 
 ### Stops
 
