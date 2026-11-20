@@ -193,8 +193,9 @@ carries `notSavedAsExpected` with the reason, such as `no run finished` or
 kept anyway; a result whose every case was a planned skip says `every case was skipped before running`. `skill test`
 exits 1 on a fail, on an incomplete result, and on a harness failure: a `failed` entry in `notRun`, a sandbox failure
 even when the other runs pass, or no run finished though the plan ran some case. A result held for sandbox failures
-still reports the pass rates of its finished runs. A planned skip, a `not-tested` criterion, and an attested pass exit 0: they never count as
-a pass, but they are no failure. A result with sandbox failures is saved as expected by neither that rule nor `--accept`: the report carries
+still reports the pass rates of its finished runs. A planned skip, a `not-tested` criterion, an attested pass, and a known failure exit 0: they never count as
+a pass, but they are no failure. A mark the run passed (`fixed?`) exits 1, and a result with a known failure is never
+saved as the first expected result. A result with sandbox failures is saved as expected by neither that rule nor `--accept`: the report carries
 `expectedHeld: true`, and only `skill accept <folder>`, run after the author has seen it, saves it. Otherwise only the author's request makes a result the expected result, and nothing else writes into the skill's
 folder. `skill test <folder> --accept` runs the test as usual, then writes that result to `<skill folder>/evals/expected.json`,
 in the same shape as `latest.json` but without `folder`, `replies`, or `evalId`, since the file is committed and those name
@@ -206,6 +207,13 @@ Accepting a result moves the expected result it replaces to `<skill folder>/eval
 the same run, and keeps the 3 newest there, deleting older ones. Commit them with `expected.json`: together they are the
 history `moved` compares across. A skill with only `expected.json` needs no step: it is the newest entry, and the
 history grows from the next accept.
+
+### A known failure
+
+A case or criterion marked known to fail ([fails](fails.md)) is judged at the same threshold as a pass. Report each
+`known failure (<reason>)` apart from the passes and failures, and offer no `fix` for it unless the author asks. On
+`fixed? remove the mark`, ask the author whether to clear it, and clear it with `skill fails <folder> <case>
+[<criterion>] --clear` only on yes.
 
 ### Attest a pass
 

@@ -20,7 +20,10 @@ its `references/`, `scripts/`, `assets/`, or `evals/`, or a reference the skill 
 2. When the change adds or alters a behavior, add a trigger or outcome case for it with `skill case add`, and a
    criterion under `## Done when` with a rubric when the result changes. Removing or weakening a criterion is the
    author's decision: stop as `SKILL.md`'s Autonomy says.
-3. When a built or generated file depends on what was edited (a compiled script, a generated manifest), rebuild it as
+3. When the author reports a failure seen in the skill's real use, write a case that reproduces it, and offer to mark it
+   known to fail with the author's reason ([fails](fails.md)), so it stays red until the skill is fixed. Mark it only
+   on yes.
+4. When a built or generated file depends on what was edited (a compiled script, a generated manifest), rebuild it as
    the repository's instructions say.
 
 ## 3. Check, then test

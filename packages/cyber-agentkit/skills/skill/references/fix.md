@@ -14,6 +14,10 @@ Use the latest `check` or `test` result in this session, or the saved `test` res
 and decide each `read` check it lists as not checked, by its ID, as its step 3 says, before the first repair: the
 failures are every `script` and `read` check that failed. Run [test](test.md) only when the author asks, within the test budget as `SKILL.md`'s Autonomy says. With no failures, say there is nothing to fix and change nothing.
 
+A criterion or trigger case marked known to fail ([fails](fails.md)) is a failure to repair when the author names it
+as the target. Once `test` reports it `fixed?`, offer to clear the mark, and clear it only on yes; never clear one
+that still fails, and never add one to make `test` pass.
+
 ## 3. Repair each one
 
 1. If the skill came from an installed plugin, say before the first edit that a plugin update will overwrite it.

@@ -26,7 +26,11 @@ export type EvalsFile = {
 	/** Runs at once, never above the bound `skill test` sets from the hardware threads; optional. */
 	concurrency?: number
 	/** A trigger case; `model`, a tier (`small`, `mid`, `top`) or a model ID, wins over the test's model (R161). */
-	trigger?: { prompt: string; expect: 'fire' | 'skip'; model?: string }[]
+	/**
+	 * A trigger case; `model`, a tier (`small`, `mid`, `top`) or a model ID, wins over the test's model (R161). `fails`
+	 * marks it known to fail, with the reason (#329).
+	 */
+	trigger?: { prompt: string; expect: 'fire' | 'skip'; model?: string; fails?: string }[]
 	outcome?: {
 		id: string
 		prompt: string
@@ -45,6 +49,8 @@ export type EvalsFile = {
 		 */
 		guard?: boolean
 		checks?: Record<string, Record<string, unknown>[]>
+		/** The criteria of the case known to fail, each with the reason (#329), as `it.fails` marks a test. */
+		fails?: Record<string, string>
 	}[]
 	rubrics?: Record<string, Record<string, unknown>[]>
 }
@@ -65,6 +71,49 @@ function checkListProblems(list: unknown, what: string): string[] {
 		if (keys.length !== 1 || !(rubricChecks as readonly string[]).includes(keys[0] as string))
 			problems.push(`${what} has a check that is not one of ${rubricChecks.join(', ')}`)
 	}
+	return problems
+}
+
+const isReason = (value: unknown) => typeof value === 'string' && value.trim() !== ''
+
+/**
+ * The problems with the known-failure marks (#329) of an `evals/evals.yaml` value: a mark with no reason, and a criterion
+ * a case marks but does not list in its `criteria`. A case with no `criteria` tests every criterion, so its marks are
+ * checked against `criteria`, the skill's criterion IDs, when given, and not checked otherwise.
+ */
+export function failsProblems(value: unknown, criteria?: string[]): string[] {
+	if (!isRecord(value)) return []
+	const problems: string[] = []
+	const trigger = value['trigger']
+	if (Array.isArray(trigger))
+		trigger.forEach((item, index) => {
+			if (isRecord(item) && 'fails' in item && !isReason(item['fails']))
+				problems.push(
+					`trigger case ${index + 1}: \`fails\` needs the reason it is known to fail, such as a sentence or a link, not ${JSON.stringify(item['fails'])}`,
+				)
+		})
+	const outcome = value['outcome']
+	if (Array.isArray(outcome))
+		outcome.forEach((item, index) => {
+			if (!isRecord(item) || !('fails' in item)) return
+			const where = `outcome case ${typeof item['id'] === 'string' ? item['id'] : index + 1}`
+			const fails = item['fails']
+			if (!isRecord(fails) || !Object.keys(fails).length) {
+				problems.push(
+					`${where}: \`fails\` is not a mapping of the criteria known to fail, each to its reason, such as \`C3: "<reason>"\``,
+				)
+				return
+			}
+			const listed = Array.isArray(item['criteria']) ? (item['criteria'] as unknown[]) : criteria
+			for (const [id, reason] of Object.entries(fails)) {
+				if (!isReason(reason))
+					problems.push(
+						`${where}: \`fails\` ${id} needs the reason it is known to fail, such as a sentence or a link, not ${JSON.stringify(reason)}`,
+					)
+				if (listed && !listed.includes(id))
+					problems.push(`${where}: \`fails\` marks ${id}, which is not one of the criteria the case tests`)
+			}
+		})
 	return problems
 }
 
@@ -140,6 +189,7 @@ export function evalsProblems(value: unknown): string[] {
 		if (!isRecord(rubrics)) problems.push('`rubrics` is not a mapping of criterion IDs')
 		else for (const [id, list] of Object.entries(rubrics)) problems.push(...checkListProblems(list, `rubric ${id}`))
 	}
+	problems.push(...failsProblems(value))
 	return problems
 }
 
@@ -231,9 +281,21 @@ export function gitWriteLines(script: string): string[] {
 	})
 }
 
-/** VER-1 to VER-5, VER-9, VER-11 to VER-13, and VER-15, the default Verification aspect's script checks. */
+/** Every known-failure mark (#329) of an `evals/evals.yaml` value: a trigger case's as `trigger-<n>`, with no criterion. */
+export function knownFailureMarks(evals: EvalsFile): { case: string; criterion?: string; reason: string }[] {
+	return [
+		...(evals.trigger ?? []).flatMap((item, index) =>
+			typeof item.fails === 'string' ? [{ case: `trigger-${index + 1}`, reason: item.fails }] : [],
+		),
+		...(evals.outcome ?? []).flatMap((item) =>
+			Object.entries(item.fails ?? {}).map(([criterion, reason]) => ({ case: item.id, criterion, reason })),
+		),
+	]
+}
+
+/** VER-1 to VER-5, VER-9, VER-11 to VER-13, VER-15, and VER-16, the default Verification aspect's script checks. */
 export function checkVerification(skill: SkillFiles): CheckOutcome[] {
-	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9', 'VER-11', 'VER-12', 'VER-13', 'VER-15']
+	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9', 'VER-11', 'VER-12', 'VER-13', 'VER-15', 'VER-16']
 	const blocked = (message: string): CheckOutcome[] => [
 		{ id: 'VER-1', status: 'fail', message, file },
 		...later.map((id): CheckOutcome => ({ id, status: 'not-checked', message: 'VER-1 failed' })),
@@ -246,7 +308,19 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 	} catch (error) {
 		return blocked(`it is not valid YAML: ${(error as Error).message.split('\n')[0]}`)
 	}
-	const problems = evalsProblems(value)
+	const items = criteriaItems(skill)
+	// A mark on a case with no `criteria` names one of the skill's criteria (#329).
+	const problems = [
+		...new Set([
+			...evalsProblems(value),
+			...(items
+				? failsProblems(
+						value,
+						items.ids.filter((id): id is string => id !== undefined),
+					)
+				: []),
+		]),
+	]
 	if (problems.length) return blocked(problems.join('; '))
 	const evals = value as EvalsFile
 	const outcomes: CheckOutcome[] = [{ id: 'VER-1', status: 'pass' }]
@@ -268,7 +342,6 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 				},
 	)
 
-	const items = criteriaItems(skill)
 	// A criterion the author attested as passing in real use (#323) counts as covered; VER-15 warns that it has no rubric.
 	const attested = readAttestations(skill.folder)
 	const attestedIds = new Set(attested.flatMap((entry) => (entry.case === undefined ? [entry.id as string] : [])))
@@ -419,5 +492,20 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 				: { id: 'VER-15', status: 'pass' },
 		)
 	}
+
+	// Each known failure stays named until it is fixed and its mark cleared (#329).
+	const known = knownFailureMarks(evals)
+	outcomes.push(
+		known.length
+			? {
+					id: 'VER-16',
+					status: 'fail',
+					message: `${known.length === 1 ? '1 mark' : `${known.length} marks`} of a known failure: ${known
+						.map((mark) => `${mark.case}${mark.criterion ? ` ${mark.criterion}` : ''} (${mark.reason})`)
+						.join('; ')}`,
+					file,
+				}
+			: { id: 'VER-16', status: 'pass' },
+	)
 	return outcomes
 }

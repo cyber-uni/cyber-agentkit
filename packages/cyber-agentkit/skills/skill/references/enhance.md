@@ -26,7 +26,9 @@ Review the skill against every aspect, core and open, using each aspect's Enhanc
 each suggestion give the change, the aspect it touches, the reason, and the evidence it came from. Leave out any change
 the skill already has, and any the author declined before for this skill.
 
-- A trigger miss becomes a new trigger case; a wrong result becomes a new outcome case.
+- A trigger miss becomes a new trigger case; a wrong result becomes a new outcome case. For a failure the author
+  reports from real use that the suggestion does not fix, offer to mark its case known to fail with their reason
+  ([fails](fails.md)), so it stays red until the skill is fixed; mark it only on yes.
 - A change to a core aspect reopens every core aspect after it.
 
 ## 4. Apply

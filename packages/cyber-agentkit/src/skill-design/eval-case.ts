@@ -52,8 +52,10 @@ function strictlyInside(root: string, path: string): boolean {
 	return from !== '' && !from.startsWith('..') && !isAbsolute(from)
 }
 
-function readEvals(
+/** Reads a skill's `evals/evals.yaml` as text and as a document, or why it cannot be edited. */
+export function readEvals(
 	skillFolder: string,
+	problemsOf: (value: unknown) => string[] = evalsProblems,
 ):
 	| { file: string; source: string; doc: ReturnType<typeof parseDocument> }
 	| { problem: { code: 'evals-invalid'; problem: string } } {
@@ -68,16 +70,16 @@ function readEvals(
 			},
 		}
 	const value = doc.toJS() ?? {}
-	const problems = evalsProblems(value)
+	const problems = problemsOf(value)
 	if (problems.length)
 		return { problem: { code: 'evals-invalid' as const, problem: `evals/evals.yaml: ${problems.join('; ')}` } }
 	return { file, source, doc }
 }
 
 /** Where the line holding `offset` starts. */
-const lineStart = (source: string, offset: number) => source.lastIndexOf('\n', offset - 1) + 1
+export const lineStart = (source: string, offset: number) => source.lastIndexOf('\n', offset - 1) + 1
 /** Where the line after the one `offset` ends on starts: `offset` itself when it already starts a line. */
-const nextLine = (source: string, offset: number) => {
+export const nextLine = (source: string, offset: number) => {
 	if (offset === 0 || source[offset - 1] === '\n') return offset
 	const end = source.indexOf('\n', offset)
 	return end < 0 ? source.length : end + 1
@@ -111,7 +113,7 @@ function entryText(entry: Record<string, unknown>, column: number): string {
  * it, or undefined when the edit cannot be placed in the text. `expected` is the value the edit must leave; text that
  * reads back as anything else is not used.
  */
-function inPlace(expected: unknown, edited: string | undefined): string | undefined {
+export function inPlace(expected: unknown, edited: string | undefined): string | undefined {
 	if (edited === undefined) return undefined
 	const read = parseDocument(edited)
 	return !read.errors.length && JSON.stringify(read.toJS()) === JSON.stringify(expected) ? edited : undefined

@@ -76,6 +76,9 @@ trigger:
     expect: fire
   - prompt: summarize this pull request for a reviewer
     expect: skip
+  - prompt: draft the changelog for v2
+    expect: fire
+    fails: "the description misses 'changelog' (#340)"  # optional; known to fail, with the reason
 outcome:
   - id: two-prs
     prompt: write release notes for the changes in this folder
@@ -89,6 +92,8 @@ outcome:
     checks:                   # optional; per-case checks that replace rubrics.<ID> for this case
       C2:
         - contains: "no merge commits"
+    fails:                    # optional; the criteria known to fail, each with the reason
+      C2: "keeps the merge commits of a squashed branch (#341)"
 rubrics:
   C1:
     - contains: "## Release notes"
@@ -134,6 +139,19 @@ A criterion that a run cannot judge cheaply, such as one that needs a real merge
 pass instead: `skill attest <folder> <ID> <url>` records that it passed where the link shows, in the skill's real use.
 It counts as covered for VER-3 and VER-13, and VER-15 warns that it has no rubric. Only the skill's author attests a
 pass, when they ask for one; an agent never records one on its own judgment.
+
+A case or criterion that is known to fail, such as one written to reproduce a failure seen in real use before the
+skill is fixed, carries a `fails` mark with the reason, as `it.fails` marks a test: a trigger case's `fails` is the
+reason, and an outcome case's is a mapping of the criteria known to fail, each to its reason. A mark needs a reason (a
+sentence or a link), and an outcome case marks only criteria it tests. `test` judges a mark at the same threshold as a
+pass: below it, the case or criterion is a `known failure (<reason>)`, apart from the passes and failures, and the test
+still exits 0; at or above it, `test` reports `fixed? remove the mark` with the command that clears it and exits 1, so a
+fix is noticed and no mark outlives its failure. A known failure never counts as a pass: a result with one is never
+saved as the first expected result, and `report` shows it with its reason, never as a pass rate. `skill fails <folder>`
+lists every mark; `skill fails <folder> <case> [<criterion>] --reason "<text or link>"` adds one or replaces its reason,
+and `--clear` clears it, keeping the file's comments and layout. A trigger case is `trigger-<n>`. Only the skill's author
+marks a known failure, when they ask for one, with the reason; an agent never adds one to make a test pass or to clear a
+check.
 
 ## Run
 
@@ -266,7 +284,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 
 ## Criteria
 
-- **VER-1** [script] `evals/evals.yaml` exists and follows the format in Cases.
+- **VER-1** [script] `evals/evals.yaml` exists and follows the format in Cases: among others, every `fails` mark has a
+  reason and names only criteria its case tests.
 - **VER-2** [script, warning] It has at least three `skip` trigger cases, and at least three `fire` ones unless the skill is
   name-only.
 - **VER-3** [script] Every Criteria ID has a rubric, and every rubric names a Criteria ID.
@@ -291,6 +310,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   a reply line the prompt can require; a `script` or `regex` would decide it.
 - **VER-15** [script, warning] No criterion rests on an attested pass alone, every attested pass in
   `evals/expected.json` names a Criteria ID, and none is stale: each was recorded on the skill's current `SKILL.md` and `references/`.
+- **VER-16** [script, warning] No case or criterion is marked known to fail; the warning lists every mark with its reason,
+  so none is forgotten.
 
 ## Fix
 
@@ -312,6 +333,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 - VER-15: an attested criterion with no rubric may stay so when a run cannot judge it cheaply; otherwise give it a
   rubric. For a stale attested pass, ask the author to check the changed skill in real use again and record the new
   evidence; never record it for them.
+- VER-16: leave the mark while the failure is known; fix the skill, and once `test` reports `fixed?`, ask the author
+  whether to clear it. Never clear a mark, or add one, on your own judgment.
 
 ## Enhance
 
