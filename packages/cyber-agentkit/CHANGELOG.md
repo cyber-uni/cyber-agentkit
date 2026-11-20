@@ -1,5 +1,68 @@
 # cyber-agentkit
 
+## 2.11.0
+
+### Minor Changes
+
+- 75e9528: `skill attest <folder> <C3 | case id> <url> [--note …] [--by …]` records that a criterion or case passed in the
+  skill's real use, where the link shows it, instead of in a run. It goes in the `attested` list of
+  `evals/expected.json` with `source: "attested"`, the link, the time, and a fingerprint of `SKILL.md` and
+  `references/`. Any run result in the file stays, and an accepted run keeps the list. `skill test` and `skill report`
+  show it as "attested (link)", never as a pass rate, and mark it "attested, stale: skill changed since" once the skill
+  changed. A run's result still decides `changed` and `moved`, and a failing run is never hidden by an attested pass. A
+  `not-tested` entry with a current attestation counts as passed when `skill test` decides whether to save its first
+  result as expected. `skill check` counts an attested criterion as covered for VER-3 and VER-13, and the new warning
+  VER-15 reports a criterion attested with no rubric, a stale attestation, and one that names no criterion. The `skill`
+  skill gains an `attest` command.
+- 9c8ff57: Mark an eval case or criterion as known to fail, as `it.fails` marks a test. A trigger case's `fails` in
+  `evals/evals.yaml` is the reason; an outcome case's is a mapping of the criteria known to fail, each to its reason. A
+  mark needs a reason, and an outcome case marks only criteria it tests. `skill test` judges a mark at the same threshold
+  as a pass: below it, the case or criterion is reported as `known failure (<reason>)`, apart from passes and failures,
+  and exits 0; at or above it, `fixed? remove the mark` names the command that clears it, and the test exits 1. A result
+  with a known failure is never saved as the first expected result. The new `skill fails <folder>` lists every mark, and
+  `skill fails <folder> <case> [<criterion>] --reason "…"` or `--clear` adds, replaces, or clears one, keeping the file's
+  comments and layout; a trigger case is `trigger-<n>`. `skill check` fails VER-1 on a mark with no reason or an unknown
+  criterion, and the new warning VER-16 lists every mark. `skill report` and the generated docs page show `known failure
+  (<reason>)`, never as a pass rate, with a `### Known failures` section. The `skill` skill gains a `fails` command: only
+  the author marks a known failure, with a reason.
+- dd538fc: `skill` has a new `update [skill] [change]` command for work that edits an existing skill, such as an issue or a bug. It
+  makes the change, adds cases for the behavior it adds, runs `check` and `test`, and ends its report with both results
+  (or the `Test budget:` line and why `test` did not run). It runs at `apply` by default, set in `skill-design.autonomy`
+  under `## update`.
+  
+  `fix` now also runs `check` in full after its repairs, runs `test` when within the budget, and ends its report with both
+  results.
+
+### Patch Changes
+
+- ce7eac0: The `skill`, `instruction`, and `prose-update` skills run the CLI through a small forwarding script,
+  `scripts/cyber-agentkit.mjs`, in place of a 599 KB compiled copy. In a checkout it runs the checkout's
+  CLI, so testing a skill exercises your change; elsewhere it runs the release that matches the plugin.
+  The skills call it as `node <skill folder>/scripts/cyber-agentkit.mjs <command> ...` and no longer
+  carry a `pnpm exec` or `npx` fallback.
+  
+  `bin/cyber-agentkit.mjs` now imports `dist/cli.js` by a literal relative path. The forwarder uses that
+  path to see that a git-sourced install has no build output, and runs the published release instead.
+- 4057943: The `skill` description now leads with the rule to load it before editing any file of a skill, or a reference a skill
+  loads, during any work, so agents load it without being asked.
+- fdc3cb4: The `skill` skill no longer carries criterion C22 ("each description passes TRG-10"), which restated a rule the Trigger
+  aspect already checks. Its rubric and case links are removed; the other criterion IDs keep their numbers.
+- 676759a: The `skill` skill's main instructions are back under the 5,000-token limit its own `skill check` enforces (SHP-1): the Fix steps for the Shape and Trigger aspects now live in the `fix` command's instructions, and the Intent draft step in `create`'s.
+  
+  `skill check` gets a decision aid for SHP-3: a step that filters, sorts, groups, counts, or formats data by fixed rules fails it, however short, unless it runs a script.
+- ce6cd00: `skill` now asks which model should judge when an eval criterion can only be decided by a `judge` check, instead of
+  leaving it untested. When drafting evals it prefers a `regex` or `contains` check, and `skill test` lists the
+  judge-only criteria before a run, offers `--judge <model>`, and no longer grades a not-tested criterion by reading
+  the replies itself.
+- b8409eb: `skill test` saves a first result as `evals/expected.json` only when it has at least one trigger case or criterion and
+  every one passed. A result with `not-run` or `not-tested` entries is no longer saved; the report carries
+  `notSavedAsExpected` with the reason. A test in which no run finished now exits non-zero.
+- 11543d0: `skill test` exits 0 when the only gaps are planned skips, such as a case with an outside effect, a `not-tested`
+  criterion, or an attested pass, and exits 1 on a harness failure: a run that started and errored, a sandbox failure even when the other runs pass
+  (the result is still held for `skill accept`), or no run finished though the plan ran some case. Each `notRun` entry now carries `kind`, `skipped` or `failed`, and the text report
+  starts each line with `skipped:` or `failed to run:`. A result saved before `kind` was recorded reads an entry that
+  names a run as a failure.
+
 ## 2.10.0
 
 ### Minor Changes
