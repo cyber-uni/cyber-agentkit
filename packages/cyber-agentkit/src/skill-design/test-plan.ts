@@ -3,7 +3,7 @@ import { availableParallelism } from 'node:os'
 import { join, resolve } from 'node:path'
 import { parse } from 'yaml'
 import { criteriaItems, type SkillFiles } from './skill-files.js'
-import { type EvalsFile, evalsProblems } from './verification-checks.js'
+import { type EvalsFile, evalsProblems, failsProblems } from './verification-checks.js'
 
 export const defaultRuns = 3
 export const defaultThreshold = 2
@@ -33,6 +33,11 @@ export type PlannedCase = {
 	rubrics: Record<string, Record<string, unknown>[]>
 	/** For an outcome case: the criteria whose rubric needs a judge. */
 	judged: Record<string, string>
+	/**
+	 * Marked known to fail (#329): for a trigger case, the reason; for an outcome case, each criterion marked, with its
+	 * reason. A mark is judged at the same threshold: below it is a known failure, at or above it the mark is out of date.
+	 */
+	fails?: string | Record<string, string>
 }
 
 export type TestPlan = {
@@ -100,6 +105,14 @@ export function planTest(
 		return { code: 'no-cases', problem: 'evals/evals.yaml lists no case' }
 
 	const items = criteriaItems(skill)
+	// A mark on a case with no `criteria` names one of the skill's criteria (#329).
+	const marks = items
+		? failsProblems(
+				value,
+				items.ids.filter((id): id is string => id !== undefined),
+			)
+		: []
+	if (marks.length) return { code: 'evals-invalid', problem: `evals/evals.yaml: ${marks.join('; ')}` }
 	return planEvals(evals, {
 		criteria: items ? items.ids.filter((id): id is string => id !== undefined) : [],
 		...(items ? {} : { noCriteria: 'the skill has no `## Done when`; run `/skill check` and `/skill fix`' }),
@@ -168,6 +181,7 @@ export function planEvals(
 			prompt: item.prompt,
 			expect: item.expect,
 			...(item.model ? { model: item.model } : {}),
+			...(item.fails !== undefined ? { fails: item.fails } : {}),
 			rubrics: {},
 			judged: {},
 		})
@@ -184,6 +198,7 @@ export function planEvals(
 		if (item.setup !== undefined) planned.setup = resolve(folder, item.setup)
 		if (item.network?.length) planned.network = item.network
 		if (item.guard) planned.guard = true
+		if (item.fails && Object.keys(item.fails).length) planned.fails = item.fails
 		for (const id of ids) {
 			const list = item.checks?.[id] ?? rubrics[id]
 			if (!list) continue

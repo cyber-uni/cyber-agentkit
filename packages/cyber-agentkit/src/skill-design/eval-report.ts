@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { type AttestationView, attestationsIn, skillFingerprint, viewAttestations } from './attestation.js'
 import { acceptedHistory, expectedPath } from './skill-test.js'
-import type { NotRun, RatePoint, SandboxFailure, Status, TestResult } from './test-result.js'
+import type { KnownFailure, NotRun, RatePoint, SandboxFailure, Status, TestResult } from './test-result.js'
 import { compareWithHistory, notRunKind } from './test-result.js'
 
 /** Where `skill test` is documented; the Markdown links it when it says how a result is saved. */
@@ -68,6 +68,11 @@ export type EvalReport = {
 		result: string
 	}[]
 	notRun?: NotRun[]
+	/**
+	 * The marks of known failures the run judged (#329), each with its reason; a known failure shows as
+	 * `known failure (<reason>)`, never as a pass rate. Left out when there is none.
+	 */
+	knownFailures?: KnownFailure[]
 	/** The runs the test sandbox broke, in either arm; they count toward no pass rate. */
 	sandboxFailures?: SandboxFailure[]
 	/** The kept accepted results, oldest first, the expected one last; left out with fewer than two. */
@@ -119,7 +124,10 @@ function guardText(text: string, c: { status: Status; baseline?: Count }, thresh
 
 /** The criterion checks that passed with the skill and without, over the criteria the baseline scored, guards left out. */
 function gapOf(result: TestResult): { with: Count; without: Count } | undefined {
-	const compared = (result.criteria ?? []).filter((c) => typeof c.passed === 'number' && c.baseline && !c.guard)
+	// A known failure counts toward no pass rate (#329).
+	const compared = (result.criteria ?? []).filter(
+		(c) => typeof c.passed === 'number' && c.baseline && !c.guard && c.status !== 'known-failure',
+	)
 	if (!compared.length) return undefined
 	const sum = (pick: (c: (typeof compared)[number]) => number) => compared.reduce((total, c) => total + pick(c), 0)
 	return {
@@ -163,6 +171,11 @@ export function evalReport(
 	const gap = gapOf(result)
 	if (gap) report.gap = gap
 
+	const known = (result.knownFailures ?? []).filter((k) => k.status === 'known-failure')
+	if (result.knownFailures?.length) report.knownFailures = result.knownFailures
+	/** `known failure (<reasons>)` for the marks of a case, or of a criterion, that the run found still failing (#329). */
+	const knownText = (marks: KnownFailure[]) =>
+		`known failure (${[...new Set(marks.map((k) => k.reason))].join('; ') || 'marked'})`
 	const trigger = result.trigger ?? []
 	report.trigger = trigger.map((t) => ({
 		case: t.case,
@@ -170,7 +183,10 @@ export function evalReport(
 		expect: t.expect,
 		fired: t.fired,
 		ran: t.ran,
-		result: resultText(t.status, brokenIn.get(t.case)),
+		result:
+			t.status === 'known-failure'
+				? knownText(known.filter((k) => k.case === t.case))
+				: resultText(t.status, brokenIn.get(t.case)),
 	}))
 
 	const rate = (count: Count) => count.passed / count.ran
@@ -191,17 +207,25 @@ export function evalReport(
 			...(typeof c.passed === 'number' && c.baseline ? { without: c.baseline } : {}),
 			...(c.guard ? { guard: true as const } : {}),
 			result: `${
-				c.guard
-					? guardText(c.status, { status: c.status, ...(c.baseline ? { baseline: c.baseline } : {}) }, result.threshold)
-					: typeof c.passed === 'number'
-						? c.status
-						: `${c.status}${c.reason ? `: ${c.reason}` : ''}`
+				c.status === 'known-failure'
+					? knownText(known.filter((k) => k.criterion === c.id))
+					: c.guard
+						? guardText(
+								c.status,
+								{ status: c.status, ...(c.baseline ? { baseline: c.baseline } : {}) },
+								result.threshold,
+							)
+						: typeof c.passed === 'number'
+							? c.status
+							: `${c.status}${c.reason ? `: ${c.reason}` : ''}`
 			}${seen ? `; attested${seen.stale ? ', stale: skill changed since' : ''} (${seen.evidence})` : ''}`,
 		}))
 
 	report.cases = (result.cases ?? [])
 		.filter((c) => !trigger.some((t) => t.case === c.case))
 		.map((c) => {
+			if (c.status === 'known-failure')
+				return { ...c, result: knownText(known.filter((k) => k.case === c.case && k.criterion !== undefined)) }
 			const text = resultText(c.status, c.sandboxFailed)
 			return { ...c, result: c.guard ? guardText(text, c, result.threshold) : text }
 		})
@@ -313,7 +337,7 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 		)
 		for (const t of report.trigger)
 			out.push(
-				`| ${cell(t.prompt)} | ${t.expect === 'fire' ? 'fire' : 'stay out'} | ${t.fired} of ${t.ran} | ${t.result} |`,
+				`| ${cell(t.prompt)} | ${t.expect === 'fire' ? 'fire' : 'stay out'} | ${t.result.startsWith('known failure') ? '—' : `${t.fired} of ${t.ran}`} | ${cell(t.result)} |`,
 			)
 		out.push('')
 	}
@@ -329,8 +353,10 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 		)
 		for (const c of report.criteria) {
 			const label = c.text ? `**${c.id}.** ${cell(c.text)}` : `**${c.id}**`
+			// A known failure shows its reason, never a pass rate (#329).
+			const counted = c.status !== 'known-failure'
 			out.push(
-				`| ${label} | ${c.with ? ratio(c.with) : '—'} | ${c.without ? ratio(c.without) : '—'} | ${cell(c.result)} |`,
+				`| ${label} | ${counted && c.with ? ratio(c.with) : '—'} | ${counted && c.without ? ratio(c.without) : '—'} | ${cell(c.result)} |`,
 			)
 		}
 		out.push('')
@@ -338,7 +364,7 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 
 	if (report.cases?.length) {
 		out.push('### Outcome cases', '', '| Case | Result |', '| --- | --- |')
-		for (const c of report.cases) out.push(`| \`${cell(c.case)}\` | ${c.result} |`)
+		for (const c of report.cases) out.push(`| \`${cell(c.case)}\` | ${cell(c.result)} |`)
 		out.push('')
 	}
 
@@ -368,6 +394,7 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 	}
 
 	out.push(...attestedMarkdown(report.attested))
+	out.push(...knownFailuresMarkdown(report.knownFailures))
 
 	const notRunOf = (kind: 'skipped' | 'failed') => (report.notRun ?? []).filter((n) => notRunKind(n) === kind)
 	const listed = (entries: NotRun[]) => entries.map((n) => `\`${n.case}\` (${n.reason})`).join('; ')
@@ -390,6 +417,25 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 		'',
 	)
 	return out.join('\n')
+}
+
+/** The known failures' section (#329): each mark with its reason, and a mark the run passed as `fixed?`. */
+function knownFailuresMarkdown(marks: KnownFailure[] | undefined): string[] {
+	if (!marks?.length) return []
+	const out = [
+		'### Known failures',
+		'',
+		"Cases and criteria the skill's author marked as known to fail, with the reason. They count toward no pass rate.",
+		'',
+		'| Case | Criterion | Reason | Result |',
+		'| --- | --- | --- | --- |',
+	]
+	for (const k of marks)
+		out.push(
+			`| \`${cell(k.case)}\` | ${k.criterion ? `**${cell(k.criterion)}**` : '—'} | ${cell(k.reason)} | ${k.status === 'fixed' ? 'fixed? the mark is out of date' : 'known failure'} |`,
+		)
+	out.push('')
+	return out
 }
 
 /** The attested passes' section (#323): where each was seen, never a pass rate, and a stale one says so. */

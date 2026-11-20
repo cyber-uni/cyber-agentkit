@@ -23,6 +23,13 @@ import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckRepor
 import { addCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
 import { doneWhenCriteria, type EvalReport, readEvalReport, reportMarkdown } from './eval-report.js'
 import {
+	clearKnownFailure,
+	type KnownFailureMark,
+	listKnownFailures,
+	type MarkProblem,
+	markKnownFailure,
+} from './known-failures.js'
+import {
 	type PluginEvalRun,
 	runPluginEval,
 	runPluginEvalTest,
@@ -33,7 +40,7 @@ import { runCheckScript } from './run-check-script.js'
 import { type TriedSetup, trySetup } from './setup-try.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
 import { checkSkill } from './skill-check.js'
-import { readSkill } from './skill-files.js'
+import { criteriaItems, readSkill } from './skill-files.js'
 import {
 	acceptResult,
 	lastResult,
@@ -58,7 +65,7 @@ import { type SkillVetReport, vetSkill } from './skill-vet.js'
 import { defaultTestBudget, estimateTest, estimateText, parseTestBudget } from './test-estimate.js'
 import { planScripts, planTest, withoutScripts } from './test-plan.js'
 import { planLine } from './test-progress.js'
-import type { CaseStatus, Incomplete, ResumeOptions, Row, TestResult } from './test-result.js'
+import type { CaseStatus, Incomplete, KnownFailure, ResumeOptions, Row, TestResult } from './test-result.js'
 import { notRunKind, notRunLine } from './test-result.js'
 import {
 	defaultTemplate,
@@ -360,6 +367,16 @@ export function attestedLine(item: AttestationView, result: Pick<TestResult, 'cr
 	return parts.join('')
 }
 
+/** A known failure's line in a `test` report (#329): what is marked, how its runs went, and why it is known to fail. */
+export function knownFailureLine(item: KnownFailure): string {
+	return `known failure: ${markTarget(item)} ${item.passed} of ${item.ran} — ${item.reason}`
+}
+
+/** A mark the run passed, in a `test` report (#329): it asks for the mark to be cleared, with the command. */
+export function fixedLine(item: KnownFailure, folder: string | undefined): string {
+	return `fixed? remove the mark: ${markTarget(item)} passed ${item.passed} of ${item.ran}, marked known to fail (${item.reason}); clear it with \`${clearMarkCommand(folder, item)}\``
+}
+
 /** The text report; `folder` is where the result was saved, so the replies file is named in full. */
 function testText(result: TestResult, folder?: string): string {
 	const lines = [
@@ -394,21 +411,27 @@ function testText(result: TestResult, folder?: string): string {
 			`warning: incomplete: the usage limit was reached (${incomplete.text})${incomplete.resets && !incomplete.text.includes(incomplete.resets) ? `; it resets ${incomplete.resets}` : ''}; ${incomplete.left.length} ${incomplete.left.length === 1 ? 'run is' : 'runs are'} left and count toward no pass rate: ${left}`,
 		)
 	}
-	for (const item of result.trigger)
-		lines.push(
-			`trigger ${item.case} (${item.expect}): ${item.status}, fired ${item.fired} of ${item.ran} — ${item.prompt}`,
-		)
+	const known = result.knownFailures ?? []
+	for (const item of result.trigger) {
+		const mark = known.find((entry) => entry.case === item.case && entry.criterion === undefined)
+		const status = item.status === 'known-failure' ? `known failure (${mark?.reason ?? 'marked'})` : item.status
+		lines.push(`trigger ${item.case} (${item.expect}): ${status}, fired ${item.fired} of ${item.ran} — ${item.prompt}`)
+	}
 	for (const item of result.criteria) {
 		const rate = item.ran === undefined ? '' : ` ${item.passed} of ${item.ran}`
 		const base = item.baseline ? `, baseline ${item.baseline.passed} of ${item.baseline.ran}` : ''
 		lines.push(
-			`${item.id}${item.guard ? ' (guard)' : ''}: ${item.status}${rate}${base}${item.reason ? ` — ${item.reason}` : ''}`,
+			`${item.id}${item.guard ? ' (guard)' : ''}: ${item.status === 'known-failure' ? 'known failure' : item.status}${rate}${base}${item.reason ? ` — ${item.reason}` : ''}`,
 		)
 		for (const failure of item.failures ?? [])
 			lines.push(
 				`  ${failure.case} run ${failure.run}: ${failure.output.split('\n').slice(0, 3).join(' ').slice(0, 200)}`,
 			)
 	}
+	// Known failures stand apart from the passes and failures (#329); a mark the run passed asks to be cleared.
+	for (const item of known.filter((entry) => entry.criterion !== undefined && entry.status === 'known-failure'))
+		lines.push(knownFailureLine(item))
+	for (const item of known.filter((entry) => entry.status === 'fixed')) lines.push(fixedLine(item, result.folder))
 	for (const item of result.cases) if (item.guard) lines.push(guardLine(item, result.threshold))
 	for (const item of result.attested ?? []) lines.push(attestedLine(item, result))
 	for (const item of result.notRun) lines.push(notRunLine(item))
@@ -851,9 +874,12 @@ function testCommand({
 				saved.notRun.some((item) => notRunKind(item) === 'failed') ||
 				!!saved.sandboxFailures?.length ||
 				(noneRan && saved.cases.some((item) => !skipped.has(item.case)))
-			const candidate = !failed && !saved.partial && !saved.incomplete && !readExpected(skill.folder)
+			// A mark the run passed fails the test until it is cleared, so a fix is noticed (#329).
+			const fixed = !!saved.knownFailures?.some((item) => item.status === 'fixed')
+			const candidate = !failed && !fixed && !saved.partial && !saved.incomplete && !readExpected(skill.folder)
 			// The first run that passes becomes the expected result when there is none (R80): at least one entry, and every
-			// one `pass`, so a result of `not-run` or `not-tested` entries never does (#322); an incomplete one never does (R162).
+			// one `pass`, so a result of `not-run` or `not-tested` entries never does (#322), nor one with a known failure
+			// (#329); an incomplete one never does (R162).
 			const allPass = entries.length > 0 && entries.every((item) => item.status === 'pass')
 			const firstPass = candidate && allPass
 			const notSaved = candidate && !allPass ? notSavedReason(entries, noneRan, noneRan && !harnessFailed) : undefined
@@ -871,7 +897,7 @@ function testCommand({
 				skill.folder,
 			)
 			const answer = result(reported, { render: { text: () => testText(reported, resultFolder) } })
-			if (failed || saved.incomplete || harnessFailed) answerThenFail(answer, this.format)
+			if (failed || fixed || saved.incomplete || harnessFailed) answerThenFail(answer, this.format)
 			return answer
 		},
 	})
@@ -885,6 +911,7 @@ function notSavedReason(entries: { status: string }[], noneRan: boolean, planned
 	const parts = [
 		count('not-run') && `${count('not-run')} not run`,
 		count('not-tested') && `${count('not-tested')} not tested`,
+		count('known-failure') && `${count('known-failure')} known to fail`,
 	].filter(Boolean)
 	return `not every trigger case and criterion passed: ${parts.join(', ')}`
 }
@@ -977,6 +1004,148 @@ function attestCommand(_options: SkillCommandOptions): cli.Command {
 			return result(
 				{ skill: name, attested: entry, expected: path },
 				{ render: { text: () => `attested ${attestedTarget(entry)} (${entry.evidence}) in ${path}\n` } },
+			)
+		},
+	})
+}
+
+/** A mark as a line names it: `trigger-2`, or `mixed-round C3`. */
+const markTarget = (mark: { case: string; criterion?: string | undefined }) =>
+	mark.criterion === undefined ? mark.case : `${mark.case} ${mark.criterion}`
+
+/** The command that clears a mark, for a `fixed?` line (#329). */
+export function clearMarkCommand(folder: string | undefined, mark: { case: string; criterion?: string | undefined }) {
+	return `cyber-agentkit skill fails ${folder ?? '<skill folder>'} ${markTarget(mark)} --clear`
+}
+
+function failsCommand(_options: SkillCommandOptions): cli.Command {
+	return command({
+		name: 'fails',
+		description:
+			"List, add, or clear the marks of the eval cases known to fail, as `it.fails` marks a test. A mark is the case's `fails` in `evals/evals.yaml`, with the reason: a trigger case's (`trigger-<n>`) takes no criterion, an outcome case's names one of the criteria it tests. `skill test` judges a mark at the same threshold as a pass: below it, a known failure, which exits 0; at or above it, `fixed?`, which exits 1 until the mark is cleared. Marking one already marked replaces its reason. The edit keeps every comment and the layout of the rest of the file. Only the skill's author marks a known failure, with a reason; an agent never adds one to make a test pass.",
+		arguments: [
+			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
+			{
+				name: 'case',
+				description:
+					"The case to mark or clear: an outcome case's ID, or `trigger-<n>` for the nth trigger case. Leave it out to list every mark.",
+				type: t.string().optional(),
+			},
+			{
+				name: 'criterion',
+				description:
+					'For an outcome case, the criterion known to fail, such as `C3`. With --clear and no criterion, every mark of the case is cleared.',
+				type: t.string().optional(),
+			},
+		],
+		options: {
+			reason: {
+				description: 'Why it is known to fail: a sentence or a link, such as an issue. Required to mark one.',
+				type: t.string().optional(),
+			},
+			clear: { description: 'Clear the mark instead of adding one.', type: t.boolean().optional() },
+		},
+		examples: [
+			{
+				command: 'cyber-agentkit skill fails .agents/skills/review-mr',
+				description: 'List every mark, with its reason',
+			},
+			{
+				command:
+					'cyber-agentkit skill fails .agents/skills/review-mr mixed-round C3 --reason "resolves the design thread before the author answers (#341)"',
+				description: 'Mark C3 of the case mixed-round as known to fail',
+			},
+			{
+				command:
+					'cyber-agentkit skill fails .agents/skills/review-mr trigger-2 --reason "description misses \'changelog\' (#340)"',
+				description: 'Mark the second trigger case as known to fail',
+			},
+			{
+				command: 'cyber-agentkit skill fails .agents/skills/review-mr mixed-round C3 --clear',
+				description: 'Clear the mark once the skill is fixed',
+			},
+		],
+		async run(
+			this: { format: Format },
+			args: {
+				folder: string
+				case?: string | undefined
+				criterion?: string | undefined
+				reason?: string | undefined
+				clear?: boolean | undefined
+			},
+		) {
+			const skill = readSkill(args.folder)
+			if (!skill) {
+				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			const name =
+				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+			const fail = (problem: MarkProblem): never => {
+				process.stderr.write(`error: ${problem.code}: ${problem.problem}\n`)
+				throw CliError.reported(problem.code === 'evals-invalid' ? exitCodes.error : exitCodes.usage)
+			}
+			if (args.case === undefined) {
+				if (args.reason !== undefined || args.clear || args.criterion !== undefined)
+					fail({ code: 'unknown-case', problem: 'name the case to mark or clear' })
+				const listed = listKnownFailures(skill.folder)
+				if ('problem' in listed) return fail(listed)
+				return result(
+					{ skill: name, evals: listed.evals, marks: listed.marks },
+					{
+						render: {
+							text: () =>
+								listed.marks.length
+									? `${listed.marks.length === 1 ? '1 mark' : `${listed.marks.length} marks`} of a known failure in ${listed.evals}:\n${listed.marks.map((mark) => `${markTarget(mark)} — ${mark.reason}\n`).join('')}`
+									: `no case of ${name} is marked known to fail\n`,
+						},
+					},
+				)
+			}
+			const target = { case: args.case, criterion: args.criterion }
+			if (args.clear) {
+				if (args.reason !== undefined)
+					fail({ code: 'no-reason', problem: 'give --reason to mark a case, or --clear to clear its mark, not both' })
+				const cleared = clearKnownFailure(skill.folder, target)
+				if ('problem' in cleared) return fail(cleared)
+				return result(
+					{ skill: name, evals: cleared.evals, cleared: cleared.cleared },
+					{
+						render: {
+							text: () =>
+								cleared.cleared
+									.map(
+										(mark: KnownFailureMark) =>
+											`cleared the mark on ${markTarget(mark)} (${mark.reason}) in ${cleared.evals}\n`,
+									)
+									.join(''),
+						},
+					},
+				)
+			}
+			if (args.reason === undefined || args.reason.trim() === '')
+				fail({
+					code: 'no-reason',
+					problem: `a mark needs the reason ${markTarget(target)} is known to fail: give --reason with a sentence or a link`,
+				})
+			const items = criteriaItems(skill)
+			const criteria = items ? items.ids.filter((id): id is string => id !== undefined) : []
+			const marked = markKnownFailure(skill.folder, target, args.reason as string, criteria)
+			if ('problem' in marked) return fail(marked)
+			return result(
+				{
+					skill: name,
+					evals: marked.evals,
+					mark: marked.mark,
+					...(marked.replaced !== undefined ? { replaced: marked.replaced } : {}),
+				},
+				{
+					render: {
+						text: () =>
+							`marked ${markTarget(marked.mark)} known to fail (${marked.mark.reason}) in ${marked.evals}${marked.replaced !== undefined ? `, replacing its reason (${marked.replaced})` : ''}\n`,
+					},
+				},
 			)
 		},
 	})
@@ -1518,13 +1687,14 @@ export function createSkillCommand(options: SkillCommandOptions = {}): cli.Comma
 	return command({
 		name: 'skill',
 		description:
-			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept a test result as its expected result, attest a criterion or case that passed in real use, report its accepted results for docs, or vet a third-party skill before installing it.',
+			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept a test result as its expected result, attest a criterion or case that passed in real use, mark a case known to fail, report its accepted results for docs, or vet a third-party skill before installing it.',
 		commands: [
 			checkCommand(options),
 			testCommand(options),
 			caseCommand(options),
 			acceptCommand(options),
 			attestCommand(options),
+			failsCommand(options),
 			reportCommand(options),
 			vetCommand(options),
 		],

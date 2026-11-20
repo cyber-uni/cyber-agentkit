@@ -3,7 +3,25 @@ import { recognizeSandboxFault } from './sandbox-faults.js'
 import type { TestPlan } from './test-plan.js'
 import { recognizeUsageLimit } from './usage-limits.js'
 
-export type Status = 'pass' | 'fail' | 'not-tested' | 'not-run'
+/**
+ * `known-failure` is a case or criterion marked known to fail (#329) whose runs are below the threshold: no pass, and no
+ * failure either.
+ */
+export type Status = 'pass' | 'fail' | 'not-tested' | 'not-run' | 'known-failure'
+
+/**
+ * A mark of a known failure (#329) as the run judged it, at the same threshold as a pass: `known-failure` below it,
+ * `fixed` at or above it, so the mark is out of date. A mark on a case or criterion that did not run is left out.
+ * `criterion` is left out for a trigger case.
+ */
+export type KnownFailure = {
+	case: string
+	criterion?: string
+	reason: string
+	status: 'known-failure' | 'fixed'
+	passed: number
+	ran: number
+}
 
 export type TriggerResult = {
 	case: string
@@ -151,6 +169,8 @@ export type TestResult = {
 	trigger: TriggerResult[]
 	criteria: CriterionResult[]
 	cases: CaseStatus[]
+	/** Each mark of a known failure the run judged (#329); left out when there is none. */
+	knownFailures?: KnownFailure[]
 	/** Set when only the named cases ran (R102): the result covers them alone, is compared for them alone, and is never the expected result. */
 	partial?: { cases: string[] }
 	notRun: NotRun[]
@@ -414,19 +434,39 @@ export function readPromptfooOutput(
 				? 'pass'
 				: 'fail'
 
+	// A mark is judged at the threshold a pass is (#329): below it, a known failure; at or above it, fixed.
+	const knownFailures: KnownFailure[] = []
+	const judgeMark = (
+		status: Status,
+		mark: { case: string; criterion?: string; reason: string },
+		passed: number,
+		ran: number,
+	): Status => {
+		if (status === 'pass') knownFailures.push({ ...mark, status: 'fixed', passed, ran })
+		if (status !== 'fail') return status
+		knownFailures.push({ ...mark, status: 'known-failure', passed, ran })
+		return 'known-failure'
+	}
+	const markOf = (item: TestPlan['cases'][number], id: string) =>
+		typeof item.fails === 'object' ? item.fails[id] : undefined
+
 	const trigger: TriggerResult[] = plan.cases
 		.filter((item) => item.kind === 'trigger')
 		.map((item) => {
 			const runs = byCase(item.id, main).filter(ok)
 			const fired = runs.filter((row) => row.response?.metadata?.fired).length
 			const right = item.expect === 'fire' ? fired : runs.length - fired
+			const status = statusOf(right, runs.length, item.id)
 			return {
 				case: item.id,
 				prompt: item.prompt,
 				expect: item.expect as 'fire' | 'skip',
 				fired,
 				ran: runs.length,
-				status: statusOf(right, runs.length, item.id),
+				status:
+					typeof item.fails === 'string'
+						? judgeMark(status, { case: item.id, reason: item.fails }, right, runs.length)
+						: status,
 			}
 		})
 
@@ -448,20 +488,31 @@ export function readPromptfooOutput(
 		for (const item of covering) {
 			const runs = byCase(item.id, main).filter(ok)
 			let casePassed = 0
+			const caseFailures: Failure[] = []
 			for (const row of runs) {
 				const decided = criterionPassed(row, id)
 				if (decided.pass) casePassed++
-				else failures.push({ case: item.id, run: (row.repeatIndex ?? 0) + 1, output: decided.output })
+				else caseFailures.push({ case: item.id, run: (row.repeatIndex ?? 0) + 1, output: decided.output })
 			}
 			passed += casePassed
 			ran += runs.length
-			statuses.push(statusOf(casePassed, runs.length, item.id))
+			const mark = markOf(item, id)
+			const caseStatus = statusOf(casePassed, runs.length, item.id)
+			const judged =
+				mark === undefined
+					? caseStatus
+					: judgeMark(caseStatus, { case: item.id, criterion: id, reason: mark }, casePassed, runs.length)
+			// A known failure's runs are named by its mark, not listed as failures (#329).
+			if (judged !== 'known-failure') failures.push(...caseFailures)
+			statuses.push(judged)
 		}
 		const status: Status = statuses.includes('fail')
 			? 'fail'
-			: statuses.every((s) => s === 'not-run')
-				? 'not-run'
-				: 'pass'
+			: statuses.includes('known-failure')
+				? 'known-failure'
+				: statuses.every((s) => s === 'not-run')
+					? 'not-run'
+					: 'pass'
 		const result: CriterionResult = { id, status, passed, ran }
 		if (covering.every((item) => item.guard)) result.guard = true
 		if (meta.baselineRan) {
@@ -481,14 +532,15 @@ export function readPromptfooOutput(
 		if (!ids.length) return { case: item.id, status: 'not-tested', ...guard }
 		const runs = byCase(item.id, main).filter(ok)
 		if (!runs.length) return { case: item.id, status: 'not-run', ...sandboxFailed(item.id), ...guard }
-		const each = ids.map((id) =>
-			statusOf(runs.filter((row) => criterionPassed(row, id).pass).length, runs.length, item.id),
-		)
+		const each = ids.map((id) => {
+			const status = statusOf(runs.filter((row) => criterionPassed(row, id).pass).length, runs.length, item.id)
+			return status === 'fail' && markOf(item, id) !== undefined ? 'known-failure' : status
+		})
 		const allPassed = (row: Row) => ids.every((id) => criterionPassed(row, id).pass)
 		const base = item.guard && meta.baselineRan ? byCase(item.id, other).filter(ok) : undefined
 		return {
 			case: item.id,
-			status: each.includes('fail') ? 'fail' : 'pass',
+			status: each.includes('fail') ? 'fail' : each.includes('known-failure') ? 'known-failure' : 'pass',
 			passed: runs.filter(allPassed).length,
 			ran: runs.length,
 			...sandboxFailed(item.id),
@@ -544,6 +596,7 @@ export function readPromptfooOutput(
 		trigger,
 		criteria,
 		cases,
+		...(knownFailures.length ? { knownFailures } : {}),
 		...(plan.only ? { partial: { cases: plan.only } } : {}),
 		notRun,
 		...(blocked.length ? { blocked } : {}),
