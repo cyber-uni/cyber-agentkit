@@ -21,12 +21,37 @@ that still fails, and never add one to make `test` pass.
 ## 3. Repair each one
 
 1. If the skill came from an installed plugin, say before the first edit that a plugin update will overwrite it.
-2. For each failure, apply its aspect's Fix. Change only the part the failure named.
+2. For each failure, apply its aspect's Fix: for Intent, Shape, and Trigger, the one under
+   [Core aspect fixes](#core-aspect-fixes); for any other aspect, the Fix in its reference. Change only the part the
+   failure named.
 3. A repair that needs the author's decision, such as a new Intent, stops the run as Autonomy says.
 4. At `apply-safe`, keep a repair only when the failed check now passes and no other check
    fails; ask about the rest.
 5. When a repair makes another check fail, undo it, and report both with the options: keep it, leave it undone, or
    try another repair.
+
+### Core aspect fixes
+
+The Fix for each core aspect `SKILL.md` writes out. "Draft" names that aspect's Draft in `SKILL.md`.
+
+**Intent.** Changing the Intent is the author's decision: propose the change and ask, at every autonomy level. Removing
+a repeat or a stale reference under INT-3 is not a change to the Intent.
+
+**Shape.** Move the text or the step as Draft says, and update the links. For SHP-1, offer the ways to trim in
+[SHP-1: ways to trim](#shp-1-ways-to-trim). For SHP-5, propose the reference and the interface the skill should depend
+on, and the author decides each move. Apply an approved one with the `reference` skill: Create the default, then Wire a
+skill. For SHP-6, ship the default. For SHP-7 to SHP-11, move the file or folder the check names, and update what links
+or names it. For SHP-12, write the body as steps or sections. For SHP-13, make the script print what the step needs,
+and point the step at that. For SHP-14, add the flag. For SHP-15 and SHP-16, delete the text. For SHP-17, keep as the
+default the option most runs need, and name the condition under which the step does otherwise. For SHP-18, move the
+prose to stderr or behind `--verbose`. For SHP-19, make the step load the reference through the `reference` skill, and
+keep the default only as the fallback; `fix` and `enhance` never replace a reference load with a direct read.
+
+**Trigger.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result. For TRG-5 and
+TRG-6, set the description to exactly `By name only` and move what it said to the body or `README.md`. For TRG-7, name
+the job and the words users type for it. For TRG-8, change whichever of the description and the body is out of date.
+For TRG-9, add an `argument-hint` that lists what the user types, such as `"<command> [skill]"`. For TRG-10, rewrite the
+first sentence as Draft says.
 
 ### SHP-1: ways to trim
 

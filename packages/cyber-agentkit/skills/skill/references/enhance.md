@@ -30,6 +30,7 @@ the skill already has, and any the author declined before for this skill.
   reports from real use that the suggestion does not fix, offer to mark its case known to fail with their reason
   ([fails](fails.md)), so it stays red until the skill is fixed; mark it only on yes.
 - A change to a core aspect reopens every core aspect after it.
+- Never replace a reference load with a direct read (SHP-19).
 
 ## 4. Apply
 
