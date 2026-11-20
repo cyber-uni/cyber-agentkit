@@ -199,6 +199,26 @@ the same run, and keeps the 3 newest there, deleting older ones. Commit them wit
 history `moved` compares across. A skill with only `expected.json` needs no step: it is the newest entry, and the
 history grows from the next accept.
 
+### Record a live pass
+
+Some criteria a run cannot judge cheaply, such as one that needs a real merge request. When the author says a criterion
+or case passed in the skill's real use and gives the link, record it:
+
+```sh
+node <this skill's folder>/scripts/skill.mjs accept <skill folder> --criterion C3 --live <url> [--note "<what happened>"] [--by <who>]
+node <this skill's folder>/scripts/skill.mjs accept <skill folder> --case <case id> --live <url> ...
+```
+
+It writes an entry to the `live` list of `evals/expected.json`, with `source: "live"`, the evidence link, the note, who
+and when, and a fingerprint of `SKILL.md` and `references/`, and keeps any run result there; an accepted run keeps the
+live list too. Record one only when the author asks and names the link: never record a live pass on your own judgment,
+from a reply you read, or to make `check` pass.
+
+A live pass decides no `changed` or `moved`, and never hides a run: `test` prints it as `live C3: verified live (<url>)`
+beside the run's own line, adds `this run fails it, and the run decides` when the run fails it, and adds `stale: skill
+changed since` once `SKILL.md` or a reference changed after it was recorded. `check` counts it as covered for VER-3 and
+VER-13 and warns under VER-15. `--live-fail` is not supported yet.
+
 ## Report
 
 When the result is `incomplete`, say so first: the usage limit stopped it, when it resets, and how many runs are left;
@@ -215,5 +235,6 @@ skill tried and were refused, if anything; and the cases that changed between pa
 none, the previous result, saying which. With neither, say there is none to compare. Name the model the cases ran on,
 and each case on its own. When `modelChanged` lists cases, say their model changed since the result compared with, so
 a change there may be the model's rather than the skill's. Name each case in `moved` with
-its rate in each accepted result and in this run. Say when the result was saved as the
-expected result. With failures, offer `fix` as `SKILL.md`'s Rules say.
+its rate in each accepted result and in this run. Give each `live` entry as verified live with its link, never as a
+pass rate, and say when it is stale; ask the author to check a stale one in real use again. Say when the result was
+saved as the expected result. With failures, offer `fix` as `SKILL.md`'s Rules say.

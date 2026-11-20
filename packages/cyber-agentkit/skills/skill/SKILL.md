@@ -274,3 +274,4 @@ Before reporting done, check each against the result, and report any that fails.
 - **C24.** A result's `sandbox` and each `wroteOutside` path were said before any pass rate.
 - **C25.** `update` and `fix` each ended with the final `check` result and the `test` result per criterion, or the `Test budget:` line
   and why `test` did not run.
+- **C26.** A live pass was recorded only on the author's request naming its link; without the link, none was.

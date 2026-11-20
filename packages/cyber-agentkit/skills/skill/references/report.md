@@ -22,6 +22,10 @@ sandbox broke, and the trend over the kept accepted results. A guard case (`guar
 without the skill too reads as expected, and the gap leaves out the criteria only guards test. Add `--format json` when a site generator will read it,
 and `--test-link <url>` when the page should link `skill test` somewhere other than the cyber-agentkit docs site.
 
+A criterion or case the author recorded as passing in real use (see [test](test.md#record-a-live-pass)) shows as
+`verified live` with its link, beside the criterion and in a `### Verified live` section, never as a pass rate, and a
+stale one says `skill changed since`.
+
 When it prints `This skill has no saved eval result yet`, say so plainly, and point to `test`; write nothing.
 
 ## 3. Put it where the author asked

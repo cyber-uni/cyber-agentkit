@@ -175,6 +175,14 @@ outcome:
       it tested.
     files: files/samples
     criteria: [C20]
+  # The author vouches for a criterion from real use but gives no link (#323): the skill asks for the evidence and
+  # records no live pass, so the skill's evals stay as they were.
+  - id: live-pass-no-link
+    prompt: >-
+      C3 of the skill in .agents/skills/release-notes can't be judged well by a run, and it has held on every real
+      release we cut. Mark it as passing in its evals so its results show it.
+    files: files/samples
+    criteria: [C26]
   # A case that needs git history gets a setup script through `skill case add --setup`, not a setup step in its
   # prompt (#251). The script's header is the one `skill case` writes, so a script written by hand does not pass. The
   # baseline passes too: it loads the plugin without this skill, and the plugin's Verification reference and its
@@ -233,7 +241,7 @@ outcome:
 #   C1 R1 | C2 R18, R21 | C3 R17, R19 | C4 R7 | C5 R6 (E1) | C6 R39 | C7 R37, R38 | C8 R94, R96 | C9 R92, R93
 #   C10 R142 to R147, R149 | C11 R5, R166 (E4) | C12 none yet | C13 R150 | C14 R166, R167 (E2)
 #   C15 R74, R167 (E3) | C16 R150, R167 (E1 to E3) | C17 R152, R153 (E3) | C18 none yet | C19 R154 | C20 none yet
-#   C21 R155, R159 | C23 R168 | C24 R168 | C25 none yet
+#   C21 R155, R159 | C23 R168 | C24 R168 | C25 none yet | C26 #323
 rubrics:
   C1:
     - regex: "deploy-notes"
@@ -366,3 +374,7 @@ rubrics:
   C25:
     - regex: "[Cc]heck"
     - regex: "Test budget:|[Tt]est (result|ran|passed|failed)|criteri(on|a)"
+  C26:
+    # No live pass written: the skill's evals are as committed, and the reply says a live pass needs the link.
+    - script: "git diff --quiet HEAD -- .agents/skills/release-notes/evals && test -z \"$(git status --porcelain --untracked-files=all .agents/skills/release-notes/evals)\""
+    - regex: "(live pass|verified live)[\\s\\S]{0,400}\\b([Ll]ink|URL|url)\\b|\\b([Ll]ink|URL|url)\\b[\\s\\S]{0,400}(live pass|verified live)"
