@@ -278,3 +278,17 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
 - Added E-CC-D23: with `sandbox: { enabled: false }`, the two `permissions.block*OutsideWorkingDirectories` settings
   still refuse Read, Write, Grep, and Glob outside the working folder. `skill test`'s folder-only sandbox template
   keeps them and turns only the OS sandbox off ([cyber-agentkit#302](https://github.com/cyber-uni/cyber-agentkit/issues/302)).
+
+## 2026-11-19 (VS Code instruction locations moved)
+
+- Re-verified E-VSC-I1. VS Code removed the "Types of instruction files" section from its custom-instructions page; the
+  locations now live in the custom instructions reference, listed per harness (Copilot, Claude, Codex, Local). New
+  paths: `.claude/CLAUDE.md`, `~/.claude/CLAUDE.md`, and `~/.copilot/copilot-instructions.md`. The weekly drift check
+  had failed on the missing heading since 2026-11-02; its vendor baseline now reads the new section.
+- Re-checked E-OC-S1. The OpenCode skills page renamed its "Place files" section to "Discovery". It names the same six
+  directories and the same walk up to the project root, so the claim stands. The page now also documents a `skills`
+  array in `opencode.json` that adds directories or HTTP catalogs; `skillsDirectories` does not read config, so that
+  array is not recorded.
+- Re-checked E-OC-I1. OpenCode's rules page now redirects to a new instructions page. The page names the same four
+  files under "Scope" and "CLAUDE.md fallback", so the claim stands. It adds that OpenCode loads every `AGENTS.md` from
+  the workspace up to the project root, and nested ones below the workspace as the agent reads them.

@@ -278,7 +278,7 @@ directory. This is the second axis the drift check watches; the library does not
 | Cursor | `.cursor/rules`, `AGENTS.md` (root and subdirectories) | Settings, no file | Yes | E-CUR-I1 |
 | Codex | `AGENTS.override.md`, else `AGENTS.md`, per directory from the root down | `.codex/AGENTS.md` (or `CODEX_HOME`) | Yes | E-CODEX-I1 |
 | Copilot CLI | `.github/copilot-instructions.md`, `.github/instructions/**/*.instructions.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` | `.copilot/copilot-instructions.md`, `.copilot/instructions` | Yes | E-COPILOT-I1 |
-| Copilot in VS Code | `.github/copilot-instructions.md`, `AGENTS.md`, `.github/instructions`, `CLAUDE.md`, `.claude/rules` | `.copilot/instructions`, `.claude/rules` | Yes | E-VSC-I1 |
+| Copilot in VS Code | `.github/copilot-instructions.md`, `AGENTS.md`, `.github/instructions`, `CLAUDE.md` or `.claude/CLAUDE.md`, `.claude/rules` (set by the selected harness) | `.copilot/copilot-instructions.md`, `.copilot/instructions`, `.claude/CLAUDE.md`, `.claude/rules` | Yes | E-VSC-I1 |
 | OpenCode | `AGENTS.md`, else `CLAUDE.md` | `.config/opencode/AGENTS.md`, else `.claude/CLAUDE.md` | Yes | E-OC-I1 |
 | Kilo Code | `AGENTS.md`, else `AGENT.md` | — | Yes | E-KILO-I1 |
 | Gemini CLI | `GEMINI.md`, name set by `context.fileName` | `.gemini/GEMINI.md` | Not by default | E-GEM-I1 |
