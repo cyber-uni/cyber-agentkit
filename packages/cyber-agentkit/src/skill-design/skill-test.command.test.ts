@@ -413,6 +413,52 @@ describe('skill test', () => {
 			expect(readFileSync(expected, 'utf8')).toBe(first)
 		})
 
+		describe('a first result that is not every pass (#322)', () => {
+			const unavailable = 'The model claude-sonnet-4-5@20250929 is not available on your vertex deployment'
+			/** The fake promptfoo, with every run ending in an error before the model answers. */
+			const erroring: PromptfooRun = async (folder, config, out) => {
+				const ran = await fakeRun({})(folder, config, out)
+				if (!('output' in ran)) return ran
+				for (const item of (ran.output as { results: { results: Record<string, any>[] } }).results.results)
+					if (String(item['testCase'].description).startsWith('trigger') && item['provider'].label === 'baseline')
+						item['response'].metadata.skipped = true
+					else item['response'].error = unavailable
+				return ran
+			}
+
+			it('does not save a result where no run finished, says why, and fails', async () => {
+				const skill = goodSkill()
+				const root = gitRepo()
+				expect(await test(skill.folder, erroring, root)).toBe(1)
+				expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+				const report = JSON.parse(printed())
+				expect(report).not.toHaveProperty('savedAsExpected')
+				expect(report.notSavedAsExpected).toBe('no run finished')
+				expect(report.notRun.length).toBeGreaterThan(0)
+			})
+
+			it('does not save a result whose criteria are not tested, and says why', async () => {
+				const skill = goodSkill({ 'evals/evals.yaml': goodEvals.replace(/rubrics:[\s\S]*$/, '') })
+				const root = gitRepo()
+				expect(await test(skill.folder, fakeRun({}), root)).toBe(0)
+				expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+				const report = JSON.parse(printed())
+				expect(report.trigger.every((item: { status: string }) => item.status === 'pass')).toBe(true)
+				expect(report).not.toHaveProperty('savedAsExpected')
+				expect(report.notSavedAsExpected).toBe('not every trigger case and criterion passed: 2 not tested')
+			})
+
+			it('still saves a result where every trigger case and criterion passes', async () => {
+				const skill = goodSkill()
+				const root = gitRepo()
+				expect(await test(skill.folder, fakeRun({}), root)).toBe(0)
+				expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(true)
+				const report = JSON.parse(printed())
+				expect(report.savedAsExpected).toBe(true)
+				expect(report).not.toHaveProperty('notSavedAsExpected')
+			})
+		})
+
 		describe('with sandbox failures (R154)', () => {
 			const bwrap =
 				"bwrap: Can't create file at /tmp/skill-test-plugin-Xa1b2C/references/.claude/launch.json: Read-only file system"
@@ -1099,7 +1145,8 @@ describe('skill test --harness and --backend (#163)', () => {
 			return { output: { schemaVersion: 1, cases: [] } }
 		}
 		const root = repo()
-		expect(await run(goodSkill().folder, root, { runPluginEval: pluginEval }, '--backend', 'plugin-eval')).toBe(0)
+		// it ran no case, so the test fails (#322), but it still saves the result
+		expect(await run(goodSkill().folder, root, { runPluginEval: pluginEval }, '--backend', 'plugin-eval')).toBe(1)
 		expect(calls.length).toBe(2)
 		const saved = JSON.parse(printed())
 		expect(saved).toMatchObject({ version: 1, skill: 'release-notes', baseline: 'without the skill' })
