@@ -374,6 +374,10 @@ function testText(result: TestResult, folder?: string): string {
 		)
 	if (result.resumedFrom) lines.push(`resumed: holds the runs of ${result.resumedFrom} and the runs it had left`)
 	if (result.savedAsExpected) lines.push('no expected result yet: saved this passing result as evals/expected.json')
+	if (result.notSavedAsExpected)
+		lines.push(
+			`not saved as evals/expected.json: ${result.notSavedAsExpected}; run \`skill accept\` on the skill to accept it anyway`,
+		)
 	if (result.expectedHeld)
 		lines.push(
 			'not saved as evals/expected.json: it has sandbox failures; review it, then run `skill accept` on the skill to accept it anyway',
@@ -779,9 +783,16 @@ function testCommand({
 				ran.replies,
 				'rows' in ran ? (ran.rows as Row[]) : undefined,
 			)
-			const failed = [...saved.trigger, ...saved.criteria].some((item) => item.status === 'fail')
-			// The first run that passes becomes the expected result when there is none (R80); an incomplete one never does (R162).
-			const firstPass = !failed && !saved.partial && !saved.incomplete && !existsSync(expectedPath(skill.folder))
+			const entries = [...saved.trigger, ...saved.criteria]
+			const failed = entries.some((item) => item.status === 'fail')
+			// A test in which no run finished is no pass (#322): every case not run.
+			const noneRan = saved.cases.length > 0 && saved.cases.every((item) => item.status === 'not-run')
+			const candidate = !failed && !saved.partial && !saved.incomplete && !existsSync(expectedPath(skill.folder))
+			// The first run that passes becomes the expected result when there is none (R80): at least one entry, and every
+			// one `pass`, so a result of `not-run` or `not-tested` entries never does (#322); an incomplete one never does (R162).
+			const allPass = entries.length > 0 && entries.every((item) => item.status === 'pass')
+			const firstPass = candidate && allPass
+			const notSaved = candidate && !allPass ? notSavedReason(entries, noneRan) : undefined
 			// A result with sandbox failures becomes the expected one only by `skill accept`, once the author has seen it (R154).
 			const held = (args.accept || firstPass) && !!saved.sandboxFailures?.length && !saved.incomplete
 			if ((args.accept || firstPass) && !held && !saved.incomplete) acceptResult(saved, skill.folder)
@@ -789,12 +800,26 @@ function testCommand({
 				? { ...saved, expectedHeld: true }
 				: !args.accept && firstPass
 					? { ...saved, savedAsExpected: true }
-					: saved
+					: !args.accept && notSaved
+						? { ...saved, notSavedAsExpected: notSaved }
+						: saved
 			const answer = result(reported, { render: { text: () => testText(reported, resultFolder) } })
-			if (failed || saved.incomplete) answerThenFail(answer, this.format)
+			if (failed || saved.incomplete || noneRan) answerThenFail(answer, this.format)
 			return answer
 		},
 	})
+}
+
+/** Why a first result with no fail is still not saved as the expected one (#322). */
+function notSavedReason(entries: { status: string }[], noneRan: boolean): string {
+	if (noneRan) return 'no run finished'
+	if (entries.length === 0) return 'it has no trigger case or criterion'
+	const count = (status: string) => entries.filter((item) => item.status === status).length
+	const parts = [
+		count('not-run') && `${count('not-run')} not run`,
+		count('not-tested') && `${count('not-tested')} not tested`,
+	].filter(Boolean)
+	return `not every trigger case and criterion passed: ${parts.join(', ')}`
 }
 
 function acceptCommand(_options: SkillCommandOptions): cli.Command {

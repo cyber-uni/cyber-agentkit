@@ -154,6 +154,11 @@ export type TestResult = {
 	noPrevious?: true
 	/** In a `test` report only: this run passed with no expected result, and was saved as it (R80). */
 	savedAsExpected?: true
+	/**
+	 * In a `test` report only (#322): there was no expected result and nothing failed, but not every trigger case and
+	 * criterion passed (some are `not-run` or `not-tested`, or no run finished), so it was not saved as it; says why.
+	 */
+	notSavedAsExpected?: string
 	/** In a `test` report only: the result would have been saved as the expected one, but it has sandbox failures (R154). */
 	expectedHeld?: true
 	cost?: number

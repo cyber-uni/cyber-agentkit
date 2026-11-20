@@ -181,9 +181,12 @@ Results saved before these fields were added lack them.
 
 ### Accept a result
 
-When the skill has no expected result yet and every case and criterion passes, `skill test` saves that result as the
-expected one and its report carries `savedAsExpected: true`: tell the author it was saved. A first run with a fail saves
-none. A result with sandbox failures is saved as expected by neither that rule nor `--accept`: the report carries
+When the skill has no expected result yet and every trigger case and criterion passes, `skill test` saves that result
+as the expected one and its report carries `savedAsExpected: true`: tell the author it was saved. A first run with a fail
+saves none. Nor does one with no trigger case or criterion, or with any that is `not-run` or `not-tested`: its report
+carries `notSavedAsExpected` with the reason, such as `no run finished` or
+`not every trigger case and criterion passed: 2 not tested`; tell the author, and offer `skill accept` if they want it
+kept anyway. A test in which no run finished, every case `not-run`, fails like a test with a fail. A result with sandbox failures is saved as expected by neither that rule nor `--accept`: the report carries
 `expectedHeld: true`, and only `skill accept <folder>`, run after the author has seen it, saves it. Otherwise only the author's request makes a result the expected result, and nothing else writes into the skill's
 folder. `skill test <folder> --accept` runs the test as usual, then writes that result to `<skill folder>/evals/expected.json`,
 in the same shape as `latest.json` but without `folder`, `replies`, or `evalId`, since the file is committed and those name
