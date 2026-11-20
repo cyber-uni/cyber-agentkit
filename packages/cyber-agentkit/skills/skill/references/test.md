@@ -191,8 +191,9 @@ saves none. Nor does one with no trigger case or criterion, or with any that is 
 carries `notSavedAsExpected` with the reason, such as `no run finished` or
 `not every trigger case and criterion passed: 2 not tested`; tell the author, and offer `skill accept` if they want it
 kept anyway; a result whose every case was a planned skip says `every case was skipped before running`. `skill test`
-exits 1 on a fail, on an incomplete result, and on a harness failure: a `failed` entry in `notRun`, or no run finished
-though the plan ran some case. A planned skip, a `not-tested` criterion, and an attested pass exit 0: they never count as
+exits 1 on a fail, on an incomplete result, and on a harness failure: a `failed` entry in `notRun`, a sandbox failure
+even when the other runs pass, or no run finished though the plan ran some case. A result held for sandbox failures
+still reports the pass rates of its finished runs. A planned skip, a `not-tested` criterion, and an attested pass exit 0: they never count as
 a pass, but they are no failure. A result with sandbox failures is saved as expected by neither that rule nor `--accept`: the report carries
 `expectedHeld: true`, and only `skill accept <folder>`, run after the author has seen it, saves it. Otherwise only the author's request makes a result the expected result, and nothing else writes into the skill's
 folder. `skill test <folder> --accept` runs the test as usual, then writes that result to `<skill folder>/evals/expected.json`,
