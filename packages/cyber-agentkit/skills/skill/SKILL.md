@@ -1,7 +1,7 @@
 ---
 name: skill
 description: Create, check, test, fix, update, and enhance agent skills (a SKILL.md and its folder). Load it before adding, editing, or linking any file of a skill (its SKILL.md, or a file under its references/, scripts/, assets/, or evals/) or a reference a skill loads, during any work, such as implementing an issue or fixing a bug, even when the request never says "skill". Also customize, vet, or report on a skill, standalone or inside a plugin or npm package, as in "write a skill for X", "add a skill to this plugin", "teach agents to use our library", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", "improve this skill", "is this skill from GitHub safe to install", "switch an aspect's implementation", and before handing skill writing to a subagent. Take it over aced:define-skill and aced:improve-skill.
-argument-hint: "<description> | help | create [description] | check [skill] | test [skill] | fix [skill] | update [skill] [change] | enhance [skill] [prompt] | vet <source> | report [skill] | customize [aspect]"
+argument-hint: "<description> | help | create [description] | check [skill] | test [skill] | fix [skill] | update [skill] [change] | enhance [skill] [prompt] | vet <source> | attest [skill] <criterion or case> <link> | report [skill] | customize [aspect]"
 ---
 
 # Skill
@@ -21,6 +21,7 @@ Route the request to one command, load that command's file from this skill's fol
 | `update [skill] [change]` | other work edits an existing skill (a request, an issue, a bug): make the change, add cases, then `check` and `test` it | [update.md](references/update.md) |
 | `enhance [skill] [prompt]` | the skill passes `check`, and the author wants it better, from its use or their own request | [enhance.md](references/enhance.md) |
 | `vet <source>` | the author wants a third-party skill vetted before installing it: its Security checks, an install verdict, and who publishes it | [vet.md](references/vet.md) |
+| `attest [skill] <criterion or case> <link>` | the author saw a criterion or case pass in the skill's real use and names the link, for a check a run cannot judge cheaply | [attest.md](references/attest.md) |
 | `report [skill]` | the author wants a skill's eval results in its docs or README, or as JSON | [report.md](references/report.md) |
 | `customize [aspect]` | the author wants to see or change which implementation each aspect uses, or how much each command applies on its own | [customize.md](references/customize.md) |
 
@@ -274,3 +275,4 @@ Before reporting done, check each against the result, and report any that fails.
 - **C24.** A result's `sandbox` and each `wroteOutside` path were said before any pass rate.
 - **C25.** `update` and `fix` each ended with the final `check` result and the `test` result per criterion, or the `Test budget:` line
   and why `test` did not run.
+- **C26.** A pass was attested only on the author's request naming its target and link, and then with `skill attest`.

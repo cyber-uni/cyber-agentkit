@@ -9,6 +9,15 @@ import { type HarnessId, harnessIds } from '../harness/harness-id.js'
 import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plugins.js'
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
 import { resolveReference } from '../references/resolve-reference.js'
+import {
+	type Attestation,
+	type AttestationView,
+	attestedTarget,
+	readAttestations,
+	recordAttestation,
+	skillFingerprint,
+	viewAttestations,
+} from './attestation.js'
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
 import { addCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
@@ -27,9 +36,9 @@ import { checkSkill } from './skill-check.js'
 import { readSkill } from './skill-files.js'
 import {
 	acceptResult,
-	expectedPath,
 	lastResult,
 	type PromptfooRun,
+	readExpected,
 	readLatest,
 	resultsFolder,
 	runPromptfoo,
@@ -304,6 +313,52 @@ const sandboxOption = {
 	type: t.string().optional(),
 }
 
+/**
+ * The entries the first-pass rule reads (#322), with a `not-tested` one that has a current attested pass (#323) counted
+ * as passed: an attested pass is a skipped variant, not a failure. A stale one counts for nothing, and a run's own `fail` or
+ * `not-run` is never changed.
+ */
+function withAttestedStatus(
+	entries: ({ case: string; status: string } | { id: string; status: string })[],
+	skillFolder: string,
+): { status: string }[] {
+	const attested = viewAttestations(readAttestations(skillFolder), skillFingerprint(skillFolder)).filter(
+		(item) => !item.stale,
+	)
+	if (!attested.length) return entries
+	return entries.map((item) => {
+		if (item.status !== 'not-tested') return item
+		const seen = attested.some((entry) =>
+			'case' in item ? entry.case === item.case : entry.case === undefined && entry.id === item.id,
+		)
+		return seen ? { ...item, status: 'pass' } : item
+	})
+}
+
+/** A `test` report with the skill's attested passes beside the run (#323), each marked stale when the skill changed since. */
+function withAttested(result: TestResult, skillFolder: string): TestResult {
+	const attested = readAttestations(skillFolder)
+	return attested.length ? { ...result, attested: viewAttestations(attested, skillFingerprint(skillFolder)) } : result
+}
+
+/**
+ * An attested pass's line in a `test` report (#323): where it was seen, never a pass rate. When this run fails the same
+ * criterion or case, the line says the run decides, so an older attested pass hides no failure.
+ */
+export function attestedLine(item: AttestationView, result: Pick<TestResult, 'criteria' | 'cases'>): string {
+	const run =
+		item.case !== undefined
+			? result.cases.find((other) => other.case === item.case)?.status
+			: result.criteria.find((other) => other.id === item.id)?.status
+	const parts = [
+		`${attestedTarget(item)}: attested${item.stale ? ', stale: skill changed since' : ''} (${item.evidence})`,
+	]
+	if (item.note) parts.push(` — ${item.note}`)
+	parts.push(` (${item.by ? `by ${item.by}, ` : ''}${item.at.slice(0, 10)})`)
+	if (run === 'fail') parts.push('; this run fails it, and the run decides')
+	return parts.join('')
+}
+
 /** The text report; `folder` is where the result was saved, so the replies file is named in full. */
 function testText(result: TestResult, folder?: string): string {
 	const lines = [
@@ -354,6 +409,7 @@ function testText(result: TestResult, folder?: string): string {
 			)
 	}
 	for (const item of result.cases) if (item.guard) lines.push(guardLine(item, result.threshold))
+	for (const item of result.attested ?? []) lines.push(attestedLine(item, result))
 	for (const item of result.notRun) lines.push(`not run: ${item.case} — ${item.reason}`)
 	if (result.sandbox)
 		lines.push(
@@ -783,11 +839,11 @@ function testCommand({
 				ran.replies,
 				'rows' in ran ? (ran.rows as Row[]) : undefined,
 			)
-			const entries = [...saved.trigger, ...saved.criteria]
+			const entries = withAttestedStatus([...saved.trigger, ...saved.criteria], skill.folder)
 			const failed = entries.some((item) => item.status === 'fail')
 			// A test in which no run finished is no pass (#322): every case not run.
 			const noneRan = saved.cases.length > 0 && saved.cases.every((item) => item.status === 'not-run')
-			const candidate = !failed && !saved.partial && !saved.incomplete && !existsSync(expectedPath(skill.folder))
+			const candidate = !failed && !saved.partial && !saved.incomplete && !readExpected(skill.folder)
 			// The first run that passes becomes the expected result when there is none (R80): at least one entry, and every
 			// one `pass`, so a result of `not-run` or `not-tested` entries never does (#322); an incomplete one never does (R162).
 			const allPass = entries.length > 0 && entries.every((item) => item.status === 'pass')
@@ -796,13 +852,16 @@ function testCommand({
 			// A result with sandbox failures becomes the expected one only by `skill accept`, once the author has seen it (R154).
 			const held = (args.accept || firstPass) && !!saved.sandboxFailures?.length && !saved.incomplete
 			if ((args.accept || firstPass) && !held && !saved.incomplete) acceptResult(saved, skill.folder)
-			const reported: TestResult = held
-				? { ...saved, expectedHeld: true }
-				: !args.accept && firstPass
-					? { ...saved, savedAsExpected: true }
-					: !args.accept && notSaved
-						? { ...saved, notSavedAsExpected: notSaved }
-						: saved
+			const reported: TestResult = withAttested(
+				held
+					? { ...saved, expectedHeld: true }
+					: !args.accept && firstPass
+						? { ...saved, savedAsExpected: true }
+						: !args.accept && notSaved
+							? { ...saved, notSavedAsExpected: notSaved }
+							: saved,
+				skill.folder,
+			)
 			const answer = result(reported, { render: { text: () => testText(reported, resultFolder) } })
 			if (failed || saved.incomplete || noneRan) answerThenFail(answer, this.format)
 			return answer
@@ -820,6 +879,99 @@ function notSavedReason(entries: { status: string }[], noneRan: boolean): string
 		count('not-tested') && `${count('not-tested')} not tested`,
 	].filter(Boolean)
 	return `not every trigger case and criterion passed: ${parts.join(', ')}`
+}
+
+function attestCommand(_options: SkillCommandOptions): cli.Command {
+	return command({
+		name: 'attest',
+		description:
+			"Record that a `## Done when` criterion or an eval case passed in the skill's real use, where the link shows, instead of in a run. Writes it to the `attested` list of `evals/expected.json` with the link, the time, and a fingerprint of SKILL.md and its references, and keeps any run result there. Runs nothing. Only the skill's author attests a pass; an agent never records one on its own judgment.",
+		arguments: [
+			{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() },
+			{
+				name: 'target',
+				description: 'The criterion that passed, such as `C3`, or the ID of the case that passed.',
+				type: t.string(),
+			},
+			{
+				name: 'url',
+				description: 'The link to where it passed, such as a merge request thread or a pipeline: an http or https URL.',
+				type: t.string(),
+			},
+		],
+		options: {
+			note: { description: 'What happened there, in a sentence.', type: t.string().optional() },
+			by: { description: 'Who saw it pass.', type: t.string().optional() },
+		},
+		examples: [
+			{
+				command:
+					'cyber-agentkit skill attest .agents/skills/review-mr C3 https://gitlab.example.com/group/app/-/merge_requests/58#note_16308023 --note "held the design-question thread"',
+				description: 'Attest that C3 passed on a real merge request',
+			},
+			{
+				command:
+					'cyber-agentkit skill attest .agents/skills/review-mr mixed-round https://gitlab.example.com/group/app/-/merge_requests/61',
+				description: 'Attest that the case mixed-round passed',
+			},
+		],
+		async run(
+			this: { format: Format },
+			args: { folder: string; target: string; url: string; note?: string | undefined; by?: string | undefined },
+		) {
+			const skill = readSkill(args.folder)
+			if (!skill) {
+				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			const name =
+				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+			const usage = (code: string, message: string): never => {
+				process.stderr.write(`error: ${code}: ${message}\n`)
+				throw CliError.reported(exitCodes.usage)
+			}
+			let url: URL | undefined
+			try {
+				url = new URL(args.url)
+			} catch {}
+			if (!url || !/^https?:$/.test(url.protocol))
+				usage('attest-evidence', `the link to where it passed must be an http or https URL; got ${args.url}`)
+			// A criterion ID names a criterion; anything else names a case.
+			const criteria = Object.keys(doneWhenCriteria(skill.body))
+			const plan = planTest(skill)
+			const cases =
+				'problem' in plan
+					? []
+					: [...plan.plan.cases.map((item) => item.id), ...plan.plan.notRun.map((item) => item.case)]
+			const isCriterion = criteria.includes(args.target)
+			if (!isCriterion && !cases.includes(args.target))
+				usage(
+					'unknown-target',
+					`${args.target} is neither a criterion of ${name}'s \`## Done when\` (${criteria.join(', ') || 'none'}) nor one of its cases (${cases.join(', ') || 'none'})`,
+				)
+			const entry = {
+				...(isCriterion ? { id: args.target } : { case: args.target }),
+				status: 'pass',
+				source: 'attested',
+				evidence: args.url,
+				...(args.note ? { note: args.note } : {}),
+				...(args.by ? { by: args.by } : {}),
+				at: new Date().toISOString(),
+				skillFingerprint: skillFingerprint(skill.folder),
+			} as Attestation
+			let path: string
+			try {
+				path = recordAttestation(skill.folder, name, entry)
+			} catch (error) {
+				process.stderr.write(`error: result-unreadable: ${(error as Error).message}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			return result(
+				{ skill: name, attested: entry, expected: path },
+				{ render: { text: () => `attested ${attestedTarget(entry)} (${entry.evidence}) in ${path}\n` } },
+			)
+		},
+	})
 }
 
 function acceptCommand(_options: SkillCommandOptions): cli.Command {
@@ -1358,12 +1510,13 @@ export function createSkillCommand(options: SkillCommandOptions = {}): cli.Comma
 	return command({
 		name: 'skill',
 		description:
-			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept a test result as its expected result, report its accepted results for docs, or vet a third-party skill before installing it.',
+			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept a test result as its expected result, attest a criterion or case that passed in real use, report its accepted results for docs, or vet a third-party skill before installing it.',
 		commands: [
 			checkCommand(options),
 			testCommand(options),
 			caseCommand(options),
 			acceptCommand(options),
+			attestCommand(options),
 			reportCommand(options),
 			vetCommand(options),
 		],

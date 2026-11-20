@@ -1,3 +1,4 @@
+import type { AttestationView } from './attestation.js'
 import { recognizeSandboxFault } from './sandbox-faults.js'
 import type { TestPlan } from './test-plan.js'
 import { recognizeUsageLimit } from './usage-limits.js'
@@ -170,6 +171,11 @@ export type TestResult = {
 	replies?: string
 	/** promptfoo's own ID for the run, for `promptfoo view` and `promptfoo show eval <id>`. */
 	evalId?: string
+	/**
+	 * In `evals/expected.json`: the passes the author attested from the skill's real use, not from a run (#323). They decide
+	 * no `changed` or `moved`. In a `test` report, each is marked `stale` when the skill changed since it was recorded.
+	 */
+	attested?: AttestationView[]
 }
 
 /** One run's record in the replies file beside a saved result (R138). */

@@ -199,6 +199,12 @@ the same run, and keeps the 3 newest there, deleting older ones. Commit them wit
 history `moved` compares across. A skill with only `expected.json` needs no step: it is the newest entry, and the
 history grows from the next accept.
 
+### Attest a pass
+
+A criterion or case that passed in the skill's real use, where a link shows it, is recorded with `attest`, not with a
+run: follow [attest](attest.md). A `not-tested` entry with a current attestation counts as passed for the first-result
+rule above.
+
 ## Report
 
 When the result is `incomplete`, say so first: the usage limit stopped it, when it resets, and how many runs are left;
@@ -215,5 +221,6 @@ skill tried and were refused, if anything; and the cases that changed between pa
 none, the previous result, saying which. With neither, say there is none to compare. Name the model the cases ran on,
 and each case on its own. When `modelChanged` lists cases, say their model changed since the result compared with, so
 a change there may be the model's rather than the skill's. Name each case in `moved` with
-its rate in each accepted result and in this run. Say when the result was saved as the
-expected result. With failures, offer `fix` as `SKILL.md`'s Rules say.
+its rate in each accepted result and in this run. Give each `attested` entry with its link, never as a pass rate, and
+say when it is stale; ask the author to check a stale one in real use again. Say when the result was
+saved as the expected result. With failures, offer `fix` as `SKILL.md`'s Rules say.

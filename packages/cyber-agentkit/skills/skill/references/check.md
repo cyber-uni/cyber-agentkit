@@ -39,5 +39,7 @@ skill as the way to load it, fails SHP-19 and names the line.
 
 One line per aspect: pass, fail, or not checked. An aspect whose checks all pass or are skipped passes. Under each
 fail, the check's ID, its severity (`critical` or `warning`), its statement, and the part of the skill that breaks it,
-quoted with its file. List the critical failures first: they must be fixed before a commit. With failures, offer `fix`
+quoted with its file. List the critical failures first: they must be fixed before a commit. A criterion the author
+attested as passing in real use counts as covered for VER-3, and VER-15 reports it as `attested, no rubric`, a warning,
+or as stale once the skill changed; never attest or renew a pass to clear a check ([attest](attest.md)). With failures, offer `fix`
 as `SKILL.md`'s Rules say.

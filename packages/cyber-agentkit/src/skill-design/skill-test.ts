@@ -13,6 +13,7 @@ import {
 import { tmpdir } from 'node:os'
 import { basename, join, relative } from 'node:path'
 import { stringify } from 'yaml'
+import { readAttestations } from './attestation.js'
 import { checkPluginsLoad, type DependencySources, type PluginList, resolveDependencyPlugins } from './plugin-load.js'
 import { promptfooConfig, promptfooPackages } from './promptfoo-config.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
@@ -311,6 +312,14 @@ export function expectedPath(skillFolder: string): string {
 	return join(skillFolder, 'evals', 'expected.json')
 }
 
+/**
+ * The run result in the skill's `evals/expected.json`. A file that holds only attested passes (#323), or that cannot be
+ * read, holds none.
+ */
+export function readExpected(skillFolder: string): TestResult | undefined {
+	return readResult(expectedPath(skillFolder))
+}
+
 /** Where the skill's past accepted results live, each as `<its at>.json`, beside the expected result. */
 export function acceptedFolder(skillFolder: string): string {
 	return join(skillFolder, 'evals', 'accepted')
@@ -370,9 +379,7 @@ export function saveResult(
 		previous = JSON.parse(readFileSync(latest, 'utf8')) as TestResult
 		renameSync(latest, join(folder, `${stem(previous.at)}.json`))
 	}
-	const expected = existsSync(expectedPath(skillFolder))
-		? (JSON.parse(readFileSync(expectedPath(skillFolder), 'utf8')) as TestResult)
-		: undefined
+	const expected = readExpected(skillFolder)
 	const compared = expected
 		? compareWithPrevious(result, expected, 'expected')
 		: compareWithPrevious(result, previous, 'previous')
@@ -449,12 +456,14 @@ export function acceptResult(result: TestResult, skillFolder: string): string {
 	const path = expectedPath(skillFolder)
 	mkdirSync(join(skillFolder, 'evals'), { recursive: true })
 	const replaced = existsSync(path) ? readResult(path) : undefined
+	// The passes the author attested (#323) outlive the run they were recorded beside.
+	const attested = readAttestations(skillFolder)
 	if (replaced && replaced.at !== result.at) {
 		mkdirSync(acceptedFolder(skillFolder), { recursive: true })
 		renameSync(path, join(acceptedFolder(skillFolder), `${stem(replaced.at)}.json`))
 	}
-	const { folder: _folder, replies: _replies, evalId: _evalId, ...shared } = result
-	writeFileSync(path, `${JSON.stringify(shared, null, '\t')}\n`)
+	const { folder: _folder, replies: _replies, evalId: _evalId, attested: _attested, ...shared } = result
+	writeFileSync(path, `${JSON.stringify(attested.length ? { ...shared, attested } : shared, null, '\t')}\n`)
 	pruneAccepted(skillFolder)
 	return path
 }
@@ -480,9 +489,5 @@ export function readLatest(folder: string): TestResult | undefined {
 export function lastResult(folder: string, skillFolder: string): TestResult | undefined {
 	const latest = readLatest(folder)
 	if (latest) return latest
-	try {
-		return JSON.parse(readFileSync(expectedPath(skillFolder), 'utf8')) as TestResult
-	} catch {
-		return undefined
-	}
+	return readExpected(skillFolder)
 }
