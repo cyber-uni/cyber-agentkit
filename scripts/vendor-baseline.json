@@ -122,18 +122,20 @@
 			"axis": "instructions",
 			"evidence": "E-VSC-I1",
 			"confidence": "High — vendor doc",
-			"cited": "https://code.visualstudio.com/docs/agent-customization/custom-instructions",
-			"url": "https://raw.githubusercontent.com/microsoft/vscode-docs/main/docs/agent-customization/custom-instructions.md",
-			"section": "Types of instruction files",
+			"cited": "https://code.visualstudio.com/docs/agents/reference/custom-instructions-reference",
+			"url": "https://raw.githubusercontent.com/microsoft/vscode-docs/main/docs/agents/reference/custom-instructions-reference.md",
+			"section": "Supported formats and locations",
 			"paths": [
 				"*.instructions.md",
+				".claude/CLAUDE.md",
 				".claude/rules",
 				".github/copilot-instructions.md",
 				".github/instructions",
-				".instructions.md",
 				"AGENTS.md",
 				"CLAUDE.md",
+				"~/.claude/CLAUDE.md",
 				"~/.claude/rules",
+				"~/.copilot/copilot-instructions.md",
 				"~/.copilot/instructions"
 			]
 		},
@@ -144,7 +146,7 @@
 			"confidence": "High",
 			"cited": "https://opencode.ai/docs/skills",
 			"url": "https://opencode.ai/docs/skills.md",
-			"section": "Place files",
+			"section": "Discovery",
 			"paths": [
 				".agents/skills",
 				".claude/skills",
@@ -159,9 +161,9 @@
 			"axis": "instructions",
 			"evidence": "E-OC-I1",
 			"confidence": "High — vendor doc",
-			"cited": "https://opencode.ai/docs/rules",
-			"url": "https://opencode.ai/docs/rules.md",
-			"section": "Types",
+			"cited": "https://opencode.ai/docs/instructions",
+			"url": "https://opencode.ai/docs/instructions.md",
+			"section": "Scope",
 			"paths": ["AGENTS.md", "CLAUDE.md", "~/.claude/CLAUDE.md", "~/.config/opencode/AGENTS.md"]
 		},
 		{
