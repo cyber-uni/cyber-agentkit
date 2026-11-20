@@ -164,11 +164,17 @@ export function leadsIn(file: string, text: string, also: readonly string[] = []
 	return leads.sort((a, b) => a.line - b.line)
 }
 
+/**
+ * A load line's clause, up to `with the reference skill`. It stops at a sentence's final period but
+ * crosses a backticked name, so a dotted name such as `project-tracker.levels` stays in the clause.
+ */
+const loadClause = /Load\s+((?:[^.`]|`[^`]*`)*?)\s+with\s+the\s+`reference`\s+skill/g
+
 /** The reference names a skill's text loads with the `reference` skill, and the interfaces whose implementations it loads. */
 export function loadsIn(text: string): { names: string[]; interfaces: string[] } {
 	const names: string[] = []
 	const interfaces: string[] = []
-	for (const found of text.matchAll(/Load\s+([^.]*?)\s+with\s+the\s+`reference`\s+skill/g)) {
+	for (const found of text.matchAll(loadClause)) {
 		const clause = found[1] as string
 		const iface = /implementations\s+of\s+the\s+`([^`]+)`\s+interface/.exec(clause)
 		if (iface) interfaces.push(iface[1] as string)
