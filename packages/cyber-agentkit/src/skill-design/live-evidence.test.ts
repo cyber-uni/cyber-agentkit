@@ -218,7 +218,7 @@ describe('a live pass in skill test (#323)', () => {
 		expect(await skill(['test', folder, '--root', root, '--format', 'text'])).toBe(0)
 		const text = printed()
 		expect(text).toContain('C2: not-tested')
-		expect(text).toMatch(new RegExp(`live C2: verified live \\(${url.replace(/[.?/]/g, '\\$&')}\\) — held the thread`))
+		expect(text).toContain(`live C2: verified live (${url}) — held the thread`)
 		expect(text).not.toContain('stale')
 	})
 
