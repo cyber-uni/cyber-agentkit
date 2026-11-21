@@ -29,6 +29,7 @@
 		},
 		"//#test:scripts": {
 			"inputs": [
+				"package.json",
 				"scripts/**",
 				"packages/cyber-agentkit/src/harness/**",
 				"packages/cyber-agentkit/src/skills/**",
