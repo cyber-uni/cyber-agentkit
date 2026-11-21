@@ -39,10 +39,16 @@ function walk(dir: string, top: string, input: string): ConsumerFile[] {
 				.slice(top.length + 1)
 				.split(sep)
 				.join('/')
-			out.push({ path: `${input.replace(/[\\/]+$/, '')}/${below}`, absolute })
+			out.push({ path: `${withoutTrailingSlash(input)}/${below}`, absolute })
 		}
 	}
 	return out
+}
+
+function withoutTrailingSlash(path: string): string {
+	let end = path.length
+	while (end > 1 && (path[end - 1] === '/' || path[end - 1] === '\\')) end--
+	return path.slice(0, end)
 }
 
 /** Each path given, with the text files it holds. A folder is walked for text files, skipping bundled default copies. */

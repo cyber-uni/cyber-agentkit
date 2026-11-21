@@ -5,18 +5,65 @@ import type { ReferenceLayers } from './reference-layers.js'
 import { resolveReference } from './resolve-reference.js'
 import { withDefault } from './skill-defaults.js'
 
+const loadPhrase = ' with the `reference` skill'
+
 /**
- * A load line's clause, up to `with the reference skill`. It stops at a sentence's final period but
- * crosses a backticked name, so a dotted name such as `project-tracker.levels` stays in the clause.
+ * The clause of each load line: the text after `Load`, up to `with the reference skill`. It stops at a
+ * sentence's final period but crosses a backticked name, so a dotted name such as
+ * `project-tracker.levels` stays in the clause. A scan, not a regular expression, so it stays linear.
  */
-const loadClause = /Load\s+((?:[^.`]|`[^`]*`)*?)\s+with\s+the\s+`reference`\s+skill/g
+function loadClauses(raw: string): string[] {
+	const text = raw.replace(/\s+/g, ' ')
+	const clauses: string[] = []
+	// Each search resumes where the last left off, and the scan only moves forward, so it stays linear.
+	const next = (needle: string) => {
+		let found = -2
+		return (from: number) => {
+			if (found !== -1 && found < from) found = text.indexOf(needle, from)
+			return found
+		}
+	}
+	const nextLoad = next('Load ')
+	const nextPhrase = next(loadPhrase)
+	for (const [start, end] of sentences(text)) {
+		let at = nextLoad(start)
+		while (at >= 0 && at < end) {
+			const phrase = nextPhrase(at + 4)
+			if (phrase < 0 || phrase + loadPhrase.length > end) break
+			clauses.push(text.slice(at + 5, phrase).trim())
+			at = nextLoad(phrase + loadPhrase.length)
+		}
+	}
+	return clauses
+}
+
+/** Each sentence's span: it ends at a period outside a backticked span, or at a backtick never closed. */
+function sentences(text: string): [number, number][] {
+	const spans: [number, number][] = []
+	let start = 0
+	let at = 0
+	while (at < text.length) {
+		if (text[at] === '.') {
+			spans.push([start, at])
+			start = ++at
+		} else if (text[at] === '`') {
+			const close = text.indexOf('`', at + 1)
+			if (close < 0) {
+				spans.push([start, at])
+				return spans
+			}
+			at = close + 1
+		} else at++
+	}
+	spans.push([start, text.length])
+	return spans
+}
 
 /** The reference names a text loads with the `reference` skill, and the interfaces whose implementations it loads. */
 export function loadsIn(text: string): { names: string[]; interfaces: string[] } {
 	const names: string[] = []
 	const interfaces: string[] = []
-	for (const found of text.matchAll(loadClause)) {
-		const clause = found[1] as string
+	for (const clause of loadClauses(text)) {
 		const iface = /implementations\s+of\s+the\s+`([^`]+)`\s+interface/.exec(clause)
 		if (iface) interfaces.push(iface[1] as string)
 		else for (const name of clause.matchAll(/`([^`]+)`/g)) names.push(name[1] as string)
