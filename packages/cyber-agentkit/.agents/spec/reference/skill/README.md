@@ -86,9 +86,9 @@ IDs are shared across the parent and its children.
 - **Trigger:** a skill ships its own copy of each plugin reference it loads, since an installed skill gets only its
   own folder, and the plugin's canonical reference has changed, or a load line has been added or dropped. A release or
   a verify step checks that the copies still match.
-- **Entry points:** Code: `reference defaults <skill>`, with `--check` to write nothing and fail when a copy is out of
+- **Entry points:** Code: `reference defaults <folder>`, given the skill's folder, with `--check` to write nothing and fail when a copy is out of
   date, and `--plugin <folder>` when the skill has no plugin above it. The skill itself never runs the command (UC12).
-- **Inputs:** a skill, by folder or name; the plugin's folder, found as the nearest folder above the skill with a
+- **Inputs:** a folder, such as a skill's; never a skill name, which the `skill` skill resolves first (UC28); the plugin's folder, found as the nearest folder above the skill with a
   plugin manifest unless given; whether to check only.
 - **Outcome:** each name the skill loads that its plugin ships a canonical reference for has a copy at
   `references/<name>.default.md`, which is the canonical reference with `default` taken out of `extends`. The report
@@ -107,6 +107,25 @@ IDs are shared across the parent and its children.
     `<id>.interface`, with no exception. It is listed under the name `<id>.interface`. A copy held as
     `references/<id>.interface.md`, as repobuddy writes one today, is `misnamed` and fails `--check`. A skill default
     of an interface answers only when no other tier holds the interface (R14).
+
+### UC28 — Advise on what a text hard-codes, and list what it loads (A6.1)
+
+- **Trigger:** an author wants to know what a text an agent reads (a skill folder, an `AGENTS.md`, an agent
+  definition, a command file) hard-codes that another team would choose differently, or which references it loads and
+  who answers each.
+- **Entry points:** Code: `reference advise <paths...>` for the leads, `reference uses <paths...>` for the loads. Skill:
+  the `reference` skill's Advise mode; the `skill` skill's check of SHP-5 and SHP-6, which finds a named skill's
+  folder with `skill where <name>` and passes that folder.
+- **Inputs:** files or folders. No `reference` command looks a skill up by name or reads front matter as a skill's: a
+  skill depends on references, never the reverse.
+- **Outcome:** `advise` reports pattern leads (hosts, tools, paths, URLs, step lists, templates) with their lines; each
+  is a suggestion for the author to judge, never a pass or fail. `uses` reports each name the text loads, whether a
+  bundled default ships beside it, and which tier answers it here, and the interfaces whose implementations it loads.
+  Neither writes anything.
+- **Extensions:**
+  - UC28.1 A path where nothing is: a usage error, and nothing is read.
+  - UC28.2 `reference audit`, the command these replace, stays for one minor release: it runs both and says which
+    commands replace it.
 
 ## Criteria
 

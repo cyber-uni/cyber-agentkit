@@ -175,13 +175,13 @@ export const referenceCodes = {
 		kind: 'usage',
 		when: 'a flag given without the one it needs: `--request` without `--body`, or the reverse (R82)',
 	},
-	'skill-not-found': {
+	'path-not-found': {
 		kind: 'usage',
-		when: 'an `audit` skill given as a name or folder that no installed or local skill matches',
+		when: 'a path given to `advise`, `uses`, or `defaults` where no file or folder is, or a file where `defaults` needs a folder',
 	},
-	'skill-ambiguous': {
-		kind: 'refused',
-		when: 'an `audit` skill name that more than one skill carries; the details give each folder',
+	'path-missing': {
+		kind: 'usage',
+		when: '`advise` or `uses` given no path to read',
 	},
 	'option-invalid': {
 		kind: 'usage',
@@ -192,11 +192,11 @@ export const referenceCodes = {
 	'template-with-implements': { kind: 'usage', when: '`--template` with `--implements` (R28)' },
 	'plugin-not-found': {
 		kind: 'refused',
-		when: '`defaults` on a skill with no plugin manifest above its folder, and no `--plugin` given; the skill has no canonical reference to copy from',
+		when: '`defaults` on a folder with no plugin manifest at or above it, and no `--plugin` given; there is no canonical reference to copy from',
 	},
 	'bundle-out-of-date': {
 		kind: 'refused',
-		when: '`defaults --check` finds a bundled default copy missing, stale, misnamed, or no longer named by its skill; the details give each',
+		when: '`defaults --check` finds a bundled default copy missing, stale, misnamed, or no longer loaded by its folder; the details give each',
 	},
 } as const satisfies Record<string, { kind: ReferenceCodeKind; when: string }>
 

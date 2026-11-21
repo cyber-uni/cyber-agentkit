@@ -1,6 +1,7 @@
 import type { cli } from 'clibuilder'
 import { command } from 'clibuilder'
 import { registerCommand } from '../interface-registry/register.command.js'
+import { adviseCommand, auditCommand, usesCommand } from './reference-advise.command.js'
 import { defaultsCommand } from './reference-bundle.command.js'
 import { checkCommand } from './reference-check.command.js'
 import { defaultReferencePath, layerSource } from './reference-command-support.js'
@@ -13,10 +14,14 @@ import { listCommand } from './reference-list.command.js'
 import { loadCommand } from './reference-load.command.js'
 import { migrateCommand } from './reference-migrate.command.js'
 import { searchCommand } from './reference-search.command.js'
-import { auditCommand } from './reference-skill-audit.command.js'
 import { whereCommand } from './reference-where.command.js'
 
 export type { ReferenceRegisterReport } from '../interface-registry/register.command.js'
+export type {
+	ReferenceAdviseReport,
+	ReferenceAuditReport,
+	ReferenceUsesReport,
+} from './reference-advise.command.js'
 export type { ReferenceCheckReport } from './reference-check.command.js'
 export { traceText } from './reference-command-support.js'
 export type { ReferenceCreateReport } from './reference-create.command.js'
@@ -34,7 +39,6 @@ export type { ReferenceListReport } from './reference-list.command.js'
 export type { ReferenceLoadEntry } from './reference-load.command.js'
 export type { ReferenceMigrateReport } from './reference-migrate.command.js'
 export type { ReferenceSearchReport } from './reference-search.command.js'
-export type { ReferenceAuditReport } from './reference-skill-audit.command.js'
 export type { ReferenceWhereOutput } from './reference-where.command.js'
 
 export type ReferenceCommandOptions = {
@@ -60,6 +64,9 @@ export type ReferenceCommands = {
 	check: cli.Command
 	defaults: cli.Command
 	implementations: cli.Command
+	advise: cli.Command
+	uses: cli.Command
+	/** @deprecated Use `advise` and `uses`; removed in the next minor release. */
 	audit: cli.Command
 	register: cli.Command
 }
@@ -80,8 +87,10 @@ export function createReferenceCommands({
 		delete: deleteCommand(layersFor, path),
 		migrate: migrateCommand(layersFor, path),
 		check: checkCommand(layersFor, path),
-		defaults: defaultsCommand(layersFor, path),
+		defaults: defaultsCommand(path),
 		implementations: implementationsCommand(layersFor, path),
+		advise: adviseCommand(path),
+		uses: usesCommand(layersFor, path),
 		audit: auditCommand(layersFor, path),
 		register: registerCommand(path),
 	}
@@ -100,6 +109,8 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 		check,
 		defaults,
 		implementations,
+		advise,
+		uses,
 		audit,
 		register,
 	} = createReferenceCommands(options)
@@ -117,6 +128,8 @@ export function createReferenceCommand(options: ReferenceCommandOptions = {}): c
 			remove,
 			migrate,
 			implementations,
+			advise,
+			uses,
 			audit,
 			check,
 			defaults,

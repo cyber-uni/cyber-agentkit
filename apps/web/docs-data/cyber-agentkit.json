@@ -135,12 +135,21 @@
 				}
 			]
 		},
-		"reference audit": {
+		"reference advise": {
 			"examples": [
 				{
-					"title": "Audit a skill for concerns a reference could hold.",
-					"args": ["audit", "skills/file-bug"],
-					"explain": "The answer gives the skill's files, the references it loads and whether each ships a default, and the lines that look hard-coded. A lead is a candidate, never a verdict: the agent running the command judges each, and the user decides. Nothing is written."
+					"title": "Find what a skill folder hard-codes that a reference could hold.",
+					"args": ["advise", "skills/file-bug"],
+					"explain": "The answer gives the files read and the lines that look hard-coded. It works the same on an AGENTS.md or an agent definition. A lead is a suggestion, never a verdict: the agent running the command judges each, and the user decides. Nothing is written."
+				}
+			]
+		},
+		"reference uses": {
+			"examples": [
+				{
+					"title": "List the references a skill folder loads.",
+					"args": ["uses", "skills/file-bug"],
+					"explain": "Each name comes with the files that load it, whether a bundled default ships beside it, and the tiers that answer it here. Nothing is written."
 				}
 			]
 		},

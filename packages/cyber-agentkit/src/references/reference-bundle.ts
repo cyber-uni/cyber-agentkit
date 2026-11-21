@@ -1,15 +1,15 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative, resolve, sep } from 'node:path'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import { pluginManifestName } from '../plugins/plugin-manifest.js'
-import type { FoundSkill } from '../skills/skill-folder.js'
+import { consumerPaths } from './reference-consumer-files.js'
 import { frontmatterPattern } from './reference-document.js'
 import { ReferenceFailure } from './reference-error.js'
-import { loadsIn } from './reference-skill-audit.js'
+import { loadsIn } from './reference-uses.js'
 
 /**
- * A skill ships a copy of each plugin reference it loads, at `references/<name>.default.md`, since an
- * installed skill gets only its own folder. This module writes those copies from the plugin's canonical
- * `references/<name>.md` and checks them.
+ * A folder that loads references, such as a skill, ships a copy of each plugin reference it loads, at
+ * `references/<name>.default.md`, since an installed copy of it gets only its own folder. This module
+ * writes those copies from the plugin's canonical `references/<name>.md` and checks them.
  */
 
 export type BundleState =
@@ -18,51 +18,39 @@ export type BundleState =
 	/** The copy is missing or differs from the canonical; `defaults` without `--check` writes it. */
 	| 'missing'
 	| 'stale'
-	/** The skill loads the name and holds its copy under the wrong file name, such as `<name>.md`. */
+	/** The folder loads the name and holds its copy under the wrong file name, such as `<name>.md`. */
 	| 'misnamed'
-	/** A `<name>.default.md` the skill no longer loads. Never deleted: the author decides. */
+	/** A `<name>.default.md` the folder no longer loads. Never deleted: the author decides. */
 	| 'orphan'
-	/** The skill loads the name, but the plugin does not ship a canonical reference to copy. Not a failure. */
+	/** The folder loads the name, but the plugin does not ship a canonical reference to copy. Not a failure. */
 	| 'unbundled'
 
 export type BundleEntry = {
 	name: string
 	state: BundleState
-	/** The copy, relative to the skill folder. */
+	/** The copy, relative to the folder. */
 	file: string
 	/** Set on `written` results when the copy was created or rewritten by this run. */
 	written?: boolean
 }
 
 export type BundleReport = {
-	skill: FoundSkill
+	/** The folder whose copies were compared. */
+	folder: string
 	pluginRoot: string
 	entries: BundleEntry[]
 	/** True when every entry is `current` or `unbundled`. */
 	ok: boolean
 }
 
-/** Walks a folder for text files, skipping `node_modules` and `.git`. */
-function textFiles(dir: string, top = dir): string[] {
-	const out: string[] = []
-	for (const entry of readdirSync(dir).sort()) {
-		if (entry === 'node_modules' || entry === '.git') continue
-		const path = join(dir, entry)
-		if (statSync(path).isDirectory()) out.push(...textFiles(path, top))
-		else if (/\.(md|mdx|txt|yaml|yml|json|toml)$/i.test(entry) && !/\.default\.[a-z]+$/i.test(entry))
-			out.push(relative(top, path).split(sep).join('/'))
-	}
-	return out
-}
-
 /**
- * The reference names the skill loads with the `reference` skill, read from its own text files. An
- * interface it loads is named `<id>.interface`, the name its document is held under.
+ * The reference names the text in a folder loads with the `reference` skill, bundled default copies
+ * left out. An interface it loads is named `<id>.interface`, the name its document is held under.
  */
-export function loadedNames(skillFolder: string): string[] {
+export function loadedNames(folder: string): string[] {
 	const names = new Set<string>()
-	for (const file of textFiles(skillFolder)) {
-		const { names: found, interfaces } = loadsIn(readFileSync(join(skillFolder, file), 'utf8'))
+	for (const file of consumerPaths([folder], folder).flatMap((consumer) => consumer.files)) {
+		const { names: found, interfaces } = loadsIn(readFileSync(file.absolute, 'utf8'))
 		for (const name of found) names.add(name)
 		for (const id of interfaces) names.add(`${id}.interface`)
 	}
@@ -70,7 +58,7 @@ export function loadedNames(skillFolder: string): string[] {
 }
 
 /**
- * The text a skill's copy holds: the canonical reference with `default` taken out of its `extends`. A
+ * The text a bundled copy holds: the canonical reference with `default` taken out of its `extends`. A
  * copy names what the plugin builds on, so the default it replaces is not repeated.
  */
 export function bundledCopy(canonical: string): string {
@@ -95,9 +83,9 @@ export function bundledCopy(canonical: string): string {
 	return frontmatter === '' ? body : `---\n${frontmatter}\n---\n${body.startsWith('\n') ? body.slice(1) : body}`
 }
 
-/** The plugin root of a skill: the nearest folder at or above it that carries a plugin manifest. */
-export function pluginRootOf(skillFolder: string): string | undefined {
-	let dir = resolve(skillFolder)
+/** The plugin root of a folder: the nearest folder at or above it that carries a plugin manifest. */
+export function pluginRootOf(folder: string): string | undefined {
+	let dir = resolve(folder)
 	for (;;) {
 		if (pluginManifestName(dir)) return dir
 		const parent = dirname(dir)
@@ -107,16 +95,17 @@ export function pluginRootOf(skillFolder: string): string | undefined {
 }
 
 export type BundleOptions = {
-	skill: FoundSkill
+	/** The folder that loads references and holds their copies under `references/`. */
+	folder: string
 	pluginRoot: string
 	/** Writes the missing and stale copies. Without it, nothing is written. */
 	write: boolean
 }
 
-/** Compares, and with `write` brings up to date, each copy the skill's loaded names need. */
-export function bundleSkill({ skill, pluginRoot, write }: BundleOptions): BundleReport {
-	const refs = join(skill.folder, 'references')
-	const loaded = loadedNames(skill.folder)
+/** Compares, and with `write` brings up to date, each copy the folder's loaded names need. */
+export function bundleDefaults({ folder, pluginRoot, write }: BundleOptions): BundleReport {
+	const refs = join(folder, 'references')
+	const loaded = loadedNames(folder)
 	const entries: BundleEntry[] = []
 	for (const name of loaded) {
 		const copy = `references/${name}.default.md`
@@ -126,7 +115,7 @@ export function bundleSkill({ skill, pluginRoot, write }: BundleOptions): Bundle
 			continue
 		}
 		const expected = bundledCopy(readFileSync(canonicalPath, 'utf8'))
-		const copyPath = join(skill.folder, copy)
+		const copyPath = join(folder, copy)
 		if (existsSync(copyPath)) {
 			if (readFileSync(copyPath, 'utf8') === expected) entries.push({ name, state: 'current', file: copy })
 			else entries.push(writeEntry(write, name, 'stale', copy, copyPath, expected))
@@ -144,7 +133,7 @@ export function bundleSkill({ skill, pluginRoot, write }: BundleOptions): Bundle
 	}
 	entries.sort((a, b) => a.name.localeCompare(b.name) || a.file.localeCompare(b.file))
 	return {
-		skill,
+		folder,
 		pluginRoot,
 		entries,
 		ok: entries.every(({ state }) => state === 'current' || state === 'unbundled'),
@@ -172,12 +161,12 @@ function existingDefaults(refs: string): string[] {
 		.sort()
 }
 
-/** The refusal `defaults` gives when a skill has no plugin to copy from. */
-export function noPluginFailure(skill: FoundSkill): ReferenceFailure {
+/** The refusal `defaults` gives when a folder has no plugin to copy from. */
+export function noPluginFailure(folder: string): ReferenceFailure {
 	return new ReferenceFailure(
 		'plugin-not-found',
-		`The skill "${skill.name}" has no plugin manifest above its folder, so there is no canonical reference to copy; give the plugin's folder with --plugin.`,
-		{ details: { skill: skill.folder } },
+		`${folder} has no plugin manifest at or above it, so there is no canonical reference to copy; give the plugin's folder with --plugin.`,
+		{ details: { folder } },
 	)
 }
 
@@ -186,10 +175,10 @@ export function outOfDateFailure(report: BundleReport): ReferenceFailure {
 	const bad = report.entries.filter(({ state }) => state !== 'current' && state !== 'unbundled')
 	return new ReferenceFailure(
 		'bundle-out-of-date',
-		`${bad.length} bundled default ${bad.length === 1 ? 'copy is' : 'copies are'} out of date in ${report.skill.name}; run \`defaults\` without --check to write the missing and stale copies.`,
+		`${bad.length} bundled default ${bad.length === 1 ? 'copy is' : 'copies are'} out of date in ${report.folder}; run \`defaults\` without --check to write the missing and stale copies.`,
 		{
 			details: {
-				skill: report.skill.folder,
+				folder: report.folder,
 				entries: bad.map(({ name, state, file }) => `${state}: ${name} (${file})`),
 			},
 		},

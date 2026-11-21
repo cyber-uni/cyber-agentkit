@@ -99,6 +99,13 @@ export type { Collision } from './prose-update/merge.js'
 export type { LoadReferenceOptions } from './references/load-reference.js'
 export { loadReference } from './references/load-reference.js'
 export type {
+	AdviceCategory,
+	AdviceLead,
+	AdviseOptions,
+	ReferenceAdvice,
+} from './references/reference-advise.js'
+export { adviseReferences, leadsIn } from './references/reference-advise.js'
+export type {
 	ListOptions,
 	MatchKind,
 	ReferenceListing,
@@ -181,6 +188,8 @@ export type {
 	ReferenceSourcePlugin,
 	ReferenceTraceSource,
 } from './references/reference-sources.js'
+export type { ReferenceUse, ReferenceUses, UsesOptions } from './references/reference-uses.js'
+export { loadsIn, referenceUses } from './references/reference-uses.js'
 export type { ReferenceWhereFile, ReferenceWhereReport, WhereOptions } from './references/reference-where.js'
 export { whereReference } from './references/reference-where.js'
 export type { CreateResult, DeleteResult } from './references/reference-write.js'
@@ -202,6 +211,8 @@ export type {
 export { parseReferenceName, referenceNames, resolveReference } from './references/resolve-reference.js'
 export type { CreateReferenceOptions, DeleteReferenceOptions } from './references/write-reference.js'
 export { createReference, deleteReference } from './references/write-reference.js'
+export type { FindSkillOptions, FindSkillResult } from './skills/find-skill.js'
+export { findSkill } from './skills/find-skill.js'
 export type { SkillFolderOptions } from './skills/harness-skill-folders.js'
 export {
 	adminSkillFolders,

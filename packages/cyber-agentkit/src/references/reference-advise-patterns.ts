@@ -1,9 +1,9 @@
 /**
- * What the audit looks for. A match is a lead for the agent to judge, never a verdict. The lists start
+ * What `advise` looks for. A match is a lead for the agent to judge, never a verdict. The lists start
  * small and grow from use; `--also` adds terms for one run without a change here.
  */
 
-/** Git hosts, trackers, and services a skill may name; matched as whole words, ignoring case. */
+/** Git hosts, trackers, and services a text may name; matched as whole words, ignoring case. */
 export const providerTerms: readonly string[] = [
 	'GitHub',
 	'GitLab',

@@ -27,9 +27,12 @@ not checked, one at a time, and leave none undecided. Report each `run` check as
 pointing to `test`, never as a pass. A skill that fails the Agent Skills specification still gets every aspect checked.
 Report a check that does not apply to the skill as skipped, such as TRG-1 on a name-only skill (Trigger says which).
 
-To decide SHP-5 and SHP-6, run the `reference` skill's `audit <skill folder>` (its Audit mode, steps 1 to 3). It lists
-pattern leads with their lines and the references the skill loads with no default. A lead is a candidate, not a failure:
-SHP-5 fails only for a choice you judge another team would make differently. Changes nothing.
+To decide SHP-5 and SHP-6, give the `reference` skill the skill's folder: when the author named the skill, find it
+with `skill where <name>`. Run its `advise <skill folder>` (its Advise mode, steps 1 to 3) for SHP-5, and its
+`uses <skill folder>` for SHP-6. `advise` lists pattern leads with their lines, front matter included: a lead in the
+`description` is the trigger, which stays in the skill. `uses` lists the references the skill loads, and `gaps`, the
+ones with no default. A lead is a candidate, not a failure: SHP-5 fails only for a choice you judge another team would
+make differently. Changes nothing.
 
 To decide SHP-3, go through each step of the body: a step that filters, sorts, groups, counts, or formats data by
 fixed rules fails it, however short, unless it runs a script that does that work.
