@@ -41,6 +41,7 @@ import { runCheckScript } from './run-check-script.js'
 import { type TriedSetup, trySetup } from './setup-try.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
 import { checkSkill } from './skill-check.js'
+import { doctorSkills, type SkillDoctorReport } from './skill-doctor.js'
 import { criteriaItems, readSkill } from './skill-files.js'
 import {
 	acceptResult,
@@ -1724,14 +1725,105 @@ function whereCommand({ plugin }: SkillCommandOptions): cli.Command {
 	})
 }
 
+function doctorText(report: SkillDoctorReport): string {
+	const lines: string[] = []
+	for (const skill of report.skills) {
+		lines.push(
+			`${skill.skill} (${skill.folder}): ${skill.status}${skill.references.length ? '' : ', loads no reference'}`,
+		)
+		for (const reference of skill.references) {
+			const by = reference.answeredBy.length ? reference.answeredBy.join(' < ') : 'no tier'
+			const file = reference.file ? ` [${reference.file}]` : ''
+			lines.push(`  ${reference.name}: ${reference.status}, answered by ${by}${file}`)
+			for (const { code, message, action } of reference.failures ?? [])
+				lines.push(`    fail ${code}: ${message}`, `      ${action}`)
+			for (const { code, message, action } of reference.warnings ?? [])
+				lines.push(`    warning ${code}: ${message}`, `      ${action}`)
+		}
+	}
+	const failed = report.skills.filter(({ status }) => status === 'failed').length
+	const warned = report.skills.filter(({ status }) => status === 'warned').length
+	lines.push(`${report.skills.length} skills: ${report.status} (${failed} failed, ${warned} warned)`)
+	if (report.unverified) lines.push(`note: ${report.unverified}`)
+	return `${lines.join('\n')}\n`
+}
+
+function doctorCommand({ plugin }: SkillCommandOptions): cli.Command {
+	return command({
+		name: 'doctor',
+		description:
+			"Examine whether each skill's references work as installed and configured here. Lists the references the skill loads, as `reference uses` does, and checks each one as `reference check` composes it through the managed, repo, user, plugin, and default tiers; for an interface whose implementations it loads, checks the interface and each implementation. Reports, per reference, the tiers that answer it, the file on top, and each failure or warning with what to do. Changes nothing. Given no skill, examines every skill the detected harnesses load here. Exits 1 when a reference fails; a warning alone exits 0.",
+		arguments: [
+			{
+				name: 'skills',
+				description: 'Skill names or folders. Leave them out to examine every skill the detected harnesses load here.',
+				type: t.array(t.string()).optional(),
+			},
+		],
+		options: {
+			root: {
+				description:
+					'The repository root whose references answer. Defaults to the nearest folder at or above the current directory holding `.git`.',
+				type: t.string().optional(),
+			},
+		},
+		examples: [
+			{ command: 'cyber-agentkit skill doctor issue', description: "Examine one skill's references" },
+			{ command: 'cyber-agentkit skill doctor', description: 'Examine every skill loaded here' },
+		],
+		async run(this: { format: Format }, args: { skills?: string[] | undefined; root?: string | undefined }) {
+			const home = homedir()
+			const layers = await referenceLayers({
+				root: args.root,
+				cwd: process.cwd(),
+				home,
+				platform: process.platform,
+				env: process.env,
+				plugin,
+			})
+			const root = layers.root ?? findRoot(process.cwd())
+			const named = args.skills ?? []
+			const skills = named.map((name) => {
+				const found = findSkill({
+					skill: name,
+					cwd: process.cwd(),
+					root,
+					harnesses: layers.harnesses,
+					also: layers.skills?.loaded?.map((skill) => skill.folder),
+					home,
+				})
+				if ('found' in found) return found.found
+				process.stderr.write(`error: ${found.code}: ${found.message}\n`)
+				if (found.code === 'skill-ambiguous')
+					for (const folder of found.folders) process.stderr.write(`  ${collapseHome(home, folder)}\n`)
+				throw CliError.reported(found.code === 'skill-not-found' ? exitCodes.usage : exitCodes.error)
+			})
+			const examined = named.length ? skills : (layers.skills?.loaded ?? [])
+			if (!named.length && !examined.length) {
+				process.stderr.write(
+					`error: no-skills: no skill is loaded here${layers.skills?.unverified ? `: ${layers.skills.unverified}` : ''}\n`,
+				)
+				throw CliError.reported(exitCodes.error)
+			}
+			const report = doctorSkills(examined, layers, { display: (path) => collapseHome(home, path) })
+			const full: SkillDoctorReport =
+				!named.length && layers.skills?.unverified ? { ...report, unverified: layers.skills.unverified } : report
+			const answer = result(full, { render: { text: doctorText } })
+			if (full.status === 'failed') answerThenFail(answer, this.format)
+			return answer
+		},
+	})
+}
+
 /** `skill`: the commands `/skill` runs without an agent. */
 export function createSkillCommand(options: SkillCommandOptions = {}): cli.Command {
 	return command({
 		name: 'skill',
 		description:
-			"Work on agent skills as /skill does: find a skill's folder from its name, check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept a test result as its expected result, attest a criterion or case that passed in real use, mark a case known to fail, report its accepted results for docs, or vet a third-party skill before installing it.",
+			"Work on agent skills as /skill does: find a skill's folder from its name, examine whether a skill's references work here, check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept a test result as its expected result, attest a criterion or case that passed in real use, mark a case known to fail, report its accepted results for docs, or vet a third-party skill before installing it.",
 		commands: [
 			whereCommand(options),
+			doctorCommand(options),
 			checkCommand(options),
 			testCommand(options),
 			caseCommand(options),

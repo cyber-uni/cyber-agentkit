@@ -1,7 +1,7 @@
 ---
 name: skill
-description: Create, check, test, fix, update, and enhance agent skills (a SKILL.md and its folder). Load it before adding, editing, or linking any file of a skill (its SKILL.md, or a file under its references/, scripts/, assets/, or evals/) or a reference a skill loads, during any work, such as implementing an issue or fixing a bug, even when the request never says "skill". Also customize, vet, or report on a skill, standalone or inside a plugin or npm package, as in "write a skill for X", "add a skill to this plugin", "teach agents to use our library", "is this skill any good", "run the skill's evals", "my skill doesn't trigger", "improve this skill", "is this skill from GitHub safe to install", "switch an aspect's implementation", and before handing skill writing to a subagent. Take it over aced:define-skill and aced:improve-skill.
-argument-hint: "<description> | help | create [description] | check [skill] | test [skill] | fix [skill] | update [skill] [change] | enhance [skill] [prompt] | vet <source> | attest [skill] <criterion or case> <link> | fails [skill] [case] [criterion] | report [skill] | customize [aspect]"
+description: Create, check, test, fix, update, and enhance agent skills (a SKILL.md and its folder). Load it before adding, editing, or linking any file of a skill (its SKILL.md, or a file under its references/, scripts/, assets/, or evals/) or a reference a skill loads, during any work, such as implementing an issue or fixing a bug, even when the request never says "skill". Also customize, vet, or report on a skill, standalone or inside a plugin or npm package, as in "write a skill for X", "add a skill to this plugin", "teach agents to use our library", "is this skill any good", "do this skill's references work here", "run the skill's evals", "my skill doesn't trigger", "improve this skill", "is this skill from GitHub safe to install", "switch an aspect's implementation", and before handing skill writing to a subagent. Take it over aced:define-skill and aced:improve-skill.
+argument-hint: "<description> | help | create [description] | check [skill] | doctor [skills...] | test [skill] | fix [skill] | update [skill] [change] | enhance [skill] [prompt] | vet <source> | attest [skill] <criterion or case> <link> | fails [skill] [case] [criterion] | report [skill] | customize [aspect]"
 ---
 
 # Skill
@@ -16,6 +16,7 @@ Route the request to one command, load that command's file from this skill's fol
 | `help` | the author wants to know what each command does, or which one fits | [help.md](references/help.md) |
 | `create [description]` | the author wants a new skill for a job they describe | [create.md](references/create.md) |
 | `check [skill]` | the author wants to know whether a skill as written meets each aspect, without running it | [check.md](references/check.md) |
+| `doctor [skills...]` | the author wants to know whether a skill's references work as installed and configured here, such as after a repository override or a plugin update | [doctor.md](references/doctor.md) |
 | `test [skill]` | the author wants the skill's evals run: does it fire on the right requests, and does its result meet its Criteria | [test.md](references/test.md) |
 | `fix [skill]` | `check` or `test` found failures to repair | [fix.md](references/fix.md) |
 | `update [skill] [change]` | other work edits an existing skill: a request, an issue, a bug | [update.md](references/update.md) |
@@ -258,3 +259,4 @@ Before reporting done, check each against the result, and report any that fails.
   and why `test` did not run.
 - **C26.** A pass was attested only on the author's request naming its target and link, and then with `skill attest`.
 - **C27.** A known failure was marked only on the author's request with its reason, and then with `skill fails`.
+- **C28.** `doctor` changed no file, and named each reference that failed or warned with the file on top and the action it printed.
