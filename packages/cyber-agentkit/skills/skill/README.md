@@ -47,6 +47,10 @@ Every skill needs a `## Done when` section, the last section of its `SKILL.md`, 
 too. `check` fails a skill without one (CRI-1, critical), so a repository adopting `/skill check` adds the section to
 each of its skills. The failure shows the section to add.
 
+A router skill, which sends each request to one command file under `references/`, may keep each command's criteria in a
+`## Done when` section at the end of that file, with `SKILL.md`'s `## Done when` pointing there. The Criteria and
+Verification checks read those lists with `SKILL.md`'s own, and an ID must be unique across all of them.
+
 It ships in the `cyber-agentkit` plugin:
 
 ```text

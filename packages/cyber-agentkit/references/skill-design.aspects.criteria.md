@@ -21,12 +21,19 @@ section to each of its skills.
 4. Give each an ID, `C1`, `C2`, and so on, in the order a reviewer would check them.
 5. Write them as the last section of `SKILL.md`, `## Done when`, one per line: `- **C1.** <statement>`. Add one line
    before the list: "Before reporting done, check each of these against the result. Report any that fails."
-6. Show the list to the author. Three to seven criteria is usual; more than ten usually means two jobs.
+6. In a router skill, which sends each request to one command file under `references/`, keep in `SKILL.md`'s
+   `## Done when` only the criteria every command shares. Put each command's own criteria in a `## Done when` section
+   at the end of its command file, and add a line to `SKILL.md`'s `## Done when` pointing there. A run then loads only
+   the routed command's criteria. IDs stay unique across all the files.
+7. Show the list to the author. Three to seven criteria is usual; more than ten usually means two jobs.
 
 ## Criteria
 
-- **CRI-1** [script] `SKILL.md` has a `## Done when` section with at least one item. This holds for every skill.
-- **CRI-2** [script] Each item starts with an ID `C<n>`, and no ID appears twice.
+- **CRI-1** [script] `SKILL.md` has a `## Done when` section, and that section, or the `## Done when` of a file under
+  `references/` the body links, lists at least one item. This holds for every skill.
+- **CRI-2** [script] Each item starts with an ID `C<n>`, and no ID appears twice across `SKILL.md` and the reference
+  files it links. In `SKILL.md`, a line with no ID that links a reference file points to that file's list and is not an
+  item.
 - **CRI-3** [read, warning] Each item is true or false of the result, not a goal or a quality ("clear", "good", "well").
 - **CRI-4** [read, warning] Each item can be decided from the result and the case's inputs alone.
 - **CRI-5** [read, warning] Together the items cover the result the Intent names; nothing the Intent promises is left
