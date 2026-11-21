@@ -2,9 +2,9 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { cli } from 'clibuilder'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { doneWhenCriteria, evalReport, reportMarkdown } from './eval-report.js'
+import { doneWhenCriteria, evalReport, reportMarkdown, skillCriteria } from './eval-report.js'
 import { createSkillCommand } from './skill.command.js'
-import { goodSkill } from './skill-design.fixtures.js'
+import { goodSkill, makeSkill, routerSkillFiles } from './skill-design.fixtures.js'
 import type { TestResult } from './test-result.js'
 
 const result = {
@@ -283,5 +283,15 @@ describe('skill report', () => {
 		expect(await report(join(skill.folder, 'evals'))).toBe(1)
 		expect(await report(skill.folder)).toBe(1)
 		expect(stderr.mock.calls.map(([c]) => String(c)).join('')).toMatch(/result-unreadable/)
+	})
+})
+
+describe('skillCriteria', () => {
+	it("joins SKILL.md's criteria with those of the command files a router skill links (#337)", () => {
+		expect(skillCriteria(makeSkill(routerSkillFiles))).toEqual({
+			C1: 'The notes start with a `## Release notes` heading.',
+			C2: 'No merge commit appears.',
+			C3: 'Each problem names the line it is on.',
+		})
 	})
 })

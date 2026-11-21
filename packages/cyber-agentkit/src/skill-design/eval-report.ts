@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { type AttestationView, attestationsIn, skillFingerprint, viewAttestations } from './attestation.js'
+import { criteriaFiles, readText, type SkillFiles } from './skill-files.js'
 import { acceptedHistory, expectedPath } from './skill-test.js'
 import type { KnownFailure, NotRun, RatePoint, SandboxFailure, Status, TestResult } from './test-result.js'
 import { compareWithHistory, notRunKind } from './test-result.js'
@@ -99,6 +100,20 @@ export function doneWhenCriteria(body: string): Record<string, string> {
 		} else {
 			current = undefined
 		}
+	}
+	return criteria
+}
+
+/**
+ * The criterion text of a skill by ID: its `SKILL.md` `## Done when`, then the `## Done when` of each reference file its
+ * body links (#337). A repeated ID keeps its first text.
+ */
+export function skillCriteria(skill: SkillFiles): Record<string, string> {
+	const criteria: Record<string, string> = {}
+	for (const file of criteriaFiles(skill)) {
+		const text = file === 'SKILL.md' ? skill.body : readText(skill, file)?.replace(/\r\n/g, '\n')
+		if (text === undefined) continue
+		for (const [id, line] of Object.entries(doneWhenCriteria(text))) if (!(id in criteria)) criteria[id] = line
 	}
 	return criteria
 }
