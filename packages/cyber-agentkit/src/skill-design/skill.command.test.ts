@@ -212,6 +212,7 @@ describe('skill doctor', () => {
 	it('examines every skill the detected harness loads when none is named', async () => {
 		const { root, dir } = repoWith('.claude/skills')
 		vi.stubEnv('CLAUDECODE', '1')
+		vi.stubEnv('CLAUDE_CODE_SESSION_ID', 'session')
 		vi.stubEnv('HOME', realpathSync(mkdtempSync(join(tmpdir(), 'skill-doctor-home-'))))
 		const cwd = process.cwd()
 		process.chdir(root)
