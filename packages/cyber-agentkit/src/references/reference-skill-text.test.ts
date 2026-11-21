@@ -156,19 +156,21 @@ describe('the reference skill text', () => {
 	})
 })
 
-describe('the reference skill text: audit', () => {
-	it('routes an audit request to a mode that proposes and never writes', () => {
-		expect(skill).toContain('[Audit](#audit)')
-		const audit = section(skill, 'Audit')
-		expect(audit).toContain('audit <skill>')
-		expect(audit).toContain('a lead is a candidate, not a finding')
-		expect(audit).toContain('keep it in the skill or move it to a reference')
-		expect(audit).toContain('The command records no verdict and writes nothing; the verdicts are your proposal')
-		expect(audit).toContain('The user decides each one.')
+describe('the reference skill text: advise', () => {
+	it('routes a request about any text an agent reads to a mode that proposes and never writes', () => {
+		expect(skill).toContain('[Advise](#advise)')
+		const advise = section(skill, 'Advise')
+		expect(advise).toContain('`advise <paths...>`')
+		expect(advise).toContain('`uses <paths...>`')
+		expect(advise).toContain('any text an agent reads')
+		expect(advise).toContain('a lead is a candidate, not a finding')
+		expect(advise).toContain('keep it in the text or move it to a reference')
+		expect(advise).toContain('The commands record no verdict and write nothing; the verdicts are your proposal')
+		expect(advise).toContain('The user decides each one.')
 	})
 
 	it('names the six concerns and the interface each should depend on', () => {
-		const audit = section(skill, 'Audit')
+		const advise = section(skill, 'Advise')
 		for (const concern of [
 			'provider or host',
 			'workflow or process',
@@ -177,19 +179,25 @@ describe('the reference skill text: audit', () => {
 			'policy',
 			'environment',
 		]) {
-			expect(audit.toLowerCase(), concern).toContain(concern)
+			expect(advise.toLowerCase(), concern).toContain(concern)
 		}
-		expect(audit).toContain('depend on an interface, not on a concrete provider')
-		expect(audit).toContain('follows the interface the reference implements')
-		expect(audit).toContain('A large workflow fits in a reference.')
+		expect(advise).toContain('depend on an interface, not on a concrete provider')
+		expect(advise).toContain('follows the interface the reference implements')
+		expect(advise).toContain('A large workflow fits in a reference.')
 	})
 
-	it('applies an approved finding with create and wire, never to an installed skill, and checks the defaults', () => {
-		const audit = section(skill, 'Audit')
-		expect(audit).toContain('`create <name> --default <skill folder>`')
-		expect(audit).toContain('[Wire a skill](#wire-a-skill)')
-		expect(audit).toContain('Never edit a skill with `editable: false`')
-		expect(audit).toContain('`defaultAnswers: true`')
-		expect(audit).toContain('behaves as before')
+	it('applies an approved finding with create and wire, never to an installed copy, and checks the defaults', () => {
+		const advise = section(skill, 'Advise')
+		expect(advise).toContain('`create <name> --default <folder>`')
+		expect(advise).toContain('[Wire a skill](#wire-a-skill)')
+		expect(advise).toContain('Never edit text with `editable: false`')
+		expect(advise).toContain('`defaultAnswers: true`')
+		expect(advise).toContain('behaves as before')
+	})
+
+	it('no longer speaks of auditing a skill, and names the commands that replace audit', () => {
+		expect(skill).not.toMatch(/audit <skill>|Audit a skill|\(#audit\)/)
+		expect(skill).toContain('`reference defaults <folder>`')
+		expect(section(skill, 'Advise')).toContain('`audit` is deprecated')
 	})
 })
