@@ -85,6 +85,7 @@ in the design-spec skill.
 | A1.5 | Skill author | Gets suggestions to improve a skill that already passes, on any aspect, from reading the skill, from how it was used, or from their own request, and applies only the ones they accept. |
 | A1.6 | Skill author | Knows whether the skill fires on the requests it should and not on near misses, and whether running it gives a result that meets its Criteria. |
 | A1.7 | Skill author | Learns what each `/skill` command does and which one fits what they want, before running one. |
+| A1.8 | Skill user | Knows whether a skill's references work as this machine and this repository resolve them, and what to do about each that does not. |
 | A2.1 | Agent improving a skill it uses | Makes the skill better from what happened while using it, keeping only changes the evals show help, within the autonomy the user allowed. |
 | A3.1 | Team lead | Swaps or extends one aspect and keeps the rest. |
 | A3.2 | Team lead | Chooses an implementation for every aspect in one pass, such as taking one plugin's whole set or mixing several, instead of changing aspects one at a time. |
@@ -107,6 +108,7 @@ in the design-spec skill.
 | [enhance](./enhance/README.md) | UC5, UC7 | Enhance and self-improvement |
 | [customize](./customize/README.md) | UC8, UC9, UC10 | Autonomy, Aspects and implementations |
 | [vet](./vet/README.md) | UC26, UC27 | Vet, Trust |
+| [doctor](./doctor/README.md) | UC28 | Doctor |
 
 ## Use cases
 
