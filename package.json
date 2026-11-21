@@ -3,9 +3,10 @@
 	"type": "module",
 	"scripts": {
 		"build": "turbo build",
-		"check": "biome check --write",
+		"check": "biome check",
 		"cs": "changeset",
 		"dev": "pnpm --filter cyber-agentkit dev",
+		"fix": "biome check --write",
 		"format": "biome format --write .",
 		"prepare": "node -e \"if(!(process.env.CI||process.env.GITHUB_ACTIONS))require('child_process').execSync('husky',{stdio:'inherit'})\"",
 		"release": "changeset publish",
