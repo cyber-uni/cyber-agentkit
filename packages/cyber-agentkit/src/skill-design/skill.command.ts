@@ -21,7 +21,7 @@ import {
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
 import { addCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
-import { doneWhenCriteria, type EvalReport, readEvalReport, reportMarkdown } from './eval-report.js'
+import { type EvalReport, readEvalReport, reportMarkdown, skillCriteria } from './eval-report.js'
 import {
 	clearKnownFailure,
 	type KnownFailureMark,
@@ -972,7 +972,7 @@ function attestCommand(_options: SkillCommandOptions): cli.Command {
 			if (!url || !/^https?:$/.test(url.protocol))
 				usage('attest-evidence', `the link to where it passed must be an http or https URL; got ${args.url}`)
 			// A criterion ID names a criterion; anything else names a case.
-			const criteria = Object.keys(doneWhenCriteria(skill.body))
+			const criteria = Object.keys(skillCriteria(skill))
 			const plan = planTest(skill)
 			const cases =
 				'problem' in plan
@@ -1241,7 +1241,7 @@ function reportCommand(_options: SkillCommandOptions): cli.Command {
 				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
 			let report: EvalReport
 			try {
-				report = readEvalReport(name, skill.folder, doneWhenCriteria(skill.body))
+				report = readEvalReport(name, skill.folder, skillCriteria(skill))
 			} catch (error) {
 				process.stderr.write(`error: result-unreadable: ${(error as Error).message}\n`)
 				throw CliError.reported(exitCodes.error)

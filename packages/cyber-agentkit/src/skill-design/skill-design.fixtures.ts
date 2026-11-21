@@ -25,6 +25,66 @@ Before reporting done, check each of these against the result. Report any that f
 - **C2.** No merge commit appears.
 `
 
+/**
+ * A router skill (#337): `SKILL.md`'s \`## Done when\` points to the per-command lists at the end of each command file it
+ * links, which together hold C1 to C3.
+ */
+export const routerSkillFiles = {
+	'SKILL.md': `---
+name: release-notes
+description: Write or review release notes for a release. Not for summarizing one pull request.
+---
+
+# Release notes
+
+| Command | File |
+| --- | --- |
+| \`write\` | [write.md](references/write.md) |
+| \`review\` | [review.md](references/review.md) |
+
+## Done when
+
+Each command lists its own criteria at the end of its file.
+
+- See [write](references/write.md#done-when) and [review](references/review.md#done-when).
+`,
+	'references/write.md': `# Write
+
+1. Read the merged pull requests.
+
+## Done when
+
+- **C1.** The notes start with a \`## Release notes\` heading.
+- **C2.** No merge commit appears.
+`,
+	'references/review.md': `# Review
+
+1. Read the notes.
+
+## Done when
+
+- **C3.** Each problem names the line it is on.
+`,
+	'evals/evals.yaml': `trigger:
+  - { prompt: write release notes, expect: fire }
+  - { prompt: review the release notes, expect: fire }
+  - { prompt: what shipped this release, expect: fire }
+  - { prompt: summarize this pull request, expect: skip }
+  - { prompt: review my diff, expect: skip }
+  - { prompt: write a commit message, expect: skip }
+outcome:
+  - { id: write, prompt: write the notes, criteria: [C1, C2] }
+  - { id: review, prompt: review the notes, criteria: [C3] }
+rubrics:
+  C1:
+    - contains: "## Release notes"
+  C2:
+    - not-regex: "Merge (pull request|branch)"
+  C3:
+    - judge: Each problem names its line.
+`,
+}
+
 export const goodEvals = `trigger:
   - { prompt: write release notes, expect: fire }
   - { prompt: draft the changelog for 2.0, expect: fire }

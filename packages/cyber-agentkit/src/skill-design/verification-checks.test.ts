@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { byId, goodEvals, goodSkill, goodSkillMd, makeSkill } from './skill-design.fixtures.js'
+import { byId, goodEvals, goodSkill, goodSkillMd, makeSkill, routerSkillFiles } from './skill-design.fixtures.js'
 import { checkVerification, evalsProblems, gitWriteLines } from './verification-checks.js'
 
 describe('checkVerification', () => {
@@ -263,5 +263,15 @@ describe('checkVerification', () => {
 			'git commit -m "touch the config"',
 		]
 		for (const line of passed) expect(gitWriteLines(line), line).toEqual([])
+	})
+
+	it("maps rubric IDs to the criteria of a router skill's linked command files (#337)", () => {
+		const outcomes = byId(checkVerification(makeSkill(routerSkillFiles)))
+		expect(outcomes['VER-3']).toEqual({ id: 'VER-3', status: 'pass' })
+		expect(outcomes['VER-13']).toEqual({ id: 'VER-13', status: 'pass' })
+		const review = routerSkillFiles['references/review.md'].replace(/## Done when[\s\S]*/, '')
+		expect(
+			byId(checkVerification(makeSkill({ ...routerSkillFiles, 'references/review.md': review })))['VER-3'],
+		).toMatchObject({ status: 'fail', message: 'rubric C3 names no criterion' })
 	})
 })

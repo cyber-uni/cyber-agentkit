@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join, relative, resolve } from 'node:path'
 import { parse } from 'yaml'
+import { isExternal, linkTargets, resolveIn } from './skill-text.js'
 
 /** A skill folder as read from disk: its `SKILL.md` split into front matter and body, and every file under it. */
 export type SkillFiles = {
@@ -80,10 +81,58 @@ export function section(markdown: string, heading: string): string | undefined {
 	return (end < 0 ? rest : rest.slice(0, end)).join('\n')
 }
 
-/** The IDs `C<n>` of the skill's Criteria, in order, as listed under `## Done when`; `undefined` with no such section. */
-export function criteriaItems(skill: SkillFiles): { ids: (string | undefined)[] } | undefined {
-	const done = section(skill.body, 'Done when')
+/**
+ * The files a skill's Criteria live in: `SKILL.md`, then each Markdown file under `references/` its body links, in link
+ * order. A router skill keeps each command's criteria at the end of the command file it routes to (#337).
+ */
+export function criteriaFiles(skill: SkillFiles): string[] {
+	const files = ['SKILL.md']
+	for (const written of linkTargets(skill.body)) {
+		if (isExternal(written)) continue
+		const path = written.split('#')[0] as string
+		if (!path) continue
+		let target: string
+		try {
+			target = resolveIn('.', decodeURI(path))
+		} catch {
+			continue
+		}
+		if (target.startsWith('references/') && target.endsWith('.md') && skill.files.includes(target))
+			if (!files.includes(target)) files.push(target)
+	}
+	return files
+}
+
+/** One `## Done when` item: its ID `C<n>`, when it has one, and the file it is in. */
+export type CriterionItem = { id: string | undefined; file: string }
+
+/**
+ * The `## Done when` items of a Markdown text, or `undefined` when it has no such section. In `SKILL.md`, an item with
+ * no ID that links a reference file points to that file's list, and is not an item itself.
+ */
+function doneWhenItems(markdown: string, file: string): CriterionItem[] | undefined {
+	const done = section(markdown, 'Done when')
 	if (done === undefined) return undefined
-	const items = done.split('\n').filter((line) => /^[-*] /.test(line))
-	return { ids: items.map((line) => /^[-*] \*\*(C\d+)\.?\*\*/.exec(line)?.[1]) }
+	return done
+		.split('\n')
+		.filter((line) => /^[-*] /.test(line))
+		.map((line) => ({ id: /^[-*] \*\*(C\d+)\.?\*\*/.exec(line)?.[1], file, line }))
+		.filter((item) => item.id !== undefined || !(file === 'SKILL.md' && /\]\((?:\.\/)?references\//.test(item.line)))
+		.map(({ id }) => ({ id, file }))
+}
+
+/**
+ * The skill's Criteria, in order: the items under `SKILL.md`'s `## Done when`, then those under the `## Done when` of
+ * each reference file its body links (#337). `undefined` when `SKILL.md` has no `## Done when`, the section every skill
+ * needs even when it only points to its commands' lists.
+ */
+export function criteriaItems(skill: SkillFiles): { ids: (string | undefined)[]; items: CriterionItem[] } | undefined {
+	const own = doneWhenItems(skill.body, 'SKILL.md')
+	if (own === undefined) return undefined
+	const items = [...own]
+	for (const file of criteriaFiles(skill).slice(1)) {
+		const text = readText(skill, file)
+		if (text !== undefined) items.push(...(doneWhenItems(text.replace(/\r\n/g, '\n'), file) ?? []))
+	}
+	return { ids: items.map((item) => item.id), items }
 }
