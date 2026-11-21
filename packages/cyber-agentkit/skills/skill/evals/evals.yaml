@@ -7,6 +7,7 @@ trigger:
   - { prompt: "Run the evals for the release-notes skill.", expect: fire }
   - { prompt: "Which implementation does each skill-design aspect use? I may switch some.", expect: fire }
   - { prompt: "Is the skill in github.com/acme/skills safe to install? Vet it first.", expect: fire }
+  - { prompt: "Our issue skill breaks partway through in this repo. Do its references still work with our overrides?", expect: fire }
   # The work itself changes a skill, though the request does not ask about skills (#205).
   - { prompt: "Implement issue #42: the description in .agents/skills/release-notes/SKILL.md should also fire on 'changelog'. Open a PR when done.", expect: fire }
   - { prompt: "Work on issue #57: add a references/labels.md to the release-notes skill folder that lists how to group notes by label, and link it from its steps.", expect: fire }
@@ -290,12 +291,20 @@ outcome:
       also fire when a user asks for a changelog. Report what you did when done."
     files: files/samples
     criteria: [C25]
+  # doctor reads the references a skill loads as this repository resolves them (#340). It passed 3 of 3 with the skill
+  # and 3 of 3 without, since reading the override shows its repeated heading, so the case is a guard.
+  - id: doctor-override
+    prompt: Our triage skill in .agents/skills/triage misbehaves in this repository.
+      Do its references work here, as this repository resolves them? Don't change
+      anything.
+    files: files/doctor-override
+    criteria: [C28]
 # The spec criteria each rubric tests, in the skill-design spec and its children. A rubric checks the outcome those
 # criteria state; for a stop, the Stop outcome of the spec's decision graph (R167) on edge E1, E2, or E3.
 #   C1 R1 | C2 R18, R21 | C3 R17, R19 | C4 R7 | C5 R6 (E1) | C6 R39 | C7 R37, R38 | C8 R94, R96 | C9 R92, R93
 #   C10 R142 to R147, R149 | C11 R5, R166 (E4) | C12 none yet | C13 R150 | C14 R166, R167 (E2)
 #   C15 R74, R167 (E3) | C16 R150, R167 (E1 to E3) | C17 R152, R153 (E3) | C18 none yet | C19 R154 | C20 none yet
-#   C21 R155, R159 | C23 R168 | C24 R168 | C25 none yet | C26 #323
+#   C21 R155, R159 | C23 R168 | C24 R168 | C25 none yet | C26 #323 | C28 R169, R170
 rubrics:
   C1:
     - regex: "deploy-notes"
@@ -430,3 +439,10 @@ rubrics:
   C25:
     - regex: "[Cc]heck"
     - regex: "Test budget:|[Tt]est (result|ran|passed|failed)|criteri(on|a)"
+  # The repository's override of triage.rules repeats a heading, so it fails composing; doctor names it and says what
+  # to do, and changes nothing (#340).
+  C28:
+    - regex: "triage\\.rules"
+    - regex: "\\.agents/references/triage\\.rules\\.md"
+    - regex: "reference (customize|delete)|heading"
+    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
