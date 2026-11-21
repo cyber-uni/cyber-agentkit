@@ -18,6 +18,8 @@ describe('reference command', () => {
 			'delete',
 			'migrate',
 			'implementations',
+			'advise',
+			'uses',
 			'audit',
 			'check',
 			'defaults',

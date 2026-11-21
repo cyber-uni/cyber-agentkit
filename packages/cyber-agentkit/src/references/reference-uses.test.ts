@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadsIn } from './reference-skill-audit.js'
+import { loadsIn } from './reference-uses.js'
 
 describe('loadsIn', () => {
 	it('reads a dotted name', () => {

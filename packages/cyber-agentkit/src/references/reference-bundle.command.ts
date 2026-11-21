@@ -1,35 +1,33 @@
+import { statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import type { cli } from 'clibuilder'
 import { command, t } from 'clibuilder'
 import { result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
-import { type BundleReport, bundleSkill, noPluginFailure, outOfDateFailure, pluginRootOf } from './reference-bundle.js'
 import {
-	asCliError,
-	type CommonArgs,
-	compact,
-	defaultReferencePath,
-	type LayersFor,
-	rootOption,
-} from './reference-command-support.js'
-import { findSkill } from './reference-skill-audit.js'
+	type BundleReport,
+	bundleDefaults,
+	noPluginFailure,
+	outOfDateFailure,
+	pluginRootOf,
+} from './reference-bundle.js'
+import { asCliError, compact, defaultReferencePath } from './reference-command-support.js'
+import { ReferenceFailure } from './reference-error.js'
 
-export type ReferenceDefaultsReport = Omit<BundleReport, 'skill' | 'pluginRoot'> & {
-	skill: { name: string; folder: string }
-	pluginRoot: string
-}
+export type ReferenceDefaultsReport = BundleReport
 
-export function defaultsCommand(layersFor: LayersFor, path = defaultReferencePath): cli.Command {
+export function defaultsCommand(path = defaultReferencePath): cli.Command {
 	return command({
 		name: 'defaults',
 		description:
-			"Write a skill's bundled default copies: each reference the skill loads, copied from its plugin's canonical reference to references/<name>.default.md with `default` taken out of `extends`, since an installed skill gets only its own folder. Reports orphan copies, which it never deletes. With --check, writes nothing and fails when a copy is missing, stale, misnamed, or no longer named by the skill.",
-		arguments: [{ name: 'skill', description: "A skill's folder, or its name.", type: t.string() }],
+			"Write a folder's bundled default copies: each reference its text loads, such as a skill's, copied from its plugin's canonical reference to references/<name>.default.md with `default` taken out of `extends`, since an installed copy gets only its own folder. Reports orphan copies, which it never deletes. With --check, writes nothing and fails when a copy is missing, stale, misnamed, or no longer loaded.",
+		arguments: [
+			{ name: 'folder', description: 'The folder that loads references, such as a skill folder.', type: t.string() },
+		],
 		options: {
-			root: rootOption,
 			plugin: {
-				description: "The plugin's folder, when the skill's folder has no plugin manifest above it.",
+				description: "The plugin's folder, when the folder has no plugin manifest at or above it.",
 				type: t.string().optional(),
 			},
 			check: {
@@ -38,21 +36,26 @@ export function defaultsCommand(layersFor: LayersFor, path = defaultReferencePat
 			},
 		},
 		examples: [
-			{ command: `${path} defaults my-skill`, description: "Write a skill's bundled default copies" },
-			{ command: `${path} defaults my-skill --check`, description: 'Fail when a bundled copy is out of date' },
+			{ command: `${path} defaults skills/my-skill`, description: "Write a skill folder's bundled default copies" },
+			{
+				command: `${path} defaults skills/my-skill --check`,
+				description: 'Fail when a bundled copy is out of date',
+			},
 		],
-		async run(args: CommonArgs & { skill: string; plugin: string | undefined; check: boolean | undefined }) {
+		async run(args: { folder: string; plugin: string | undefined; check: boolean | undefined }) {
 			try {
 				const home = homedir()
-				const layers = await layersFor(args, home)
-				const skill = findSkill(args.skill, layers, process.cwd(), home)
-				const pluginRoot = args.plugin ? resolve(process.cwd(), args.plugin) : pluginRootOf(skill.folder)
-				if (!pluginRoot) throw noPluginFailure(skill)
-				const report = bundleSkill({ skill, pluginRoot, write: !args.check })
-				if (args.check && !report.ok) throw outOfDateFailure(report)
+				const folder = resolve(process.cwd(), args.folder)
+				if (!isFolder(folder)) {
+					throw new ReferenceFailure('path-not-found', `No folder at ${args.folder}.`, { details: { path: folder } })
+				}
+				const pluginRoot = args.plugin ? resolve(process.cwd(), args.plugin) : pluginRootOf(folder)
+				if (!pluginRoot) throw noPluginFailure(collapseHome(home, folder))
+				const report = bundleDefaults({ folder, pluginRoot, write: !args.check })
+				if (args.check && !report.ok) throw outOfDateFailure({ ...report, folder: collapseHome(home, folder) })
 				return result(
 					compact({
-						skill: { name: skill.name, folder: collapseHome(home, skill.folder) },
+						folder: collapseHome(home, folder),
 						pluginRoot: collapseHome(home, pluginRoot),
 						ok: report.ok,
 						entries: report.entries,
@@ -63,4 +66,12 @@ export function defaultsCommand(layersFor: LayersFor, path = defaultReferencePat
 			}
 		},
 	})
+}
+
+function isFolder(path: string): boolean {
+	try {
+		return statSync(path).isDirectory()
+	} catch {
+		return false
+	}
 }

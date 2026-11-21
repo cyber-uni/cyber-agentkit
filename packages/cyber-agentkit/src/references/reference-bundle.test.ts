@@ -2,8 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { type FoundSkill, skillsIn } from '../skills/skill-folder.js'
-import { bundledCopy, bundleSkill, pluginRootOf } from './reference-bundle.js'
+import { bundleDefaults, bundledCopy, pluginRootOf } from './reference-bundle.js'
 
 let root: string
 
@@ -32,10 +31,6 @@ function plugin(
 	return join(root, 'skills', 'demo')
 }
 
-function skill(folder: string): FoundSkill {
-	return skillsIn([folder])[0] as FoundSkill
-}
-
 describe('bundledCopy', () => {
 	it('takes default out of an inline extends list, keeping the other plugins', () => {
 		expect(bundledCopy('---\nextends: [default, base]\n---\n## A\n\nx\n')).toBe(
@@ -58,23 +53,23 @@ describe('bundledCopy', () => {
 	})
 })
 
-describe('bundleSkill', () => {
+describe('bundleDefaults', () => {
 	const canonical = '---\nextends: [default]\n---\n## Title\n\n[Bug] <summary>\n'
 	const expectedCopy = '## Title\n\n[Bug] <summary>\n'
 
 	it('writes a missing copy in --write mode, and it then checks current', () => {
 		const folder = plugin('bug-title', canonical)
-		const written = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+		const written = bundleDefaults({ folder, pluginRoot: root, write: true })
 		expect(written.entries).toEqual([
 			{ name: 'bug-title', state: 'current', file: 'references/bug-title.default.md', written: true },
 		])
 		expect(readFileSync(join(folder, 'references/bug-title.default.md'), 'utf8')).toBe(bundledCopy(canonical))
-		expect(bundleSkill({ skill: skill(folder), pluginRoot: root, write: false }).ok).toBe(true)
+		expect(bundleDefaults({ folder, pluginRoot: root, write: false }).ok).toBe(true)
 	})
 
 	it('reports a missing copy without writing it when only checking', () => {
 		const folder = plugin('bug-title', canonical)
-		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: false })
+		const report = bundleDefaults({ folder, pluginRoot: root, write: false })
 		expect(report.ok).toBe(false)
 		expect(report.entries[0]).toEqual({ name: 'bug-title', state: 'missing', file: 'references/bug-title.default.md' })
 	})
@@ -82,7 +77,7 @@ describe('bundleSkill', () => {
 	it('rewrites a stale copy in --write mode', () => {
 		const folder = plugin('bug-title', canonical)
 		put(join(folder, 'references/bug-title.default.md'), 'old text\n')
-		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+		const report = bundleDefaults({ folder, pluginRoot: root, write: true })
 		expect(report.entries[0]).toMatchObject({ state: 'current', written: true })
 		expect(readFileSync(join(folder, 'references/bug-title.default.md'), 'utf8')).toBe(expectedCopy)
 	})
@@ -90,7 +85,7 @@ describe('bundleSkill', () => {
 	it('flags a copy held under the wrong name, and leaves it alone', () => {
 		const folder = plugin('bug-title', canonical)
 		put(join(folder, 'references/bug-title.md'), 'copy\n')
-		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+		const report = bundleDefaults({ folder, pluginRoot: root, write: true })
 		expect(report.entries).toEqual([{ name: 'bug-title', state: 'misnamed', file: 'references/bug-title.md' }])
 		expect(report.ok).toBe(false)
 	})
@@ -98,7 +93,7 @@ describe('bundleSkill', () => {
 	it('reports a copy the skill no longer loads as an orphan, and never deletes it', () => {
 		const folder = plugin('bug-title', canonical)
 		put(join(folder, 'references/retired.default.md'), 'gone\n')
-		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+		const report = bundleDefaults({ folder, pluginRoot: root, write: true })
 		expect(report.entries).toContainEqual({
 			name: 'retired',
 			state: 'orphan',
@@ -110,19 +105,19 @@ describe('bundleSkill', () => {
 
 	it('treats a name with no canonical reference in the plugin as unbundled, not a failure', () => {
 		const folder = plugin('bug-title', canonical, 'Load `triage` with the `reference` skill of `cyber-agentkit`.\n')
-		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+		const report = bundleDefaults({ folder, pluginRoot: root, write: true })
 		expect(report.entries).toEqual([{ name: 'triage', state: 'unbundled', file: 'references/triage.default.md' }])
 		expect(report.ok).toBe(true)
 	})
 })
 
-describe('bundleSkill: an interface the skill loads', () => {
+describe('bundleDefaults: an interface the skill loads', () => {
 	const iface = '## Steps\n\nRequired.\n'
 	const load = 'Load the implementations of the `recipe` interface with the `reference` skill of `cyber-agentkit`.\n'
 
 	it('bundles the interface document as <id>.interface.default.md', () => {
 		const folder = plugin('recipe.interface', iface, load)
-		const written = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+		const written = bundleDefaults({ folder, pluginRoot: root, write: true })
 
 		expect(written.entries).toEqual([
 			{ name: 'recipe.interface', state: 'current', file: 'references/recipe.interface.default.md', written: true },
@@ -133,7 +128,7 @@ describe('bundleSkill: an interface the skill loads', () => {
 	it('reads a skill copy named <id>.interface.md as misnamed, and leaves it alone', () => {
 		const folder = plugin('recipe.interface', iface, load)
 		put(join(folder, 'references/recipe.interface.md'), iface)
-		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: true })
+		const report = bundleDefaults({ folder, pluginRoot: root, write: true })
 
 		expect(report.entries).toEqual([
 			{ name: 'recipe.interface', state: 'misnamed', file: 'references/recipe.interface.md' },
@@ -145,7 +140,7 @@ describe('bundleSkill: an interface the skill loads', () => {
 		const folder = plugin('recipe.interface', iface, load)
 		put(join(folder, 'references/recipe.interface.default.md'), iface)
 		put(join(folder, 'SKILL.md'), '---\nname: demo\ndescription: d\n---\nNo load line.\n')
-		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: false })
+		const report = bundleDefaults({ folder, pluginRoot: root, write: false })
 
 		expect(report.entries).toEqual([
 			{ name: 'recipe.interface', state: 'orphan', file: 'references/recipe.interface.default.md' },
@@ -153,7 +148,7 @@ describe('bundleSkill: an interface the skill loads', () => {
 	})
 })
 
-describe('bundleSkill: dotted names', () => {
+describe('bundleDefaults: dotted names', () => {
 	const load = [
 		'Load `project-tracker.levels` with the `reference` skill of `cyber-agentkit`.',
 		'Load the implementations of the `project-tracker.capabilities` interface with the `reference` skill of `cyber-agentkit`.',
@@ -165,7 +160,7 @@ describe('bundleSkill: dotted names', () => {
 		put(join(root, 'references', 'project-tracker.capabilities.interface.md'), '## Capabilities\n')
 		put(join(folder, 'references/project-tracker.levels.default.md'), '## Levels\n')
 		put(join(folder, 'references/project-tracker.capabilities.interface.default.md'), '## Capabilities\n')
-		const report = bundleSkill({ skill: skill(folder), pluginRoot: root, write: false })
+		const report = bundleDefaults({ folder, pluginRoot: root, write: false })
 
 		expect(report.entries).toEqual([
 			{
@@ -188,5 +183,19 @@ describe('pluginRootOf', () => {
 	it('finds none when no manifest is above the skill', () => {
 		put(join(root, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\n---\n')
 		expect(pluginRootOf(join(root, 'skills', 'demo'))).toBeUndefined()
+	})
+})
+
+describe('bundleDefaults: a folder that is not a skill', () => {
+	it('bundles the copies an agent definition folder loads, with no SKILL.md', () => {
+		put(join(root, 'plugin.json'), '{"name":"demo","version":"1.0.0"}')
+		put(join(root, 'references', 'bug-title.md'), '## Title\n\nx\n')
+		put(join(root, 'agents', 'filer.md'), 'Load `bug-title` with the `reference` skill of `cyber-agentkit`.\n')
+		const folder = join(root, 'agents')
+		const report = bundleDefaults({ folder, pluginRoot: root, write: true })
+		expect(report.folder).toBe(folder)
+		expect(report.entries).toEqual([
+			{ name: 'bug-title', state: 'current', file: 'references/bug-title.default.md', written: true },
+		])
 	})
 })

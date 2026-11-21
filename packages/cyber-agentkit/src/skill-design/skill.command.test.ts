@@ -149,6 +149,36 @@ describe('skill check', () => {
 	})
 })
 
+describe('skill where', () => {
+	it("gives a skill's folder from its name, for the commands that take a folder", async () => {
+		const root = realpathSync(mkdtempSync(join(tmpdir(), 'skill-where-')))
+		mkdirSync(join(root, '.git'))
+		mkdirSync(join(root, 'skills', 'probe'), { recursive: true })
+		cpSync(goodSkill().folder, join(root, 'skills', 'probe'), { recursive: true })
+		const code = await run([
+			'node',
+			'cyber-agentkit',
+			'skill',
+			'where',
+			'release-notes',
+			'--root',
+			root,
+			'--format',
+			'json',
+		])
+		expect(code).toBe(0)
+		expect(JSON.parse(printed())).toEqual({ name: 'release-notes', folder: join(root, 'skills', 'probe') })
+	})
+
+	it('fails as a usage error when no skill has the name', async () => {
+		const root = realpathSync(mkdtempSync(join(tmpdir(), 'skill-where-')))
+		mkdirSync(join(root, '.git'))
+		const code = await run(['node', 'cyber-agentkit', 'skill', 'where', 'no-such-skill-here', '--root', root])
+		expect(code).toBe(2)
+		expect(stderr.mock.calls.join('')).toContain('skill-not-found')
+	})
+})
+
 describe('skill check across a repository', () => {
 	const repo = (skills: Record<string, string>) => {
 		const root = realpathSync(mkdtempSync(join(tmpdir(), 'skill-check-repo-')))

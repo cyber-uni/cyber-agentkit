@@ -9,6 +9,7 @@ import { type HarnessId, harnessIds } from '../harness/harness-id.js'
 import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plugins.js'
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
 import { resolveReference } from '../references/resolve-reference.js'
+import { findSkill } from '../skills/find-skill.js'
 import {
 	type Attestation,
 	type AttestationView,
@@ -1682,13 +1683,55 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 	})
 }
 
+function whereCommand({ plugin }: SkillCommandOptions): cli.Command {
+	return command({
+		name: 'where',
+		description:
+			"Find a skill's folder from its name, among the folders each detected harness reads skills from and the repository's `skills` and `.agents/skills`. Given a folder holding a SKILL.md, gives that folder. Other commands that read a skill, such as the `reference` commands `advise`, `uses`, and `defaults`, take the folder this gives.",
+		arguments: [{ name: 'skill', description: "The skill's name, or its folder.", type: t.string() }],
+		options: {
+			root: {
+				description:
+					'The repository root to search. Defaults to the nearest folder at or above the current directory holding `.git`.',
+				type: t.string().optional(),
+			},
+		},
+		examples: [{ command: 'cyber-agentkit skill where release-notes', description: "Find a skill's folder" }],
+		async run(args: { skill: string; root?: string | undefined }) {
+			const home = homedir()
+			const layers = await referenceLayers({
+				root: args.root,
+				cwd: process.cwd(),
+				home,
+				platform: process.platform,
+				env: process.env,
+				plugin,
+			})
+			const found = findSkill({
+				skill: args.skill,
+				cwd: process.cwd(),
+				root: layers.root ?? findRoot(process.cwd()),
+				harnesses: layers.harnesses,
+				also: layers.skills?.skills.map((skill) => skill.folder),
+				home,
+			})
+			if ('found' in found) return result({ name: found.found.name, folder: collapseHome(home, found.found.folder) })
+			process.stderr.write(`error: ${found.code}: ${found.message}\n`)
+			if (found.code === 'skill-ambiguous')
+				for (const folder of found.folders) process.stderr.write(`  ${collapseHome(home, folder)}\n`)
+			throw CliError.reported(found.code === 'skill-not-found' ? exitCodes.usage : exitCodes.error)
+		},
+	})
+}
+
 /** `skill`: the commands `/skill` runs without an agent. */
 export function createSkillCommand(options: SkillCommandOptions = {}): cli.Command {
 	return command({
 		name: 'skill',
 		description:
-			'Work on agent skills as /skill does: check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept a test result as its expected result, attest a criterion or case that passed in real use, mark a case known to fail, report its accepted results for docs, or vet a third-party skill before installing it.',
+			"Work on agent skills as /skill does: find a skill's folder from its name, check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept a test result as its expected result, attest a criterion or case that passed in real use, mark a case known to fail, report its accepted results for docs, or vet a third-party skill before installing it.",
 		commands: [
+			whereCommand(options),
 			checkCommand(options),
 			testCommand(options),
 			caseCommand(options),
