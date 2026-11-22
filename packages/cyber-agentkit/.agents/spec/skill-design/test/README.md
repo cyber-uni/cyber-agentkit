@@ -96,6 +96,9 @@ contract apply here; IDs are shared across the parent and its children. Retired 
     a plan to move them into scopes, and writes it only on the author's request. Each entry it carries over is marked
     as carried by migration, with the date it was recorded. A skill not migrated keeps working as one root scope.
   - **UC6.28** A trigger case has no ID of its own. Its ID is its place in the list, as before, and `check` warns.
+  - **UC6.29** A case costs more than the others, such as one that works through many steps. Its runs are held to a cost
+    cap that grows from what the case last cost, so they finish and are judged on their result; the author can give
+    the case a cap of its own. A run stopped at the cap says so.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -206,7 +209,8 @@ contract apply here; IDs are shared across the parent and its children. Retired 
   report and the progress say the limit was reached, when it resets when the message says, and which runs are left.
   The messages recognized are kept in one list that more can be added to.
 - R166 (UC1, UC6.23; E2): Before any run, `test` estimates the runs and their cost against the test budget, whichever
-  command starts it. Over the budget, no run starts, and the run stops with the Stop outcome R167 states; the decision
+  command starts it. The test is within the budget only when both its cost and its run count are; a test that is over
+  either one is over the budget. Over the budget, no run starts, and the run stops with the Stop outcome R167 states; the decision
   gives the run count and the estimate, and offers to run every case, to run some cases, or not to run.
 - R168 (UC6.24): The sandbox each run takes is held as data, in named templates that a setting may be changed over.
   The default template is the full sandbox of R23 and R157. The folder-only template runs the agent's shell commands,
@@ -259,3 +263,9 @@ contract apply here; IDs are shared across the parent and its children. Retired 
   was recorded, and a case whose old entry no longer matches gets none.
 - R185 (UC6.27, UC6.28): A skill whose evals are in the single-list form is tested as one root scope, with the
   criteria above applied to it, and nothing about it fails until the author migrates it.
+- R186 (UC6.29): Each case's expected entry records what its runs cost, per arm. A run is stopped when its cost passes
+  a cap: the case's own cap when the evals name one, else twice what the case's dearest run last cost, and never
+  below the default cap; a case with no recorded cost takes the default. The cap is held by the test, never shown to
+  the model. A run stopped at the cap is reported as not run, says it was stopped at the cap, and has the cost it
+  reached counted. The estimate (R166) sums the cost each planned case recorded; a run with no recorded cost takes
+  the average price of the last result, else the default per-run price.

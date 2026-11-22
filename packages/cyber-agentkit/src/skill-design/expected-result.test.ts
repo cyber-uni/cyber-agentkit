@@ -8,6 +8,7 @@ import {
 	finishedCases,
 	fromLegacy,
 	mergeEntries,
+	recordedCosts,
 } from './expected-result.js'
 import type { CaseStatus, TestResult } from './test-result.js'
 
@@ -273,5 +274,22 @@ describe('a version 1 expected result (R185)', () => {
 		expect(file.entries['one-pr']?.criteria?.['C1']).not.toHaveProperty('passed')
 		expect(file.entries['two-prs']).toMatchObject({ criteria: { C1: { status: 'pass' } } })
 		expect(file.entries['two-prs']).not.toHaveProperty('hashes')
+	})
+})
+
+describe('what a case cost (#394)', () => {
+	it("records each case's cost in its entry, and reads it back for the next cap and estimate", () => {
+		const cost = { skill: { runs: 3, total: 0.9, max: 0.4 }, baseline: { runs: 3, total: 0.3, max: 0.2 } }
+		const { file } = mergeEntries(
+			undefined,
+			run('2026-01-01T00:00:00Z', [{ ...outcome('one-pr', 'pass', 3, 3), cost }, outcome('two-prs', 'pass', 3)]),
+			['one-pr', 'two-prs'],
+			evalSet,
+		)
+		expect(file.entries['one-pr']?.cost).toEqual(cost)
+		expect(file.entries['two-prs']).not.toHaveProperty('cost')
+		expect(recordedCosts(file)).toEqual({ 'one-pr': cost })
+		expect(expectedView(file)?.cases.find((item) => item.case === 'one-pr')?.cost).toEqual(cost)
+		expect(recordedCosts(undefined)).toEqual({})
 	})
 })

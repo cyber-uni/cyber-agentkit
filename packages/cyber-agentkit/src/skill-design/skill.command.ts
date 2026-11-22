@@ -27,7 +27,7 @@ import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckRepor
 import { addCase, addTriggerCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
 import { type MigrationPlan, type MigrationWrite, planMigration, writeMigration } from './eval-migration.js'
 import { type EvalReport, readEvalReport, reportMarkdown, skillCriteria } from './eval-report.js'
-import { carryEntries, finishedCases, readEvalSet, sandboxFailedCases } from './expected-result.js'
+import { carryEntries, finishedCases, readEvalSet, recordedCosts, sandboxFailedCases } from './expected-result.js'
 import { builtScriptsHash, inputHashes, runResolver } from './input-hashes.js'
 import {
 	clearKnownFailure,
@@ -895,6 +895,7 @@ function testCommand({
 						runs: args['budget-runs'] ?? defaultTestBudget.runs,
 					},
 					flagged ? 'flags' : configured ? 'reference' : 'default',
+					recordedCosts(readExpectedFile(skill.folder, readEvalSet(skill.folder, planned.plan.criteria))),
 				)
 				const answered = selection ? { ...estimate, selected: selection } : estimate
 				return result(answered, {
@@ -967,6 +968,7 @@ function testCommand({
 							...common,
 							harness,
 							sandbox,
+							costs: recordedCosts(readExpectedFile(skill.folder, readEvalSet(skill.folder, planned.plan.criteria))),
 							run,
 							listPlugins: list,
 							dependencies: {

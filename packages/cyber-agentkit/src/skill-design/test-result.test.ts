@@ -113,6 +113,7 @@ describe('readPromptfooOutput', () => {
 		// and keeps each criterion it tests as its own runs decided it, which its expected entry records (R181)
 		expect(result.cases.at(-1)).toEqual({
 			case: 'two-prs',
+			cost: { skill: { runs: 3, total: 0.003, max: 0.001 }, baseline: { runs: 3, total: 0.003, max: 0.001 } },
 			status: 'fail',
 			passed: 1,
 			ran: 3,
@@ -121,8 +122,23 @@ describe('readPromptfooOutput', () => {
 				C2: { status: 'fail', passed: 1, ran: 3, baseline: { passed: 3, ran: 3 } },
 			},
 		})
-		expect(result.cases[0]).toEqual({ case: 'trigger-1', status: 'pass', passed: 3, ran: 3 })
+		expect(result.cases[0]).toEqual({
+			case: 'trigger-1',
+			status: 'pass',
+			passed: 3,
+			ran: 3,
+			cost: { skill: { runs: 3, total: 0.003, max: 0.001 } },
+		})
 		expect(result.cost).toBe(0.024)
+	})
+
+	it('counts the cost a run stopped at the cost cap reached (#394)', () => {
+		const capped = row({ case: 'two-prs', run: 0, error: 'Exceeded the run cost cap: about $0.60 of $0.50' })
+		;(capped as { cost?: number }).cost = 0.6
+		const result = readPromptfooOutput({ results: { results: [capped] } }, plan, meta)
+		expect(result.cases.find((item) => item.case === 'two-prs')?.cost).toEqual({
+			skill: { runs: 1, total: 0.6, max: 0.6 },
+		})
 	})
 
 	it('saves the reply as the failure output when the failed check gives no detail', () => {

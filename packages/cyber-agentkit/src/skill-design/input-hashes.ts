@@ -157,7 +157,9 @@ function reachOf(skill: SkillFiles, texts: { text: string; from: string }[], dec
 
 /** A case's own definition as hash parts (R180): its entry, the shared rubrics it tests, its files folder, its setup script. */
 function caseHash(item: SuiteCase, rubrics: NonNullable<EvalsFile['rubrics']>, criteria: string[]): string {
-	const parts: [string, string][] = [['case', JSON.stringify(item.item)]]
+	// A case's own cost cap bounds a run's spend and changes no result, so it is no part of the definition (#394).
+	const { costCap: _costCap, ...definition } = item.item as { costCap?: number }
+	const parts: [string, string][] = [['case', JSON.stringify(definition)]]
 	if (item.kind === 'outcome') {
 		for (const id of item.item.criteria ?? criteria)
 			if (rubrics[id]) parts.push([`rubric/${id}`, JSON.stringify(rubrics[id])])

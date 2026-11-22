@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import type { Attestation } from './attestation.js'
 import { readEvalSuite, rootScope, suiteCases, triggerScope } from './eval-suite.js'
+import type { CaseCost } from './run-cost.js'
 import type {
 	Carried,
 	CaseCriterion,
@@ -44,6 +45,8 @@ export type ExpectedEntry = {
 	sandboxFailures?: SandboxFailure[]
 	/** The model its runs used; left out when the run did not record one. */
 	model?: string
+	/** What its runs cost per arm (#394), the next run's cap and estimate grow from; entries written before it lack it. */
+	cost?: CaseCost
 	/** When the run it comes from was made. */
 	at: string
 	/** The hashes of its own definition and of its scope's inputs when it was recorded (R178, R180); left out when unknown. */
@@ -145,6 +148,7 @@ function entryOf(result: TestResult, id: string): ExpectedEntry | undefined {
 		...(knownFailures.length ? { knownFailures } : {}),
 		...(sandboxFailures.length ? { sandboxFailures } : {}),
 		...(model ? { model } : {}),
+		...(item.cost ? { cost: item.cost } : {}),
 		at: result.at,
 		...(caseHash && scopeHash ? { hashes: { case: caseHash, scope: scopeHash } } : {}),
 	}
@@ -414,6 +418,7 @@ export function expectedView(value: unknown): TestResult | undefined {
 			...(entry.baseline ? { baseline: entry.baseline } : {}),
 			...(entry.model && entry.model !== file.model ? { model: entry.model } : {}),
 			...(entry.criteria ? { criteria: entry.criteria } : {}),
+			...(entry.cost ? { cost: entry.cost } : {}),
 			at: entry.at,
 			...(entry.carried ? { carried: entry.carried } : {}),
 		}))
@@ -451,4 +456,11 @@ export function expectedView(value: unknown): TestResult | undefined {
 /** The cases whose entries were carried forward, each with why (R183), in an expected result's view. */
 export function carriedCases(view: TestResult): { case: string; carried: Carried }[] {
 	return view.cases.flatMap((item) => (item.carried ? [{ case: item.case, carried: item.carried }] : []))
+}
+
+/** What each case's runs last cost, per arm, by case ID, from the entries that record it (#394). */
+export function recordedCosts(file: ExpectedFile | undefined): Record<string, CaseCost> {
+	return Object.fromEntries(
+		Object.entries(file?.entries ?? {}).flatMap(([id, entry]) => (entry.cost ? [[id, entry.cost]] : [])),
+	)
 }
