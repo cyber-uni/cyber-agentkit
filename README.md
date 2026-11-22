@@ -32,6 +32,17 @@ decays differently as vendors change their tooling.
 
 ## What it does
 
+It ships as a library, as the `cyber-agentkit` command, and as an agent plugin of the same name for
+Claude Code, Cursor, Codex, and GitHub Copilot CLI. In Claude Code, install the plugin:
+
+```text
+/plugin marketplace add cyber-uni/marketplace
+/plugin install cyber-agentkit@cyber-uni
+```
+
+[Install](https://cyber-uni.github.io/cyber-agentkit/packages/cyber-agentkit/install/) covers the other harnesses. To use it as a
+library:
+
 ```sh
 npm install cyber-agentkit
 ```
@@ -47,15 +58,21 @@ if (harness !== 'unknown') skillsDirectories(harness)
 | --- | --- |
 | Harness knowledge | Which harness is running, and what it holds: managed-policy locations, plugin storage, installed and enabled plugins, skill naming and directories, how to run it headless |
 | Plugin dependencies | What a plugin declares it needs, whether the running harness has it, and the steps to settle the rest |
-| Reference documents | Named Markdown files an agent reads on demand, composed from contributions in the managed, project, user, plugin, and default tiers, with a `reference` command and skill |
+| Reference documents | Named documents an agent reads on demand, composed from contributions in the managed, repo, user, plugin, and default tiers, with a `reference` command and skill |
+| Skill tooling | The `skill` command and skill: find, check, test, and examine a skill, and vet a third-party one before installing it |
+| Instruction tooling | The `instruction` command and skill, which compare two wordings of an AGENTS.md section by running them, and `prose-update`, which updates prose a tool wrote without losing the owner's edits |
 | Worktrees | Leasing git worktrees to concurrent agent sessions, so two agents never share a checkout |
 
 Harness detection covers Claude Code, Cursor, Codex, GitHub Copilot CLI, OpenCode, Kilo Code, Gemini
 CLI, Qwen Code, GitHub Copilot in VS Code, Cline, Crush, OpenHands, and the Auggie CLI. It reports
 `unknown` rather than guess when no harness matches or when more than one does.
 
-The [package readme](packages/cyber-agentkit/readme.md) documents each function, the signal behind
-each harness, and the cases that report `unknown`.
+The [documentation site](https://cyber-uni.github.io/cyber-agentkit/) is the full reference:
+[harness detection](https://cyber-uni.github.io/cyber-agentkit/concepts/harness-detection/) gives the signal behind each harness
+and the cases that report `unknown`, and the site documents every
+[command](https://cyber-uni.github.io/cyber-agentkit/packages/cyber-agentkit/cli/) and
+[skill](https://cyber-uni.github.io/cyber-agentkit/packages/cyber-agentkit/skills/). The
+[package readme](packages/cyber-agentkit/readme.md) documents each library function.
 
 ## Research first
 

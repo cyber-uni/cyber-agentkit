@@ -11,8 +11,15 @@ each one work the same way across harnesses:
 - **Plugin dependencies.** Check which plugins another plugin needs against what the harness has.
 - **Reference documents.** Resolve the named Markdown documents an agent reads on demand.
 - **Worktrees.** Lease git worktrees to concurrent agent sessions.
+- **Skill and instruction tooling.** Check, test, and examine agent skills, compare two wordings of
+  an AGENTS.md section, and update prose a tool wrote without losing the owner's edits.
 
-It depends on no other agent tool, so any of them can build on it.
+It depends on no other agent tool, so any of them can build on it. It ships as this library, as the
+`cyber-agentkit` command, and as an agent plugin of the same name.
+
+The [documentation site](https://cyber-uni.github.io/cyber-agentkit/) covers installing the plugin, every
+[command](https://cyber-uni.github.io/cyber-agentkit/packages/cyber-agentkit/cli/), and every
+[skill](https://cyber-uni.github.io/cyber-agentkit/packages/cyber-agentkit/skills/). This readme documents each library function.
 
 **Status: pre-release.** Every fact this library encodes rests on
 [`.research/harness-detection`](https://github.com/cyber-uni/cyber-agentkit/tree/main/.research/harness-detection).
@@ -36,36 +43,11 @@ const result = detectHarness()
 // }
 ```
 
-Detection reads environment variables that each harness sets on the processes it spawns:
-
-| Harness | Detected from |
-| --- | --- |
-| Claude Code | `CLAUDECODE=1` with `CLAUDE_CODE_CHILD_SESSION=1` or `CLAUDE_CODE_SESSION_ID` |
-| Cursor | `CURSOR_AGENT=1`, or `CURSOR_VERSION` with `CURSOR_PROJECT_DIR` in hooks |
-| Codex | `CODEX_THREAD_ID` |
-| GitHub Copilot CLI | `COPILOT_CLI=1`, `COPILOT_AGENT_SESSION_ID`, or `COPILOT_PLUGIN_ROOT` in hooks |
-| OpenCode | `OPENCODE=1` with `OPENCODE_PID` |
-| Kilo Code | `KILO=1` with `KILO_PID` |
-| Gemini CLI | `GEMINI_CLI=1` |
-| Qwen Code | `QWEN_CODE=1` |
-| GitHub Copilot in VS Code | `COPILOT_AGENT=1` |
-| Cline | `CLINE_ACTIVE=true`, set by the VS Code extension only |
-| Crush | `CRUSH=1` |
-| OpenHands | `AI_AGENT=openhands`, or `OPENHANDS_EVENT_TYPE` with `OPENHANDS_PROJECT_DIR` in hooks |
-| Auggie CLI | `AUGMENT_HOOK_EVENT` with `AUGMENT_PROJECT_DIR`, in hooks only |
-
-It reports `unknown` instead of guessing:
-
-- when no harness matches, including `CLAUDECODE=1` on its own, which IDE extensions also set;
-- when more than one harness matches, as when one harness runs inside another's shell. The matches
-  are listed in `candidates`;
-- for `AGENT` and `AI_AGENT`, which several vendors set (only the exact value `AI_AGENT=openhands`
-  counts), and for `OPENCODE=1` alone, which Kilo Code, an OpenCode fork, also sets;
-- in contexts where a harness sets nothing of its own: Codex, Gemini CLI, and Qwen Code hooks, Qwen
-  Code, Crush, OpenHands, and Auggie MCP servers, Auggie shell commands, OpenHands CLI 1.16.0 shell
-  commands (its SDK predates `AI_AGENT=openhands`), and the Cline CLI;
-- for harnesses with no verified signal, such as Goose, Antigravity, Rovo Dev, Kiro, Amp, Factory
-  Droid, Devin Desktop, and Warp. The research records why for each one.
+Detection reads environment variables that each harness sets on the processes it spawns. It
+reports `unknown` instead of guessing when no harness matches, or when more than one does, as when
+one harness runs inside another's shell. The matches are listed in `candidates`.
+[Harness detection](https://cyber-uni.github.io/cyber-agentkit/concepts/harness-detection/) lists the signal behind each harness, the
+contexts where a harness sets nothing, and the harnesses left out for want of a verified signal.
 
 Pass `{ env }` to inspect an environment other than `process.env`.
 
@@ -292,53 +274,12 @@ of `resolved.options`, such as `my-plugin/agent-readiness-weights`, or settle it
 `code`, such as `reference-missing`. `loadReference` never throws for a bad name. `warnings` holds each fault
 as `{ code, message }`, and `trace` says how the document was built.
 
-The tiers, highest first:
-
-| Tier | Folders |
-| --- | --- |
-| managed | a `references/` beside the managed-policy files of the harness, read only when detection names exactly one harness |
-| repo | `.agents/references/` at the repository root |
-| user | `~/.agents/references/` |
-| plugin | the calling plugin's `references/`, each plugin the harness has enabled, then each dependency in the root's `package.json` that has a plugin manifest, named by that manifest |
-| default | `<skill folder>/references/<name>.default.md` of the skill loading the name |
-
-The repository root is the nearest folder at or above the working folder that holds `.git` (a folder
-or a file, so a git worktree counts), else the working folder. In each folder, only `<name>.md` and
-`<name>/README.md` answer a name, in that order.
-
-Contributions apply bottom first: the plugins and the default, in the order `extends` gives them,
-then user, repo, and managed. Each applies over what is below it with its frontmatter `merge`:
-
-- `patch` (the default): its sections replace the text they match by heading path, and the rest is
-  kept.
-- `combine`: its sections' text is added after the text they match, lower first; where combined text
-  conflicts, the later text wins.
-- `replace`: it replaces everything below.
-- `remove`: it drops everything below.
-
-A `<!-- merge: <operation> -->` marker under a heading applies an operation to that section alone.
-Frontmatter `extends` lists what a contribution builds on, bottom first: plugins by their manifest
-name, and `default`. The highest `extends` written in the managed, repo, or user tier builds the
-stack; without one, the plugins' own `extends` order them. `resolved.metadata` holds the composed
-frontmatter, the higher contribution winning each key, without `merge` and `extends`. Frontmatter
-that is not a YAML mapping is ignored with a warning.
-
-A `.agents/references/<name>.md` in a folder below the root, one that git does not ignore, is a
-project section for that folder. It is not a tier. `load` delivers each one after the main document,
-in path order, as `<project folder="...">...</project>` in text and as `projectSections` records in
-structured output. The managed contribution applies over each section.
-
-A plugin listed in the `package.json` of a folder below the root, and not already in the plugin tier,
-adds a project section for that folder instead of a plugin layer: its own document for the name,
-delivered ahead of the folder's own section and marked `plugin="..."` in text. So one package of a
-monorepo can use a different plugin's version of a name, and the rest of the repository is unaffected.
-
-A document written by `customize` from a request records its `sources` and `request`. `load` warns
-`reference-stale` when a source plugin's version has changed since. A plugin or skill default can
-list older names in `aliases`; a load of an older name resolves the new one with a
-`reference-renamed` warning. An `extends` step's `sections` limits it to those top-level sections.
-A reference that is not Markdown reads its description, tags, aliases, and picks from
-`<name>.meta.md` beside it.
+A contribution comes from one of five tiers, highest first: managed, repo, user, plugin, and default.
+Each applies over the tiers below it as its frontmatter `merge` says: `patch` (the default),
+`combine`, `replace`, or `remove`. [Reference documents](https://cyber-uni.github.io/cyber-agentkit/concepts/reference-documents/)
+gives the folders of each tier, how contributions compose, project sections, and references that are
+not Markdown. [Reference interfaces](https://cyber-uni.github.io/cyber-agentkit/concepts/reference-interfaces/) covers interface
+documents and their implementations.
 
 | Function | Does |
 | --- | --- |
@@ -355,82 +296,74 @@ A reference that is not Markdown reads its description, tags, aliases, and picks
 | `repoReferencesDir()`, `userReferencesDir()`, `defaultLayer()` | Single folders and layers |
 | `declaredDependencies()`, `packageDir()`, `pluginManifestName()` | A manifest's declared packages, where each is installed, and a plugin's manifest name |
 | `harnessSkillFolders()`, `pluginSkillFolders()`, `skillsIn()` | The skill folders a harness reads, and the skills in them, known by their `SKILL.md` name |
-| `referenceImplementations(id, layers)` | The implementations of an interface a consumer can load, and those left out with why |
+| `referenceImplementations(id, layers)` | The implementations of an interface a consumer can load, and those left out with why; given a family `<prefix>.*`, every interface under the prefix |
+| `isFamilyName(value)`, `parseReferenceName(value)` | Whether a name is a family `<prefix>.*`, and a name's parts |
 | `checkReferences(layers, options)` | Checks interface documents and their implementations, each as `load` composes it |
+| `migrateReferences(layers, options)` | The plan `reference migrate` prints for files left in a version 1 form or under a renamed name; applies it with `write: true` |
+| `adviseReferences(options)`, `leadsIn(file, text)` | What the given files hard-code that could move into references, as leads with their lines; writes nothing |
+| `referenceUses(layers, options)`, `loadsIn(text)` | The references the given files load, whether a bundled default ships beside each, and which tiers answer it |
+| `loadAsset(name, options)` | Resolves a skill asset by name through the same tiers |
 
-### The reference command
+## Commands
 
-The package ships a `reference` command with `load`, `list`, `search`, `where`, `implementations`,
-`check`, `create`, `customize`, and `delete` subcommands:
+The `cyber-agentkit` command runs the `reference`, `asset`, `prose-update`, `skill`, and
+`instruction` commands. The [CLI reference](https://cyber-uni.github.io/cyber-agentkit/packages/cyber-agentkit/cli/) documents each
+subcommand, its options, and its output formats:
 
 ```sh
-npx -y cyber-agentkit reference load <name>... --root <repository root> --default <skill folder>
 npx -y cyber-agentkit reference list
-npx -y cyber-agentkit reference list 'project-tracker.capabilities.*'
-npx -y cyber-agentkit reference implementations <interface id> --accept 1,2
-npx -y cyber-agentkit reference check
-npx -y cyber-agentkit reference create <name> --merge combine
-npx -y cyber-agentkit reference customize <name> --extends <plugin> --scope user
-npx -y cyber-agentkit reference delete <name> --scope repo --dry-run
+npx -y cyber-agentkit reference load <name> --trace
 ```
 
-`implementations` lists what a consumer can load for an interface (a `<id>.interface` document) with
-each one's pin, description, and unsupported sections. `check` verifies interface documents and
-their implementations, and exits 0; failures are entries in the result's `failed` list.
-
-`create`, `customize`, and `delete` act on `.agents/references/` at the root (`--scope repo`, the
-default) or `~/.agents/references/` (`--scope user`), or on a folder's project section with
-`--in <folder>`. `create` and `delete` also take `--plugin <plugin folder>` or
-`--default <skill folder>` for a plugin's or a skill's source in the repository. `delete` reports
-what answers the name afterwards, and never deletes a managed contribution or an installed copy.
-
-`customize` runs no model. `--extends <step>...` writes the picks of what a name builds on, a step
-being a plugin, `<plugin>:<merge>`, or `default`, and `--extends none` removes them. `--request <file>
---body <file>` writes a body a generator wrote, with the picks, sources, and request recorded;
-`--implements <interface>` makes it a whole implementation; `--base` prints the input the generator
-reads and writes nothing.
-
-Output is [TOON](https://github.com/toon-format/toon) by default, for an agent to parse; pass
-`--format json` or `--format text` (`load`, `create`, `customize`, and `delete` default to `text`).
-Each command prints only the fields that answer it; on `load`, `--metadata` adds the status and the
-composed frontmatter, and `--trace` adds how the document was built. Every warning carries a stable
-`code`. A command that answered exits 0, including `load` for a name not found and `list`,
-`search`, or `implementations` with nothing to show (an `empty:` message with `help` lines). A
-command that could not complete exits 1, and a usage error exits 2; both print exactly one error
-value on stdout, with `error`, `code`, any detail fields, and `help`, and write nothing to stderr.
-In `text` a warning prints on stderr as `warning: <code>: <message>`; in `json` and `toon` it is in
-the record's `warnings` list. A warning never changes the exit code. The formats
-follow [`clibuilder`](https://www.npmjs.com/package/clibuilder) 12, and any other value is a
-usage error (exit code 2). A CLI built on clibuilder 12
-can host the same command under its own plugin name, imported from the `./commands` subpath. `--format`
-is the host's global option, so the host's `cli({ format })` sets the default for every subcommand;
-the `text` default of `load`, `create`, `customize`, and `delete` belongs to the `cyber-agentkit` CLI:
+A CLI built on [`clibuilder`](https://www.npmjs.com/package/clibuilder) 12 can host the `reference`
+and `asset` commands under its own plugin name. Import them from the `./commands` subpath. Pass
+`path`, the command line that reaches them in that CLI, so each command's help examples start with
+it:
 
 ```ts
 import { createReferenceCommand } from 'cyber-agentkit/commands'
 
-app.command(createReferenceCommand({ plugin: { name: 'my-plugin', root: pluginRoot } }))
+app.command(createReferenceCommand({ plugin: { name: 'my-plugin', root: pluginRoot }, path: 'my-plugin reference' }))
 ```
 
-### The `reference` skill
+`createReferenceCommands()` returns each subcommand by name, for a host that mounts them itself, and `createAssetCommand()` takes the
+same `path` for the `asset` commands.
 
-The package is also an agent plugin, `cyber-agentkit`, that ships a `reference` skill. Type
-`/reference` (`/cyber-agentkit:reference` in Claude Code) to load, create, update, delete, find, or
-inspect a reference, or to wire a skill to load one. The skill writes or deletes a file only after
-you approve it. It runs the command from its bundled `scripts/reference.mjs`, which needs no
-`node_modules`.
+## The agent plugin
+
+The package is also an agent plugin, `cyber-agentkit`, for Claude Code, Cursor, Codex, and GitHub
+Copilot CLI. It ships the `reference`, `asset`, `skill`, `skillify`, `instruction`, and
+`prose-update` skills. In Claude Code:
 
 ```text
 /plugin marketplace add cyber-uni/marketplace
 /plugin install cyber-agentkit@cyber-uni
 ```
 
-A skill that needs a reference names it in one line, as the skill's
+[Install](https://cyber-uni.github.io/cyber-agentkit/packages/cyber-agentkit/install/) covers the other harnesses, and the
+[skills page](https://cyber-uni.github.io/cyber-agentkit/packages/cyber-agentkit/skills/) says when to use each skill. A skill that
+needs a reference names it in one line, as the `reference` skill's
 [`README.md`](https://github.com/cyber-uni/cyber-agentkit/blob/main/packages/cyber-agentkit/skills/reference/README.md)
 shows:
 
 ```text
 Load `skill-design` with the `reference` skill of `cyber-agentkit`.
+```
+
+## Prose update
+
+`classify({ found, offered, history })` compares prose a tool wrote earlier, which its owner may have
+edited, with the wording the tool offers now. Each part, by heading path, gets one outcome:
+`up-to-date`, `update` (the merged text, with the owner's sentences kept), `owners`, `conflict`, or
+`undetermined`. It never calls a model. `parseHistory(text)` reads a history of retired wordings,
+newest first, and `retire(history, wording, date, reason)` returns that text with the outgoing
+wording added.
+
+```ts
+import { classify } from 'cyber-agentkit'
+
+// `history` is the history text, or the retired wordings, newest first.
+const result = classify({ found, offered, history })
 ```
 
 ## Worktrees
