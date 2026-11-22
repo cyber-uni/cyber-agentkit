@@ -29,15 +29,19 @@ composes each name as `load` does here, and covering a reference's variants belo
   interface whose implementations it loads, the interface and each implementation a load may return. The report gives, per reference, the tiers that answer it,
   the file on top, and each failure or warning with what the user can do. Nothing is written.
 - **Extensions:**
-  - **UC28.1** No skill is named: every skill the detected harnesses load here is examined, and the report says
+  - **UC28.1** No skill is named: every skill each checked harness loads here is examined, and the report says
     when some harness's skill folders are not verified.
   - **UC28.2** A named skill is not found, or two skills share the name: a usage error, or the folders to choose
     from, and nothing is examined.
   - **UC28.3** A load line inside a fenced example, or in a file nothing the skill reads links to, such as an unlinked
     `README.md` or its `evals/`, is not a load.
   - **UC28.4** A file only one harness reads, such as one under the skill's `agents/` folder, is read only when that
-    harness is detected here, and only once research verifies which harness reads it; until then it is not read, and
-    the report says so.
+    harness is checked, and only once research verifies which harness reads it; until then it is not read, and the
+    report says so. Codex's `agents/openai.yaml` is verified: when Codex is checked, the report warns where Codex
+    would ignore the file or one of its icons.
+  - **UC28.6** By default the harness running now is checked. When none is detected, the report says so and reads
+    only the harness-neutral files: `SKILL.md` and what it loads. On request, every harness detected on this machine
+    is checked instead, and the report is given per harness.
   - **UC28.5** A file the skill reads from outside `references/` and `assets/` is a layout matter for `check`, which
     gives pass or fail at development time: the report passes it on as a note pointing to `check`, never a failure.
 - **Example:** the `issue` skill loads the tracker capabilities for the repository's host, and the repository's
@@ -56,3 +60,7 @@ composes each name as `load` does here, and covering a reference's variants belo
   reported, wherever the file sits; a name shown only in a fenced example, or in a file nothing reached links to, is
   never reported.
 - R172 (UC28.4, UC28.5): A layout problem, or a harness's file not read, is a note and never changes the exit value.
+- R173 (UC28.4, UC28.6): A harness's own file is examined only in the report for that harness; with no harness
+  detected, no harness's own file is examined.
+- R174 (UC28.6): Without the request, only the running harness is checked, even when others are installed; with it,
+  each harness detected here gets a report of its own, and the exit value is 1 when any of them has a failure.

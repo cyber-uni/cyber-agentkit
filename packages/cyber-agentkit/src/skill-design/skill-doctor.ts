@@ -1,5 +1,7 @@
 import { readFileSync, statSync } from 'node:fs'
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path'
+import { parse } from 'yaml'
+import type { HarnessId } from '../harness/harness-id.js'
 import { checkReferences, type ReferenceCheckEntry } from '../references/reference-check.js'
 import { referenceImplementations } from '../references/reference-implementations.js'
 import { interfaceSuffix } from '../references/reference-interface.js'
@@ -41,6 +43,8 @@ export type SkillDoctorEntry = {
 	references: DoctorReference[]
 	/** The interfaces whose implementations the skill loads. */
 	interfaces?: string[]
+	/** Warnings on a file the checked harness reads by a fixed path, such as Codex's `agents/openai.yaml`. */
+	warnings?: DoctorProblem[]
 	/** Pointers, never failures: a file read from outside `references/`, or one not examined, and why. */
 	notes?: string[]
 }
@@ -55,7 +59,15 @@ export type SkillDoctorReport = {
 export type DoctorOptions = {
 	/** How a path is shown, such as with the home folder as `~`. */
 	display?: ((path: string) => string) | undefined
+	/**
+	 * The harness the skills are checked for. Codex also reads `agents/openai.yaml` (E-CODEX-K1), so it is
+	 * examined only for `codex`. Leave it out, or pass `unknown`, to read only the harness-neutral files.
+	 */
+	harness?: HarnessId | 'unknown' | undefined
 }
+
+/** The file Codex reads beside a skill's `SKILL.md` (E-CODEX-K1). */
+const codexMetadata = join('agents', 'openai.yaml')
 
 type Answer = { answeredBy: string[]; tier?: string; plugin?: string; file?: string }
 
@@ -171,11 +183,13 @@ function inside(folder: string, path: string): boolean {
 /**
  * The files an agent reads when it runs the skill: its `SKILL.md`, then every file it links or names, and every file
  * those link, wherever each sits: a Markdown link to any file, and a plain-text path under `references/`,
- * `scripts/`, or `assets/`. A file in the skill's `agents/` folder is for one harness, and no harness's file
- * there is verified yet, so none is followed. Each followed file outside `references/` and `assets/` is passed on as a pointer to
+ * `scripts/`, or `assets/`. A file in the skill's `agents/` folder is for one harness: Codex's `agents/openai.yaml`
+ * is read by its fixed path when Codex is checked (`codexMetadataProblems`), and no other harness's file there is
+ * verified, so none is followed. Each followed file outside `references/` and `assets/` is passed on as a pointer to
  * `skill check`, which owns where a skill's files belong.
  */
 function runtimeFiles(folder: string, display: (path: string) => string): { files: string[]; notes: string[] } {
+	const metadata = join(folder, codexMetadata)
 	const entry = join(folder, 'SKILL.md')
 	const files: string[] = []
 	const notes: string[] = []
@@ -185,6 +199,7 @@ function runtimeFiles(folder: string, display: (path: string) => string): { file
 		const file = queue.shift() as string
 		if (seen.has(file)) continue
 		seen.add(file)
+		if (file === metadata) continue
 		if (file !== entry && inside(join(folder, 'agents'), file)) {
 			notes.push(
 				`${relative(folder, file)} is for one harness, and which harness reads it is not verified, so its loads are not examined`,
@@ -221,9 +236,95 @@ function skillLoads(
 	return { names: [...names], interfaces: [...interfaces], notes }
 }
 
-function doctorOne(skill: FoundSkill, layers: ReferenceLayers, display: (path: string) => string): SkillDoctorEntry {
+type CodexMetadataResult = { warnings: DoctorProblem[]; notes: string[] }
+
+const codexAction = (file: string) =>
+	`Fix ${file}, or report it to the skill's author. Codex still loads SKILL.md without what it ignores.`
+
+/**
+ * What Codex makes of the skill's `agents/openai.yaml`: it ignores the whole file when it is not valid YAML
+ * (E-CODEX-K3), and an icon that is not a relative path under the skill's `assets/` (E-CODEX-K4).
+ */
+function codexMetadataProblems(folder: string): CodexMetadataResult {
+	const path = join(folder, codexMetadata)
+	const file = codexMetadata.split(sep).join('/')
+	const result: CodexMetadataResult = { warnings: [], notes: [] }
+	if (!isFile(path)) return result
+	let parsed: unknown
+	try {
+		parsed = parse(readFileSync(path, 'utf8'))
+	} catch (error) {
+		result.warnings.push({
+			code: 'codex-metadata-invalid',
+			message: `Codex ignores ${file}: it is not valid YAML (${(error as Error).message.split('\n')[0]})`,
+			action: codexAction(file),
+		})
+		return result
+	}
+	if (parsed === null || parsed === undefined) return result
+	if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+		result.warnings.push({
+			code: 'codex-metadata-invalid',
+			message: `Codex ignores ${file}: it is not a mapping of \`interface\`, \`dependencies\`, and \`policy\``,
+			action: codexAction(file),
+		})
+		return result
+	}
+	const record = parsed as Record<string, unknown>
+	const iface = record['interface']
+	if (iface && typeof iface === 'object' && !Array.isArray(iface))
+		for (const field of ['icon_small', 'icon_large']) {
+			const value = (iface as Record<string, unknown>)[field]
+			if (typeof value !== 'string' || !value) continue
+			const normalized = normalize(value)
+			const parts = normalized.split(/[\\/]/).filter((part) => part && part !== '.')
+			if (isAbsolute(value) || (!parts.includes('..') && parts[0] !== 'assets')) {
+				result.warnings.push({
+					code: 'codex-icon-ignored',
+					message: `Codex ignores \`interface.${field}\` (${value}): an icon must be a relative path under the skill's assets/`,
+					action: codexAction(file),
+				})
+				continue
+			}
+			if (!isFile(resolve(folder, value)))
+				result.warnings.push({
+					code: 'codex-icon-missing',
+					message: `\`interface.${field}\` names ${value}, which does not exist`,
+					action: codexAction(file),
+				})
+		}
+	const policy = record['policy']
+	if (
+		policy &&
+		typeof policy === 'object' &&
+		(policy as Record<string, unknown>)['allow_implicit_invocation'] === false
+	)
+		result.notes.push(
+			`${file} sets \`policy.allow_implicit_invocation: false\`, so Codex runs the skill only when it is named (\`$<skill>\`)`,
+		)
+	return result
+}
+
+function doctorOne(
+	skill: FoundSkill,
+	layers: ReferenceLayers,
+	display: (path: string) => string,
+	harness: HarnessId | 'unknown' | undefined,
+): SkillDoctorEntry {
 	const loadLayers = withDefault(layers, skill.folder)
 	const uses = skillLoads(skill.folder, display)
+	const own: CodexMetadataResult =
+		harness === 'codex'
+			? codexMetadataProblems(skill.folder)
+			: {
+					warnings: [],
+					notes: isFile(join(skill.folder, codexMetadata))
+						? [
+								`${codexMetadata.split(sep).join('/')} is read by Codex, which is not checked here, so it is not examined; \`--all-harnesses\` checks it when Codex is installed`,
+							]
+						: [],
+				}
+	const notes = [...uses.notes, ...own.notes]
 	const wanted: { name: string; implements?: string; excluded?: string[] }[] = uses.names.map((name) => ({ name }))
 	for (const id of uses.interfaces)
 		for (const entry of interfaceNames(id, loadLayers)) {
@@ -263,10 +364,14 @@ function doctorOne(skill: FoundSkill, layers: ReferenceLayers, display: (path: s
 	return {
 		skill: skill.name,
 		folder: display(skill.folder),
-		status: statusOf(references.map((reference) => referenceStatus(reference))),
+		status: statusOf([
+			...references.map((reference) => referenceStatus(reference)),
+			...(own.warnings.length ? (['warned'] as const) : []),
+		]),
 		references,
 		...(uses.interfaces.length ? { interfaces: uses.interfaces } : {}),
-		...(uses.notes.length ? { notes: uses.notes } : {}),
+		...(own.warnings.length ? { warnings: own.warnings } : {}),
+		...(notes.length ? { notes } : {}),
 	}
 }
 
@@ -287,8 +392,8 @@ function statusOf(statuses: readonly SkillDoctorEntry['status'][]): SkillDoctorE
 export function doctorSkills(
 	skills: readonly FoundSkill[],
 	layers: ReferenceLayers,
-	{ display = (path) => path }: DoctorOptions = {},
+	{ display = (path) => path, harness }: DoctorOptions = {},
 ): SkillDoctorReport {
-	const entries = skills.map((skill) => doctorOne(skill, layers, display))
+	const entries = skills.map((skill) => doctorOne(skill, layers, display, harness))
 	return { status: statusOf(entries.map(({ status }) => status)), skills: entries }
 }

@@ -8,7 +8,7 @@ Findings only; no design decisions. Local facts: repo research `plugin-dependenc
 
 ## Findings
 ### (1) Declaring dependencies across harnesses
-- Claude Code `dependencies` (E-DEP-1..3, E-PA-6): the only vendor-native plugin-to-plugin field; semver ranges; cross-marketplace allowlist. Cursor, Copilot CLI, Agent Plugins 1.0 have none (E-DEP-4). Codex: none found (E-PA-5, low).
+- Claude Code `dependencies` (E-DEP-1..3, E-PA-6): the only vendor-native plugin-to-plugin field; semver ranges; cross-marketplace allowlist. Cursor, Copilot CLI, Agent Plugins 1.0 have none (E-DEP-4). Codex: none found (E-PA-5; low for that absence, while its skill-level `agents/openai.yaml` is verified in `harness-detection` E-CODEX-K1–K2).
 - Microsoft APM (E-PA-1..3): closest cross-harness analog. Own manifest `apm.yml`, transitive resolution, lockfile with hashes, installs into many clients. Differs: it is an installer that writes files into each harness, not a library that reads what the harness installed.
 - skills.sh / vercel-labs skills (E-PA-4): lockfile of sources only; no inter-skill dependency found.
 - MCP registry (E-PA-7): no dependency field found.
@@ -39,7 +39,7 @@ Findings only; no design decisions. Local facts: repo research `plugin-dependenc
 
 ## Contradictions
 - APM client list differs across sources (E-PA-3).
-- Codex dependency evidence is a third-party blog only (E-PA-5).
+- Codex plugin-dependency evidence is a third-party blog only (E-PA-5). Its skill-level `agents/openai.yaml` is verified from Codex source (`harness-detection` E-CODEX-K1–K2).
 
 ## Open questions
 - Does Codex or Cursor have any undocumented dependency mechanism? Re-check vendor docs.

@@ -27,6 +27,8 @@ trigger:
   - { prompt: "Add a release-notes skill.", expect: fire }
   - { prompt: "Teach me how to use our date library's parse function.", expect: skip }
   - { prompt: "Add a hooks component to this plugin's plugin.json.", expect: skip }
+  # doctor across every harness on this machine, not only the running one.
+  - { prompt: "Do the references our triage skill loads work in Codex too, not only here? Check it for every harness installed on this machine.", expect: fire }
 # files/samples holds two sample skills (R79): release-notes passes every check; release-notes-flawed passes every
 # critical script check but fails TRG-3 (its description says how it works), CRI-3 ("The notes are clear"), SHP-3 (its
 # grouping step is prose a script could do), and the VER-12 warning (its setup writes .git/hooks and repository git
