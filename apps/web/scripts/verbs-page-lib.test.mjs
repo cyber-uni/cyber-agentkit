@@ -50,11 +50,17 @@ test('no glossary entry calls a doctor a check', () => {
 	}
 })
 
-test('the glossary names the words not used in names and the naming rule with its three reasons', () => {
+test('the glossary names the words not used in names and the selective naming rule with its test and three reasons', () => {
 	const section = verbsSection(glossary)
 	assert.match(section, /^- \*\*manage\*\* /m)
 	assert.match(section, /^- \*\*validate\*\* /m)
-	assert.match(section, /A standalone skill is named `<verb>-<plugin>`/)
+	assert.match(section, /A standalone skill takes the bare verb as its name/)
+	assert.match(
+		section,
+		/A verb common across the agentic ecosystem is the exception\. Its skill is named\s+`<verb>-<plugin>`/,
+	)
+	assert.match(section, /Today that is `init`, `doctor`, `config`, and `review`\./)
+	assert.match(section, /would another plugin or the harness itself\s+offer this same bare name\?/)
 	assert.match(section, /^1\. .*collides/m)
 	assert.match(section, /^2\. .*repeats the plugin/m)
 	assert.match(section, /^3\. .*Verb first/m)
