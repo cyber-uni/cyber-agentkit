@@ -52,3 +52,7 @@ contract apply here; IDs are shared across the parent and its children.
 - R153 (UC1.6; E3): When Research finds an existing skill that does the job, `create` stops at every autonomy level,
   names that skill, and asks whether to adopt it, with no `SKILL.md` written before the answer, as the Stop outcome
   R167 states.
+- R187 (UC1): When the job has more than one part that runs on its own, such as commands, modes, or steps, the Shape
+  draft gives each part its own instructions file (K10) and eval folder, and Verification writes each part's outcome
+  cases in its folder. A job with one part keeps its instructions in `SKILL.md` and its cases in the root scope. Every
+  case `create` writes carries an ID.

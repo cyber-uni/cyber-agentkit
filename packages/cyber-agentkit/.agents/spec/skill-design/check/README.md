@@ -39,6 +39,9 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC3.8** The skill loads a reference by reading its bundled default file, where the `reference` skill is the way to
     load it. The default is the fallback for when that command cannot run, and reading it directly drops the user and
     plugin override tiers. The Shape check flags it, and the author decides whether to keep it.
+  - **UC3.9** The skill's evals are grouped in scopes (K11). An eval folder named for no instructions file fails; a
+    trigger case with no ID of its own, and a stale case (K12), are warnings that name the scope and the input that
+    changed.
 - **Example:** `/skill check release-notes` passes Intent, Criteria, Shape, and Security, and fails Trigger because the
   description says how the skill works instead of when to use it.
 
@@ -65,6 +68,9 @@ contract apply here; IDs are shared across the parent and its children.
   `skills` and `.agents/skills` by default, where a folder may be a glob. A skill reached through more than one path
   is checked once. The report gives each skill's result and a summary, and the exit follows R19's policy over every
   check of every skill. Finding no skill is an error, not a pass.
+- R186 (UC3.9): An eval folder with no instructions file of its name is a critical Shape failure. A trigger case with
+  no ID of its own is a warning. Each stale case is a warning naming its scope and the input that changed, or that it
+  has no entry, and a carried entry (R183) is shown as carried; finding them reads only files.
 - R164 (UC3.8): A skill whose body reads a reference's bundled `<name>.default.md` directly, where it should load the
   reference with the `reference` skill, gets a Shape failure that names the file and the step. Reading the default is
   not flagged when the step makes it the fallback for a command that cannot run.

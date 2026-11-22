@@ -77,6 +77,9 @@ contract apply here; IDs are shared across the parent and its children.
 - R82 (UC5): When a written change touches the skill's steps, its Criteria, or its evals, `enhance` offers to run
   `test`, saying it makes model calls, and to keep the result as the skill's expected result (R80) once it shows no
   criterion worse than before.
+- R192 (UC5): `enhance` reviews how the skill is split by what it does. It suggests giving a part its own
+  instructions file and scope when the part has none, or when a shared section reaches that part only; the shape is
+  the author's choice, a router being one of several, and nothing is split without acceptance.
 - R50 (UC5.3): When the skill fails `check`, `enhance` points to `fix` and goes on only if the author says so. With no
   author present, it stops.
 - R51 (UC5.5): With nothing to suggest, `enhance` says so and leaves the skill unchanged.
