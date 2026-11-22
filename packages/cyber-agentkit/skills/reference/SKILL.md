@@ -119,7 +119,7 @@ metadata:
   reference-interfaces: <id>
 ```
 
-Each value is one string of names separated by spaces, since the spec makes every `metadata` value a string. A skill that loads only references sets only `references`. Once a skill declares either key, the lists are the whole of what it loads; `skill check` (SHP-20) fails on a load the lists leave out and on a declared name the text never mentions in backticks. A skill that declares neither is read for its loads instead: each backticked name that resolves here, and each English load line.
+Each value is one string of names separated by spaces, since the spec makes every `metadata` value a string. A skill that loads only references sets only `references`. Once a skill declares either key, the lists are the whole of what it loads; `skill check` (SHP-20) fails on a load the lists leave out and on a declared name the text never mentions in backticks. A skill that declares neither is read for its loads instead: each backticked name that resolves here, and each English load line. Detection skips fenced code blocks, text wrapped in `<example>` and `</example>`, a skill folder's `evals` folder, and its root `README.md`.
 
 A skill written for one harness may add that harness's typed form after the skill's name; the README lists each one. The skill may ship its own default of a name at `references/<name>.default.md` in its folder. Load adds it below every other contribution, and reads it on its own only when the command cannot run. A copy at `references/<name>.md` is not read as a default.
 
