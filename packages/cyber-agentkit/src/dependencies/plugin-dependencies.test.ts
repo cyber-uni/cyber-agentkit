@@ -112,6 +112,14 @@ describe('readPluginDependencies', () => {
 		expect(read.dependencies).toEqual([])
 		expect(read.error).toBeDefined()
 	})
+
+	it('reports an unparsable manifest even when a later source lists the dependencies', async () => {
+		await put(join(root, 'p/plugin.json'), '{')
+		await put(join(root, 'p/.claude-plugin/plugin.json'), JSON.stringify({ dependencies: ['formatter'] }))
+		const read = await readPluginDependencies(join(root, 'p'))
+		expect(read.dependencies).toEqual([{ name: 'formatter' }])
+		expect(read.error).toContain(join(root, 'p/plugin.json'))
+	})
 })
 
 describe('checkPluginDependencies on Claude Code', () => {

@@ -44,7 +44,7 @@ export interface PluginDependenciesRead {
 	readonly dependencies: readonly PluginDependency[]
 	/** The manifest the list came from; the last one tried when none declares any. */
 	readonly path: string
-	/** Set when the manifest exists but could not be parsed. */
+	/** Set when a manifest exists but could not be parsed, even when a later source lists the dependencies. */
 	readonly error?: string
 }
 
@@ -74,7 +74,7 @@ export async function readPluginDependencies(pluginRoot: string): Promise<Plugin
 			const text = await readText(path)
 			if (text === undefined) continue
 			const dependencies = declaredPluginDependencies(pick(JSON.parse(stripJsonComments(text))))
-			if (dependencies.length > 0) return { dependencies, path }
+			if (dependencies.length > 0) return { dependencies, path, ...(error && { error }) }
 		} catch (cause) {
 			error ??= `${path}: ${String(cause)}`
 		}
