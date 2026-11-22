@@ -36,9 +36,14 @@ When the test warns
 `--trust-scripts` only when the author has read them and says to run them. Never pass it on your own. To add or
 remove a case, use `skill case add` (with `--expect fire` or `skip` for a trigger case) and `skill case remove`, never `rm` or a rewrite of a case folder in the shell.
 
+Without `--case`, `test` runs only the stale cases, as Verification's Run says: those with no expected entry, or whose
+definition or scope inputs changed since their entry. Pass `--all` only when the author asks for every case, such as
+"run the full test". When every case is current, nothing runs: the reply carries `"ran": 0` and `selected`, and you
+tell the author no case changed. The estimate counts only the selected runs.
+
 A full test makes many runs and can take several minutes. Before starting, estimate it against the test budget as
 `SKILL.md`'s Autonomy says: within it, start without asking; over it, stop. A request that names the runs to make, such
-as "run the full test", is the answer for that run. Say how many runs it makes and, from the plan line, about how long
+as "run the full test" (`--all`), is the answer for that run. Say how many runs it makes and, from the plan line, about how long
 and how much it took last time. When the plan line says an unknown number of
 runs, the last result was saved before the run count was recorded and may have covered only some cases: say so. Start it in the background where the harness
 can, so the author can keep working, and watch its progress lines on stderr: one per finished run (`[n/total] <case>
@@ -177,6 +182,13 @@ and this run, each with its rate in each result that holds one, oldest first and
 case moved. A result saved before cases carried counts gives a trigger case's rate from its `trigger` entry, and none
 for an outcome case. `totalRuns` is how many runs the test planned; a result saved before it was recorded lacks it, and its count is unknown.
 
+`selected`, set when no `--case` or `--all` was given, says why each case ran: `stale` lists the cases, `scopes` gives
+each scope with a stale case, its `cases`, and why (`inputsChanged` names each input that changed, such as
+`references/check.md`; `caseChanged` the cases whose own definition changed; `noEntry` those with no entry;
+`unrecorded` those whose entry recorded no inputs to compare), `current` counts the cases that did not run, and
+`notSelecting` lists a change that selects no case, such as `built scripts changed`. A run of some stale cases is also
+`partial`.
+
 `replies` names a file beside the result, in the same results folder, that holds the reply of every run, passed,
 failed, or not run, with the skill and without it. Each entry has `case`, `arm` (`with-skill` or `baseline`), `run`
 (from 1), `outcome` (`pass`, `fail`, `fired`, `not fired`, `not run`, `sandbox failure`, or `limit reached`), the whole `reply`, each
@@ -190,7 +202,8 @@ Results saved before these fields were added lack them.
 The expected result, `<skill folder>/evals/expected.json`, holds one entry per case, keyed by its ID, under `entries`.
 Each entry records the case's `status`, `passed`, and `ran`, for an outcome case each criterion it tests under
 `criteria`, the `model`, when it was recorded (`at`), and `hashes` of the case's own definition and of its scope's
-inputs. `scope` is `trigger` for a trigger case and `root` for an outcome case. A criterion's expected result is
+inputs. `scope` is `trigger` for a trigger case, the eval folder's name for a case in `evals/<name>/`, and `root` for
+another outcome case. `inputs` keeps each recorded scope's inputs by name, so a later run names the one that changed. A criterion's expected result is
 computed from the entries of the cases that test it; when they were recorded at different times, it carries
 `recorded`, the oldest. The file never carries `folder`, `replies`, or `evalId`, since it is committed and those name
 this machine's files. A file in the older form, one saved result with no `entries`, is still read as it is, and the
@@ -219,7 +232,8 @@ attested pass, and a known failure exit 0: they never count as a pass, but they 
 (`fixed?`) exits 1.
 
 When a change alters no behavior, such as a typo fix, the author can carry entries forward to the current inputs
-instead of running them: `skill carry <folder> --scope trigger|root --reason "<why>"`, or `--case <id>` (repeatable)
+instead of running them: `skill carry <folder> --scope <scope> --reason "<why>"`, with `trigger`, `root`, or an eval
+folder's name, or `--case <id>` (repeatable)
 for named cases. Each entry carried takes the hashes as they are now and `carried` with the reason and when; its result
 and `at` stay. Carry only on the author's request, with their reason. A later `test` lists each carried entry it
 compared with under `comparedCarried`; say it was carried forward, never a pass from a run.
@@ -253,7 +267,8 @@ no `fix` for it. Then each
 trigger case beside what was expected; each criterion's pass rate, threshold, and baseline; each failure with its
 case and the output that broke it; each guard case, whose pass without the skill too is expected, so never report it as a
 skill that adds nothing, while a guard that fails with the skill is a failure like any other; what the runs with the
-skill tried and were refused, if anything; and the cases that changed between pass and fail since the expected result, or, with
+skill tried and were refused, if anything; when `selected` left cases out, each scope that ran with the input that
+changed, how many cases were current, and each `notSelecting` change; and the cases that changed between pass and fail since the expected result, or, with
 none, the previous result, saying which. With neither, say there is none to compare. Name the model the cases ran on,
 and each case on its own. When `modelChanged` lists cases, say their model changed since the result compared with, so
 a change there may be the model's rather than the skill's. Name each case in `moved` with
