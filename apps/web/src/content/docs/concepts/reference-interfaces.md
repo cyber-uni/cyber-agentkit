@@ -8,7 +8,7 @@ in any tier implements it. The resolver lists the implementations of an interfac
 each one has the shape the interface describes.
 
 An interface whose id ends in `.blueprints` has one implementation per way of using a system; see
-[capability references and blueprints](/cyber-agentkit/concepts/capability-references/) (planned).
+[capability references and blueprints](/cyber-agentkit/concepts/capability-references/).
 
 Registering an interface is optional. Those that were registered are listed in the
 [interface registry](/cyber-agentkit/interface-registry/).

@@ -1,5 +1,17 @@
 import { aliasIndex } from './reference-aliases.js'
-import { capabilitiesInterfaceWarning, capabilitySystemOf, checkCapability } from './reference-capabilities.js'
+import {
+	type BlueprintFacts,
+	type CapabilityLookup,
+	checkBlueprint,
+	checkBlueprintInterface,
+	isBlueprintInterface,
+} from './reference-blueprints.js'
+import {
+	capabilitiesInterfaceWarning,
+	capabilitiesSuffix,
+	capabilitySystemOf,
+	checkCapability,
+} from './reference-capabilities.js'
 import { catalogNames } from './reference-catalog.js'
 import { baseMovedWarnings, hiddenWarnings, splitComposeWarnings } from './reference-check-warnings.js'
 import type { ReferenceStatusCode, ReferenceWarning } from './reference-codes.js'
@@ -72,21 +84,33 @@ type Source = ReferenceLayers | readonly ReferenceLayer[]
  * An interface, resolved once per id within one run. `renamed` is set when `id` is an older id an
  * interface document lists in its `aliases` (R96): the interface is that document's.
  */
-export type InterfaceLookup = (id: string) => {
+export type InterfaceLookup = ((id: string) => {
 	value?: ReferenceInterface
 	failure?: ReferenceCheckFailure
 	renamed?: string
+}) & {
+	/** A blueprint's capability reference, resolved once per system with the lookup's own options (R147). */
+	capability: CapabilityLookup
 }
 
 export function interfaceLookup(source: Source, options: ResolveOptions = {}): InterfaceLookup {
 	const cache = new Map<string, ReturnType<InterfaceLookup>>()
-	return (id) => {
+	const capabilities = new Map<string, ResolvedReference>()
+	const lookup = (id: string) => {
 		const cached = cache.get(id)
 		if (cached) return cached
 		const answer = lookUp(id, source, options)
 		cache.set(id, answer)
 		return answer
 	}
+	const capability: CapabilityLookup = (system) => {
+		const cached = capabilities.get(system)
+		if (cached) return cached
+		const resolved = resolveReference(`${system}${capabilitiesSuffix}`, source, options)
+		capabilities.set(system, resolved)
+		return resolved
+	}
+	return Object.assign(lookup, { capability })
 }
 
 function lookUp(id: string, source: Source, options: ResolveOptions): ReturnType<InterfaceLookup> {
@@ -157,8 +181,13 @@ export type CheckResult = {
 	failures: ReferenceCheckFailure[]
 	unsupported: string[]
 	partial: string[]
-	/** What the check itself raises and passes on: an `implements` naming an interface's older id (R96). */
+	/**
+	 * What the check itself raises and passes on: an `implements` naming an interface's older id (R96),
+	 * a needed feature the capability reference marks unsupported (R147).
+	 */
 	warnings: ReferenceWarning[]
+	/** For a blueprint whose capability reference is `found`: its system and that reference's Verified entries (R146). */
+	blueprint?: BlueprintFacts
 }
 
 /** The `compose` failure for the defects composing a document raised (UC6.8), if any. */
@@ -199,9 +228,12 @@ export function checkResolved(
 				message: `${name} has an \`interface:\` block; an interface document is named <id>${interfaceSuffix}`,
 			})
 		} else {
-			for (const problem of readInterface(id, metadata).problems) {
+			const read = readInterface(id, metadata)
+			for (const problem of read.problems) {
 				failures.push({ check: 'interface', interface: id, message: problem })
 			}
+			const blueprint = read.value && checkBlueprintInterface(read.value)
+			if (blueprint) failures.push(blueprint)
 			const renamed = capabilitiesInterfaceWarning(id)
 			if (renamed) warnings.push(renamed)
 		}
@@ -228,6 +260,13 @@ export function checkResolved(
 				failures.push(...checked.failures)
 				result.unsupported = checked.unsupported
 				result.partial = checked.partial
+				if (isBlueprintInterface(id)) {
+					const ids = [...new Set([id, entry.id])]
+					const blueprint = checkBlueprint(name, resolved.content ?? '', iface.value, ids, lookup.capability)
+					failures.push(...blueprint.failures)
+					warnings.push(...blueprint.warnings)
+					if (blueprint.blueprint) result.blueprint = blueprint.blueprint
+				}
 				if (capabilitySystemOf(name) !== undefined) {
 					const renamed = capabilitiesInterfaceWarning(id)
 					if (renamed) warnings.push(renamed)

@@ -79,7 +79,7 @@ Give the generator subagent this prompt, followed by the base and the request:
 > - For a whole document, write every section, in the base's order.
 > - For a project section, write only what differs for work in that folder.
 > - For an interface, keep every section of the stub, in its order. Replace each stub with its content, or keep `**Unsupported.**`, or write `**Partial.**`, with one sentence on what is missing or why. A required section cannot stay unsupported.
-> - For a capability reference (`<system>.capabilities`), keep System, Detect, and Verified as the first three sections. Mark a feature this setup lacks `**Unsupported.**`, or one it has only in part `**Partial.**`, with one sentence on what is missing or why.
+> - For a capability reference (`<system>.capabilities`), keep System, Detect, and Verified as the first three sections. Mark a feature this setup lacks `**Unsupported.**`, or one it has only in part `**Partial.**`, with one sentence on what is missing or why. Every blueprint whose `Needs:` line names a feature marked unsupported then warns `feature-unsupported` when loaded here; never edit the blueprints for it.
 > - Use top-level `##` sections and no `#` title. Write no frontmatter; the command records it.
 > - Use only the base and the request. Never add text from anywhere else, such as managed or admin instructions, or other files you can see.
 > - Reply with the document alone.

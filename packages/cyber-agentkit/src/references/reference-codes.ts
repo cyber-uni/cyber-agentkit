@@ -78,6 +78,10 @@ export const referenceCodes = {
 		when: '`extends`, `merge`, or a higher copy on an interface document (R14)',
 	},
 	'interface-check': { kind: 'warning', when: 'a loaded document failing its interface check (R37)' },
+	'feature-unsupported': {
+		kind: 'warning',
+		when: 'a blueprint section needing a feature its capability reference, as resolved here, marks `**Unsupported.**` (R147)',
+	},
 	'base-moved': {
 		kind: 'warning',
 		when: '`check` on a plugin or default file whose extended base has a newer version (R86)',

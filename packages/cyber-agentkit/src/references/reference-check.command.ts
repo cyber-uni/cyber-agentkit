@@ -41,7 +41,7 @@ export function checkCommand(layersFor: LayersFor, path = defaultReferencePath):
 	return command({
 		name: 'check',
 		description:
-			'Check references, each composed as `load` composes it: an interface document against its shape, an implementation against its interface, a capability reference (`<system>.capabilities`) against its System, Detect, and Verified opening, every `**Partial.**` or `**Unsupported.**` mark for the sentence after it, and every document for the defects composing it raises. With no names, checks every name found. Every warning `load` raises is reported. A failure is an entry in `failed`, not an error; a warning never fails a check.',
+			'Check references, each composed as `load` composes it: an interface document against its shape, an implementation against its interface, a capability reference (`<system>.capabilities`) against its System, Detect, and Verified opening, a blueprint interface (an id ending `.blueprints`) for cardinality many, a blueprint against its `<system>.capabilities` and the features its `Needs:` lines name, every `**Partial.**` or `**Unsupported.**` mark for the sentence after it, and every document for the defects composing it raises. With no names, checks every name found. Every warning `load` raises is reported. A failure is an entry in `failed`, not an error; a warning never fails a check.',
 		arguments: [
 			{
 				name: 'names',

@@ -1,0 +1,196 @@
+{
+	"version": 2,
+	"skill": "reference",
+	"at": "2026-11-22T15:48:11.507Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"model": "sonnet",
+	"cost": 4.2599,
+	"totalRuns": 66,
+	"durationMs": 151218,
+	"criteria": ["C1", "C2", "C3", "C4", "C5", "C6"],
+	"reported": {
+		"scripts": "sha256:0070acff7472c39a82e7ee695d995c356b9943e420eadaa4d65ef98a3dabb22f",
+		"harness": "claude-code",
+		"verification": "skill-design.aspects.verification from cyber-agentkit"
+	},
+	"entries": {
+		"load-our-style-reference-and": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Load our style reference and tell me what it says about tone.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T15:27:14.304Z",
+			"hashes": {
+				"case": "sha256:bf9a2b85c2e7e32550179715ca75d5b9f8a94ff93efdb8d51c1170346b84e34a",
+				"scope": "sha256:bd3176aa844cb69f6efb27ce355a8ee0605293cfe454015442eb6ff1539eee43"
+			}
+		},
+		"which-references-do-we-have": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Which references do we have about testing?",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T15:27:14.304Z",
+			"hashes": {
+				"case": "sha256:ba8373ba631f491aa586fc3ad98aad9e9b3611a33f826188ade2ce1323dc2ae8",
+				"scope": "sha256:bd3176aa844cb69f6efb27ce355a8ee0605293cfe454015442eb6ff1539eee43"
+			}
+		},
+		"make-the-repos-commit-message": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Make the repo's commit.message reference say we write in the present tense.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T15:27:14.304Z",
+			"hashes": {
+				"case": "sha256:b90bef0b69f989da5bc0459adef7d56df93a65e5ba6269da9de3940a6f92ea0f",
+				"scope": "sha256:bd3176aa844cb69f6efb27ce355a8ee0605293cfe454015442eb6ff1539eee43"
+			}
+		},
+		"why-does-the-style-reference": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Why does the style reference come from my user folder and not the repo one?",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T15:27:14.304Z",
+			"hashes": {
+				"case": "sha256:4761f24b53558fe8a04e1a68c41f595f6414c404032fa955478ab46ba3b894af",
+				"scope": "sha256:bd3176aa844cb69f6efb27ce355a8ee0605293cfe454015442eb6ff1539eee43"
+			}
+		},
+		"write-a-skill-that-drafts": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Write a skill that drafts release notes from merged pull requests.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T15:27:14.304Z",
+			"hashes": {
+				"case": "sha256:543aa397bb77d7132aab79ecebc9f7d1f1e940422e45fe63c42b196aebb5b8ac",
+				"scope": "sha256:bd3176aa844cb69f6efb27ce355a8ee0605293cfe454015442eb6ff1539eee43"
+			}
+		},
+		"add-a-rule-to-agents": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Add a rule to AGENTS.md that this repo uses pnpm.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T15:27:14.304Z",
+			"hashes": {
+				"case": "sha256:63f7fc63f64533967854c5504711defbbc6fd1f90021ab4be8a1d19bae73ffb8",
+				"scope": "sha256:bd3176aa844cb69f6efb27ce355a8ee0605293cfe454015442eb6ff1539eee43"
+			}
+		},
+		"my-release-notes-skill-doesnt": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T15:27:14.304Z",
+			"hashes": {
+				"case": "sha256:6ff691bc8189760229b55f2605e639de8b453d1d45095571b2ff93ec8f38d3db",
+				"scope": "sha256:bd3176aa844cb69f6efb27ce355a8ee0605293cfe454015442eb6ff1539eee43"
+			}
+		},
+		"add-a-references-section-at": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Add a References section at the end of docs/design.md linking the two papers we cite.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T15:27:14.304Z",
+			"hashes": {
+				"case": "sha256:45381a94795a43022d1c2801bd70a7ceb7fa15c6fd209cfaaff337183aeb2814",
+				"scope": "sha256:bd3176aa844cb69f6efb27ce355a8ee0605293cfe454015442eb6ff1539eee43"
+			}
+		},
+		"find-none": {
+			"scope": "root",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"criteria": {
+				"C6": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
+				}
+			},
+			"model": "sonnet",
+			"at": "2026-11-22T15:27:14.304Z",
+			"hashes": {
+				"case": "sha256:f70abc9d84602d5437af31fdfe96d066edd812b33522ebd00990075be053ae76",
+				"scope": "sha256:5e009a54dac45d9b611e1398f9529ecff98306ab5280e83601dbc09ac9ca04bb"
+			}
+		},
+		"implement-interface": {
+			"scope": "root",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"criteria": {
+				"C1": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
+				},
+				"C5": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
+				}
+			},
+			"model": "sonnet",
+			"at": "2026-11-22T15:27:14.304Z",
+			"hashes": {
+				"case": "sha256:6133fedced4da519baa57fdac072590ddfb86b276afd980f7e53ce65ecbeb398",
+				"scope": "sha256:5e009a54dac45d9b611e1398f9529ecff98306ab5280e83601dbc09ac9ca04bb"
+			}
+		}
+	}
+}

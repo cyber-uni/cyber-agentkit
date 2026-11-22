@@ -1,22 +1,15 @@
 runs: 3
 threshold: 2
 trigger:
-  - { prompt: "Load our style reference and tell me what it says about tone.", expect: fire }
-  - { prompt: "Which references do we have about testing?", expect: fire }
-  - { prompt: "Make the repo's commit.message reference say we write in the present tense.", expect: fire }
-  - { prompt: "Why does the style reference come from my user folder and not the repo one?", expect: fire }
-  - { prompt: "Write a skill that drafts release notes from merged pull requests.", expect: skip }
-  - { prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
-  - { prompt: "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.", expect: skip }
-  - { prompt: "Add a References section at the end of docs/design.md linking the two papers we cite.", expect: skip }
+  - { id: load-our-style-reference-and, prompt: "Load our style reference and tell me what it says about tone.", expect: fire }
+  - { id: which-references-do-we-have, prompt: "Which references do we have about testing?", expect: fire }
+  - { id: make-the-repos-commit-message, prompt: "Make the repo's commit.message reference say we write in the present tense.", expect: fire }
+  - { id: why-does-the-style-reference, prompt: "Why does the style reference come from my user folder and not the repo one?", expect: fire }
+  - { id: write-a-skill-that-drafts, prompt: "Write a skill that drafts release notes from merged pull requests.", expect: skip }
+  - { id: add-a-rule-to-agents, prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
+  - { id: my-release-notes-skill-doesnt, prompt: "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.", expect: skip }
+  - { id: add-a-references-section-at, prompt: "Add a References section at the end of docs/design.md linking the two papers we cite.", expect: skip }
 outcome:
-  - id: load-style
-    prompt: What does our style reference say about tone?
-    files: files/repo
-    criteria: [C6]
-    checks:
-      C6:
-        - contains: Lead with the outcome
   - id: find-none
     prompt: Is there a reference about deploy checklists?
     files: files/repo
@@ -24,37 +17,12 @@ outcome:
     checks:
       C6:
         - regex: "\\b([Nn]o|[Nn]ot|[Nn]one|[Nn]othing|[Ee]mpty|0 match(es)?)\\b|n't\\b"
-  - id: create-approved
-    prompt: >-
-      Create a repo reference named deploy-checklist with one section, "## Steps", saying
-      "Run the tests before you tag." I approve writing it; don't ask again.
-    files: files/repo
-    criteria: [C1, C2, C3, C4]
-  - id: customize-skill-default
-    prompt: >-
-      Our release-notes skill loads the release-notes.tone reference. For everyone in this repo,
-      change it to the present tense ("Adds", "Fixes"). I approve writing it; don't ask again.
-    files: files/repo-with-skill-default   # a repo skill whose references/release-notes.tone.default.md is the only contribution
-    criteria: [C1, C2]
   - id: implement-interface
     prompt: >-
       Create a repo reference that implements the review.checklist interface, saying reviewers
       check the tests first. I approve writing it; don't ask again.
     files: files/repo-with-interface   # adds .agents/references/review.checklist.interface.md
     criteria: [C1, C5]
-  - id: create-capability-reference
-    prompt: "Create a repo capability reference for our self-hosted GitLab,
-      gitlab.capabilities. We run the 17.x Free tier, detected when the origin
-      remote host is gitlab.internal. Epics are only partly there: we have no
-      group epics. I ran glab against it this week. I approve writing it; do not
-      ask again."
-    files: files/repo
-    criteria: [C1, C5]
-    checks:
-      C5:
-        - script: node "$SKILL_TEST_PLUGIN/skills/reference/scripts/reference.mjs" check
-            gitlab.capabilities && grep -q "^\*\*Partial\.\*\*"
-            .agents/references/gitlab.capabilities.md
 rubrics:
   C1:
     - script: "test -z \"$(git status --porcelain --untracked-files=all | grep -v ' .agents/references/')\""

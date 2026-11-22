@@ -58,7 +58,7 @@ const fenceOpenPattern = /^ {0,3}(`{3,}|~{3,})/
  * Tracks fenced code blocks line by line — a `#` or a merge marker inside one is body text, and the
  * one thing a Markdown-unaware split gets wrong.
  */
-function fenceTracker() {
+export function fenceTracker(): (line: string) => boolean {
 	let fence: string | undefined
 	return (line: string): boolean => {
 		if (fence) {

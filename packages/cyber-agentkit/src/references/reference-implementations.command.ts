@@ -22,6 +22,9 @@ export type ReferenceImplementationsReport = {
 		description?: string
 		unsupported?: string[]
 		partial?: string[]
+		system?: string
+		capability?: string
+		verified?: string[]
 		name?: string
 		tier?: string
 		version?: number
@@ -55,12 +58,22 @@ export type ReferenceFamilyImplementationsReport = {
 }
 
 function rowsOf(found: ReferenceImplementations, trace: boolean | undefined) {
-	return found.implementations.map(({ pin, description, unsupported, partial, name, tier, version }) =>
-		compact(
-			trace
-				? { pin, description, unsupported, partial, name, tier, version }
-				: { pin, ...(tier === 'plugin' ? {} : { tier }), description, unsupported, partial },
-		),
+	return found.implementations.map(
+		({ pin, description, unsupported, partial, system, capability, verified, name, tier, version }) =>
+			compact(
+				trace
+					? { pin, description, system, capability, verified, unsupported, partial, name, tier, version }
+					: {
+							pin,
+							...(tier === 'plugin' ? {} : { tier }),
+							description,
+							system,
+							capability,
+							verified,
+							unsupported,
+							partial,
+						},
+			),
 	)
 }
 
@@ -86,7 +99,7 @@ export function implementationsCommand(layersFor: LayersFor, path = defaultRefer
 	return command({
 		name: 'implementations',
 		description:
-			'List the implementations of an interface a consumer can load, each with its pin, description, and unsupported and partial sections.',
+			"List the implementations of an interface a consumer can load, each with its pin, description, and unsupported and partial sections; a blueprint (`<id>.<system>.<solution>` of an id ending `.blueprints`) also with its system, its capability reference, and that reference's Verified entries.",
 		arguments: [
 			{
 				name: 'id',

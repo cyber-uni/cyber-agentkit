@@ -1,0 +1,149 @@
+{
+	"version": 2,
+	"skill": "reference",
+	"at": "2026-11-22T15:59:36.838Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"model": "sonnet",
+	"cost": 4.2599,
+	"totalRuns": 66,
+	"durationMs": 151218,
+	"criteria": ["C1", "C2", "C3", "C4", "C5", "C6"],
+	"reported": {
+		"scripts": "sha256:f5bd99104b4f1f61e98759c832365ea8ba50db5d54d46c943f0a8de1bf6a4d90",
+		"harness": "claude-code",
+		"verification": "skill-design.aspects.verification from cyber-agentkit"
+	},
+	"entries": {
+		"create-approved": {
+			"scope": "create",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"criteria": {
+				"C1": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
+				},
+				"C2": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
+				},
+				"C3": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
+				},
+				"C4": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
+				}
+			},
+			"model": "sonnet",
+			"at": "2026-11-22T15:59:36.838Z",
+			"hashes": {
+				"case": "sha256:bb3c26905339fe5af5fa38ef98eb8f9d90c555994cce158aadd0da35f7d2d98b",
+				"scope": "sha256:0ac65f550bb03c77833ec7c7c94ac783528a00daeeb0e827bc679778f335f0a5"
+			}
+		},
+		"create-capability-reference": {
+			"scope": "create",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"criteria": {
+				"C1": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
+				},
+				"C5": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
+				}
+			},
+			"model": "sonnet",
+			"at": "2026-11-22T15:59:36.838Z",
+			"hashes": {
+				"case": "sha256:0c03fc176cd441d679ee68162937cd1b764860e3641977cb38ae0432d577046d",
+				"scope": "sha256:0ac65f550bb03c77833ec7c7c94ac783528a00daeeb0e827bc679778f335f0a5"
+			}
+		},
+		"create-blueprint": {
+			"scope": "create",
+			"status": "pass",
+			"passed": 2,
+			"ran": 3,
+			"criteria": {
+				"C1": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
+				},
+				"C5": {
+					"status": "pass",
+					"passed": 2,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
+				}
+			},
+			"model": "sonnet",
+			"at": "2026-11-22T15:48:11.507Z",
+			"hashes": {
+				"case": "sha256:0c01e40e78592c11a31b70ec45e44220766638a0c095df99f776dcaebb73c854",
+				"scope": "sha256:0ac65f550bb03c77833ec7c7c94ac783528a00daeeb0e827bc679778f335f0a5"
+			},
+			"carried": {
+				"reason": "carried by migration",
+				"at": "2026-11-22T15:59:19.456Z"
+			}
+		}
+	},
+	"inputs": {
+		"sha256:0ac65f550bb03c77833ec7c7c94ac783528a00daeeb0e827bc679778f335f0a5": {
+			"SKILL.md front matter": "sha256:d3b11faaac2e8cc34ac703ba9b7989a580a4cf88433f1d31d4312f05bbe3ee3d",
+			"SKILL.md shared sections": "sha256:76546701be3088ac0fa2032db9ea13669273508272b304ac5ac4990193eb928f",
+			"references/create.md": "sha256:7d9cd63a80feb2a9de8bd520b93de4b9d7699f2a7cca3c9c347cd79c0521381e",
+			"references/customize.md": "sha256:2f212c118a44036cc4662c89b8d6cbfecf6127a99e8cfe553e9c3ea2fd3e219c",
+			"references/load.md": "sha256:2733ff78d876ac98da5b0bbd7641065d7bf4262016cc05c2cdfbf039996782b9",
+			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
+		}
+	}
+}
