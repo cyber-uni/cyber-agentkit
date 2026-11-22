@@ -121,6 +121,8 @@ program does the same way every time, such as parsing or validating a file.
   and each interface whose implementations it loads under `metadata.reference-interfaces`, as one string of names
   separated by spaces; every declared name is mentioned in backticks where it is loaded, and the text loads no name the
   lists leave out.
+- **SHP-21** [script] Each eval folder, a folder under `evals/` holding an `evals.yaml`, is named for an instructions
+  file: `evals/<name>/` holds the cases of `references/<name>.md`.
 
 ### Trigger
 

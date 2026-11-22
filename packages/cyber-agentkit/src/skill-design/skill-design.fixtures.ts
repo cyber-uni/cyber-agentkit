@@ -1,7 +1,9 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { readSkill, type SkillFiles } from './skill-files.js'
+import type { ExpectedFile } from './expected-result.js'
+import { inputHashes } from './input-hashes.js'
+import { criteriaItems, readSkill, type SkillFiles } from './skill-files.js'
 import { parseSandbox, type SandboxSettings } from './test-sandbox.js'
 
 export const goodSkillMd = `---
@@ -204,3 +206,40 @@ rubrics:
 /** A skill holding `scopedSkillFiles`, with `extra` over them. */
 export const scopedSkill = (extra: Record<string, string> = {}): SkillFiles =>
 	makeSkill({ ...scopedSkillFiles, ...extra })
+
+/**
+ * Writes `evals/expected.json` with a passing entry for every case, recorded against the skill's inputs as they are
+ * now, so no case is stale (VER-18). `change` edits the file before it is written. Answers the skill, read again.
+ */
+export function recordExpected(
+	skill: SkillFiles,
+	change: (file: ExpectedFile) => ExpectedFile = (file) => file,
+): SkillFiles {
+	const criteria = (criteriaItems(skill)?.ids ?? []).filter((id): id is string => id !== undefined)
+	const inputs = inputHashes(skill, criteria)
+	if (!inputs) throw new Error(`the evals of ${skill.folder} cannot be read`)
+	const at = '2026-11-01T00:00:00.000Z'
+	const file: ExpectedFile = {
+		version: 2,
+		skill: skill.folderName,
+		at,
+		verification: 'v',
+		runs: 3,
+		threshold: 2,
+		baseline: 'without the skill',
+		criteria,
+		entries: Object.fromEntries(
+			Object.keys(inputs.cases).map((id) => {
+				const scope = inputs.scopeOf?.[id] as string
+				const hashes = { case: inputs.cases[id] as string, scope: inputs.scopes[scope] as string }
+				return [id, { scope, status: 'pass' as const, at, hashes }]
+			}),
+		),
+		inputs: Object.fromEntries(
+			Object.entries(inputs.scopes).map(([scope, hash]) => [hash, inputs.inputs?.[scope] ?? {}]),
+		),
+	}
+	mkdirSync(join(skill.folder, 'evals'), { recursive: true })
+	writeFileSync(join(skill.folder, 'evals', 'expected.json'), `${JSON.stringify(change(file), null, '\t')}\n`)
+	return readSkill(skill.folder) as SkillFiles
+}

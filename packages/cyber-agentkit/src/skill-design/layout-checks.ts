@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, dirname, extname, join, relative } from 'node:path'
+import { evalFolderNames } from './eval-suite.js'
 import type { CheckOutcome } from './skill-check-types.js'
 import { readText, type SkillFiles } from './skill-files.js'
 import { isExternal, leavesFolder, linkTargets, plainPaths, resolveIn } from './skill-text.js'
@@ -131,7 +132,28 @@ function checkRootFiles(skill: SkillFiles): CheckOutcome {
 	return outcome('SHP-11', problems)
 }
 
-/** SHP-7 to SHP-11, the Shape checks a script decides from the skill's folder layout. */
+/**
+ * SHP-21 (R186): each eval folder, a folder under `evals/` holding an `evals.yaml`, is named for an instructions file,
+ * `references/<name>.md`, whose scope it holds (K11). One named for none holds cases no instructions file reaches.
+ */
+function checkEvalFolders(skill: SkillFiles): CheckOutcome {
+	const problems = evalFolderNames(skill.folder)
+		.filter((name) => !skill.files.includes(`references/${name}.md`))
+		.map((name) => ({
+			file: `evals/${name}/evals.yaml`,
+			message: `the eval folder evals/${name}/ is named for no instructions file: there is no references/${name}.md; rename the folder for the file whose cases it holds, or add that file`,
+		}))
+	return outcome('SHP-21', problems)
+}
+
+/** SHP-7 to SHP-11 and SHP-21, the Shape checks a script decides from the skill's folder layout. */
 export function checkLayout(skill: SkillFiles): CheckOutcome[] {
-	return [checkRoot(skill), checkContained(skill), checkManifest(skill), checkFolders(skill), checkRootFiles(skill)]
+	return [
+		checkRoot(skill),
+		checkContained(skill),
+		checkManifest(skill),
+		checkFolders(skill),
+		checkRootFiles(skill),
+		checkEvalFolders(skill),
+	]
 }
