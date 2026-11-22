@@ -1339,10 +1339,26 @@ describe('skill test model (R161)', () => {
 		expect(latest().judge).toBe('sonnet')
 	})
 
-	it('judges on Claude even when the runs drive another harness (#357)', async () => {
+	it('judges on the harness the runs drive, on its own default when its tiers are not known, and says so (#357)', async () => {
 		const seen: Seen = {}
 		await test(goodSkill({ 'evals/evals.yaml': judgeEvals() }).folder, fakeRun(seen), repo(), '--harness', 'codex')
-		expect(judgeOf(seen)?.provider.config.model).toBe('sonnet')
+		const judge = judgeOf(seen)?.provider
+		expect(judge.id).toMatch(/^file:\/\/.*provider\.mjs$/)
+		expect(judge.config).toMatchObject({ judge: true, harness: 'codex' })
+		expect(judge.config.model).toBeUndefined()
+		expect(errors()).toContain('warning: harness-default-judge: codex has no known mid-tier model')
+		expect(latest().judge).toBe('default')
+		const named: Seen = {}
+		await test(
+			goodSkill({ 'evals/evals.yaml': judgeEvals() }).folder,
+			fakeRun(named),
+			repo(),
+			'--harness',
+			'codex',
+			'--judge',
+			'gpt-x',
+		)
+		expect(judgeOf(named)?.provider.config.model).toBe('gpt-x')
 	})
 
 	it('takes a tier for --judge (#357)', async () => {

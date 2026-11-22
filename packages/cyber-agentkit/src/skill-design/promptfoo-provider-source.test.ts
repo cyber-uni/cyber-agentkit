@@ -856,6 +856,7 @@ out({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 5 } })
 		withSkill = true,
 		pluginDir?: string,
 		model?: { args: string[]; case?: string },
+		judge?: { model?: string },
 	): { response: Record<string, any>; seen: Record<string, any> } {
 		const root = mkdtempSync(join(tmpdir(), 'provider-codex-'))
 		mkdirSync(join(root, 'bin'))
@@ -881,6 +882,7 @@ out({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 5 } })
 			},
 			...(withSkill ? { skillDir: join(root, 'skill') } : {}),
 			...(pluginDir ? { pluginDir, pluginName: 'kit' } : {}),
+			...(judge ? { judge: true, ...judge } : {}),
 		}
 		const rubrics = JSON.stringify({
 			C1: [{ 'file-contains': { path: 'NOTES.md', text: '## Notes' } }],
@@ -890,7 +892,7 @@ out({ type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 5 } })
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
 const provider = new Provider({ config: { sandbox: ${claudeBox}, ...${JSON.stringify(config)}, isolation: ${codexIsolation} } })
-console.log(JSON.stringify(await provider.callApi('write the notes', { vars: { kind: '${kind}', rubrics: ${JSON.stringify(rubrics)}${model?.case ? `, model: '${model.case}'` : ''} } })))
+console.log(JSON.stringify(await provider.callApi('write the notes'${judge ? '' : `, { vars: { kind: '${kind}', rubrics: ${JSON.stringify(rubrics)}${model?.case ? `, model: '${model.case}'` : ''} } }`})))
 `,
 		)
 		const seenFile = join(root, 'seen.json')
@@ -930,6 +932,20 @@ console.log(JSON.stringify(await provider.callApi('write the notes', { vars: { k
 			'write the notes',
 		])
 		expect(codex('outcome', true, undefined, { args }).seen.args).toEqual([...args, 'write the notes'])
+	})
+
+	it("judges on the harness's CLI in an empty folder, on the judge's model over the runs' (#357)", () => {
+		const args = ['exec', '--model', 'run-model', '--json']
+		const judged = codex('outcome', true, undefined, { args }, { model: 'judge-model' })
+		expect(judged.seen.args).toEqual(['exec', '--json', '--model', 'judge-model', 'write the notes'])
+		expect(judged.seen.cwd).toMatch(/skill-test-judge-/)
+		expect(judged.seen.HOME).toMatch(/skill-test-home-/)
+		expect(judged.seen.skill).toBe(false)
+		expect(judged.response).toEqual({
+			output: 'Wrote the notes.',
+			tokenUsage: { prompt: 10, completion: 5, total: 15 },
+		})
+		expect(codex('outcome', true, undefined, { args }, {}).seen.args).toEqual(['exec', '--json', 'write the notes'])
 	})
 
 	it('gives a plugin skill project skills copied from the plugin, as Codex has no flag to load one', () => {

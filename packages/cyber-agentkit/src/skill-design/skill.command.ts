@@ -389,7 +389,7 @@ export function fixedLine(item: KnownFailure, folder: string | undefined): strin
 /** The text report; `folder` is where the result was saved, so the replies file is named in full. */
 function testText(result: TestResult, folder?: string): string {
 	const lines = [
-		`${result.skill}: ${result.runs} runs per case, threshold ${result.threshold}, baseline ${result.baseline}${result.model ? `, model ${result.model === harnessDefault ? "the harness's default" : result.model}` : ''}${result.judge ? `, judge ${result.judge}` : ''}`,
+		`${result.skill}: ${result.runs} runs per case, threshold ${result.threshold}, baseline ${result.baseline}${result.model ? `, model ${result.model === harnessDefault ? "the harness's default" : result.model}` : ''}${result.judge ? `, judge ${result.judge === harnessDefault ? "the harness's default" : result.judge}` : ''}`,
 	]
 	// Each case on a model of its own says so, so its result is not read as the run's model's (R161).
 	for (const item of result.cases) if (item.model) lines.push(`model ${item.case}: ${item.model}`)
@@ -527,7 +527,7 @@ function testCommand({
 			},
 			judge: {
 				description:
-					"The model that decides `judge` rubrics: a tier (`small`, `mid`, `top`) or a model ID. The judge runs on Claude, so it defaults to Claude Code's mid-tier model, whatever --harness drives the runs.",
+					"The model that decides `judge` rubrics, on the harness the runs drive: a tier (`small`, `mid`, `top`) or a model ID. Defaults to the harness's mid-tier model, or its own default when its tiers are not known.",
 				type: t.string().optional(),
 			},
 			'no-judge': {
@@ -727,19 +727,19 @@ function testCommand({
 				)
 				throw CliError.reported(exitCodes.usage)
 			}
-			// The judge runs on Claude, so with none named it is Claude Code's mid tier, as the runs default to theirs (#357).
+			// The judge runs on the harness the runs drive, and with none named takes its mid tier, as the runs do (#357).
 			if (args.judge !== undefined && args['no-judge']) {
 				process.stderr.write('error: judge-conflict: --judge and --no-judge cannot be used together\n')
 				throw CliError.reported(exitCodes.usage)
 			}
 			let judge: string | undefined
 			if (!args['no-judge']) {
-				const resolved = resolveModel(skillTestHarness('claude-code') as SkillTestHarness, args.judge)
+				const resolved = resolveModel(driver, args.judge)
 				if ('problem' in resolved) {
 					process.stderr.write(`error: unknown-tier: judge: ${resolved.problem}\n`)
 					throw CliError.reported(exitCodes.usage)
 				}
-				judge = resolved.model
+				judge = resolved.model ?? harnessDefault
 			}
 			const planned = planTest(skill, {
 				judge,
@@ -752,6 +752,10 @@ function testCommand({
 				throw CliError.reported(planned.code === 'unknown-case' ? exitCodes.usage : exitCodes.error)
 			}
 			for (const warning of planned.warnings) process.stderr.write(`warning: ${warning}\n`)
+			if (planned.plan.judge === harnessDefault)
+				process.stderr.write(
+					`warning: harness-default-judge: ${harness.id} has no known mid-tier model, so the judge uses its default; name one with --judge\n`,
+				)
 			const modelled = resolvePlanModels(planned.plan, harness, args.model)
 			if ('problem' in modelled) {
 				process.stderr.write(`error: unknown-tier: ${modelled.problem}\n`)

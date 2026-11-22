@@ -2,7 +2,7 @@
  * The promptfoo provider `skill test` writes beside its config. promptfoo's Claude Agent SDK provider
  * (0.125.1) runs in a temp folder it deletes and has no `copy_working_dir` (research E20), so this
  * wrapper makes each run's folder: a fresh copy of the case's files committed in a new git repository, plus the
- * skill under the harness's project skills folder (`.claude/skills/<name>/` for Claude Code) in the arm that has it (excluded from git status), or, for a skill developed in a plugin, a fresh copy of that arm's plugin loaded as a local plugin (R91), committed in a git repository of its own whose git folder is kept outside it, holding ahead each path the harness's shell sandbox mounts over (E-CC-D20), as each dependency copy also does (E-CC-D22), and named to script checks by `SKILL_TEST_PLUGIN`, or its skills copied into the project skills folder for a harness with no local-plugin flag. Claude Code runs through promptfoo's Agent SDK provider; another harness (`config.harness`) runs through its own CLI (`config.command`). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. A case's setup script (`vars.setup`) runs in the
+ * skill under the harness's project skills folder (`.claude/skills/<name>/` for Claude Code) in the arm that has it (excluded from git status), or, for a skill developed in a plugin, a fresh copy of that arm's plugin loaded as a local plugin (R91), committed in a git repository of its own whose git folder is kept outside it, holding ahead each path the harness's shell sandbox mounts over (E-CC-D20), as each dependency copy also does (E-CC-D22), and named to script checks by `SKILL_TEST_PLUGIN`, or its skills copied into the project skills folder for a harness with no local-plugin flag. Claude Code runs through promptfoo's Agent SDK provider; another harness (`config.harness`) runs through its own CLI (`config.command`), and with `config.judge` the provider is that harness's judge for `llm-rubric` checks (#357). Each Skill call is recorded in `.skill-test/skill-calls.jsonl` (excluded from git status). A trigger run ends at its first Skill call, or after three turns. A run that passes its time limit (`timeout`, seconds) is stopped, process group and all, and answers the error `time limit`. A case's setup script (`vars.setup`) runs in the
  * folder after the files are committed and before the model starts, and it and each `script` check run in the script
  * sandbox (R155, R157). The config's `sandbox` holds the settings `skill-design.test.sandbox` resolved to (#302): with
  * `shell.sandbox` false shell commands run with no OS sandbox, and the response's `metadata.wroteOutside` lists each
@@ -514,10 +514,35 @@ function keepTried(keep, dir, home, { said, failed = false }, arm) {
   return { output: status, metadata: { arm, tried: { status, said, failed } } }
 }
 
+// A judge on a harness driven through its own CLI (#357): the rubric prompt promptfoo's llm-rubric sends, run on the
+// harness's CLI in an empty git repository with an empty home, as a run is, on the judge's model, or on the harness's
+// own default when there is none. Its reply is the grade promptfoo reads.
+async function judgeRun(prompt, { isolation, command, model, timeout = 300 }) {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-judge-')))
+  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'skill-test-home-')))
+  try {
+    execFileSync('git', ['init', '-q'], { cwd: dir, stdio: 'pipe' })
+    const marker = 'SKILL_TEST_RUN=' + randomUUID()
+    const env = { ...isolatedEnv(isolation, home), SKILL_TEST_RUN: marker.split('=')[1] }
+    // The runs' model comes out of the command line, so the judge runs on its own or the harness's default.
+    const args = []
+    for (let i = 0; i < command.args.length; i++) {
+      if (command.args[i] === command.modelFlag) { i++; continue }
+      args.push(command.args[i])
+    }
+    const response = await runCli({ command: { ...command, args }, isolation, prompt, names: [], vars: { kind: 'judge', model }, dir, env, timeout, marker, callLog: path.join(home, 'skill-calls.jsonl') })
+    return response.error ? { error: 'judge: ' + response.error } : { output: response.output, tokenUsage: response.tokenUsage }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+    fs.rmSync(home, { recursive: true, force: true })
+  }
+}
+
 export default class SkillRun {
   constructor(options) { this.options = options; this.config = options.config }
   id() { return this.options.id || 'skill-run' }
   async callApi(prompt, context) {
+    if (this.config.judge) return judgeRun(prompt, this.config)
     const { arm, skillDir, skillName, pluginDir, pluginName, dependencyDirs = [], instruction, inner, timeout = 300, harness = 'claude-code', isolation, command, sandboxFaults = [], usageLimits = [], limitFile, costCap, keep, sandbox: box } = this.config
     // The sandbox settings skill-design.test.sandbox resolved to (#302); a run without them does not start.
     if (!box) return { error: 'sandbox: the test config names no sandbox settings', metadata: { arm } }

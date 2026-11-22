@@ -325,7 +325,13 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 			'',
 		)
 	}
-	if (report.judge) out.push(`A judge, \`${cell(report.judge)}\`, graded the \`judge\` checks.`, '')
+	if (report.judge)
+		out.push(
+			report.judge === 'default'
+				? "The harness's default model graded the `judge` checks."
+				: `A judge, \`${cell(report.judge)}\`, graded the \`judge\` checks.`,
+			'',
+		)
 	if (typeof report.cost === 'number')
 		out.push(`The run cost ${dollars(report.cost, report.totalRuns)}, with the skill and without.`, '')
 	if (report.gap)

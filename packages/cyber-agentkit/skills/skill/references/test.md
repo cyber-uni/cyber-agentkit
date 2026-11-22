@@ -14,8 +14,8 @@ the author asks to accept one, or when the first passing run saves one (see Save
 
 ## 2. Run
 
-Run the cases as Verification's Run says. Without `--judge`, `judge` checks are graded by Claude Code's mid-tier
-model, and the result names the judge. Pass `--judge <model>` only when the author named a judge, such as a stronger
+Run the cases as Verification's Run says. Without `--judge`, `judge` checks are graded on the harness the runs
+drive, by its mid-tier model, and the result names the judge. Pass `--judge <model>` only when the author named a judge, such as a stronger
 one, and `--no-judge` only when the author asks to run without one; then the criteria whose checks are all `judge` are
 reported as not tested. After a run without a judge, never read the replies and grade a not-tested criterion yourself:
 report it as not tested, and offer a rerun without `--no-judge`. Pass `--model` only when the
@@ -121,7 +121,7 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
 }
 ```
 
-`judge` names the model that graded the `judge` checks; it is left out when none ran: the test ran with `--no-judge`,
+`judge` names the model that graded the `judge` checks, or `default` when the harness picked it; it is left out when none ran: the test ran with `--no-judge`,
 or no case that ran has one. `status` is `pass`, `fail`, `not-tested` (with a `reason`), or `not-run` (with a `reason`). Each `notRun` entry has a
 `kind`. `skipped` is a planned skip: a case the plan left out before running, such as one with an outside effect or one
 whose scripts were not trusted to run. `failed` is a harness failure: a run that started and errored, its `case` naming
