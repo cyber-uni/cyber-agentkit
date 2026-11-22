@@ -1501,12 +1501,12 @@ function carryCommand({ plugin }: SkillCommandOptions): cli.Command {
 				process.stderr.write(`error: no-entry: the ${args.scope} scope has no expected entry to carry\n`)
 				throw CliError.reported(exitCodes.error)
 			}
-			const path = writeExpectedFile(skill.folder, carried.file)
+			const paths = writeExpectedFile(skill.folder, carried.file)
 			return result(
-				{ skill: name, expected: path, carried: carried.carried, reason: args.reason.trim() },
+				{ skill: name, expected: paths, carried: carried.carried, reason: args.reason.trim() },
 				{
 					render: {
-						text: () => `carried ${carried.carried.join(', ')} in ${path}: ${args.reason.trim()}\n`,
+						text: () => `carried ${carried.carried.join(', ')} in ${paths.join(', ')}: ${args.reason.trim()}\n`,
 					},
 				},
 			)

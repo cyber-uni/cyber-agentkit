@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { type AttestationView, attestationsIn, skillFingerprint, viewAttestations } from './attestation.js'
-import { expectedView } from './expected-result.js'
 import { criteriaFiles, readText, type SkillFiles } from './skill-files.js'
-import { acceptedHistory, expectedPath } from './skill-test.js'
+import { acceptedHistory, expectedPath, readExpected } from './skill-test.js'
 import type { Carried, KnownFailure, NotRun, RatePoint, SandboxFailure, Status, TestResult } from './test-result.js'
 import { compareWithHistory, notRunKind } from './test-result.js'
 
@@ -291,27 +290,30 @@ export function evalReport(
 }
 
 /**
- * Reads the skill's accepted results from its folder: `evals/expected.json`, and the kept ones in `evals/accepted/` for
- * the trend. Throws when `evals/expected.json` exists but is not a saved result.
+ * Reads the skill's accepted results from its folder: its expected result, `evals/expected.json` with each eval
+ * folder's own (R181), and the kept ones in each scope's `accepted/` for the trend. Throws when `evals/expected.json`
+ * exists but is not a saved result.
  */
 export function readEvalReport(skill: string, folder: string, labels: Record<string, string>): EvalReport {
 	const path = expectedPath(folder)
-	if (!existsSync(path)) return evalReport(skill, undefined)
-	let value: unknown
-	try {
-		value = JSON.parse(readFileSync(path, 'utf8'))
-	} catch (error) {
-		throw new Error(`${path} is not valid JSON: ${(error as Error).message}`)
-	}
+	const history = acceptedHistory(folder)
+	if (!existsSync(path) && !history.length) return evalReport(skill, undefined)
+	let value: unknown = {}
+	if (existsSync(path))
+		try {
+			value = JSON.parse(readFileSync(path, 'utf8'))
+		} catch (error) {
+			throw new Error(`${path} is not valid JSON: ${(error as Error).message}`)
+		}
 	const attested = viewAttestations(attestationsIn(value), skillFingerprint(folder))
-	// The per-case form is read as a saved result, each criterion computed from its entries (R182).
-	const result = expectedView(value)
+	// The per-case form is read as a saved result, each criterion computed from its entries (R182), every scope's as one.
+	const result = readExpected(folder)
 	// A file that holds only attested passes (#323) has no run to report, only them.
 	if (!result) {
 		if (attested.length) return evalReport(skill, undefined, { attested })
 		throw new Error(`${path} is not a saved test result: it has no \`at\` and no entries`)
 	}
-	return evalReport(skill, result, { labels, history: acceptedHistory(folder), attested })
+	return evalReport(skill, result, { labels, history, attested })
 }
 
 const cell = (text: unknown) =>
