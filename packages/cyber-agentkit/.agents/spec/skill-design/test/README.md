@@ -6,7 +6,7 @@ status: draft
 # skill-design/test — an author knows whether a skill fires on the right requests and gives a result that meets its Criteria
 
 Part of [skill-design](../README.md). Its What, non-goals, key terms, actors, every-command criteria, and aspect
-contract apply here; IDs are shared across the parent and its children.
+contract apply here; IDs are shared across the parent and its children. Retired IDs: R102.
 
 ## Use cases
 
@@ -16,7 +16,7 @@ contract apply here; IDs are shared across the parent and its children.
   whether running it gives a result that meets its Criteria, for example after a change or before sharing it.
 - **Entry points:** skill (primary): `/skill test [skill]`. `create` also runs it as its last step (UC1).
 - **Inputs:** the skill; its Criteria, each with a rubric; its eval cases, meaning requests that should and should not
-  trigger it and sample inputs for outcome runs; the baseline, a run without the skill by default or a previous
+  trigger it and sample inputs for outcome runs, grouped in scopes (K11); the baseline, a run without the skill by default or a previous
   version; the selected implementation for each aspect, where Verification's implementation decides how cases are run
   and judged; optionally, a judge.
 - **Success:** each trigger case reports whether the skill fired, against what was expected. Each case runs several
@@ -45,16 +45,17 @@ contract apply here; IDs are shared across the parent and its children.
   - **UC6.9** There is no earlier result. The list of changed cases is left out, and the report says so.
   - **UC6.10** The baseline cannot be run, for example because the previous version cannot be found. Results are
     reported without it, and the report says so.
-  - **UC6.11** The author accepts a result. It becomes the skill's expected result, kept with the skill and shared
-    through version control, while each run's own result stays local to the author's copy.
-  - **UC6.12** The skill has no expected result yet, and every case and criterion passes. The result becomes the
-    expected result, and the report says so. A first run with a fail saves no expected result.
+  - **UC6.11** The author accepts a result. Each case the run finished gets its entry in its scope's expected result,
+    and every other entry stays as it was. The expected result is kept with the skill and shared through version
+    control, while each run's own result stays local to the author's copy.
+  - **UC6.12** A case has no expected entry yet, and its runs pass. Its entry is saved, and the report says so. A case
+    with a fail gets no entry.
   - **UC6.13** The skill is part of a plugin the author is developing in the working copy. Each run loads that plugin
     from the working copy, with its references and its other skills, as an install of it would; the baseline loads
     the same plugin without the skill. A copy of the plugin installed elsewhere is not used.
   - **UC6.14** The author names some cases, to try a change without paying for every case. Only those cases run, and
-    the result says it covers only them. It is compared with the expected result for those cases only, and it never
-    becomes the expected result.
+    the result says it covers only them. It is compared with their entries only, and accepting it writes theirs
+    only, as in UC6.11.
   - **UC6.15** The author names a harness other than Claude Code. Each run drives that harness, isolated the same way,
     and the result has the same shape. A harness the test cannot drive is an error, and nothing runs. What still
     reaches a run from the author's setup on that harness is reported.
@@ -78,13 +79,23 @@ contract apply here; IDs are shared across the parent and its children.
     result names the model each case ran on, and a comparison with a result taken on another model says so. A harness
     whose tiers are not known runs on its own default, and the report says so.
   - **UC6.22** The account's usage limit is reached partway through. No new run starts; the result says the limit was
-    reached, when it resets, and which runs are left, and it is incomplete, so it never becomes the expected result.
+    reached, when it resets, and which runs are left, and it is incomplete, so no case with a run at the limit gets an entry.
     After the reset, the author runs only the runs left and they join the incomplete result.
   - **UC6.23** The estimate for the runs is over the test budget, whichever command starts `test` and at every
     autonomy level. No run starts, and the run stops, offering to run every case, to run some cases, or not to run.
   - **UC6.24** The author's machine cannot run the sandbox, or the author's team chose to test without one. The
     author, the team, or an administrator picks the folder-only sandbox, for one test or for every test. The runs,
     setup scripts and script checks included, go on with no sandbox, and the result says they did.
+  - **UC6.25** The author names no cases. Only the stale cases (K12) run, and the report says, for each scope, which
+    input changed. With none stale, nothing runs and the report says the expected result is current. The author can
+    ask for every case instead.
+  - **UC6.26** The author made a change that alters no behavior, such as a typo fix, and it made cases stale. The
+    author carries their entries forward with a reason, without a run. The entries are marked carried, and the report
+    shows them as carried, never as a pass from a run.
+  - **UC6.27** The skill's evals are in the single-list form, with one expected result for every case. A command shows
+    a plan to move them into scopes, and writes it only on the author's request. Each entry it carries over is marked
+    as carried by migration, with the date it was recorded. A skill not migrated keeps working as one root scope.
+  - **UC6.28** A trigger case has no ID of its own. Its ID is its place in the list, as before, and `check` warns.
 - **Example:** `/skill test release-notes`. All five trigger cases behave as expected. The "no merge commits"
   criterion passes 2 of 5 runs against a threshold of 4, while the run without the skill passes 0 of 5; the report shows
   the merge commit that appeared, and `/skill` offers `fix`.
@@ -101,7 +112,8 @@ contract apply here; IDs are shared across the parent and its children.
 - R25 (UC6): Each criterion's result is shown beside the baseline's. With no baseline named, the baseline is a run
   without the skill.
 - R26 (UC6, UC6.9): The report lists the cases that changed between pass and fail since the skill's expected result,
-  or, with none, since the last saved result. With neither, the list is left out and the report says so.
+  or, with none, since the last saved result, matching each case by its ID (R175). With neither, the list is left
+  out and the report says so.
 - R27 (UC6): Each fail names the case and the output that broke it.
 - R28 (UC6): The result is saved in one shape that every Verification implementation writes, and `fix`, `enhance`,
   and the next `test` read it.
@@ -116,10 +128,10 @@ contract apply here; IDs are shared across the parent and its children.
 - R33 (UC6.7): A criterion with no rubric is reported as not tested, pointing to `fix`.
 - R34 (UC6.8): A case that would cause an outside effect the run cannot contain is not run, and is reported as such.
 - R35 (UC6.10): When the baseline cannot be run, results are reported without it, and the report says so.
-- R80 (UC6.11, UC6.12): A result becomes the expected result only by an author's request, or, when the skill has
-  none, by a run in which every case and criterion passes; the report says which. An existing expected result is
-  replaced only by an author's request. It is kept in the skill's folder, in the shape R28 names, and each run's own
-  result is kept out of version control.
+- R80 (UC6.11, UC6.12): A case's expected entry is written only by an author's request, or, when the case has none,
+  by a run in which the case passes every criterion it tests; the report says which. An existing entry is replaced
+  only by an author's request. The expected result is kept in the skill's folder, one per scope (R181), in the shape
+  R28 names, and each run's own result is kept out of version control.
 - R91 (UC6.13): When a folder above the skill holds a plugin manifest whose skills folder holds the skill, each run
   loads that plugin from the working copy, and the baseline loads it without the skill. Each run reads the plugin's
   references and other skills, and none from an installed copy of it. Each run's copy is its own, so a check can
@@ -134,9 +146,6 @@ contract apply here; IDs are shared across the parent and its children.
   longest has taken, and repeats that every 30 seconds until a run ends.
 - R100 (UC6): Progress goes where the result does not: the result's shape and stream are unchanged, and asking for
   no output turns progress off.
-- R102 (UC6.14): `test` given case IDs runs only those cases and marks its result as partial, naming them. A partial
-  result is compared with the expected result for those cases only, is never saved as the expected result, and an
-  accept of it is refused. A case ID the eval set does not hold is an error, and nothing runs.
 - R103 (UC6): Fewer than half of the machine's hardware threads, and at least one, run at once. An eval set may ask
   for fewer, never more.
 - R104 (UC6): In a run, one shell command stops after 30 seconds unless the model asks for longer, and after 2 minutes
@@ -179,7 +188,8 @@ contract apply here; IDs are shared across the parent and its children.
   need them are reported as not run, with the reason. `vet` runs no script of a skill.
 - R159 (UC6.19): A `case` command adds a case, scaffolding its files folder, setup script when asked, and entry, and
   removes one, deleting only its own files and entry. It refuses a case ID or a path that would reach outside the
-  skill's eval files, and changes nothing then.
+  skill's eval files, and changes nothing then. A case it adds always carries an ID, and goes in the eval folder of
+  the scope the author names.
 - R160 (UC6.20): A case may be marked as a guard. The result marks it, with its baseline pass rate, and marks each
   criterion only guards test. The `test` and `report` output show a guard's pass in both arms as expected, and the
   report's gap over the baseline leaves out the criteria only guards test. A guard is passed or failed by its runs with
@@ -192,7 +202,7 @@ contract apply here; IDs are shared across the parent and its children.
 - R162 (UC6.22): A run that the harness ends with its usage-limit message, recognized by the message's fixed text, is
   reported as limit reached, not as a pass, a fail, or not run. Once one is, no new run starts, and each run left is
   reported as limit reached too. Those runs count toward no pass rate, and a case with none of its runs finished is not
-  run. The result is marked incomplete, is never saved as the expected result, and an accept of it is refused. The
+  run. The result is marked incomplete, and no case with a run at the limit gets an entry, saved or accepted. The
   report and the progress say the limit was reached, when it resets when the message says, and which runs are left.
   The messages recognized are kept in one list that more can be added to.
 - R166 (UC1, UC6.23; E2): Before any run, `test` estimates the runs and their cost against the test budget, whichever
@@ -209,3 +219,43 @@ contract apply here; IDs are shared across the parent and its children.
 - R163 (UC6.22): `test` asked to resume runs only the runs an incomplete result has left, and the result holds the
   runs it had and the new ones, as one run of the whole test would. It refuses, and runs nothing, when the last result
   is not incomplete, or when the skill or its eval cases changed since that result.
+
+**Scopes and stale cases (UC6.11, UC6.14, UC6.25 to UC6.28)**
+
+- R175 (UC6, UC6.28): Every case has an ID that is unique in the skill: its own `id`, or, for a trigger case with
+  none, `trigger-<n>` from its place in the list. The expected result, the result history, a named case, a
+  known-failure mark, and the list of changed cases all match a case by that ID, never by its place.
+- R176 (UC6.14): `test` given case IDs runs only those cases and marks its result as partial, naming them. A partial
+  result is compared with those cases' entries only. A case ID the eval set does not hold is an error, and nothing
+  runs.
+- R177 (UC6.25): Given no case IDs, `test` runs exactly the stale cases (K12), and the report names, for each scope it
+  ran, the input that changed or the cases that had no entry. Given the request for every case, it runs every case.
+  The estimate and the test budget (R166) count only the runs selected.
+- R178 (UC6.25): The inputs of an instructions file's scope are that file, every file it links and every named
+  reference it loads, what each of those reaches in turn, its eval folder, and the shared part of `SKILL.md`. The shared part is
+  every section except the front matter's description and the router table's rows; a row belongs to the scope of the
+  file it links. The inputs of the root scope are the body of `SKILL.md` and what it reaches. The inputs of the
+  trigger scope are the description, the trigger cases, and the descriptions of the other skills a run loads.
+- R179 (UC6.25): A named reference counts as the content a run resolves for it, so a copy in the author's own user or
+  repository tier that no run reads changes nothing. A change only to whitespace or line wrapping is not a change.
+  Built scripts, the model, the harness, and the Verification implementation are not inputs: a change to one makes no
+  case stale, and the report lists it (R161 for the model).
+- R180 (UC6.25): A case's own definition is its entry in the eval set, its files folder, its setup script, and the
+  rubrics of the criteria it tests. A change to it makes that case stale and no other.
+- R181 (UC6.11, UC6.12): The expected result is kept per scope, in the scope's eval folder, as one entry per case keyed
+  by its ID. Each entry records the case's result per criterion, the model, when it was recorded, and what R180 and
+  R178 hash at that time. Writing it changes only the entries of cases the run finished; an entry of a case no longer
+  in the eval set is dropped. The history of earlier expected results is kept per scope.
+- R182 (UC6.11): A criterion's result beside the expected one is computed from the entries of the cases that test it.
+  When those entries were recorded at different times, the report gives the oldest.
+- R183 (UC6.26): The author can carry the entries of a scope, or of named cases, forward to the current inputs with a
+  reason, without a run. Each such entry is marked carried, with the reason, and the report and `check` show it as
+  carried, never as a pass from a run.
+- R184 (UC6.27): A `migrate` command reports a plan and writes it only when asked. The plan gives each trigger case an
+  ID made from its prompt, which the author may change; moves each outcome case into the eval folder of the
+  instructions file its ID names, and lists the cases that match none, which stay in the root scope; and splits the
+  expected result into one per scope, moving known-failure marks with their cases. It matches an old trigger entry by
+  its prompt and an old outcome entry by its ID. Each entry it carries is marked carried by migration with the date it
+  was recorded, and a case whose old entry no longer matches gets none.
+- R185 (UC6.27, UC6.28): A skill whose evals are in the single-list form is tested as one root scope, with the
+  criteria above applied to it, and nothing about it fails until the author migrates it.

@@ -44,6 +44,8 @@ contract apply here; IDs are shared across the parent and its children.
 - R37 (UC4): Each failure is repaired or reported as not repaired, with the reason.
 - R38 (UC4): No part of the skill changes that no failure named.
 - R39 (UC4): After repairing, `fix` runs the failed checks again and reports their result.
+- R193 (UC4): A test `fix` runs after repairing covers the cases that failed and the cases its repair made stale (K12),
+  not every case.
 - R40 (UC4.2): With no failures, `fix` says there is nothing to fix and leaves the skill unchanged.
 - R41 (UC4.3; E3): A repair that needs a decision only the author can make is asked, with the Stop outcome R167
   states. With no author present, the failure is reported as not repaired.

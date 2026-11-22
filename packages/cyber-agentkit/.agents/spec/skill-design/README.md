@@ -71,6 +71,14 @@ aspect with its own and keeps the rest.
 - **K9. Test budget.** The most a `test` may spend without asking: a cost and a run count, set in
   `skill-design.autonomy` beside the levels. A `test` whose estimate is over either stops before any run (E2).
 
+- **K10. Instructions file.** A file under a skill's `references/` that holds the instructions for one part of what
+  the skill does: a command a router table links, a mode, or a step. The skill's `SKILL.md` links it.
+- **K11. Scope.** A group of a skill's eval cases that is selected, run, and accepted on its own. An eval folder named
+  for an instructions file holds that file's scope; the skill's root evals are the scope of `SKILL.md`; the trigger
+  cases are the trigger scope. A skill with no instructions files has the root scope and the trigger scope only.
+- **K12. Stale.** A case is stale when it has no entry in its scope's expected result, or when its own definition, or
+  an input of its scope, differs from what its entry was recorded against.
+
 Default, implementation, extend, selection, and interface are as in [reference](../reference/README.md). Criterion is as
 in the design-spec skill.
 
@@ -86,6 +94,7 @@ in the design-spec skill.
 | A1.6 | Skill author | Knows whether the skill fires on the requests it should and not on near misses, and whether running it gives a result that meets its Criteria. |
 | A1.7 | Skill author | Learns what each `/skill` command does and which one fits what they want, before running one. |
 | A1.8 | Skill user | Knows whether a skill's references work as this machine and this repository resolve them, and what to do about each that does not. |
+| A1.9 | Skill author | Has an existing skill changed for a reason other work names, such as a request, an issue, or a bug, and the change proven by `check` and by running only the evals it touched. |
 | A2.1 | Agent improving a skill it uses | Makes the skill better from what happened while using it, keeping only changes the evals show help, within the autonomy the user allowed. |
 | A3.1 | Team lead | Swaps or extends one aspect and keeps the rest. |
 | A3.2 | Team lead | Chooses an implementation for every aspect in one pass, such as taking one plugin's whole set or mixing several, instead of changing aspects one at a time. |
@@ -105,6 +114,7 @@ in the design-spec skill.
 | [check](./check/README.md) | UC3 | Check |
 | [test](./test/README.md) | UC6 | Test |
 | [fix](./fix/README.md) | UC4 | Fix |
+| [update](./update/README.md) | UC29 | Update |
 | [enhance](./enhance/README.md) | UC5, UC7 | Enhance and self-improvement |
 | [customize](./customize/README.md) | UC8, UC9, UC10 | Autonomy, Aspects and implementations |
 | [vet](./vet/README.md) | UC26, UC27 | Vet, Trust |
@@ -201,6 +211,8 @@ None.
   baselines (N6, K6, UC6, R22 to R35): `.research/skill-evals`.
 - The split of `check` into a CI script part and an agent part (UC3, R19, R75): aced's `improve-skill` and its
   `validate.mjs`.
+- Scopes, stable case IDs, input hashes, and accepting part of a run (K10 to K12): decision record
+  [0007](../design/decisions/0007-eval-scopes.md).
 - Suggestions offered one at a time, only accepted ones written (UC5): `buddy-agent-harness` `enhance`.
 - Self-improvement from use without hooks, repeat evidence before a rule, and eval-gated skill changes (UC7, R54 to
   R60): [`agent-self-improvement`](https://github.com/repobuddy/buddy-agent-harness/tree/main/.research/agent-self-improvement)
