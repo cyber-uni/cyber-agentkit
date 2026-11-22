@@ -164,5 +164,5 @@
 	"cost": 0.94,
 	"durationMs": 312000,
 	"totalRuns": 42,
-	"expectedHeld": true
+	"expectedHeld": ["two-prs"]
 }

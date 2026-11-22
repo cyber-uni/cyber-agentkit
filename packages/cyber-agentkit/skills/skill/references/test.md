@@ -1,7 +1,7 @@
 # Test a skill
 
 Run the skill's evals, as the Verification aspect says. Change no file of the skill, except the expected result when
-the author asks to accept one, or when the first passing run saves one (see Save the result).
+the author asks to accept a result, or when a case with no entry passes and its entry is saved (see Accept a result).
 
 ## 1. Find it and its cases
 
@@ -143,7 +143,8 @@ the skill that were. A run that broke for a reason `skill test` cannot name is i
 `incomplete`, left out when every run finished, means the account's usage limit stopped the test: `text` is the
 harness's message, `resets` when the limit resets when the message says, and `left` each run (`case`, `arm`, `run`)
 the limit ended or never started. Those runs count toward no pass rate, and a case with none of its runs finished is
-`not-run`. An incomplete result is never saved as expected, `skill accept` refuses it, and `skill test` exits 1. After
+`not-run`. No case with a run at the limit gets an expected entry, saved or accepted; the cases that finished can, and
+`skill test` exits 1. After
 the limit resets, `skill test <folder> --resume` runs only the runs left, with the options the stopped test had, and
 saves one result holding both, with `resumedFrom` naming the stopped one. It takes no `--case`, `--model`, `--judge`,
 `--baseline`, `--harness`, or `--backend`, and it refuses (`resume-changed`) when the skill or its evals changed since:
@@ -186,28 +187,47 @@ Results saved before these fields were added lack them.
 
 ### Accept a result
 
-When the skill has no expected result yet and every trigger case and criterion passes, `skill test` saves that result
-as the expected one and its report carries `savedAsExpected: true`: tell the author it was saved. A first run with a fail
-saves none. Nor does one with no trigger case or criterion, or with any that is `not-run` or `not-tested`: its report
-carries `notSavedAsExpected` with the reason, such as `no run finished` or
-`not every trigger case and criterion passed: 2 not tested`; tell the author, and offer `skill accept` if they want it
-kept anyway; a result whose every case was a planned skip says `every case was skipped before running`. `skill test`
-exits 1 on a fail, on an incomplete result, and on a harness failure: a `failed` entry in `notRun`, a sandbox failure
-even when the other runs pass, or no run finished though the plan ran some case. A result held for sandbox failures
-still reports the pass rates of its finished runs. A planned skip, a `not-tested` criterion, an attested pass, and a known failure exit 0: they never count as
-a pass, but they are no failure. A mark the run passed (`fixed?`) exits 1, and a result with a known failure is never
-saved as the first expected result. A result with sandbox failures is saved as expected by neither that rule nor `--accept`: the report carries
-`expectedHeld: true`, and only `skill accept <folder>`, run after the author has seen it, saves it. Otherwise only the author's request makes a result the expected result, and nothing else writes into the skill's
-folder. `skill test <folder> --accept` runs the test as usual, then writes that result to `<skill folder>/evals/expected.json`,
-in the same shape as `latest.json` but without `folder`, `replies`, or `evalId`, since the file is committed and those name
-this machine's files. `skill accept <folder>` writes the last saved result there without running the
-test, so it spends nothing, and fails with `no-result` when there is none saved. The expected result is kept in version
-control with the skill, so the team compares with the same result.
+The expected result, `<skill folder>/evals/expected.json`, holds one entry per case, keyed by its ID, under `entries`.
+Each entry records the case's `status`, `passed`, and `ran`, for an outcome case each criterion it tests under
+`criteria`, the `model`, when it was recorded (`at`), and `hashes` of the case's own definition and of its scope's
+inputs. `scope` is `trigger` for a trigger case and `root` for an outcome case. A criterion's expected result is
+computed from the entries of the cases that test it; when they were recorded at different times, it carries
+`recorded`, the oldest. The file never carries `folder`, `replies`, or `evalId`, since it is committed and those name
+this machine's files. A file in the older form, one saved result with no `entries`, is still read as it is, and the
+next write turns it into entries.
 
-Accepting a result moves the expected result it replaces to `<skill folder>/evals/accepted/<its at>.json`, unless it is
-the same run, and keeps the 3 newest there, deleting older ones. Commit them with `expected.json`: together they are the
-history `moved` compares across. A skill with only `expected.json` needs no step: it is the newest entry, and the
-history grows from the next accept.
+A case with no entry whose runs pass gets its entry without an accept: the report's `expectedWritten` is
+`{ "by": "pass", "cases": [...] }`, and you tell the author which were saved. A case with an entry keeps it until the
+author accepts a new one. A case that ran with no entry and did not pass gets none: `notSavedAsExpected` lists each
+with why, such as `it failed`, `it was not run: <reason>`, `it tests no criterion with a rubric`, `it is known to fail`,
+or `its known-failure mark is out of date; clear it first`. Tell the author, and offer `skill accept` if they want it
+kept anyway. A case whose runs had sandbox failures is saved by neither that rule nor `--accept`: `expectedHeld` lists
+it, and only `skill accept <folder>`, run after the author has seen it, saves it.
+
+`skill test <folder> --accept` runs the test as usual, then writes the entry of each case it finished; `expectedWritten`
+then says `"by": "accept"`. `skill accept <folder>` does the same with the last saved result without running the test,
+so it spends nothing, and fails with `no-result` when there is none saved, or `nothing-finished` when it finished no
+case. Either way, every other entry stays as it was, so a run of some cases (`--case`), or one the usage limit stopped,
+writes the entries of the cases it finished only, and an entry of a case the evals no longer hold is dropped. Nothing
+else writes into the skill's folder. The expected result is kept in version control with the skill, so the team
+compares with the same result.
+
+`skill test` exits 1 on a fail, on an incomplete result, and on a harness failure: a `failed` entry in `notRun`, a
+sandbox failure even when the other runs pass, or no run finished though the plan ran some case. A result held for
+sandbox failures still reports the pass rates of its finished runs. A planned skip, a `not-tested` criterion, an
+attested pass, and a known failure exit 0: they never count as a pass, but they are no failure. A mark the run passed
+(`fixed?`) exits 1.
+
+When a change alters no behavior, such as a typo fix, the author can carry entries forward to the current inputs
+instead of running them: `skill carry <folder> --scope trigger|root --reason "<why>"`, or `--case <id>` (repeatable)
+for named cases. Each entry carried takes the hashes as they are now and `carried` with the reason and when; its result
+and `at` stay. Carry only on the author's request, with their reason. A later `test` lists each carried entry it
+compared with under `comparedCarried`; say it was carried forward, never a pass from a run.
+
+When an accept replaces or drops an entry, the expected result it changes moves to
+`<skill folder>/evals/accepted/<its at>.json` first, unless it is the same run, and the 3 newest stay there. Commit
+them with `expected.json`: together they are the history `moved` compares across. A skill with only `expected.json`
+needs no step: it is the newest entry, and the history grows from the next accept.
 
 ### A known failure
 
@@ -219,16 +239,15 @@ A case or criterion marked known to fail ([fails](fails.md)) is judged at the sa
 ### Attest a pass
 
 A criterion or case that passed in the skill's real use, where a link shows it, is recorded with `attest`, not with a
-run: follow [attest](attest.md). A `not-tested` entry with a current attestation counts as passed for the first-result
-rule above.
+run: follow [attest](attest.md). An attested pass is shown beside the run's result; it saves no entry.
 
 ## Report
 
 When the result is `incomplete`, say so first: the usage limit stopped it, when it resets, and how many runs are left;
-the pass rates below cover only the runs that finished, and it was not saved as expected. Offer `skill test --resume`
+the pass rates below cover only the runs that finished, and no case with a run at the limit got an entry. Offer `skill test --resume`
 for after the reset, and no `fix` for the runs left. When the result has sandbox failures, say so first, before any pass rate: those runs broke in the test sandbox, not
 in the skill, and count toward no pass rate. Give each case's `sandboxFailed` beside it. When the result carries
-`expectedHeld`, say it was not saved as the expected result because of them, and name `skill accept <folder>` as how
+`expectedHeld`, say those cases got no entry because of them, and name `skill accept <folder>` as how
 to save it once the author has looked; never run it for them. A sandbox failure is not a failure of the skill: offer
 no `fix` for it. Then each
 trigger case beside what was expected; each criterion's pass rate, threshold, and baseline; each failure with its
@@ -239,5 +258,6 @@ none, the previous result, saying which. With neither, say there is none to comp
 and each case on its own. When `modelChanged` lists cases, say their model changed since the result compared with, so
 a change there may be the model's rather than the skill's. Name each case in `moved` with
 its rate in each accepted result and in this run. Give each `attested` entry with its link, never as a pass rate, and
-say when it is stale; ask the author to check a stale one in real use again. Say when the result was
-saved as the expected result. With failures, offer `fix` as `SKILL.md`'s Rules say.
+say when it is stale; ask the author to check a stale one in real use again. Say which entries `expectedWritten` wrote and
+whether by an accept or a first pass, which cases `notSavedAsExpected` left without one and why, and each entry in
+`comparedCarried` as carried forward, not run. With failures, offer `fix` as `SKILL.md`'s Rules say.

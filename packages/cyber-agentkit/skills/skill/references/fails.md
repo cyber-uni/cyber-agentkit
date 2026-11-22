@@ -33,7 +33,7 @@ nothing, a mark with no reason and a criterion the case does not test.
 
 - `test` judges a mark at the same threshold as a pass. Below it: `known failure (<reason>)`, apart from passes and
   failures, exit 0. At or above it: `fixed? remove the mark`, with the command that clears it, exit 1.
-- A known failure never counts as a pass: a result with one is never saved as the first expected result.
+- A known failure never counts as a pass: its case gets no expected entry unless the author accepts it.
 - `check` warns VER-16 with every mark, and fails VER-1 on a mark with no reason or an unknown criterion.
 - `report` and the docs page show `known failure (<reason>)`, never a pass rate.
 
