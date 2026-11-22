@@ -160,6 +160,23 @@ what can be found, and every fault is reported as a warning.
 - K39 **family**: the interfaces whose ids start with a prefix followed by a dot, addressed as `<prefix>.*`, such as
   `skill-design.aspects.*`. It matches interface documents only, at any depth below the prefix: never a plain document
   and never an implementation's `<id>.<key>`. No document is named for the family itself.
+- K40 **capability reference**: a reference named `<system>.capabilities`, `<system>` one segment, that says what one
+  system can do. A system is anything a skill operates through commands or an API, remote or on the machine, except a
+  harness (N20). It opens with three sections, in order: **System** (name, summary, links to its docs, the versions or
+  tiers covered, the tools needed with their minimum versions), **Detect** (how a skill tells this system is the one in
+  use), and **Verified** (for each version or tier covered, how the reference was checked, `run`, `from docs`, or
+  `untested`, and when). Every later `##` section is a **feature** of the system.
+- K41 **blueprint**: an implementation of a **blueprint interface**, an interface whose id ends in `.blueprints`. It
+  describes one whole solution for that interface on one system. Its key is `<system>.<solution>`, so a blueprint is
+  named `<id>.<system>.<solution>`, and its capability reference is `<system>.capabilities`. A choice inside a solution
+  that its author knows is independent of the rest may be a reference of its own, which the blueprint loads by name.
+- K42 **support level**: how far a section is honored. No marker: supported. `**Partial.**` or `**Unsupported.**` as
+  the section's first line, then one sentence saying what is missing or why, and optionally a `Workaround:` line. It
+  applies to a capability reference's features and to every implementation's sections.
+- K43 **version line**: a `Since:` or `Until:` line in a feature section, naming the system version or tier the
+  feature arrived in or left.
+- K44 **needs line**: a `Needs:` line in a blueprint's section, naming features of its capability reference the
+  section relies on.
 
 ## Use Cases
 
@@ -178,14 +195,18 @@ what can be found, and every fault is reported as a warning.
 | A5.3 | A5 | Pick which implementation answers a name, and the order in which plugins extend it; or pick one for every interface of a family at once, and see which one each uses |
 | A5.4 | A5 | Revise a generated document when a plugin it was built from changes, without restating their request |
 | A5.5 | A5 | Bring the files they wrote in a legacy form, or under a name a plugin renamed, to the current form and name, seeing every change before it is made |
+| A5.6 | A5 | Describe how their setup differs from a system's docs once, and have every blueprint for that system follow it |
 | A6.1 | A6 plugin author | Ship skills that load references by name, with defaults others can implement or extend |
 | A6.2 | A6 | Extend another plugin's implementation, or the loading skill's default, by replacing or adding to some of its sections, in effect once installed |
 | A6.3 | A6 | Publish an interface that states which sections an implementation must hold and what each holds, and know an implementation meets it |
 | A6.4 | A6 | Ship its own implementation of another skill's interface, loaded by itself under a name the plugin owns |
 | A6.5 | A6 | Rename a name its plugin owns without breaking the load lines and customizations written for the old one |
 | A6.6 | A6 | Declare its renames once, so every customizer's files move to the new names without the plugin rewriting them |
+| A6.7 | A6 | Describe what a system can do once, as a capability reference every blueprint for it builds on, and check it against the system |
+| A6.8 | A6 | Offer one whole way to fulfill a consumer's interface on a system, among possibly several, without a change to the consumer |
 | A7.1 | A7 agent user | Be told when the agent ran without instructions it asked for, or without the customizations placed for it |
 | A7.2 | A7 | Be told when a document was built from plugins that have since changed, and how to revise it |
+| A7.3 | A7 | When a step fails on a system, learn whether the system differs from its description, and how to report it |
 | A8.1 | A8 project maintainer (a team owning one folder of a monorepo) | Add only what differs in their folder, and have the agent follow it whenever its work is there |
 | A8.2 | A8 | List a plugin in their package's `package.json` and have its version of a name apply only to work in their folder |
 
@@ -198,6 +219,7 @@ what can be found, and every fault is reported as a warning.
 | [interfaces](./interfaces/README.md) | UC6, UC15, UC24 | Interfaces, Families |
 | [skill](./skill/README.md) | UC4, UC12, UC17 | Fallback, Load |
 | [formats](./formats/README.md) | UC13 | R65 to R72, R92 to R95 |
+| [capabilities](./capabilities/README.md) | UC29 to UC33 | Capability references, Support levels, Blueprints, Setups, Doctor |
 
 ### UC8 — Consumers read a stable output (A1.1)
 
@@ -276,3 +298,4 @@ None.
 - Consumers surveyed: universal-plugin ADR 0017, cyberplace `skill-design`, repobuddy `project-tracker`, cynapse ADR
   0008, cyberfleet ADR 0024.
 - Why rationale is linked, not inlined: `.research/design-spec-criteria`.
+- Capability references and blueprints: issue #366, decision 0008, `.research/capability-references`.

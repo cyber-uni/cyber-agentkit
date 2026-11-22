@@ -68,8 +68,8 @@ IDs are shared across the parent and its children.
 ### UC15 — Implement another skill's interface (A6.4)
 
 - **Trigger:** a plugin author wants their plugin to answer an interface another skill publishes with a full document
-  of its own, not by building on the owner's default: for example, `cyber-asana` shipping
-  `project-tracker.capabilities.asana`.
+  of its own, not by building on the owner's default: for example, `cyber-asana` shipping the blueprint
+  `project-tracker.blueprints.asana.sections` ([capabilities](../capabilities/README.md)).
 - **Entry points:** Skill: the `reference` skill's Create mode, then Inspect mode. Code: `reference create` for an
   implementation (UC5), then `reference check <name>` (UC6).
 - **Inputs:** the interface id and version; the name: `<id>` when the interface's cardinality is `one`, or
