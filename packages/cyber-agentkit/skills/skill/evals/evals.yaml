@@ -1,114 +1,39 @@
 runs: 3
 threshold: 2
 trigger:
-  - { prompt: "Is my release-notes skill any good? Check it.", expect: fire }
-  - { prompt: "Write a skill that drafts release notes from merged pull requests.", expect: fire }
-  - { prompt: "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.", expect: fire }
-  - { prompt: "Run the evals for the release-notes skill.", expect: fire }
-  - { prompt: "Which implementation does each skill-design aspect use? I may switch some.", expect: fire }
-  - { prompt: "Is the skill in github.com/acme/skills safe to install? Vet it first.", expect: fire }
-  - { prompt: "Our issue skill breaks partway through in this repo. Do its references still work with our overrides?", expect: fire }
+  - { id: fire-check, prompt: "Is my release-notes skill any good? Check it.", expect: fire }
+  - { id: fire-create, prompt: "Write a skill that drafts release notes from merged pull requests.", expect: fire }
+  - { id: fire-fix-trigger, prompt: "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.", expect: fire }
+  - { id: fire-test, prompt: "Run the evals for the release-notes skill.", expect: fire }
+  - { id: fire-customize, prompt: "Which implementation does each skill-design aspect use? I may switch some.", expect: fire }
+  - { id: fire-vet, prompt: "Is the skill in github.com/acme/skills safe to install? Vet it first.", expect: fire }
+  - { id: fire-doctor-overrides, prompt: "Our issue skill breaks partway through in this repo. Do its references still work with our overrides?", expect: fire }
   # The work itself changes a skill, though the request does not ask about skills (#205).
-  - { prompt: "Implement issue #42: the description in .agents/skills/release-notes/SKILL.md should also fire on 'changelog'. Open a PR when done.", expect: fire }
-  - { prompt: "Work on issue #57: add a references/labels.md to the release-notes skill folder that lists how to group notes by label, and link it from its steps.", expect: fire }
-  - { prompt: "Publish the eval results of the release-notes skill on its docs page.", expect: fire }
-  - { prompt: "Turn what we just did into a skill.", expect: skip }
-  - { prompt: "Load our style reference and tell me what it says about tone.", expect: skip }
-  - { prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
-  - { prompt: "Review my diff before I push.", expect: skip }
-  - { prompt: "Install the release-notes plugin from our marketplace.", expect: skip }
+  - { id: fire-issue-edits-description, prompt: "Implement issue #42: the description in .agents/skills/release-notes/SKILL.md should also fire on 'changelog'. Open a PR when done.", expect: fire }
+  - { id: fire-issue-adds-reference, prompt: "Work on issue #57: add a references/labels.md to the release-notes skill folder that lists how to group notes by label, and link it from its steps.", expect: fire }
+  - { id: fire-report, prompt: "Publish the eval results of the release-notes skill on its docs page.", expect: fire }
+  - { id: skip-skillify, prompt: "Turn what we just did into a skill.", expect: skip }
+  - { id: skip-load-reference, prompt: "Load our style reference and tell me what it says about tone.", expect: skip }
+  - { id: skip-agents-md-rule, prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
+  - { id: skip-review-diff, prompt: "Review my diff before I push.", expect: skip }
+  - { id: skip-install-plugin, prompt: "Install the release-notes plugin from our marketplace.", expect: skip }
   # Near misses for #205: code that only reads skills, not a change to one.
-  - { prompt: "Fix the bug in src/skill/parse.ts where front matter with a CRLF line ending is not read from a SKILL.md.", expect: skip }
-  - { prompt: "Add a unit test for the function that lists the skills a plugin ships.", expect: skip }
+  - { id: skip-fix-parser-bug, prompt: "Fix the bug in src/skill/parse.ts where front matter with a CRLF line ending is not read from a SKILL.md.", expect: skip }
+  - { id: skip-unit-test, prompt: "Add a unit test for the function that lists the skills a plugin ships.", expect: skip }
   # A skill that ships inside a plugin or package, "add a skill", and a skill that teaches a library (#216).
-  - { prompt: "Add an /axi skill to the agent plugin in our cli-kit npm package that teaches agents writing a CLI to follow our version of AXI.", expect: fire }
-  - { prompt: "Add a skill to this plugin.", expect: fire }
-  - { prompt: "Teach agents to use our date library: write a skill for it that ships with the npm package.", expect: fire }
-  - { prompt: "Add a release-notes skill.", expect: fire }
-  - { prompt: "Teach me how to use our date library's parse function.", expect: skip }
-  - { prompt: "Add a hooks component to this plugin's plugin.json.", expect: skip }
+  - { id: fire-create-in-npm-plugin, prompt: "Add an /axi skill to the agent plugin in our cli-kit npm package that teaches agents writing a CLI to follow our version of AXI.", expect: fire }
+  - { id: fire-add-to-plugin, prompt: "Add a skill to this plugin.", expect: fire }
+  - { id: fire-teach-library, prompt: "Teach agents to use our date library: write a skill for it that ships with the npm package.", expect: fire }
+  - { id: fire-add-skill, prompt: "Add a release-notes skill.", expect: fire }
+  - { id: skip-teach-me-library, prompt: "Teach me how to use our date library's parse function.", expect: skip }
+  - { id: skip-add-hooks-component, prompt: "Add a hooks component to this plugin's plugin.json.", expect: skip }
   # doctor across every harness on this machine, not only the running one.
-  - { prompt: "Do the references our triage skill loads work in Codex too, not only here? Check it for every harness installed on this machine.", expect: fire }
+  - { id: fire-doctor-all-harnesses, prompt: "Do the references our triage skill loads work in Codex too, not only here? Check it for every harness installed on this machine.", expect: fire }
 # files/samples holds two sample skills (R79): release-notes passes every check; release-notes-flawed passes every
 # critical script check but fails TRG-3 (its description says how it works), CRI-3 ("The notes are clear"), SHP-3 (its
 # grouping step is prose a script could do), and the VER-12 warning (its setup writes .git/hooks and repository git
 # config, #294).
 outcome:
-  # check-passing and check-flawed ask for two closing lines, so a check reads the verdict, not the prose around it.
-  - id: check-passing
-    prompt: >-
-      Check the skill in .agents/skills/release-notes. End your reply with two lines: "Failed:" then the IDs of the
-      checks it fails, or "none"; and "Not checked:" then the IDs of the checks you could not decide, or "none".
-    files: files/samples
-    criteria: [C2, C3]
-    checks:
-      C2:
-        - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
-        - regex: "Not checked:[^\\n]*TRG-4"
-      C3:
-        - regex: "Failed:\\W{0,4}[Nn]one\\b"
-  - id: check-flawed
-    prompt: >-
-      Check the skill in .agents/skills/release-notes-flawed. End your reply with two lines: "Failed:" then the IDs of
-      the checks it fails, or "none"; and "Not checked:" then the IDs of the checks you could not decide, or "none".
-    files: files/samples
-    criteria: [C2, C3]
-    checks:
-      C2:
-        - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
-        - regex: "Not checked:[^\\n]*TRG-4"
-      C3:
-        - regex: "Failed:[^\\n]*TRG-3"
-        - regex: "Failed:[^\\n]*CRI-3"
-        - regex: "Failed:[^\\n]*SHP-3"
-        - regex: "Failed:[^\\n]*VER-12"
-  # A name, not a path: /skill looks it up in the repository's and the user's skills folders, and says so. Without
-  # "with /skill" the request does not call the skill.
-  - id: check-missing
-    prompt: Check the deploy-notes skill with /skill.
-    files: files/samples
-    criteria: [C1, C2]
-  - id: create-existing
-    prompt: Create a skill named release-notes in .agents/skills that writes release notes from merged pull requests.
-    files: files/samples
-    criteria: [C4]
-  # create-ask asks to approve each draft, so the author sets ask. Every other case runs the same way whoever asks: the
-  # leash (the level and the test budget in skill-design.autonomy) decides where it stops (#214).
-  - id: create-ask
-    prompt: >-
-      Create a skill in .agents/skills that drafts a changelog entry for each merged pull request. Show me each
-      draft and wait for my approval before you write anything.
-    files: files/samples
-    criteria: [C5, C13]
-    checks:
-      C13:
-        - regex: "[Aa]utonomy:\\W{0,4}ask\\b"
-  # A description with no command routes to create, which runs check and then test without asking, since
-  # files/high-budget sets a budget no test reaches. The sandbox has no network, so the test itself cannot complete:
-  # promptfoo cannot download, and a nested harness could not reach its model. The case does not test whether the
-  # skill tests what it writes, and no criterion relies on the test's result, only on starting it (C11) (#285).
-  - id: create-described
-    prompt: >-
-      /skill a skill in .agents/skills that drafts a changelog entry for each merged pull request. I approve every
-      draft; don't ask again. End your reply with a line "Check:" then pass or fail, from the check of the skill you
-      wrote.
-    files: files/high-budget
-    criteria: [C11, C16]
-  # Research finds that the installed release-notes skill already does the job (#221): create names it, writes no
-  # SKILL.md, and asks whether to adopt it, since adopting changes the Intent.
-  - id: create-covered
-    prompt: >-
-      Create a skill named pr-release-notes in .agents/skills that writes the release notes for a release from the
-      merged pull requests listed in prs.json, grouped under Features and Fixes.
-    files: files/samples
-    criteria: [C17]
-    checks:
-      C17:
-        - regex: "release-notes\\b"
-        - regex: "[Aa]dopt|[Rr]euse|[Uu]se the existing"
-        # A stop asks a question or lists lettered options, as C14 and C15 test it.
-        - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
-        - script: "test ! -e .agents/skills/pr-release-notes/SKILL.md"
   # Other work adds a skill (#205): the work is the approval, so the skill is written without asking about each aspect.
   # Its job is one no skill in files/samples covers, so research finds nothing to adopt and does not stop the run.
   # Like create-described, it cannot complete a nested `skill test` in the sandbox, and C12 does not rely on one (#285).
@@ -119,127 +44,6 @@ outcome:
       Report what you did when done.
     files: files/samples
     criteria: [C12]
-  # files/low-budget sets a budget of $0.01 or 1 run, so the test of the new skill is over it: the run keeps the skill,
-  # starts no test run, and ends by asking.
-  - id: create-over-budget
-    prompt: >-
-      Implement issue #61: with /skill, create a skill in .agents/skills that drafts a changelog entry for each merged
-      pull request, then report what you did.
-    files: files/low-budget
-    criteria: [C13, C14, C16]
-    checks:
-      C13:
-        - regex: "[Aa]utonomy:\\W{0,4}apply(-safe)?\\b"
-  # The work names a change to the skill's Intent, which only the author decides: the run stops and asks.
-  - id: enhance-intent
-    prompt: >-
-      Implement issue #64: with /skill, enhance the skill in .agents/skills/release-notes so it writes the notes from
-      git tags instead of merged pull requests, then report what you did.
-    files: files/samples
-    criteria: [C15, C16]
-  - id: fix-flawed
-    prompt: >-
-      Check the skill in .agents/skills/release-notes-flawed, then fix what the check finds. I approve every change;
-      don't ask again.
-    files: files/samples
-    criteria: [C6, C7, C25]
-  # files/long-skill holds issue-triage, which fails only SHP-1: an inline label catalog, two commands, and a section
-  # for a removed --legacy option (#224). Fix offers ways to trim with estimates, not a bare "shorten it".
-  - id: fix-too-long
-    prompt: >-
-      Fix the skill in .agents/skills/issue-triage. Ask me before you change anything.
-    files: files/long-skill
-    criteria: [C13, C18]
-    checks:
-      C13:
-        - regex: "[Aa]utonomy:\\W{0,4}ask\\b"
-      C18:
-        - regex: "SHP-1"
-        - regex: "[Rr]eferences?/|[Rr]eference file"
-        - regex: "[Ll]egacy"
-        - regex: "~?\\d[\\d,]* tokens"
-        - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
-        - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
-  # files/sandbox-report holds release-notes with no expected result, and test-report.json, what `skill test
-  # --format json` printed for it when a sandbox failure broke one of two-prs' runs with the skill (#248). The sandbox
-  # fault cannot be caused on demand, so the case acts on that saved report, and the same result saved for `skill
-  # accept`, instead of running the test. Both write the fault's "Can't" as "Can\u0027t", so a run that reads them is
-  # not itself taken for a sandbox failure.
-  - id: test-sandbox-failures
-    prompt: >-
-      With /skill, report the test of .agents/skills/release-notes: I already ran it and saved what it printed to
-      test-report.json, so don't run it again. Tell me what to do next.
-    files: files/sandbox-report
-    criteria: [C19]
-  # Only `skill report` writes the gap line and the trigger rows this way, so a README that has them came from the command.
-  - id: report-readme
-    prompt: >-
-      Add the eval results of the skill in .agents/skills/release-notes to the end of its README, so readers see how
-      it tested.
-    files: files/samples
-    criteria: [C20]
-  # The author vouches for a criterion from real use but gives no link (#323): the skill asks for the evidence and
-  # attests nothing, so the skill's evals stay as they were. The baseline loads the plugin's Verification reference,
-  # which describes attested passes, so it may pass too.
-  - id: attest-no-link
-    prompt: >-
-      C3 of the skill in .agents/skills/release-notes can't be judged well by a run, and it has held on every real
-      release we cut. Mark it as passing in its evals so its results show it.
-    files: files/samples
-    criteria: [C26]
-    checks:
-      C26:
-        - script: "git diff --quiet HEAD -- .agents/skills/release-notes/evals && test -z \"$(git status --porcelain --untracked-files=all .agents/skills/release-notes/evals)\""
-        - regex: "(attest|live pass)[\\s\\S]{0,400}\\b([Ll]ink|URL|url)\\b|\\b([Ll]ink|URL|url)\\b[\\s\\S]{0,400}(attest|live pass)"
-  # The author names the criterion and the link (#323): the skill records it with `skill attest`, which writes the
-  # `attested` entry with the link and a fingerprint; a hand-written entry has no fingerprint of the skill's files.
-  - id: attest-with-link
-    prompt: >-
-      C3 of the skill in .agents/skills/release-notes passed on our real 2.4 release: no merge commit made it into the
-      notes. Record it as passing from that, with the evidence https://git.example.com/acme/app/-/releases/v2.4 .
-    files: files/samples
-    criteria: [C26]
-    checks:
-      C26:
-        - script: >-
-            node -e 'const e=require("./.agents/skills/release-notes/evals/expected.json"); const a=(e.attested||[]).find(x=>x.id==="C3");
-            process.exit(a && a.source==="attested" && a.evidence==="https://git.example.com/acme/app/-/releases/v2.4"
-            && /^[0-9a-f]{64}$/.test(a.skillFingerprint) && typeof e.at==="string" ? 0 : 1)'
-  # The author names the criterion known to fail and the reason (#329): the skill marks it with `skill fails`, which
-  # adds the case's `fails` and keeps the file's comments and layout.
-  - id: fails-with-reason
-    prompt: >-
-      C3 of the skill in .agents/skills/release-notes fails on its two-prs case: the notes keep the merge commit. It is
-      tracked in https://git.example.com/acme/app/-/issues/341 and won't be fixed this week. Mark that criterion as known
-      to fail for that reason, so the test stops failing on it. I approve the change; don't run the test.
-    files: files/samples
-    criteria: [C27]
-    checks:
-      C27:
-        - script: >-
-            f=.agents/skills/release-notes/evals/evals.yaml;
-            grep -qE '^ +fails:' $f && grep -qE '^ +C3: .*issues/341' $f
-            && grep -qF 'files: files/two-prs   # a feature, a fix, an internal change, and a merge commit' $f
-  # The author asks for a mark but gives no reason (#329): the skill asks for one and marks nothing.
-  - id: fails-no-reason
-    prompt: >-
-      Mark C3 of the two-prs case in the skill in .agents/skills/release-notes as known to fail. I approve the change.
-    files: files/samples
-    criteria: [C27]
-    checks:
-      C27:
-        - script: "git diff --quiet HEAD -- .agents/skills/release-notes/evals"
-        - regex: "\\b([Rr]eason|[Ww]hy)\\b"
-  # A plain "make the test pass" is no request for a mark (#329): the skill may fix the skill, but marks nothing.
-  - id: fails-make-it-pass
-    prompt: >-
-      skill test on the skill in .agents/skills/release-notes keeps failing C3 on its two-prs case, and it blocks my
-      release. Just make the test pass. I approve the changes; don't run the test.
-    files: files/samples
-    criteria: [C27]
-    checks:
-      C27:
-        - script: "! grep -q 'fails' .agents/skills/release-notes/evals/evals.yaml"
   # A case that needs git history gets a setup script through `skill case add --setup`, not a setup step in its
   # prompt (#251). The script's header is the one `skill case` writes, so a script written by hand does not pass. The
   # baseline passes too: it loads the plugin without this skill, and the plugin's Verification reference and its
@@ -253,89 +57,6 @@ outcome:
     files: files/samples
     guard: true
     criteria: [C21]
-  # The prompt names the skill: "which commands can I use" alone reads as a question about the session, which lists
-  # its skills instead of loading this one (#238).
-  - id: help
-    prompt: I want to create, check, test, or fix an agent skill. Which commands does the skill skill have? List them all.
-    files: files/samples
-    criteria: [C8]
-  - id: customize-show
-    prompt: Show me which implementation each aspect of /skill uses. Don't change anything yet.
-    files: files/samples
-    criteria: [C9]
-  - id: vet-public
-    prompt: >-
-      Vet the find-skills skill in github.com/vercel-labs/skills before I install it. Don't install it. End your reply
-      with a line "Verdict:" then blocked or not blocked.
-    files: files/samples
-    network: [github.com, api.github.com, codeload.github.com, skills.sh]
-    criteria: [C10]
-  # files/test-sandbox-unavailable holds release-notes and test-error.txt, what `skill test` printed on a machine whose
-  # script sandbox cannot start (#302). That cannot be caused on demand, so the case acts on the saved output.
-  - id: test-sandbox-unavailable
-    prompt: With /skill, test .agents/skills/release-notes. I already ran it once
-      and saved what it printed to test-error.txt, so don't run it again. What
-      should I do?
-    files: files/test-sandbox-unavailable
-    criteria: [C23]
-  # files/test-no-sandbox holds release-notes and test-report.json, a result of the folder-only sandbox: `sandbox: none`
-  # and two `wroteOutside` paths (#302). The same result is saved as latest.json. A run without the skill reports them
-  # too (3 of 3 in the first test of #302), so the case is a guard: it keeps the skill from losing what a run does anyway.
-  - id: test-no-sandbox
-    prompt: "With /skill, report the test of .agents/skills/release-notes: I already
-      ran it and saved what it printed to test-report.json, so don't run it again.
-      How did it go?"
-    files: files/test-no-sandbox
-    guard: true
-    criteria: [C24]
-  - id: update-reports
-    prompt: "Implement issue #70: the release-notes skill in .agents/skills should
-      also fire when a user asks for a changelog. Report what you did when done."
-    files: files/samples
-    criteria: [C25]
-  # doctor reads the references a skill loads as this repository resolves them (#340). It passed 3 of 3 with the skill
-  # and 3 of 3 without, since reading the override shows its repeated heading, so the case is a guard.
-  - id: doctor-override
-    prompt: Our triage skill in .agents/skills/triage misbehaves in this repository.
-      Do its references work here, as this repository resolves them? Don't change
-      anything.
-    files: files/doctor-override
-    criteria: [C28]
-  # A job of three commands that each run on their own: create gives each its own instructions file and eval folder
-  # (R187). files/high-budget lets the nested test start without stopping on the budget.
-  - id: create-parts
-    prompt: "/skill a skill in .agents/skills for release announcements, with three
-      commands that each run on their own: draft, review, and publish. I approve
-      every draft; don't ask again."
-    files: files/high-budget
-    criteria: [C29]
-    checks:
-      C29:
-        - script: for p in draft review publish; do ls .agents/skills/*/references/$p.md
-            .agents/skills/*/evals/$p/evals.yaml >/dev/null 2>&1 || exit 1; done
-  # The release-notes skill in files/scoped-update has write and audit scopes, each current in its expected result. A
-  # change to the write command makes the write and root cases stale and leaves audit's current, so update's test
-  # runs those only and its report names the scopes (R189).
-  - id: update-scoped
-    prompt: "Implement issue #71: the write command of the release-notes skill in
-      .agents/skills should list breaking changes first. Report what you did when
-      done."
-    files: files/scoped-update
-    criteria: [C30]
-  # `skill migrate` shows its plan and writes only with --write (R184). The baseline passes too: it loads the plugin
-  # without this skill, and the CLI's own help names migrate and --write, so the case is a guard (3 of 3 both ways).
-  - id: test-migrate-plan
-    prompt: Move the evals of the skill in .agents/skills/release-notes into scopes,
-      so a test runs only what changed. Show me what would change before you write
-      anything.
-    files: files/samples
-    guard: true
-    criteria: [C31]
-    checks:
-      C31:
-        # The plan names the ID `skill migrate` makes from the first trigger case's prompt, and nothing is written.
-        - regex: "write-the-release-notes"
-        - script: test -z "$(git status --porcelain --untracked-files=all)"
 # The spec criteria each rubric tests, in the skill-design spec and its children. A rubric checks the outcome those
 # criteria state; for a stop, the Stop outcome of the spec's decision graph (R167) on edge E1, E2, or E3.
 #   C1 R1 | C2 R18, R21 | C3 R17, R19 | C4 R7 | C5 R6 (E1) | C6 R39 | C7 R37, R38 | C8 R94, R96 | C9 R92, R93

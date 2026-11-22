@@ -1,0 +1,5 @@
+outcome:
+  - id: customize-show
+    prompt: Show me which implementation each aspect of /skill uses. Don't change anything yet.
+    files: ../files/samples
+    criteria: [C9]

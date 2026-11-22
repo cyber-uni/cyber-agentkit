@@ -1,0 +1,15 @@
+outcome:
+  - id: update-reports
+    prompt: "Implement issue #70: the release-notes skill in .agents/skills should
+      also fire when a user asks for a changelog. Report what you did when done."
+    files: ../files/samples
+    criteria: [C25]
+  # The release-notes skill in files/scoped-update has write and audit scopes, each current in its expected result. A
+  # change to the write command makes the write and root cases stale and leaves audit's current, so update's test
+  # runs those only and its report names the scopes (R189).
+  - id: update-scoped
+    prompt: "Implement issue #71: the write command of the release-notes skill in
+      .agents/skills should list breaking changes first. Report what you did when
+      done."
+    files: files/scoped-update
+    criteria: [C30]

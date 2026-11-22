@@ -1,0 +1,67 @@
+outcome:
+  - id: create-existing
+    prompt: Create a skill named release-notes in .agents/skills that writes release notes from merged pull requests.
+    files: ../files/samples
+    criteria: [C4]
+  # create-ask asks to approve each draft, so the author sets ask. Every other case runs the same way whoever asks: the
+  # leash (the level and the test budget in skill-design.autonomy) decides where it stops (#214).
+  - id: create-ask
+    prompt: >-
+      Create a skill in .agents/skills that drafts a changelog entry for each merged pull request. Show me each
+      draft and wait for my approval before you write anything.
+    files: ../files/samples
+    criteria: [C5, C13]
+    checks:
+      C13:
+        - regex: "[Aa]utonomy:\\W{0,4}ask\\b"
+  # A description with no command routes to create, which runs check and then test without asking, since
+  # files/high-budget sets a budget no test reaches. The sandbox has no network, so the test itself cannot complete:
+  # promptfoo cannot download, and a nested harness could not reach its model. The case does not test whether the
+  # skill tests what it writes, and no criterion relies on the test's result, only on starting it (C11) (#285).
+  - id: create-described
+    prompt: >-
+      /skill a skill in .agents/skills that drafts a changelog entry for each merged pull request. I approve every
+      draft; don't ask again. End your reply with a line "Check:" then pass or fail, from the check of the skill you
+      wrote.
+    files: files/high-budget
+    criteria: [C11, C16]
+  # Research finds that the installed release-notes skill already does the job (#221): create names it, writes no
+  # SKILL.md, and asks whether to adopt it, since adopting changes the Intent.
+  - id: create-covered
+    prompt: >-
+      Create a skill named pr-release-notes in .agents/skills that writes the release notes for a release from the
+      merged pull requests listed in prs.json, grouped under Features and Fixes.
+    files: ../files/samples
+    criteria: [C17]
+    checks:
+      C17:
+        - regex: "release-notes\\b"
+        - regex: "[Aa]dopt|[Rr]euse|[Uu]se the existing"
+        # A stop asks a question or lists lettered options, as C14 and C15 test it.
+        - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
+        - script: "test ! -e .agents/skills/pr-release-notes/SKILL.md"
+  # files/low-budget sets a budget of $0.01 or 1 run, so the test of the new skill is over it: the run keeps the skill,
+  # starts no test run, and ends by asking.
+  - id: create-over-budget
+    prompt: >-
+      Implement issue #61: with /skill, create a skill in .agents/skills that drafts a changelog entry for each merged
+      pull request, then report what you did.
+    files: files/low-budget
+    criteria: [C13, C14, C16]
+    checks:
+      C13:
+        - regex: "[Aa]utonomy:\\W{0,4}apply(-safe)?\\b"
+  # A job of three commands that each run on their own: create gives each its own instructions file and eval folder
+  # (R187). files/high-budget lets the nested test start without stopping on the budget.
+  - id: create-parts
+    prompt: "/skill a skill in .agents/skills for release announcements, with three
+      commands that each run on their own: draft, review, and publish. I approve
+      every draft; don't ask again."
+    files: files/high-budget
+    criteria: [C29]
+    checks:
+      C29:
+        - script: for p in draft review publish; do ls .agents/skills/*/references/$p.md
+            .agents/skills/*/evals/$p/evals.yaml >/dev/null 2>&1 || exit 1; done
+    fails:
+      C29: "A three-part create costs more than skill test's $0.50 per-run cost cap on the mid-tier model: 4 of 6 runs stopped at the cap across two runs in #372, with or without the nested test; every run that finished passed C29."

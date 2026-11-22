@@ -1,0 +1,24 @@
+outcome:
+  - id: fix-flawed
+    prompt: >-
+      Check the skill in .agents/skills/release-notes-flawed, then fix what the check finds. I approve every change;
+      don't ask again.
+    files: ../files/samples
+    criteria: [C6, C7, C25]
+  # files/long-skill holds issue-triage, which fails only SHP-1: an inline label catalog, two commands, and a section
+  # for a removed --legacy option (#224). Fix offers ways to trim with estimates, not a bare "shorten it".
+  - id: fix-too-long
+    prompt: >-
+      Fix the skill in .agents/skills/issue-triage. Ask me before you change anything.
+    files: files/long-skill
+    criteria: [C13, C18]
+    checks:
+      C13:
+        - regex: "[Aa]utonomy:\\W{0,4}ask\\b"
+      C18:
+        - regex: "SHP-1"
+        - regex: "[Rr]eferences?/|[Rr]eference file"
+        - regex: "[Ll]egacy"
+        - regex: "~?\\d[\\d,]* tokens"
+        - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
+        - script: "test -z \"$(git status --porcelain --untracked-files=all)\""

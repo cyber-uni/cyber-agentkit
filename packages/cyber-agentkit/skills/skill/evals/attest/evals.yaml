@@ -1,0 +1,28 @@
+outcome:
+  # The author vouches for a criterion from real use but gives no link (#323): the skill asks for the evidence and
+  # attests nothing, so the skill's evals stay as they were. The baseline loads the plugin's Verification reference,
+  # which describes attested passes, so it may pass too.
+  - id: attest-no-link
+    prompt: >-
+      C3 of the skill in .agents/skills/release-notes can't be judged well by a run, and it has held on every real
+      release we cut. Mark it as passing in its evals so its results show it.
+    files: ../files/samples
+    criteria: [C26]
+    checks:
+      C26:
+        - script: "git diff --quiet HEAD -- .agents/skills/release-notes/evals && test -z \"$(git status --porcelain --untracked-files=all .agents/skills/release-notes/evals)\""
+        - regex: "(attest|live pass)[\\s\\S]{0,400}\\b([Ll]ink|URL|url)\\b|\\b([Ll]ink|URL|url)\\b[\\s\\S]{0,400}(attest|live pass)"
+  # The author names the criterion and the link (#323): the skill records it with `skill attest`, which writes the
+  # `attested` entry with the link and a fingerprint; a hand-written entry has no fingerprint of the skill's files.
+  - id: attest-with-link
+    prompt: >-
+      C3 of the skill in .agents/skills/release-notes passed on our real 2.4 release: no merge commit made it into the
+      notes. Record it as passing from that, with the evidence https://git.example.com/acme/app/-/releases/v2.4 .
+    files: ../files/samples
+    criteria: [C26]
+    checks:
+      C26:
+        - script: >-
+            node -e 'const e=require("./.agents/skills/release-notes/evals/expected.json"); const a=(e.attested||[]).find(x=>x.id==="C3");
+            process.exit(a && a.source==="attested" && a.evidence==="https://git.example.com/acme/app/-/releases/v2.4"
+            && /^[0-9a-f]{64}$/.test(a.skillFingerprint) && typeof e.at==="string" ? 0 : 1)'
