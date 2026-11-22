@@ -78,7 +78,7 @@ Follow a project section whenever your work is in its folder. When the work move
 
 ## When a step fails while following a blueprint
 
-A blueprint is an implementation of an interface whose id ends `.blueprints`, named `<id>.<system>.<solution>`. Its capability reference is `<system>.capabilities`, where `<system>` is the one segment right after `.blueprints.` in its name: `project-tracker.blueprints.gitlab.issues` builds on `gitlab.capabilities`. When a step of the caller fails while it follows a blueprint, do not guess whether the system or the reference is wrong. Tell the user:
+A blueprint is an implementation of an interface whose id ends `.blueprints`, named `<id>.<system>.<solution>`. Its capability reference is `<system>.capabilities`, where `<system>` is the one segment right after `.blueprints.` in its name: <example>`project-tracker.blueprints.gitlab.issues` builds on `gitlab.capabilities`.</example> When a step of the caller fails while it follows a blueprint, do not guess whether the system or the reference is wrong. Tell the user:
 
 1. the step that failed, the blueprint it followed, and that blueprint's capability reference;
 2. the offers, one line each, and wait for a pick:

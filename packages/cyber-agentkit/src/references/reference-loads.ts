@@ -93,9 +93,11 @@ export type KnownName = (name: string) => 'reference' | 'interface' | undefined
 
 const fence = /^[ \t]*(```|~~~)[^\n]*\n[\s\S]*?^[ \t]*\1[ \t]*$/gm
 
-/** The text with its fenced code blocks taken out: an example in a fence is not a load. */
+const example = /<example>[\s\S]*?<\/example>/g
+
+/** The text with its fenced code blocks and `<example>` spans taken out: an example is not a load. */
 export function withoutFences(text: string): string {
-	return text.replace(/\r\n/g, '\n').replace(fence, '')
+	return text.replace(/\r\n/g, '\n').replace(fence, '').replace(example, '')
 }
 
 /** A reference name as written in text: a bare name, or one qualified with its plugin as `<plugin>/<name>`. */
