@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "reference",
-	"at": "2026-11-22T16:15:27.115Z",
+	"at": "2026-11-22T20:01:34.665Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,10 +43,10 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T16:15:27.115Z",
+			"at": "2026-11-22T20:01:34.665Z",
 			"hashes": {
 				"case": "sha256:ba1ac190a00c2b9e6453602334a253b21af95d1c1510e31eb5c082b70d7b4000",
-				"scope": "sha256:f2e17d966df657e4f0adbeec095b52c01f6cf1ff4f6885f09006229709812a5a"
+				"scope": "sha256:4a5b84fe3c5135f438bad223f5f96f40927777e21c9be784f8ffe12ed2723ce9"
 			}
 		},
 		"doctor-not-capability": {
@@ -66,21 +66,21 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T16:15:27.115Z",
+			"at": "2026-11-22T20:01:34.665Z",
 			"hashes": {
 				"case": "sha256:475b822c4370694cca7724c1b9f885b271ab0e5b9a3d15021f00ed597cd6570a",
-				"scope": "sha256:f2e17d966df657e4f0adbeec095b52c01f6cf1ff4f6885f09006229709812a5a"
+				"scope": "sha256:4a5b84fe3c5135f438bad223f5f96f40927777e21c9be784f8ffe12ed2723ce9"
 			}
 		}
 	},
 	"inputs": {
-		"sha256:f2e17d966df657e4f0adbeec095b52c01f6cf1ff4f6885f09006229709812a5a": {
+		"sha256:4a5b84fe3c5135f438bad223f5f96f40927777e21c9be784f8ffe12ed2723ce9": {
 			"SKILL.md front matter": "sha256:d3b11faaac2e8cc34ac703ba9b7989a580a4cf88433f1d31d4312f05bbe3ee3d",
 			"SKILL.md shared sections": "sha256:14b97ccc6de845c05d67c3f884b5e24bf3dfbf7d9b41ad1005bad095f333250e",
 			"references/create.md": "sha256:7d9cd63a80feb2a9de8bd520b93de4b9d7699f2a7cca3c9c347cd79c0521381e",
 			"references/customize.md": "sha256:2f212c118a44036cc4662c89b8d6cbfecf6127a99e8cfe553e9c3ea2fd3e219c",
 			"references/doctor.md": "sha256:73b8fdbd3f1bd6b97583f7f199ede083e7a326357fc6e1de81d908fde952df46",
-			"references/load.md": "sha256:c25134c1399ca26e1f1a7cd9aed746e811a7a956ceb88b19d3cce6c40c2126c8",
+			"references/load.md": "sha256:bc9dc4ef0005bd1ec13435f4a3e157c5564fd0f6a14bdaa77937491f48273ae1",
 			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
 		}
 	}
