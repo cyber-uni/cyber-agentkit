@@ -1,6 +1,6 @@
 ---
 name: dependency
-description: Check whether the plugins a plugin needs are installed and enabled here, and what to run. As in "is this plugin missing a dependency", "check my plugin's dependencies on Codex", "why won't this plugin load, does it need another plugin", or "/dependency doctor".
+description: Find which plugins a plugin needs are missing, disabled, or not installed here, and what to run. As in "is this plugin missing a dependency", "is anything my plugin needs missing on Codex", "why won't this plugin load, does it need another plugin", or "/dependency doctor".
 argument-hint: "doctor [--plugin <root>] [--harness <id>]"
 ---
 

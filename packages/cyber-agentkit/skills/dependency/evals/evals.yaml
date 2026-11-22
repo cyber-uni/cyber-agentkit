@@ -8,7 +8,7 @@ trigger:
   - { prompt: "Check that my plugin's vendor manifests are up to date.", expect: skip }
   - { prompt: "Find the npm dependencies this package uses but doesn't declare.", expect: skip }
   - { prompt: "Do my skill's references work as installed here?", expect: skip }
-  - { prompt: "Add tracer@acme to my plugin's declared dependencies.", expect: skip }
+  - { prompt: "Add tracer@acme to my plugin's declared dependencies.", expect: skip, fails: "No manifest-editing skill is loaded in a test run, so the dependency skill is the nearest; the misroute is harmless (it runs nothing and the agent goes on to the manifest)." }
 # Each run's HOME is empty, so Claude Code reports no plugin installed: every named dependency is missing.
 outcome:
   - id: missing
