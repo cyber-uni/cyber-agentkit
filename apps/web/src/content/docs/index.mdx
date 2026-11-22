@@ -73,9 +73,14 @@ The package depends on no other agent tool, so any of them can build on it. It a
 		`loadReference()` resolves a named document across the managed, project, user, and plugin
 		tiers, merging each override as its frontmatter asks.
 	</Card>
+	<Card title="Which worktree a session gets" icon="seti:git">
+		`acquire()` leases a git worktree to one agent session, recycling an idle one before it creates
+		another, and `pruneWorktrees()` removes the ones nothing needs.
+	</Card>
 </CardGrid>
 
-Every answer rests on a vendor source recorded in
-[`.research/harness-detection`](https://github.com/cyber-uni/cyber-agentkit/tree/main/.research/harness-detection).
-The [package readme](https://github.com/cyber-uni/cyber-agentkit/tree/main/packages/cyber-agentkit#readme)
-documents each function.
+Every harness answer rests on a vendor source recorded in
+[`.research/harness-detection`](https://github.com/cyber-uni/cyber-agentkit/tree/main/.research/harness-detection),
+and worktree leasing on
+[`.research/worktree-management`](https://github.com/cyber-uni/cyber-agentkit/tree/main/.research/worktree-management).
+The [Library API](/cyber-agentkit/packages/cyber-agentkit/library/) page lists each function.

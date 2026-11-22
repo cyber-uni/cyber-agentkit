@@ -368,26 +368,9 @@ const result = classify({ found, offered, history })
 
 ## Worktrees
 
-The `./worktrees` subpath leases git worktrees to concurrent agent sessions, so two agents never
-share a checkout. It does not fetch and never kills a process.
-
-```ts
-import { acquire, pruneWorktrees, release } from 'cyber-agentkit/worktrees'
-```
-
-| Function | Does |
-| --- | --- |
-| `acquire(options)` | Leases a worktree: recycles an idle one of its own, else creates one at the next free slot under `max` |
-| `explain(options)` | Every worktree of the repository with the reason it cannot be reused, or none |
-| `release()`, `claimLease()`, `holdsLease()` | The lease a holder takes on a worktree |
-| `pruneWorktrees(options)` | Removes unleased, idle, clean, landed worktrees it owns. A dry run unless `apply` is set |
-| `removeWorktree(options)` | Removes the one worktree you name, under the same safety checks |
-| `seedWorktree(options)` | Copies the gitignored files a `.worktreeinclude` names into a new or recycled worktree |
-| `listWorktrees()`, `occupants()`, `classifyOwner()` | The worktrees of a repository, the sessions working in each, and who owns each |
-
-A worktree is skipped, with the reason in its verdict, when it is the primary checkout, owned by
-another tool or person, leased, prunable, busy, dirty, or not yet landed on the default branch. The
-checks fail closed: when git or the process probe cannot say, the worktree is left alone.
+The `./worktrees` subpath leases git worktrees to concurrent agent sessions, so two sessions never
+share a checkout. The [Library API](https://cyber-uni.github.io/cyber-agentkit/packages/cyber-agentkit/library/#worktrees)
+page documents its functions and the checks that keep a worktree in use from being reused or removed.
 
 ## Why this exists
 
