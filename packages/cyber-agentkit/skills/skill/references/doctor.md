@@ -16,7 +16,9 @@ harnesses read. When it reports `skill-ambiguous`, list the folders it printed a
 
 For each skill, give its status, then each reference it loads that failed or warned: its name, the tiers that answer
 it (`answeredBy`, bottom first), the `file` on top, and each failure and warning with its message and its `action`, as
-printed. Name the passed references in one line. When `note` or `unverified` says some skills are not covered, say so.
+printed. Name the passed references in one line. Pass on each of a skill's `notes`: a file it reads from outside `references/`
+and `assets/` is for `check` to judge, and a harness's own file was not examined. When `unverified` says some skills
+are not covered, say so.
 
 When the author wants a repair, run the command its `action` names through the skill that owns it, such as `reference
 customize` or `reference migrate` with the `reference` skill of `cyber-agentkit`. Doctor itself never runs one.
