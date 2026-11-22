@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -174,6 +174,61 @@ describe('skill where', () => {
 		const root = realpathSync(mkdtempSync(join(tmpdir(), 'skill-where-')))
 		mkdirSync(join(root, '.git'))
 		const code = await run(['node', 'cyber-agentkit', 'skill', 'where', 'no-such-skill-here', '--root', root])
+		expect(code).toBe(2)
+		expect(stderr.mock.calls.join('')).toContain('skill-not-found')
+	})
+})
+
+describe('skill doctor', () => {
+	const loadLine = 'Load `triage.rules` with the `reference` skill of `cyber-agentkit`.'
+	const repoWith = (folder: string, defaults = true) => {
+		const root = realpathSync(mkdtempSync(join(tmpdir(), 'skill-doctor-')))
+		mkdirSync(join(root, '.git'))
+		const dir = join(root, folder, 'triage')
+		mkdirSync(join(dir, 'references'), { recursive: true })
+		writeFileSync(join(dir, 'SKILL.md'), `---\nname: triage\ndescription: a skill\n---\n\n# Triage\n\n${loadLine}\n`)
+		if (defaults) writeFileSync(join(dir, 'references', 'triage.rules.default.md'), '## Rules\n\nTriage.\n')
+		return { root, dir }
+	}
+
+	it("examines a named skill's references and exits 0 when they pass", async () => {
+		const { root, dir } = repoWith('skills')
+		const code = await run(['node', 'cyber-agentkit', 'skill', 'doctor', 'triage', '--root', root, '--format', 'json'])
+		expect(code).toBe(0)
+		expect(JSON.parse(printed())).toMatchObject({
+			status: 'passed',
+			skills: [{ skill: 'triage', folder: dir, references: [{ name: 'triage.rules', answeredBy: ['default'] }] }],
+		})
+	})
+
+	it('exits 1 when a reference fails, and says what to do in text', async () => {
+		const { root } = repoWith('skills', false)
+		const code = await run(['node', 'cyber-agentkit', 'skill', 'doctor', 'triage', '--root', root, '--format', 'text'])
+		expect(code).toBe(1)
+		expect(printed()).toContain('triage.rules: missing, answered by no tier')
+		expect(printed()).toContain('reference create triage.rules')
+	})
+
+	it('examines every skill the detected harness loads when none is named', async () => {
+		const { root, dir } = repoWith('.claude/skills')
+		vi.stubEnv('CLAUDECODE', '1')
+		vi.stubEnv('CLAUDE_CODE_SESSION_ID', 'session')
+		vi.stubEnv('HOME', realpathSync(mkdtempSync(join(tmpdir(), 'skill-doctor-home-'))))
+		const cwd = process.cwd()
+		process.chdir(root)
+		try {
+			const code = await run(['node', 'cyber-agentkit', 'skill', 'doctor', '--root', root, '--format', 'json'])
+			expect(code).toBe(0)
+			expect(JSON.parse(printed()).skills).toContainEqual(expect.objectContaining({ skill: 'triage', folder: dir }))
+		} finally {
+			process.chdir(cwd)
+			vi.unstubAllEnvs()
+		}
+	})
+
+	it('fails as a usage error when no skill has the name', async () => {
+		const { root } = repoWith('skills')
+		const code = await run(['node', 'cyber-agentkit', 'skill', 'doctor', 'no-such-skill', '--root', root])
 		expect(code).toBe(2)
 		expect(stderr.mock.calls.join('')).toContain('skill-not-found')
 	})

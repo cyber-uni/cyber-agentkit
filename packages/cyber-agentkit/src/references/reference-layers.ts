@@ -94,6 +94,8 @@ export type ReferenceLayers = {
 /** The installed skills holding a default contribution, found in the skill folders the detected harnesses read. */
 export type SkillDefaults = {
 	skills: FoundSkill[]
+	/** Every skill found in those folders, holding a default or not: the skills the detected harnesses load here. */
+	loaded?: FoundSkill[] | undefined
 	/** Why some skills' defaults are not listed: no harness detected, or one whose skill folders are not verified. */
 	unverified?: string | undefined
 }
@@ -248,13 +250,15 @@ function skillDefaults(
 		folders.push(...own, ...pluginRoots.flatMap((root) => pluginSkillFolders(harness, root)))
 	}
 	const roots = pluginRoots.filter((root) => skillName(root) !== undefined)
-	const skills = folders.length ? skillsIn([...folders, ...roots]).filter(({ folder }) => holdsDefault(folder)) : []
+	const loaded = folders.length ? skillsIn([...folders, ...roots]) : []
+	const skills = loaded.filter(({ folder }) => holdsDefault(folder))
 	return unverified.length
 		? {
 				skills,
+				loaded,
 				unverified: `the skill folders ${unverified.join(', ')} ${unverified.length === 1 ? 'reads are' : 'read are'} not verified, so ${unverified.length === 1 ? 'its' : 'their'} skills' defaults are not listed`,
 			}
-		: { skills }
+		: { skills, loaded }
 }
 
 /** The `default` tier for the skill at `folder`; a folder that does not exist warns and adds no contribution. */

@@ -317,11 +317,11 @@ describe('the skills holding a default', () => {
 			plugin: { name: 'host', root: own },
 		})
 
+		const tracker = { name: 'tracker', folder: join(realpathSync(repo), '.claude/skills/pnpm-pkg-tracker') }
+		const reference = { name: 'reference', folder: join(realpathSync(own), 'skills/reference') }
 		expect(skills).toEqual({
-			skills: [
-				{ name: 'tracker', folder: join(realpathSync(repo), '.claude/skills/pnpm-pkg-tracker') },
-				{ name: 'reference', folder: join(realpathSync(own), 'skills/reference') },
-			],
+			skills: [tracker, reference],
+			loaded: [{ name: 'plain', folder: join(realpathSync(repo), '.claude/skills/plain') }, tracker, reference],
 		})
 	})
 
