@@ -9,7 +9,7 @@ Only Claude Code's manifest declares dependencies: a `dependencies` array in `.c
 
 ## Check what is missing
 
-Run the library's `checkPluginDependencies(harness, { pluginRoot })`. It reports each dependency as `enabled`, `installed` (no explicit setting), `disabled`, `missing`, or `unknown` (the harness keeps no readable install record, or a bare name's declaring marketplace is not known), and returns the steps below that apply. It installs nothing.
+Run `cyber-agentkit dependency doctor --plugin <root>`, or call the library's `checkPluginDependencies(harness, { pluginRoot })`. Both report each dependency as `enabled`, `installed` (no explicit setting), `disabled`, `missing`, or `unknown` (the harness keeps no readable install record, or a bare name's declaring marketplace is not known), and returns the steps below that apply, with each problem's code. Neither installs anything.
 
 ## Claude Code
 

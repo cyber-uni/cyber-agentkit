@@ -90,6 +90,20 @@ export interface CheckedDependency extends PluginDependency {
 	readonly id?: string
 }
 
+/** The stable code of each problem a check can find (K5). The wording beside it is not a contract. */
+export type DependencyProblemCode =
+	| 'dependency-missing'
+	| 'dependency-disabled'
+	| 'dependency-unknown'
+	| 'manifest-unparsable'
+
+export interface DependencyProblem {
+	readonly code: DependencyProblemCode
+	readonly message: string
+	/** The dependency it is about, as declared: `<name>` or `<name>@<marketplace>`. */
+	readonly dependency?: string
+}
+
 export interface PluginDependencyCheck {
 	readonly harness: HarnessId
 	/** Whether the harness's manifest can declare dependencies (`supportsPluginDependencies`). */
@@ -104,6 +118,8 @@ export interface PluginDependencyCheck {
 	 * in declared order, with the steps for the whole list around them. Empty when none needs any.
 	 */
 	readonly steps: readonly string[]
+	/** Every problem found, each with its code: a dependency not `enabled` or `installed`, or a manifest that cannot be parsed. */
+	readonly problems: readonly DependencyProblem[]
 	/** Set when the declaring manifest could not be read. */
 	readonly error?: string
 	readonly research: readonly string[]
@@ -161,8 +177,26 @@ export async function checkPluginDependencies(
 		steps: supported
 			? claudeCodeSteps(dependencies, declaringMarketplace)
 			: manualSteps(harness, dependencies, declaringMarketplace),
+		problems: [
+			...(read.error ? [{ code: 'manifest-unparsable' as const, message: read.error }] : []),
+			...dependencies.flatMap(problemOf),
+		],
 		...(read.error && { error: read.error }),
 		research: ['E-DEP-1', 'E-DEP-2', 'E-DEP-3', 'E-DEP-4', 'E-DEP-5', 'E-DEP-6', 'E-DEP-7', 'E-CC-X1'],
+	}
+}
+
+function problemOf(dependency: CheckedDependency): DependencyProblem[] {
+	const name = label(dependency)
+	switch (dependency.state) {
+		case 'missing':
+			return [{ code: 'dependency-missing', dependency: name, message: `${name} is not installed.` }]
+		case 'disabled':
+			return [{ code: 'dependency-disabled', dependency: name, message: `${name} is installed but disabled.` }]
+		case 'unknown':
+			return [{ code: 'dependency-unknown', dependency: name, message: `Whether ${name} is installed cannot be told.` }]
+		default:
+			return []
 	}
 }
 

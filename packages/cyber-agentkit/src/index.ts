@@ -4,6 +4,8 @@ export type { ResolvedAsset } from './assets/resolve-asset.js'
 export type {
 	CheckedDependency,
 	CheckPluginDependenciesOptions,
+	DependencyProblem,
+	DependencyProblemCode,
 	DependencyState,
 	PluginDependenciesRead,
 	PluginDependency,
