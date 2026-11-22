@@ -129,7 +129,10 @@ Produces the `description` in the skill's front matter, and the near misses Veri
 **Draft.** Open with a sentence of at most 100 characters stating the main thing the skill does: a slash-command menu
 shows only the start. Then name the job in the words users type, with two or three phrasings. Use no lead-in such as
 "Use this skill when" and no filler words. Say nothing about when not to use it. List three or more near misses: requests a
-user could plausibly make that belong to the nearest other jobs. Two kinds of skill are exempt from this: a
+user could plausibly make that belong to the nearest other jobs. Take only a near miss the description itself rules
+out: it sits next to what the skill claims, and the description, by stating precisely what the skill does, leaves it
+out. A near miss that is rejected only when another skill is installed to take it cannot be tested, since a test loads
+a fixed set of skills and a real install may hold any. Two kinds of skill are exempt from this: a
 name-only skill, whose description is a fixed marker as below, and a user-only skill, which
 stays user-invocable but turns model invocation off (in Claude Code, `disable-model-invocation: true`).
 

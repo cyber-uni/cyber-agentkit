@@ -19,7 +19,10 @@ instructions make the model do: whether it triggers, what it does, and what it r
 
 1. **Trigger cases.** Write at least three requests that should fire the skill, phrased the way different users
    would ask, and at least three near misses: requests a user could plausibly make that belong to another job, taken
-   from the near misses Trigger listed. Keep each to what a user would type. A name-only skill (see `/skill`'s Trigger)
+   from the near misses Trigger listed. Keep each to what a user would type. A near miss is a valid `skip` case only
+   when the skill's own description rules it out. Which skill takes a request depends on every skill installed, and a
+   test loads only a few, so a case that passes only when another skill takes the request tests the sandbox, not the
+   skill. A test shows that a skill fires where it should not; it cannot show that it never does. A name-only skill (see `/skill`'s Trigger)
    is never matched to a request, so write only the near misses for it, as `skip` cases.
 2. **Outcome cases.** Write at least one case per criterion, and list each criterion in the `criteria` of at least one
    case: a request and the files it works on. Put the files under
@@ -296,7 +299,7 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 - **VER-4** [script] Every `files` folder and `setup` script an outcome case names exists.
 - **VER-5** [script] `threshold` is between 1 and `runs`.
 - **VER-6** [read, warning] Each `skip` case is a request a user could plausibly make that belongs to another job, not
-  an unrelated one.
+  an unrelated one, and the skill's own description rules it out, not another skill being installed to take it.
 - **VER-7** [read, warning] Each rubric decides its criterion, not something easier that happens to go with it.
 - **VER-8** [read] No case holds private data, such as real names, tokens, or customer text.
 - **VER-9** [script, warning] No outcome case's prompt tells the model to run a setup script; that step is the case's
@@ -320,7 +323,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 ## Fix
 
 - VER-1 to VER-5: write or correct the file as Draft and Cases say.
-- VER-6: replace the case with a near miss Trigger listed, or ask the author for one.
+- VER-6: replace the case with a near miss Trigger listed, or ask the author for one. For a case only another skill
+  would reject, drop it, or ask the author whether to mark it known to fail with that reason (`/skill fails`).
 - VER-7: rewrite the rubric, and use `judge` only when no deterministic check decides the criterion.
 - VER-8: replace the data with made-up data of the same shape.
 - VER-9: move the step into a setup script (`skill case add ... --setup` scaffolds one for a new case), name it in the
