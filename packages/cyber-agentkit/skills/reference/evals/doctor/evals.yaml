@@ -1,0 +1,20 @@
+outcome:
+  - id: doctor-git
+    prompt: /reference doctor git.capabilities
+    files: files/doctor-git   # git.capabilities: one feature after any git release, one marked unsupported, Verified only for 2.30
+    criteria: [C7, C8]
+    checks:
+      C7:
+        - script: test -z "$(git status --porcelain --untracked-files=all)"
+      C8:
+        - contains: Reftable by default
+        - contains: Sparse index
+        - regex: "[Uu]nverified|[Nn]o [Vv]erified entry|[Nn]ot (been )?verified|[Nn]one (of them )?covers?|[Nn]o entry covers?"
+  - id: doctor-not-capability
+    prompt: /reference doctor style
+    files: ../files/repo   # style.md, an ordinary reference
+    criteria: [C7]
+    checks:
+      C7:
+        - script: test -z "$(git status --porcelain --untracked-files=all)"
+        - regex: "(not|isn't) a capability reference"

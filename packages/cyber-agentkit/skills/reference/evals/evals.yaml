@@ -9,6 +9,10 @@ trigger:
   - { id: add-a-rule-to-agents, prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
   - { id: my-release-notes-skill-doesnt, prompt: "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.", expect: skip }
   - { id: add-a-references-section-at, prompt: "Add a References section at the end of docs/design.md linking the two papers we cite.", expect: skip }
+  - id: doctor-gitlab-fire
+    prompt: Does our self-hosted GitLab still match what gitlab.capabilities says?
+      Run the doctor on it.
+    expect: fire
 outcome:
   - id: find-none
     prompt: Is there a reference about deploy checklists?

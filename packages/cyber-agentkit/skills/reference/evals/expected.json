@@ -1,16 +1,16 @@
 {
 	"version": 2,
 	"skill": "reference",
-	"at": "2026-11-22T16:02:11.419Z",
+	"at": "2026-11-22T16:15:27.115Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
 	"baseline": "without the skill",
 	"model": "sonnet",
-	"cost": 4.2599,
-	"totalRuns": 66,
-	"durationMs": 151218,
-	"criteria": ["C1", "C2", "C3", "C4", "C5", "C6"],
+	"cost": 5.9537,
+	"totalRuns": 87,
+	"durationMs": 196154,
+	"criteria": ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"],
 	"reported": {
 		"scripts": "sha256:f5bd99104b4f1f61e98759c832365ea8ba50db5d54d46c943f0a8de1bf6a4d90",
 		"harness": "claude-code",
@@ -137,6 +137,21 @@
 				"scope": "sha256:217eda05bbe50808ddea73e92892784443c676eff74f4defd100cf95f1175d76"
 			}
 		},
+		"doctor-gitlab-fire": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Does our self-hosted GitLab still match what gitlab.capabilities says? Run the doctor on it.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T16:15:27.115Z",
+			"hashes": {
+				"case": "sha256:dd94b713c31e1fb17b7ad90d35ab2ba8390a3463d3e0491e66f76ca12af965d1",
+				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
+			}
+		},
 		"find-none": {
 			"scope": "root",
 			"status": "pass",
@@ -196,6 +211,16 @@
 	"inputs": {
 		"sha256:217eda05bbe50808ddea73e92892784443c676eff74f4defd100cf95f1175d76": {
 			"description": "sha256:f7ce520ca050b3612d52b62d1c13a5534ebc3c4c1c24a4c52060d2cc11050043",
+			"description of asset": "sha256:10f8334e9b33528b24e12378edbcec4768483ba1c028d294c250488ab8fc6374",
+			"description of dependency": "sha256:aff6912a6546accf666e497aa540c84b2c17c7388e528af8576ff43dfe6fcd80",
+			"description of instruction": "sha256:fc877c92ef91713c2af2e46f055b84b141975e467b5a49e43e12276cfa3547d6",
+			"description of prose-update": "sha256:93d883259c1b333cce7f066f5909fe5a91941268f8fc0d5a85f09a2ce73f4682",
+			"description of skill": "sha256:4f37fe8386707df1582249aef8339403374378a2c682c3efe94f3c07a77019be",
+			"description of skillify": "sha256:93fa80f46bd34a259ca59f6712216974b4fe34ce8086215dd942f8466325652f",
+			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
+		},
+		"sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3": {
+			"description": "sha256:f2c967df4b151f7a5a120861283b08c4f18a5ca07cbf77224de7a27860c11faa",
 			"description of asset": "sha256:10f8334e9b33528b24e12378edbcec4768483ba1c028d294c250488ab8fc6374",
 			"description of dependency": "sha256:aff6912a6546accf666e497aa540c84b2c17c7388e528af8576ff43dfe6fcd80",
 			"description of instruction": "sha256:fc877c92ef91713c2af2e46f055b84b141975e467b5a49e43e12276cfa3547d6",

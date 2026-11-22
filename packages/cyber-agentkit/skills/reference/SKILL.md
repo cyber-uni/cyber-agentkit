@@ -1,6 +1,6 @@
 ---
 name: reference
-description: Load, create, customize, update, delete, migrate, find, inspect, or register a reference document. A reference is a document agents read by name (Markdown or a JSON, YAML, TOML, or text file), layered across the plugin, user, repo, and managed tiers, so also explain why a reference resolved as it did or change what the repo's copy says. Also wire a skill to load one, or migrate reference files left in a version 1 form, or under a name a plugin renamed, as a `reference-legacy-format` or `reference-renamed` warning asks.
+description: Load, create, customize, update, delete, migrate, find, inspect, or register a reference document. A reference is a document agents read by name (Markdown or a JSON, YAML, TOML, or text file), layered across the plugin, user, repo, and managed tiers, so also explain why a reference resolved as it did or change what the repo's copy says. Also wire a skill to load one, or migrate reference files left in a version 1 form, or under a name a plugin renamed, as a `reference-legacy-format` or `reference-renamed` warning asks. Also examine whether the system here, such as a GitLab, matches its capability reference, as `/reference doctor`.
 ---
 
 # Reference
@@ -32,6 +32,7 @@ Each contribution applies with its `merge`: `patch` (the default) replaces the t
 | make a skill load a reference | [Wire a skill](#wire-a-skill) |
 | find what text an agent reads (a skill folder, an `AGENTS.md`, an agent definition, a command file) hard-codes that could move into references, or list the references it loads | [Advise](#advise) |
 | make an interface discoverable in the public registry, or check whether one like it is registered | [Register](#register) |
+| examine the system a capability reference (`<system>.capabilities`) describes: does the system here match what it says, before updating Verified or after a step failed, as `/reference doctor <name>` | [Doctor](#doctor) |
 
 Ask only when the request fits two modes. Otherwise pick one; outside Load, say which. Invoked as `/reference` with no request, run `list` from [Find](#find) and ask what to do with one.
 
@@ -148,9 +149,13 @@ Registering makes an interface discoverable in the public registry. It is option
 4. With no near matches left, it shows the `route` it would take (`pull-request` or `issue`), `why`, and the `entry`. Show all three and ask. Opening an issue or a pull request is an outward action: run with `--yes` for the default route, or `--as issue` / `--as pull-request`, only on the user's explicit yes. With no user present, open nothing.
 5. Report the `url` it gives. When `recorded` is `false` with a `url`, the GitHub tool is signed out: give the user that page to file the issue.
 
+## Doctor
+
+Load [references/doctor.md](references/doctor.md) from this skill's folder and follow it. `check` examines a reference as written; Doctor examines the system it describes, as it runs here.
+
 ## Rules
 
-- **Only Create, Update, Customize, Delete, and Migrate write.** Load writes only a pick the user made for an ambiguous name. Find, Inspect, Audit, Register, and Wire a skill change no reference file. Register opens an issue or a pull request only on the user's explicit yes.
+- **Only Create, Update, Customize, Delete, and Migrate write.** Load writes only a pick the user made for an ambiguous name. Find, Inspect, Audit, Register, Wire a skill, and Doctor change no reference file. Doctor changes no file at all, and runs only the reading commands a capability reference's Detect names, after showing them. Register opens an issue or a pull request only on the user's explicit yes.
 - **Never edit, move, rename, or delete a reference an installed plugin or skill ships, or a managed one, not even to migrate it.** Customize it instead. Its callers load it by name.
 - **Never edit a generated document by hand.** Customize it again with its request.
 - **Write only what the user approves.** Show the file and its path before you write or delete it. A request to create a reference from text the user gives is its approval: write it, then show the file and its path. With no user present, write nothing.
@@ -165,3 +170,6 @@ Before reporting done, check each of these against the result. Report any that f
 - **C4.** After a write, `load <name> --trace` reports the written file as `used`, or names what hides it.
 - **C5.** A written reference that declares `implements`, or is named `<system>.capabilities`, passes `check <name>`.
 - **C6.** A Load, Find, or Inspect answer matches what the `reference` command printed. A search that matched nothing says so and names no reference.
+- **C7.** Doctor changed no file, and on a name that is not a capability reference stopped with an error before running anything.
+- **C8.** The doctor's report gives the version or tier found, or that the system was not detected; each feature whose version line or mark disagrees with it; and the Verified entry that covers it, or that none does.
+- **C9.** When a step failed while following a blueprint, the reply named the blueprint and its capability reference, and offered the doctor, a report to the author, and a patch for this repository, making none of them.

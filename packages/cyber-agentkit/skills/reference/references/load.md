@@ -76,6 +76,18 @@ Within a resolved reference, the project section for the folder the work is in r
 
 Follow a project section whenever your work is in its folder. When the work moves into a folder partway through the task, follow that folder's project section from then on, without loading again. Stop following it when the work leaves the folder.
 
+## When a step fails while following a blueprint
+
+A blueprint is an implementation of an interface whose id ends `.blueprints`, named `<id>.<system>.<solution>`. Its capability reference is `<system>.capabilities`, where `<system>` is the one segment right after `.blueprints.` in its name: `project-tracker.blueprints.gitlab.issues` builds on `gitlab.capabilities`. When a step of the caller fails while it follows a blueprint, do not guess whether the system or the reference is wrong. Tell the user:
+
+1. the step that failed, the blueprint it followed, and that blueprint's capability reference;
+2. the offers, one line each, and wait for a pick:
+   - **Examine the system:** run `/reference doctor <system>.capabilities`, the `reference` skill's Doctor mode. It runs that reference's Detect, reports where this system disagrees with it, and changes no file.
+   - **Report to the author:** open an issue at the repository the capability reference's plugin names in its manifest, with the doctor's report as the body, and the failed step and its error after it. The Doctor mode says how to find the repository; when the manifest names none, say whom to tell and give no link. Open it only on the user's yes.
+   - **Patch it here, as a stopgap:** customize the capability reference for this repository with the `reference` skill's Customize mode, marking what this system lacks `**Unsupported.**`, so every blueprint that needs it warns when loaded here.
+
+Make none of these yourself, and do not retry the step on another system's commands.
+
 ## Implementations of an interface
 
 1. Run:
@@ -99,3 +111,4 @@ Before returning to the caller:
 - Every warning was passed on, one line each.
 - No `npx`, `pnpm dlx`, `upx`, or download was run.
 - No file under a tier folder, and no path an invalid name gives, was read by you.
+- When a step failed while following a blueprint, the user was told the blueprint and its capability reference, and offered the doctor, a report to the author, and a patch for this repository.
