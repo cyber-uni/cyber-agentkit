@@ -103,6 +103,24 @@ describe('estimateTest per case (#394)', () => {
 	})
 })
 
+describe('estimateTest within both halves of the budget (#394)', () => {
+	it('is over when the runs exceed the budget, however cheap they are', () => {
+		// 15 outcome cases × 2 × 3 = 90 runs, under a cost budget that is large enough.
+		const estimate = estimateTest('s', plan(15, 0), undefined, 'claude-code', { cost: 100, runs: 60 })
+		expect(estimate).toMatchObject({ runs: 90, within: false })
+		expect(estimate.line).toContain('Test budget: over')
+		expect(estimateTest('s', plan(39, 0), undefined, 'claude-code', { cost: 1000, runs: 60 }).within).toBe(false)
+	})
+
+	it('is over when the cost exceeds the budget with few runs', () => {
+		expect(estimateTest('s', plan(1, 0), undefined, 'claude-code', { cost: 0.5, runs: 60 }).within).toBe(false)
+	})
+
+	it('is within only when both halves fit', () => {
+		expect(estimateTest('s', plan(10, 0), undefined, 'claude-code', { cost: 100, runs: 60 }).within).toBe(true)
+	})
+})
+
 describe('parseTestBudget (#238)', () => {
 	it('reads the cost and run count under the test budget heading', () => {
 		expect(parseTestBudget('## create\n\napply\n\n## test budget\n\n$0.01 or 1 runs\n')).toEqual({

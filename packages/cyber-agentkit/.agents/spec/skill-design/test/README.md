@@ -209,7 +209,8 @@ contract apply here; IDs are shared across the parent and its children. Retired 
   report and the progress say the limit was reached, when it resets when the message says, and which runs are left.
   The messages recognized are kept in one list that more can be added to.
 - R166 (UC1, UC6.23; E2): Before any run, `test` estimates the runs and their cost against the test budget, whichever
-  command starts it. Over the budget, no run starts, and the run stops with the Stop outcome R167 states; the decision
+  command starts it. The test is within the budget only when both its cost and its run count are; a test that is over
+  either one is over the budget. Over the budget, no run starts, and the run stops with the Stop outcome R167 states; the decision
   gives the run count and the estimate, and offers to run every case, to run some cases, or not to run.
 - R168 (UC6.24): The sandbox each run takes is held as data, in named templates that a setting may be changed over.
   The default template is the full sandbox of R23 and R157. The folder-only template runs the agent's shell commands,

@@ -47,7 +47,7 @@ export type TestEstimate = {
 	/** The last saved result, when there is one: how many runs it made, what they cost, and how long they took. */
 	last?: { runs?: number; cost?: number; durationMs?: number }
 	budget: TestBudget & { from: BudgetSource }
-	/** The estimate is at or under the budget's cost, or, with no cost known, the run count at or under its runs. */
+	/** The estimate is at or under the budget's cost, when one is known, and the run count is at or under its runs. */
 	within: boolean
 	/** The line a skill reports as printed: `Test budget: <within|over> (<runs> runs, <estimate>; budget <cost> or <runs> runs)`. */
 	line: string
@@ -57,7 +57,8 @@ export type TestEstimate = {
  * Estimates what `skill test` will cost before any run (#214). Each planned case's runs cost what its expected entry
  * recorded per arm (#394). A run with no recorded cost, and a plan whose cases record none, take the price of a saved
  * result that records its cost and run count, that cost over the runs it made; otherwise the harness's default per-run
- * cost. With none of these no cost is known and the run count is held to the budget.
+ * cost. With none of these no cost is known. The test is within the budget only when both the estimate and the run
+ * count are.
  */
 export function estimateTest(
 	skill: string,
@@ -104,7 +105,7 @@ export function estimateTest(
 				...(last.durationMs ? { durationMs: last.durationMs } : {}),
 			}
 		: undefined
-	const within = rounded === null ? runs <= budget.runs : rounded <= budget.cost
+	const within = runs <= budget.runs && (rounded === null || rounded <= budget.cost)
 	const cost = rounded === null ? 'no cost known' : `$${rounded.toFixed(2)}`
 	const unset = from === 'default' ? '; no budget configured, default used' : ''
 	return {
