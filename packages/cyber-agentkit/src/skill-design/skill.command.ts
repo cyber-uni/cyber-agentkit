@@ -24,7 +24,7 @@ import {
 } from './attestation.js'
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
-import { addCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
+import { addCase, addTriggerCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
 import { type EvalReport, readEvalReport, reportMarkdown, skillCriteria } from './eval-report.js'
 import {
 	clearKnownFailure,
@@ -549,7 +549,7 @@ function testCommand({
 			},
 			case: {
 				description:
-					'Run only the case with this ID, an outcome case ID or `trigger-<n>`; repeat it for more. The result is marked partial, is compared for those cases only, and is never saved as the expected result.',
+					"Run only the case with this ID: a case's own `id`, or `trigger-<n>` for the nth trigger case when it has none; repeat it for more. The result is marked partial, is compared for those cases only, and is never saved as the expected result.",
 				type: t.array(t.string()).optional(),
 			},
 			'trust-scripts': {
@@ -1062,13 +1062,13 @@ function failsCommand(_options: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'fails',
 		description:
-			"List, add, or clear the marks of the eval cases known to fail, as `it.fails` marks a test. A mark is the case's `fails` in `evals/evals.yaml`, with the reason: a trigger case's (`trigger-<n>`) takes no criterion, an outcome case's names one of the criteria it tests. `skill test` judges a mark at the same threshold as a pass: below it, a known failure, which exits 0; at or above it, `fixed?`, which exits 1 until the mark is cleared. Marking one already marked replaces its reason. The edit keeps every comment and the layout of the rest of the file. Only the skill's author marks a known failure, with a reason; an agent never adds one to make a test pass.",
+			"List, add, or clear the marks of the eval cases known to fail, as `it.fails` marks a test. A mark is the case's `fails` in `evals/evals.yaml`, with the reason: a trigger case's takes no criterion, an outcome case's names one of the criteria it tests. `skill test` judges a mark at the same threshold as a pass: below it, a known failure, which exits 0; at or above it, `fixed?`, which exits 1 until the mark is cleared. Marking one already marked replaces its reason. The edit keeps every comment and the layout of the rest of the file. Only the skill's author marks a known failure, with a reason; an agent never adds one to make a test pass.",
 		arguments: [
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
 			{
 				name: 'case',
 				description:
-					"The case to mark or clear: an outcome case's ID, or `trigger-<n>` for the nth trigger case. Leave it out to list every mark.",
+					"The case to mark or clear, by its ID: a case's own `id`, or `trigger-<n>` for the nth trigger case when it has none. Leave it out to list every mark.",
 				type: t.string().optional(),
 			},
 			{
@@ -1481,7 +1481,7 @@ function triedText(tried: TriedSetup): string {
 function caseFailure(failed: { code: string; problem: string }): never {
 	process.stderr.write(`error: ${failed.code}: ${failed.problem}\n`)
 	throw CliError.reported(
-		['bad-case-id', 'bad-criterion', 'bad-check', 'outside-evals'].includes(failed.code)
+		['bad-case-id', 'bad-criterion', 'bad-check', 'bad-expect', 'outside-evals'].includes(failed.code)
 			? exitCodes.usage
 			: exitCodes.error,
 	)
@@ -1499,17 +1499,23 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 	const add = command({
 		name: 'add',
 		description:
-			"Add an outcome case to a skill: its entry in `evals/evals.yaml`, its files folder `evals/files/<case>/`, and with `--setup` a setup script `evals/setup/<case>.sh` that each run runs before the model starts, or with `--from` a copy of another case's. The entry goes after the last case, and every other entry keeps its formatting. Touches nothing outside the skill's `evals/` folder, and changes nothing when the case exists.",
+			"Add an outcome case to a skill: its entry in `evals/evals.yaml`, its files folder `evals/files/<case>/`, and with `--setup` a setup script `evals/setup/<case>.sh` that each run runs before the model starts, or with `--from` a copy of another case's. With `--expect`, add a trigger case instead: only its entry, with its ID. The entry goes after the last case of its kind, and every other entry keeps its formatting. Touches nothing outside the skill's `evals/` folder, and changes nothing when a case of that ID exists.",
 		arguments: [
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() },
 			{
 				name: 'case',
-				description: "The case's ID: letters, digits, '.', '_', and '-'. It names its files folder and setup script.",
+				description:
+					"The case's ID, unique in the skill: letters, digits, '.', '_', and '-', not `trigger-<n>`. It names an outcome case's files folder and setup script.",
 				type: t.string(),
 			},
 		],
 		options: {
 			prompt: { description: "The case's request, as a user would type it.", type: t.string() },
+			expect: {
+				description:
+					'Add a trigger case that expects the skill to `fire` or `skip` on the prompt, instead of an outcome case. It takes none of the other options.',
+				type: t.string().optional(),
+			},
 			setup: {
 				description:
 					'Also scaffold a setup script, for a case that needs a state plain files cannot hold, such as git history. With it, no files folder is made unless `--files` is given too.',
@@ -1555,6 +1561,11 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 					"cyber-agentkit skill case add .agents/skills/commit red-check-amend --prompt 'amend the last commit' --from red-check",
 				description: "Add a case that starts from another case's setup script",
 			},
+			{
+				command:
+					"cyber-agentkit skill case add .agents/skills/release-notes changelog-v2 --prompt 'draft the changelog for v2' --expect fire",
+				description: 'Add a trigger case with its own ID',
+			},
 		],
 		async run(
 			this: { format: Format },
@@ -1562,6 +1573,7 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 				folder: string
 				case: string
 				prompt: string
+				expect?: string | undefined
 				setup?: boolean | undefined
 				files?: boolean | undefined
 				from?: string | undefined
@@ -1570,6 +1582,24 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 			},
 		) {
 			const skill = skillOf(args.folder)
+			if (args.expect !== undefined) {
+				if (args.expect !== 'fire' && args.expect !== 'skip')
+					caseFailure({
+						code: 'bad-expect',
+						problem: `--expect ${JSON.stringify(args.expect)} is not \`fire\` or \`skip\``,
+					})
+				const outcomeOnly = (['setup', 'files', 'from', 'criteria', 'check'] as const).filter(
+					(name) => args[name] !== undefined,
+				)
+				if (outcomeOnly.length)
+					caseFailure({
+						code: 'bad-expect',
+						problem: `a trigger case takes no ${outcomeOnly.map((name) => `--${name}`).join(', ')}; those are for an outcome case`,
+					})
+				const added = addTriggerCase(skill.folder, args.case, { prompt: args.prompt, expect: args.expect })
+				if ('problem' in added) caseFailure(added)
+				return result(added, { render: { text: () => caseText('added', added) } })
+			}
 			const checks: CaseCheck[] = []
 			for (const given of args.check ?? []) {
 				const at = given.indexOf('=')

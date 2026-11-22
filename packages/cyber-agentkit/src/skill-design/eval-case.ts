@@ -1,11 +1,18 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { Document, isMap, isSeq, parseDocument, type YAMLMap, type YAMLSeq } from 'yaml'
-import { evalsProblems } from './verification-checks.js'
+import {
+	caseIdPattern,
+	type EvalsFile,
+	evalsProblems,
+	positionalTriggerId,
+	triggerCaseId,
+} from './verification-checks.js'
 
 /**
- * `skill case`: adds and removes one outcome case of a skill, its files and its `evals/evals.yaml` entry, so no one
- * deletes or rewrites case folders by shell (R159). It never touches a path outside the skill's `evals/` folder.
+ * `skill case`: adds and removes one outcome case of a skill, its files and its `evals/evals.yaml` entry, and adds a
+ * trigger case, so no one deletes or rewrites case folders by shell (R159). Every case it adds carries an ID. It never
+ * touches a path outside the skill's `evals/` folder.
  */
 
 /** Why a case command changed nothing. */
@@ -27,19 +34,25 @@ export type CaseChange = {
 	paths: string[]
 }
 
-/** A case ID names its files folder and setup script, so it is one plain path segment; `trigger-<n>` names trigger cases. */
-const caseId = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
-
 function idProblem(id: string): { code: 'bad-case-id'; problem: string } | undefined {
-	if (!caseId.test(id) || id.includes('..'))
+	if (!caseIdPattern.test(id) || id.includes('..'))
 		return {
 			code: 'bad-case-id',
 			problem: `${JSON.stringify(id)} is not a case ID: use letters, digits, '.', '_', and '-', starting with a letter or digit`,
 		}
-	if (/^trigger-\d+$/.test(id))
-		return { code: 'bad-case-id', problem: `${id} names a trigger case; give an outcome case another ID` }
+	if (positionalTriggerId.test(id))
+		return {
+			code: 'bad-case-id',
+			problem: `${id} is the form a trigger case with no \`id\` takes from its place; give the case another ID`,
+		}
 	return undefined
 }
+
+/** Every case ID of an `evals/evals.yaml` value (R175): trigger cases by their own or positional ID, then outcome cases. */
+const caseIds = (value: EvalsFile) => [
+	...(value.trigger ?? []).map((item, index) => triggerCaseId(item, index)),
+	...(value.outcome ?? []).map((item) => item.id),
+]
 
 /** Whether `path` is strictly inside `root`, following links of the parts that exist. */
 function strictlyInside(root: string, path: string): boolean {
@@ -119,16 +132,21 @@ export function inPlace(expected: unknown, edited: string | undefined): string |
 	return !read.errors.length && JSON.stringify(read.toJS()) === JSON.stringify(expected) ? edited : undefined
 }
 
-/** The text with `entry` added after the last outcome case, or a new `outcome` list at the end. */
-function addedText(source: string, doc: ReturnType<typeof parseDocument>, entry: Record<string, unknown>) {
-	const outcome = doc.get('outcome', true)
-	if (outcome === undefined) {
+/** The text with `entry` added after the last case of the `list`, or a new list at the end. */
+function addedText(
+	source: string,
+	doc: ReturnType<typeof parseDocument>,
+	entry: Record<string, unknown>,
+	list: 'trigger' | 'outcome' = 'outcome',
+) {
+	const cases = doc.get(list, true)
+	if (cases === undefined) {
 		if (!isMap(doc.contents) && doc.contents !== null) return undefined
 		const head = source === '' || source.endsWith('\n') ? source : `${source}\n`
-		return `${head}outcome:\n${entryText(entry, 2)}`
+		return `${head}${list}:\n${entryText(entry, 2)}`
 	}
-	if (!isSeq(outcome) || outcome.flow || !outcome.items.length) return undefined
-	const last = outcome.items[outcome.items.length - 1] as YAMLMap
+	if (!isSeq(cases) || cases.flow || !cases.items.length) return undefined
+	const last = cases.items[cases.items.length - 1] as YAMLMap
 	const column = dashColumn(source, last)
 	if (column === undefined || !last.range) return undefined
 	const at = nextLine(source, last.range[2])
@@ -211,9 +229,8 @@ export function addCase(
 	const read = readEvals(skillFolder)
 	if ('problem' in read) return read.problem
 	const { file, source, doc } = read
-	const before = (doc.toJS() ?? {}) as { outcome?: { id?: string; files?: string; setup?: string }[] }
-	if ((before.outcome ?? []).some((item) => item.id === id))
-		return { code: 'case-exists', problem: `evals/evals.yaml already has a case ${id}` }
+	const before = (doc.toJS() ?? {}) as EvalsFile
+	if (caseIds(before).includes(id)) return { code: 'case-exists', problem: `evals/evals.yaml already has a case ${id}` }
 	const evals = join(skillFolder, 'evals')
 	const origin = from === undefined ? undefined : (before.outcome ?? []).find((item) => item.id === from)
 	if (from !== undefined && !origin)
@@ -280,6 +297,39 @@ export function addCase(
 	mkdirSync(evals, { recursive: true })
 	writeFileSync(file, text)
 	return { skill: skillFolder, case: id, evals: file, paths }
+}
+
+/**
+ * Adds a trigger case: its entry in `evals/evals.yaml` (made when missing), with its ID (R159, R175), after the last
+ * trigger case in the file's own text, so no other entry is rewritten. Changes nothing when the ID is taken or not a
+ * plain name.
+ */
+export function addTriggerCase(
+	skillFolder: string,
+	id: string,
+	{ prompt, expect }: { prompt: string; expect: 'fire' | 'skip' },
+): CaseChange | { code: CaseProblemCode; problem: string } {
+	const bad = idProblem(id)
+	if (bad) return bad
+	const read = readEvals(skillFolder)
+	if ('problem' in read) return read.problem
+	const { file, source, doc } = read
+	const before = (doc.toJS() ?? {}) as EvalsFile
+	if (caseIds(before).includes(id)) return { code: 'case-exists', problem: `evals/evals.yaml already has a case ${id}` }
+	const entry = { id, prompt, expect }
+	const expected = { ...before, trigger: [...(before.trigger ?? []), entry] }
+	const problems = evalsProblems(expected)
+	if (problems.length) return { code: 'evals-invalid', problem: `the new case: ${problems.join('; ')}` }
+	const text =
+		inPlace(expected, addedText(source, doc, entry, 'trigger')) ??
+		(() => {
+			if (!isMap(doc.contents)) doc.contents = doc.createNode({}) as never
+			doc.set('trigger', doc.createNode(expected.trigger))
+			return doc.toString()
+		})()
+	mkdirSync(join(skillFolder, 'evals'), { recursive: true })
+	writeFileSync(file, text)
+	return { skill: skillFolder, case: id, evals: file, paths: [] }
 }
 
 /**

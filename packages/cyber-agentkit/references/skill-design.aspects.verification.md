@@ -23,7 +23,8 @@ instructions make the model do: whether it triggers, what it does, and what it r
    when the skill's own description rules it out. Which skill takes a request depends on every skill installed, and a
    test loads only a few, so a case that passes only when another skill takes the request tests the sandbox, not the
    skill. A test shows that a skill fires where it should not; it cannot show that it never does. A name-only skill (see `/skill`'s Trigger)
-   is never matched to a request, so write only the near misses for it, as `skip` cases.
+   is never matched to a request, so write only the near misses for it, as `skip` cases. Give each its own `id`, and
+   add it with `skill case add <skill folder> <case id> --prompt <request> --expect fire` (or `skip`).
 2. **Outcome cases.** Write at least one case per criterion, and list each criterion in the `criteria` of at least one
    case: a request and the files it works on. Put the files under
    `evals/files/<case id>/`. Use small, made-up inputs; never copy private data into a case. Add and remove a case with
@@ -75,11 +76,14 @@ threshold: 2       # runs a criterion must pass out of `runs`; optional
 timeout: 300       # seconds one run may take; optional, 300 by default
 concurrency: 4     # runs at once; optional; below half the hardware threads by default, never above it
 trigger:
-  - prompt: write release notes for the last release
+  - id: last-release        # names the case; unique in the skill
+    prompt: write release notes for the last release
     expect: fire
-  - prompt: summarize this pull request for a reviewer
+  - id: summarize-pr
+    prompt: summarize this pull request for a reviewer
     expect: skip
-  - prompt: draft the changelog for v2
+  - id: changelog-v2
+    prompt: draft the changelog for v2
     expect: fire
     fails: "the description misses 'changelog' (#340)"  # optional; known to fail, with the reason
 outcome:
@@ -105,6 +109,11 @@ rubrics:
   C3:
     - judge: Pass when every pull request title in the input appears exactly once.
 ```
+
+Every case has an ID that is unique in the skill, and the expected result, the result history, `--case`, and a
+known-failure mark all name a case by it, never by its place. An outcome case's `id` is required. A trigger case's
+`id` is optional: one with none is `trigger-<n>`, its place in the list, so adding or moving a case renames the ones
+after it, and VER-17 warns. An `id` is letters, digits, `.`, `_`, and `-`, and never takes the `trigger-<n>` form.
 
 A case's `setup` names a script, relative to `evals/`, that each run runs in its folder, in both arms and on both
 backends, after the case's files are committed and before the model starts, so the model starts from the state it
@@ -152,7 +161,7 @@ still exits 0; at or above it, `test` reports `fixed? remove the mark` with the 
 fix is noticed and no mark outlives its failure. A known failure never counts as a pass: a result with one is never
 saved as the first expected result, and `report` shows it with its reason, never as a pass rate. `skill fails <folder>`
 lists every mark; `skill fails <folder> <case> [<criterion>] --reason "<text or link>"` adds one or replaces its reason,
-and `--clear` clears it, keeping the file's comments and layout. A trigger case is `trigger-<n>`. Only the skill's author
+and `--clear` clears it, keeping the file's comments and layout. A trigger case is named by its `id`, or `trigger-<n>` when it has none. Only the skill's author
 marks a known failure, when they ask for one, with the reason; an agent never adds one to make a test pass or to clear a
 check.
 
@@ -249,7 +258,7 @@ say so before the first run in a session.
 - Each case runs twice over: once with the skill and once without it, which is the baseline.
 - At most `concurrency` runs go at once: by default the largest number below half the machine's hardware threads (7 of
   16), and at least 1. A larger `concurrency` is lowered to that.
-- `skill test <folder> --case <id>` (repeatable) runs only the named cases, outcome IDs or `trigger-<n>`. The result is
+- `skill test <folder> --case <id>` (repeatable) runs only the named cases, by ID: a case's `id`, or `trigger-<n>` for a trigger case with none. The result is
   marked partial, is compared with the expected result for those cases only, and is never saved as the expected result.
 - A run stops after `timeout` seconds (300 by default, set in `evals.yaml`); its Claude process and the shells and commands it started are killed, and it counts as not run with the reason `time limit`. A process stuck in uninterruptible disk sleep cannot be killed; the test stops waiting for it and goes on.
 - A run that errors or hits its time or token limit counts as not run, never as a pass.
@@ -321,6 +330,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   `evals/expected.json` names a Criteria ID, and none is stale: each was recorded on the skill's current `SKILL.md` and `references/`.
 - **VER-16** [script, warning] No case or criterion is marked known to fail; the warning lists every mark with its reason,
   so none is forgotten.
+- **VER-17** [script, warning] Every trigger case has its own `id`; the warning names each one with none by its
+  `trigger-<n>`.
 
 ## Fix
 
@@ -345,6 +356,9 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   evidence; never record it for them.
 - VER-16: leave the mark while the failure is known; fix the skill, and once `test` reports `fixed?`, ask the author
   whether to clear it. Never clear a mark, or add one, on your own judgment.
+- VER-17: give each trigger case an `id` that names what it asks, such as `changelog-v2`. Its expected result and
+  history are under `trigger-<n>`, so the case reads as new until the next accepted run; move a known-failure mark
+  with it.
 
 ## Enhance
 

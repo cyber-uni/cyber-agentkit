@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { byId, goodEvals, goodSkill, goodSkillMd, makeSkill, routerSkillFiles } from './skill-design.fixtures.js'
+import {
+	byId,
+	goodEvals,
+	goodSkill,
+	goodSkillMd,
+	makeSkill,
+	namedEvals,
+	routerSkillFiles,
+} from './skill-design.fixtures.js'
 import { checkVerification, evalsProblems, gitWriteLines } from './verification-checks.js'
 
 describe('checkVerification', () => {
 	it('passes a complete evals file', () => {
-		expect(checkVerification(goodSkill()).map((outcome) => outcome.status)).toEqual([
+		expect(checkVerification(goodSkill({ 'evals/evals.yaml': namedEvals })).map((outcome) => outcome.status)).toEqual([
+			'pass',
 			'pass',
 			'pass',
 			'pass',
@@ -273,5 +282,49 @@ describe('checkVerification', () => {
 		expect(
 			byId(checkVerification(makeSkill({ ...routerSkillFiles, 'references/review.md': review })))['VER-3'],
 		).toMatchObject({ status: 'fail', message: 'rubric C3 names no criterion' })
+	})
+})
+
+describe('trigger case IDs (R175, R186)', () => {
+	it('warns VER-17 on each trigger case with no `id`, naming it by place', () => {
+		const one = namedEvals.replace('id: skip-2, ', '')
+		expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': one })))['VER-17']).toEqual({
+			id: 'VER-17',
+			status: 'fail',
+			message: '1 trigger case has no `id` and is named by place: trigger-5',
+			file: 'evals/evals.yaml',
+		})
+		expect(byId(checkVerification(goodSkill()))['VER-17']).toMatchObject({
+			status: 'fail',
+			message: expect.stringContaining('6 trigger cases have no `id`'),
+		})
+		expect(byId(checkVerification(goodSkill({ 'evals/evals.yaml': namedEvals })))['VER-17']).toEqual({
+			id: 'VER-17',
+			status: 'pass',
+		})
+	})
+
+	it('rejects a trigger `id` that is not a plain case ID or takes the positional form', () => {
+		expect(evalsProblems({ trigger: [{ id: 'a/b', prompt: 'p', expect: 'fire' }] })).toEqual([
+			"trigger case 1: `id` \"a/b\" is not a case ID: use letters, digits, '.', '_', and '-', starting with a letter or digit",
+		])
+		expect(evalsProblems({ trigger: [{ id: 'trigger-2', prompt: 'p', expect: 'fire' }] })).toEqual([
+			'trigger case 1: `id` trigger-2 takes the form a trigger case with no `id` is given from its place; pick another',
+		])
+	})
+
+	it('rejects an ID that names more than one case, a positional one included', () => {
+		expect(
+			evalsProblems({
+				trigger: [
+					{ id: 'notes', prompt: 'p', expect: 'fire' },
+					{ prompt: 'q', expect: 'skip' },
+				],
+				outcome: [
+					{ id: 'notes', prompt: 'r' },
+					{ id: 'trigger-2', prompt: 's' },
+				],
+			}),
+		).toEqual(['case IDs notes, trigger-2 each name more than one case; give each case its own'])
 	})
 })

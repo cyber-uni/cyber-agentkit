@@ -3,7 +3,7 @@ import { availableParallelism } from 'node:os'
 import { join, resolve } from 'node:path'
 import { parse } from 'yaml'
 import { criteriaItems, type SkillFiles } from './skill-files.js'
-import { type EvalsFile, evalsProblems, failsProblems } from './verification-checks.js'
+import { type EvalsFile, evalsProblems, failsProblems, triggerCaseId } from './verification-checks.js'
 
 export const defaultRuns = 3
 export const defaultThreshold = 2
@@ -185,7 +185,7 @@ export function planEvals(
 	const notRun: TestPlan['notRun'] = []
 	;(evals.trigger ?? []).forEach((item, index) => {
 		cases.push({
-			id: `trigger-${index + 1}`,
+			id: triggerCaseId(item, index),
 			kind: 'trigger',
 			prompt: item.prompt,
 			expect: item.expect,

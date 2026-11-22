@@ -183,3 +183,43 @@ describe('setup scripts in the plan (R155, R158)', () => {
 		expect(planned).toMatchObject({ code: 'evals-invalid', problem: expect.stringContaining('`setup` is not a path') })
 	})
 })
+
+describe('trigger case IDs in the plan (R175)', () => {
+	const named = `trigger:
+  - { id: notes, prompt: write release notes, expect: fire }
+  - { prompt: review my diff, expect: skip }
+  - { id: commit, prompt: write a commit message, expect: skip }
+outcome:
+  - { id: two-prs, prompt: write the notes, files: files/two-prs }
+rubrics:
+  C1:
+    - contains: "## Release notes"
+  C2:
+    - not-regex: "Merge (pull request|branch)"
+`
+	const ids = (evals: string, options: Parameters<typeof planTest>[1] = {}) => {
+		const result = planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': evals }), options)
+		if (!('plan' in result)) throw new Error(result.problem)
+		return result.plan.cases.map((item) => item.id)
+	}
+
+	it('names a trigger case by its own `id`, and one with none by its place', () => {
+		expect(ids(named)).toEqual(['notes', 'trigger-2', 'commit', 'two-prs'])
+	})
+
+	it('keeps every named case its ID when a case is inserted before it', () => {
+		const inserted = named.replace(
+			'  - { id: notes,',
+			'  - { id: changelog, prompt: draft the changelog, expect: fire }\n  - { id: notes,',
+		)
+		expect(ids(inserted)).toEqual(['changelog', 'notes', 'trigger-3', 'commit', 'two-prs'])
+	})
+
+	it('runs a trigger case named by its own `id`, and refuses the place it holds', () => {
+		expect(ids(named, { cases: ['commit'] })).toEqual(['commit'])
+		const result = planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': named }), {
+			cases: ['trigger-3'],
+		})
+		expect(result).toMatchObject({ code: 'unknown-case' })
+	})
+})

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
-import { addCase, removeCase } from './eval-case.js'
+import { addCase, addTriggerCase, removeCase } from './eval-case.js'
 import { goodSkill } from './skill-design.fixtures.js'
 
 const evalsOf = (folder: string) => readFileSync(join(folder, 'evals', 'evals.yaml'), 'utf8')
@@ -241,5 +241,51 @@ describe('removeCase (R159)', () => {
 			code: 'unknown-case',
 			problem: 'evals/evals.yaml has no outcome case nope; its cases are two-prs',
 		})
+	})
+})
+
+describe('addTriggerCase (R159, R175)', () => {
+	it('adds the trigger case with its ID after the last one, keeping the rest of the file', () => {
+		const source =
+			'# runs\nruns: 3\ntrigger:\n  - { prompt: write release notes, expect: fire }   # old\noutcome:\n  - { id: two-prs, prompt: write the notes, files: files/two-prs }\n'
+		const skill = goodSkill({ 'evals/evals.yaml': source })
+		expect(addTriggerCase(skill.folder, 'changelog', { prompt: 'draft the changelog', expect: 'fire' })).toEqual({
+			skill: skill.folder,
+			case: 'changelog',
+			evals: join(skill.folder, 'evals', 'evals.yaml'),
+			paths: [],
+		})
+		const text = evalsOf(skill.folder)
+		expect(text).toContain('# runs')
+		expect(text).toContain('expect: fire }   # old')
+		expect(parse(text).trigger).toEqual([
+			{ prompt: 'write release notes', expect: 'fire' },
+			{ id: 'changelog', prompt: 'draft the changelog', expect: 'fire' },
+		])
+		expect(existsSync(join(skill.folder, 'evals', 'files', 'changelog'))).toBe(false)
+	})
+
+	it('makes the trigger list when the file has none', () => {
+		const skill = goodSkill({ 'evals/evals.yaml': 'runs: 3\n' })
+		addTriggerCase(skill.folder, 'review', { prompt: 'review my diff', expect: 'skip' })
+		expect(parse(evalsOf(skill.folder)).trigger).toEqual([{ id: 'review', prompt: 'review my diff', expect: 'skip' }])
+	})
+
+	it('refuses an ID another case holds, a positional one included, or the positional form, changing nothing', () => {
+		const source =
+			'trigger:\n  - { prompt: write release notes, expect: fire }\noutcome:\n  - { id: two-prs, prompt: x }\n'
+		const skill = goodSkill({ 'evals/evals.yaml': source })
+		for (const id of ['two-prs', 'trigger-1'])
+			expect(addTriggerCase(skill.folder, id, { prompt: 'p', expect: 'fire' })).toMatchObject({
+				code: id === 'two-prs' ? 'case-exists' : 'bad-case-id',
+			})
+		expect(addTriggerCase(skill.folder, 'a/b', { prompt: 'p', expect: 'fire' })).toMatchObject({ code: 'bad-case-id' })
+		expect(addCase(skill.folder, 'trigger-1', { prompt: 'p' })).toMatchObject({ code: 'bad-case-id' })
+		expect(evalsOf(skill.folder)).toBe(source)
+	})
+
+	it('refuses an outcome case whose ID a trigger case holds', () => {
+		const skill = goodSkill({ 'evals/evals.yaml': 'trigger:\n  - { id: notes, prompt: p, expect: fire }\n' })
+		expect(addCase(skill.folder, 'notes', { prompt: 'q' })).toMatchObject({ code: 'case-exists' })
 	})
 })

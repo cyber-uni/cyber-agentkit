@@ -34,7 +34,7 @@ shell commands and scripts with no sandbox. When the test stops with `error: san
 When the test warns
 `untrusted-scripts:`, the skill is from outside this repository: name each script it lists to the author, and pass
 `--trust-scripts` only when the author has read them and says to run them. Never pass it on your own. To add or
-remove a case, use `skill case add` and `skill case remove`, never `rm` or a rewrite of a case folder in the shell.
+remove a case, use `skill case add` (with `--expect fire` or `skip` for a trigger case) and `skill case remove`, never `rm` or a rewrite of a case folder in the shell.
 
 A full test makes many runs and can take several minutes. Before starting, estimate it against the test budget as
 `SKILL.md`'s Autonomy says: within it, start without asking; over it, stop. A request that names the runs to make, such

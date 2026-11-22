@@ -13,7 +13,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parse } from 'yaml'
 import { run } from '../cli.js'
-import { goodSkill, goodSkillMd, makeSkill } from './skill-design.fixtures.js'
+import { goodSkill, goodSkillMd, makeSkill, namedSkill } from './skill-design.fixtures.js'
 
 const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
 const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
@@ -31,7 +31,7 @@ const longBody = (md: string) => md.replace('## Done when', `${'line\n'.repeat(5
 
 describe('skill check', () => {
 	it('exits 0 when no check it ran fails, and reports the rest as not checked', async () => {
-		const code = await check(goodSkill().folder)
+		const code = await check(namedSkill().folder)
 		const report = JSON.parse(printed())
 		expect(code).toBe(0)
 		expect(report).toMatchObject({ skill: 'release-notes', failed: 0, status: 'not-checked' })
@@ -57,7 +57,7 @@ describe('skill check', () => {
 	})
 
 	it('reports each failure with its severity, and exits 0 on warnings under the default policy', async () => {
-		const code = await check(goodSkill({ 'SKILL.md': longBody(goodSkillMd) }).folder)
+		const code = await check(namedSkill({ 'SKILL.md': longBody(goodSkillMd) }).folder)
 		const report = JSON.parse(printed())
 		expect(code).toBe(0)
 		expect(report).toMatchObject({ failed: 1, critical: 0 })
@@ -67,10 +67,10 @@ describe('skill check', () => {
 	})
 
 	it('exits 1 on a warning with --fail-on any, and on a critical failure under either policy', async () => {
-		expect(await check(goodSkill({ 'SKILL.md': longBody(goodSkillMd) }).folder, '--fail-on', 'any')).toBe(1)
+		expect(await check(namedSkill({ 'SKILL.md': longBody(goodSkillMd) }).folder, '--fail-on', 'any')).toBe(1)
 		const md = longBody(goodSkillMd.replace('name: release-notes', 'name: Wrong'))
-		expect(await check(goodSkill({ 'SKILL.md': md }).folder)).toBe(1)
-		expect(await check(goodSkill({ 'SKILL.md': md }).folder, '--fail-on', 'critical')).toBe(1)
+		expect(await check(namedSkill({ 'SKILL.md': md }).folder)).toBe(1)
+		expect(await check(namedSkill({ 'SKILL.md': md }).folder, '--fail-on', 'critical')).toBe(1)
 	})
 
 	it('shows the severity of each failure in the text report', async () => {
@@ -79,7 +79,7 @@ describe('skill check', () => {
 			'cyber-agentkit',
 			'skill',
 			'check',
-			goodSkill({ 'SKILL.md': longBody(goodSkillMd) }).folder,
+			namedSkill({ 'SKILL.md': longBody(goodSkillMd) }).folder,
 			'--format',
 			'text',
 		])
@@ -411,7 +411,7 @@ describe('skill check across a repository', () => {
 		const root = realpathSync(mkdtempSync(join(tmpdir(), 'skill-check-repo-')))
 		mkdirSync(join(root, '.git'))
 		for (const [folder, md] of Object.entries(skills)) {
-			const good = goodSkill({ 'SKILL.md': md })
+			const good = namedSkill({ 'SKILL.md': md })
 			cpSync(good.folder, join(root, folder), { recursive: true })
 		}
 		return root
@@ -506,6 +506,20 @@ describe('skill case (R159)', () => {
 		stdout.mockClear()
 		expect(await kase('add', skill.folder, 'more', '--prompt', 'b', '--from', 'base')).toBe(0)
 		expect(JSON.parse(printed())).toMatchObject({ case: 'more', paths: [join('evals', 'setup', 'more.sh')] })
+	})
+
+	it('adds a trigger case with its ID with --expect, and refuses an outcome option beside it (R175)', async () => {
+		const skill = goodSkill()
+		expect(await kase('add', skill.folder, 'changelog', '--prompt', 'draft the changelog', '--expect', 'fire')).toBe(0)
+		expect(JSON.parse(printed())).toMatchObject({ case: 'changelog', paths: [] })
+		expect(parse(readFileSync(join(skill.folder, 'evals', 'evals.yaml'), 'utf8')).trigger.at(-1)).toEqual({
+			id: 'changelog',
+			prompt: 'draft the changelog',
+			expect: 'fire',
+		})
+		expect(await kase('add', skill.folder, 'a', '--prompt', 'x', '--expect', 'maybe')).toBe(2)
+		expect(await kase('add', skill.folder, 'b', '--prompt', 'x', '--expect', 'skip', '--setup')).toBe(2)
+		expect(stderr.mock.calls.join('')).toContain('error: bad-expect: a trigger case takes no --setup')
 	})
 
 	it('refuses a --check that is not <ID>=<script>, as a usage error', async () => {
