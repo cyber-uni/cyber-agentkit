@@ -208,6 +208,13 @@ describe('the model in the report (R161)', () => {
 		expect(md({ ...result, model: 'default' } as TestResult)).toContain("The cases ran on the harness's default model.")
 	})
 
+	it('names the judge that graded the judge checks, and none when no judge ran (#357)', () => {
+		const judged = { ...result, judge: 'sonnet' } as TestResult
+		expect(md(judged)).toContain('A judge, `sonnet`, graded the `judge` checks.')
+		expect(evalReport('release-notes', judged)).toMatchObject({ judge: 'sonnet' })
+		expect(md(result)).not.toContain('A judge')
+	})
+
 	it('says nothing of a model a result did not record', () => {
 		expect(md(result)).not.toContain('ran on')
 	})

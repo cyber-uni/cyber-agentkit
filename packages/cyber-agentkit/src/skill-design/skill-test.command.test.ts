@@ -1325,6 +1325,69 @@ describe('skill test model (R161)', () => {
 		expect(cases).toMatchObject({ 'trigger-1': 'haiku', 'trigger-2': undefined, 'two-prs': 'claude-opus-5-5' })
 	})
 
+	const judgeEvals = () =>
+		goodEvals.replace('    - contains: "## Release notes"', '    - judge: Pass when it has notes.')
+	const judgeOf = (seen: Seen) =>
+		tests(seen)
+			.flatMap((item) => (item as unknown as { assert: { type: string; provider?: any }[] }).assert)
+			.find((check) => check.type === 'llm-rubric')
+
+	it("judges with Claude Code's mid-tier model when no judge is named, and the result names it (#357)", async () => {
+		const seen: Seen = {}
+		await test(goodSkill({ 'evals/evals.yaml': judgeEvals() }).folder, fakeRun(seen), repo())
+		expect(judgeOf(seen)?.provider.config.model).toBe('sonnet')
+		expect(latest().judge).toBe('sonnet')
+	})
+
+	it('judges on the harness the runs drive, on its own default when its tiers are not known, and says so (#357)', async () => {
+		const seen: Seen = {}
+		await test(goodSkill({ 'evals/evals.yaml': judgeEvals() }).folder, fakeRun(seen), repo(), '--harness', 'codex')
+		const judge = judgeOf(seen)?.provider
+		expect(judge.id).toMatch(/^file:\/\/.*provider\.mjs$/)
+		expect(judge.config).toMatchObject({ judge: true, harness: 'codex' })
+		expect(judge.config.model).toBeUndefined()
+		expect(errors()).toContain('warning: harness-default-judge: codex has no known mid-tier model')
+		expect(latest().judge).toBe('default')
+		const named: Seen = {}
+		await test(
+			goodSkill({ 'evals/evals.yaml': judgeEvals() }).folder,
+			fakeRun(named),
+			repo(),
+			'--harness',
+			'codex',
+			'--judge',
+			'gpt-x',
+		)
+		expect(judgeOf(named)?.provider.config.model).toBe('gpt-x')
+	})
+
+	it('takes a tier for --judge (#357)', async () => {
+		const seen: Seen = {}
+		await test(goodSkill({ 'evals/evals.yaml': judgeEvals() }).folder, fakeRun(seen), repo(), '--judge', 'top')
+		expect(judgeOf(seen)?.provider.config.model).toBe('opus')
+		expect(latest().judge).toBe('opus')
+	})
+
+	it('reports the criteria a judge would grade as not tested with --no-judge (#357)', async () => {
+		const seen: Seen = {}
+		await test(goodSkill({ 'evals/evals.yaml': judgeEvals() }).folder, fakeRun(seen), repo(), '--no-judge')
+		expect(judgeOf(seen)).toBeUndefined()
+		expect(latest().judge).toBeUndefined()
+		expect(latest().criteria.filter((item) => item.status === 'not-tested')).toContainEqual(
+			expect.objectContaining({ reason: 'it needs a judge, and the test ran with --no-judge' }),
+		)
+	})
+
+	it('refuses --judge with --no-judge (#357)', async () => {
+		expect(await test(goodSkill().folder, fakeRun({}), repo(), '--judge', 'opus', '--no-judge')).toBe(2)
+		expect(errors()).toContain('error: judge-conflict:')
+	})
+
+	it('names no judge when no case that runs has a judge check (#357)', async () => {
+		await test(goodSkill().folder, fakeRun({}), repo())
+		expect(latest().judge).toBeUndefined()
+	})
+
 	it('leaves the judge on --judge', async () => {
 		const evals = goodEvals.replace('    - contains: "## Release notes"', '    - judge: Pass when it has notes.')
 		const seen: Seen = {}

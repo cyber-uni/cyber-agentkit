@@ -1,0 +1,1 @@
+{ "name": "my-plugin", "dependencies": ["formatter@forge", "lintbot"] }

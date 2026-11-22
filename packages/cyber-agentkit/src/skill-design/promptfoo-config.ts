@@ -1,5 +1,5 @@
 import { sandboxFaults } from './sandbox-faults.js'
-import type { SkillTestHarness } from './skill-test-harness.js'
+import { harnessDefault, type SkillTestHarness } from './skill-test-harness.js'
 import type { TestPlan } from './test-plan.js'
 import type { SandboxSettings } from './test-sandbox.js'
 import { usageLimits } from './usage-limits.js'
@@ -109,6 +109,32 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 			inner: inner(options.model),
 		},
 	})
+	// The judge runs on the harness the runs drive (#357): Claude Code through the Agent SDK, another through its own CLI.
+	// `default` leaves the model to the harness.
+	const judgeModel = options.judge === harnessDefault ? undefined : options.judge
+	const judge =
+		options.harness.id === 'claude-code' || !options.harness.command
+			? {
+					id: 'anthropic:claude-agent-sdk',
+					config: {
+						...(judgeModel ? { model: judgeModel } : {}),
+						apiKeyRequired: false,
+						setting_sources: [],
+						max_turns: 2,
+					},
+				}
+			: {
+					id: `file://${options.provider}`,
+					label: 'judge',
+					config: {
+						judge: true,
+						harness: options.harness.id,
+						isolation: options.harness.isolation,
+						command: options.harness.command,
+						timeout: plan.timeout,
+						...(judgeModel ? { model: judgeModel } : {}),
+					},
+				}
 	const testOf = (item: TestPlan['cases'][number]) => {
 		const assert: Record<string, unknown>[] = []
 		if (item.kind === 'trigger') {
@@ -133,10 +159,7 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 				type: 'llm-rubric',
 				value: rubric,
 				metric: id,
-				provider: {
-					id: 'anthropic:claude-agent-sdk',
-					config: { model: options.judge, apiKeyRequired: false, setting_sources: [], max_turns: 2 },
-				},
+				provider: judge,
 			})
 		return {
 			description: item.id,

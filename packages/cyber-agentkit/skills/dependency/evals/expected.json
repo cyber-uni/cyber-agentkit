@@ -1,0 +1,214 @@
+{
+	"version": 1,
+	"skill": "dependency",
+	"at": "2026-11-22T11:56:34.956Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"model": "sonnet",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"trigger": [
+		{
+			"case": "trigger-1",
+			"prompt": "Is this plugin missing any of the plugins it depends on?",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-2",
+			"prompt": "Check my plugin's dependencies on Codex.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-3",
+			"prompt": "My plugin won't load. Does it need another plugin that isn't installed?",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-4",
+			"prompt": "Install the plugins this plugin depends on.",
+			"expect": "fire",
+			"fired": 3,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-5",
+			"prompt": "Check that my plugin's vendor manifests are up to date.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-6",
+			"prompt": "Find the npm dependencies this package uses but doesn't declare.",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-7",
+			"prompt": "Do my skill's references work as installed here?",
+			"expect": "skip",
+			"fired": 0,
+			"ran": 3,
+			"status": "pass"
+		},
+		{
+			"case": "trigger-8",
+			"prompt": "Add tracer@acme to my plugin's declared dependencies.",
+			"expect": "skip",
+			"fired": 3,
+			"ran": 3,
+			"status": "fail"
+		}
+	],
+	"criteria": [
+		{
+			"id": "C1",
+			"status": "pass",
+			"passed": 9,
+			"ran": 9,
+			"baseline": {
+				"passed": 3,
+				"ran": 9
+			}
+		},
+		{
+			"id": "C2",
+			"status": "pass",
+			"passed": 6,
+			"ran": 6,
+			"baseline": {
+				"passed": 0,
+				"ran": 6
+			}
+		},
+		{
+			"id": "C3",
+			"status": "pass",
+			"passed": 6,
+			"ran": 6,
+			"baseline": {
+				"passed": 0,
+				"ran": 6
+			}
+		},
+		{
+			"id": "C4",
+			"status": "pass",
+			"passed": 9,
+			"ran": 9,
+			"baseline": {
+				"passed": 9,
+				"ran": 9
+			}
+		},
+		{
+			"id": "C5",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"baseline": {
+				"passed": 1,
+				"ran": 3
+			}
+		}
+	],
+	"cases": [
+		{
+			"case": "trigger-1",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-2",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-3",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-4",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-5",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-6",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-7",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "trigger-8",
+			"status": "fail",
+			"passed": 0,
+			"ran": 3
+		},
+		{
+			"case": "missing",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "none",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "fix-request",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		},
+		{
+			"case": "other-harness",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3
+		}
+	],
+	"notRun": [],
+	"cost": 2.2498,
+	"durationMs": 89889,
+	"totalRuns": 48,
+	"comparedWith": "previous",
+	"changed": [
+		{
+			"case": "trigger-8",
+			"from": "pass",
+			"to": "fail"
+		}
+	]
+}

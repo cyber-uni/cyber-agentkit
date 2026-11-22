@@ -32,6 +32,7 @@ if (harness !== 'unknown') skillsDirectories(harness)
 | `installedPlugins()` | Which plugins are installed, and the folder each one loads from |
 | `skillInvocation()` | How a user types a plugin's skill, such as `/my-plugin:review` |
 | `supportsPluginDependencies()` | Whether a plugin can declare other plugins it depends on |
+| `checkPluginDependencies()` | Whether each plugin a plugin depends on is installed and enabled, each problem with its code, and the steps to run, as `dependency doctor` reports |
 | `skillsDirectories()` | Which project and user directories the harness reads skills from |
 
 ## Reference documents

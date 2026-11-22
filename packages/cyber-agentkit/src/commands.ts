@@ -1,4 +1,6 @@
 export { createAssetCommand } from './assets/asset.command.js'
+export type { DependencyDoctorReport } from './dependencies/dependency.command.js'
+export { createDependencyCommand } from './dependencies/dependency.command.js'
 export type {
 	ReferenceAuditReport,
 	ReferenceCheckReport,

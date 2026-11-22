@@ -219,7 +219,7 @@ A stop is the same every time:
 ## Rules
 
 - When the skill named cannot be found, stop, say where you looked, and write nothing.
-- Run no judge the author did not name.
+- Pass `--judge` only for a judge the author named, and `--no-judge` only when the author asks to run without one.
 - When `check` or `test`, run as the command asked, finds failures, end by offering `fix`, and change nothing unless the
   author accepts. When another command runs them, it goes on as its own steps say.
 - Before editing a skill from an installed plugin, say that a plugin update will overwrite the change.

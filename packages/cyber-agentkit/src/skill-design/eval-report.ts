@@ -34,6 +34,8 @@ export type EvalReport = {
 	 * result saved before it was recorded.
 	 */
 	model?: string
+	/** The model that graded the `judge` checks (#357); left out when none ran. */
+	judge?: string
 	/** The cases that ran on a model of their own, each with it (R161). */
 	caseModels?: { case: string; model: string }[]
 	/** US dollars, for `totalRuns` runs when the result records them. Results record no tokens. */
@@ -179,6 +181,7 @@ export function evalReport(
 		...attestedOf,
 	}
 	if (result.model) report.model = result.model
+	if (result.judge) report.judge = result.judge
 	const caseModels = (result.cases ?? []).flatMap((c) => (c.model ? [{ case: c.case, model: c.model }] : []))
 	if (caseModels.length) report.caseModels = caseModels
 	if (typeof result.cost === 'number') report.cost = result.cost
@@ -322,6 +325,13 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 			'',
 		)
 	}
+	if (report.judge)
+		out.push(
+			report.judge === 'default'
+				? "The harness's default model graded the `judge` checks."
+				: `A judge, \`${cell(report.judge)}\`, graded the \`judge\` checks.`,
+			'',
+		)
 	if (typeof report.cost === 'number')
 		out.push(`The run cost ${dollars(report.cost, report.totalRuns)}, with the skill and without.`, '')
 	if (report.gap)
