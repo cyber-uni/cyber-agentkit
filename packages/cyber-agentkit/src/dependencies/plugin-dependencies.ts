@@ -1,4 +1,5 @@
-import { join } from 'node:path'
+import { realpath } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 
 import type { HarnessEnvironment } from '../harness/harness-environment.js'
 import type { HarnessId } from '../harness/harness-id.js'
@@ -43,7 +44,7 @@ export interface PluginDependenciesRead {
 	readonly dependencies: readonly PluginDependency[]
 	/** The manifest the list came from; the last one tried when none declares any. */
 	readonly path: string
-	/** Set when the manifest exists but could not be parsed. */
+	/** Set when a manifest exists but could not be parsed, even when a later source lists the dependencies. */
 	readonly error?: string
 }
 
@@ -73,7 +74,7 @@ export async function readPluginDependencies(pluginRoot: string): Promise<Plugin
 			const text = await readText(path)
 			if (text === undefined) continue
 			const dependencies = declaredPluginDependencies(pick(JSON.parse(stripJsonComments(text))))
-			if (dependencies.length > 0) return { dependencies, path }
+			if (dependencies.length > 0) return { dependencies, path, ...(error && { error }) }
 		} catch (cause) {
 			error ??= `${path}: ${String(cause)}`
 		}
@@ -89,6 +90,20 @@ export interface CheckedDependency extends PluginDependency {
 	readonly id?: string
 }
 
+/** The stable code of each problem a check can find (K5). The wording beside it is not a contract. */
+export type DependencyProblemCode =
+	| 'dependency-missing'
+	| 'dependency-disabled'
+	| 'dependency-unknown'
+	| 'manifest-unparsable'
+
+export interface DependencyProblem {
+	readonly code: DependencyProblemCode
+	readonly message: string
+	/** The dependency it is about, as declared: `<name>` or `<name>@<marketplace>`. */
+	readonly dependency?: string
+}
+
 export interface PluginDependencyCheck {
 	readonly harness: HarnessId
 	/** Whether the harness's manifest can declare dependencies (`supportsPluginDependencies`). */
@@ -96,8 +111,15 @@ export interface PluginDependencyCheck {
 	/** Whether the harness installs missing dependencies by itself. Only Claude Code does (E-DEP-2). */
 	readonly autoResolved: boolean
 	readonly dependencies: readonly CheckedDependency[]
-	/** What to do next, in order. Empty when nothing is missing or disabled. */
+	/** The marketplace a bare name resolves in, when known (the one passed in, else the one the plugin is installed from). */
+	readonly declaringMarketplace?: string
+	/**
+	 * What to do next, in a fixed order: each `missing`, `disabled`, or `unknown` dependency's steps,
+	 * in declared order, with the steps for the whole list around them. Empty when none needs any.
+	 */
 	readonly steps: readonly string[]
+	/** Every problem found, each with its code: a dependency not `enabled` or `installed`, or a manifest that cannot be parsed. */
+	readonly problems: readonly DependencyProblem[]
 	/** Set when the declaring manifest could not be read. */
 	readonly error?: string
 	readonly research: readonly string[]
@@ -108,9 +130,12 @@ export interface CheckPluginDependenciesOptions extends HarnessEnvironment {
 	readonly pluginRoot?: string
 	/** Dependencies already read; used instead of `pluginRoot`. */
 	readonly dependencies?: readonly PluginDependency[]
+	/**
+	 * The marketplace the declaring plugin comes from, where a bare name resolves (E-DEP-1). Defaults
+	 * to the marketplace `pluginRoot` is installed from; with neither, a bare name is `unknown`.
+	 */
+	readonly declaringMarketplace?: string
 }
-
-const rank: Record<DependencyState, number> = { enabled: 3, installed: 2, disabled: 1, missing: 0, unknown: 0 }
 
 /**
  * Check which declared dependencies the harness has installed and enabled, and return the steps
@@ -127,23 +152,19 @@ export async function checkPluginDependencies(
 			: { dependencies: [], error: undefined }
 	const [installed, enabled] = await Promise.all([installedPlugins(harness, options), enabledPlugins(harness, options)])
 	const enablement = new Map(enabled.plugins.map((plugin) => [plugin.id, plugin.enabled]))
+	const declaringMarketplace =
+		options.declaringMarketplace ?? (await installedFrom(options.pluginRoot, installed.plugins))
 
 	const dependencies = read.dependencies.map((dependency): CheckedDependency => {
 		if (!installed.supported) return { ...dependency, state: 'unknown' }
-		const ids = installed.plugins
-			.map((plugin) => plugin.id)
-			.filter((id) =>
-				dependency.marketplace
-					? id === `${dependency.name}@${dependency.marketplace}`
-					: id.split('@')[0] === dependency.name,
-			)
-		let best: CheckedDependency = { ...dependency, state: 'missing' }
-		for (const id of new Set(ids)) {
-			const flag = enablement.get(id)
-			const state: DependencyState = flag === true ? 'enabled' : flag === false ? 'disabled' : 'installed'
-			if (rank[state] > rank[best.state]) best = { ...dependency, state, id }
-		}
-		return best
+		// E-DEP-1: a bare name resolves in the declaring plugin's marketplace, never in another one.
+		const marketplace = dependency.marketplace ?? declaringMarketplace
+		if (marketplace === undefined) return { ...dependency, state: 'unknown' }
+		const id = `${dependency.name}@${marketplace}`
+		if (!installed.plugins.some((plugin) => plugin.id === id)) return { ...dependency, state: 'missing' }
+		const flag = enablement.get(id)
+		const state: DependencyState = flag === true ? 'enabled' : flag === false ? 'disabled' : 'installed'
+		return { ...dependency, state, id }
 	})
 
 	const supported = supportsPluginDependencies(harness)
@@ -152,42 +173,127 @@ export async function checkPluginDependencies(
 		supported,
 		autoResolved: supported,
 		dependencies,
-		steps: supported ? claudeCodeSteps(dependencies) : manualSteps(harness, read.dependencies),
+		...(declaringMarketplace && { declaringMarketplace }),
+		steps: supported
+			? claudeCodeSteps(dependencies, declaringMarketplace)
+			: manualSteps(harness, dependencies, declaringMarketplace),
+		problems: [
+			...(read.error ? [{ code: 'manifest-unparsable' as const, message: read.error }] : []),
+			...dependencies.flatMap(problemOf),
+		],
 		...(read.error && { error: read.error }),
 		research: ['E-DEP-1', 'E-DEP-2', 'E-DEP-3', 'E-DEP-4', 'E-DEP-5', 'E-DEP-6', 'E-DEP-7', 'E-CC-X1'],
 	}
 }
 
+function problemOf(dependency: CheckedDependency): DependencyProblem[] {
+	const name = label(dependency)
+	switch (dependency.state) {
+		case 'missing':
+			return [{ code: 'dependency-missing', dependency: name, message: `${name} is not installed.` }]
+		case 'disabled':
+			return [{ code: 'dependency-disabled', dependency: name, message: `${name} is installed but disabled.` }]
+		case 'unknown':
+			return [{ code: 'dependency-unknown', dependency: name, message: `Whether ${name} is installed cannot be told.` }]
+		default:
+			return []
+	}
+}
+
+/** The marketplace of the install whose folder is `pluginRoot`, when exactly one marketplace has it there. */
+async function installedFrom(
+	pluginRoot: string | undefined,
+	plugins: readonly { readonly id: string; readonly path: string }[],
+): Promise<string | undefined> {
+	if (pluginRoot === undefined) return undefined
+	const real = (path: string) => realpath(path).catch(() => resolve(path))
+	const root = await real(pluginRoot)
+	const marketplaces = new Set<string>()
+	for (const plugin of plugins) {
+		const at = plugin.id.indexOf('@')
+		if (at > 0 && (await real(plugin.path)) === root) marketplaces.add(plugin.id.slice(at + 1))
+	}
+	return marketplaces.size === 1 ? [...marketplaces][0] : undefined
+}
+
 const label = (dependency: PluginDependency) =>
 	dependency.marketplace ? `${dependency.name}@${dependency.marketplace}` : dependency.name
 
-/** E-DEP-2: `plugin install` installs missing dependencies; E-DEP-3: cross-marketplace needs a root allow-list. */
-function claudeCodeSteps(dependencies: readonly CheckedDependency[]): string[] {
+/** R13 (N5): no verified query tells which marketplaces a harness has added, so the user is asked. */
+const marketplaceQuestion = (dependency: PluginDependency, harness: string) =>
+	`Check that the marketplace ${dependency.marketplace} is added to ${harness}, and add it if it is not.`
+
+/** R12: an unknown bare name gets no guessed command. */
+const unknownDeclaringStep = (dependency: PluginDependency) =>
+	`${dependency.name} names no marketplace, and the marketplace of the plugin that declares it is not known. Install that plugin from a marketplace, or declare ${dependency.name}@<marketplace> with one.`
+
+/**
+ * E-DEP-2: `plugin install` installs a plugin and its dependencies; E-DEP-3: a dependency in another
+ * marketplace needs the root marketplace's allow-list. Per dependency: install or enable, the
+ * marketplace question, the add-the-marketplace step; then the reload step for the whole list.
+ */
+function claudeCodeSteps(dependencies: readonly CheckedDependency[], declaring: string | undefined): string[] {
 	const steps: string[] = []
+	let changes = false
 	for (const dependency of dependencies) {
-		if (dependency.state === 'missing' || dependency.state === 'unknown') {
-			steps.push(`Install ${label(dependency)}: claude plugin install ${label(dependency)}`)
-			if (dependency.marketplace) {
-				steps.push(
-					`If ${label(dependency)} is not in the declaring plugin's marketplace, that marketplace's root must list ${dependency.marketplace} in allowCrossMarketplaceDependenciesOn, or you must already have it enabled.`,
-				)
-			}
-		} else if (dependency.state === 'disabled') {
+		if (dependency.state === 'disabled') {
 			steps.push(`Enable ${dependency.id ?? label(dependency)}: set it to true in enabledPlugins.`)
+			changes = true
+			continue
 		}
+		if (dependency.state !== 'missing' && dependency.state !== 'unknown') continue
+		const marketplace = dependency.marketplace ?? declaring
+		if (marketplace === undefined) {
+			steps.push(unknownDeclaringStep(dependency))
+			continue
+		}
+		const id = `${dependency.name}@${marketplace}`
+		steps.push(
+			dependency.state === 'missing'
+				? `Install ${id}: claude plugin install ${id}`
+				: `Check whether ${id} is installed and enabled. If it is not, install it: claude plugin install ${id}`,
+		)
+		changes = true
+		if (dependency.state !== 'missing' || dependency.marketplace === undefined) continue
+		steps.push(marketplaceQuestion(dependency, 'Claude Code'))
+		if (dependency.marketplace !== declaring)
+			steps.push(
+				`Add the marketplace ${dependency.marketplace}: the root marketplace must list it in allowCrossMarketplaceDependenciesOn, or you must already have ${id} enabled. Otherwise the install completes and the plugin fails to load.`,
+			)
 	}
-	if (steps.length > 0) steps.push('Run /reload-plugins.')
+	if (changes) steps.push('Run /reload-plugins.')
 	return steps
 }
 
-/** E-DEP-4, E-DEP-5, E-CC-X1: no other harness's manifest declares dependencies. */
-function manualSteps(harness: HarnessId, dependencies: readonly PluginDependency[]): string[] {
-	if (dependencies.length === 0) return []
+/**
+ * E-DEP-4, E-DEP-5, E-CC-X1: no other harness's manifest declares dependencies, and no install
+ * command is verified, so each step is manual. The first says nothing is installed for the user.
+ */
+function manualSteps(
+	harness: HarnessId,
+	dependencies: readonly CheckedDependency[],
+	declaring: string | undefined,
+): string[] {
+	const steps: string[] = []
+	for (const dependency of dependencies) {
+		const marketplace = dependency.marketplace ?? declaring
+		const from = marketplace ? ` from ${marketplace}` : ''
+		if (dependency.state === 'disabled') {
+			steps.push(`Enable ${dependency.id ?? label(dependency)} through ${harness}'s plugin settings.`)
+		} else if (dependency.state === 'missing') {
+			steps.push(`Install ${dependency.name}${from} through ${harness}'s plugin install flow, then enable it.`)
+			if (dependency.marketplace) steps.push(marketplaceQuestion(dependency, harness))
+		} else if (dependency.state === 'unknown') {
+			steps.push(
+				dependency.marketplace === undefined && declaring === undefined
+					? unknownDeclaringStep(dependency)
+					: `Check whether ${dependency.name}${from} is installed and enabled in ${harness}. If it is not, install it through ${harness}'s plugin install flow, then enable it.`,
+			)
+		}
+	}
+	if (steps.length === 0) return []
 	return [
-		`${harness} has no plugin dependency field, so nothing is resolved for you. Install and enable each plugin yourself.`,
-		...dependencies.map(
-			(dependency) =>
-				`Install ${dependency.name}${dependency.marketplace ? ` from ${dependency.marketplace}` : ''} through ${harness}'s plugin install flow, then enable it.`,
-		),
+		`${harness} has no plugin dependency field, so nothing is installed for you. Install and enable each plugin yourself.`,
+		...steps,
 	]
 }

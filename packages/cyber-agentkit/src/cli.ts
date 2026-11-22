@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { cli, exitCodes } from 'clibuilder'
 import { homeHeader, result } from 'clibuilder/axi'
 import { createAssetCommand } from './assets/asset.command.js'
+import { createDependencyCommand } from './dependencies/dependency.command.js'
 import { declaredHarnesses } from './detection/declared-harnesses.js'
 import { detectHarness } from './detection/detect-harness.js'
 import { createHarnessCommand } from './detection/harness.command.js'
@@ -64,7 +65,7 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 						installed: installedHarnesses().map(({ harness, evidence }) => ({ harness, evidence })),
 						declared: declared.harnesses.map(({ harness, evidence }) => ({ harness, evidence })),
 						...(declared.rejected.length ? { rejected: declared.rejected } : {}),
-						commands: ['reference', 'asset', 'prose-update', 'skill', 'instruction', 'harness'],
+						commands: ['reference', 'asset', 'prose-update', 'skill', 'instruction', 'harness', 'dependency'],
 					},
 					{
 						help: [
@@ -81,6 +82,7 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 		.command(createSkillCommand({ plugin: { name, root } }))
 		.command(createInstructionCommand({ plugin: { name, root } }))
 		.command(createHarnessCommand())
+		.command(createDependencyCommand())
 }
 
 /**

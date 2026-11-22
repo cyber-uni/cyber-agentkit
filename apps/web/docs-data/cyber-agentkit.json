@@ -1,5 +1,17 @@
 {
 	"skills": {
+		"dependency": {
+			"examples": [
+				{
+					"prompt": "Is this plugin missing any plugin it depends on?",
+					"result": "The skill runs `dependency doctor` on the current folder and reports each dependency's state, each problem with its code, such as `dependency-missing`, and the steps to run, in order. It installs nothing."
+				},
+				{
+					"prompt": "Check my plugin's dependencies on Codex.",
+					"result": "The skill runs `dependency doctor --harness codex`. The first step says nothing is installed for you, and each missing, disabled, or unknown dependency gets a manual step."
+				}
+			]
+		},
 		"prose-update": {
 			"examples": [
 				{
