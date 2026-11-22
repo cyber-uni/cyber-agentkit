@@ -37,7 +37,7 @@ For each feature with a `Since:` or `Until:` line, decide whether what was found
 
 A feature with no version line is not compared; count it, without listing it.
 
-Then find the Verified entry that covers the version and tier found. When none does, the reference is unverified for this system.
+Then find the Verified entry that covers the version and tier found. An entry covers only the version or tier it names, never a later or earlier one: `2.30: run` does not cover 2.53, and an older version being verified does not verify a newer one. Compare the found version with each entry's version exactly. When no entry names it, the reference is unverified for this system: say so, and name the entries that exist and what they name, even though other versions are verified.
 
 ## 5. Report
 

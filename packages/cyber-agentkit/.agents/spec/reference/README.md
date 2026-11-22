@@ -165,7 +165,8 @@ what can be found, and every fault is reported as a warning.
   harness (N20). It opens with three sections, in order: **System** (name, summary, links to its docs, the versions or
   tiers covered, the tools needed with their minimum versions), **Detect** (how a skill tells this system is the one in
   use), and **Verified** (for each version or tier covered, how the reference was checked, `run`, `from docs`, or
-  `untested`, and when). Every later `##` section is a **feature** of the system.
+  `untested`, and when; an entry vouches only for the version or tier it names, so a version no entry names is
+  unverified even when an older or newer one is). Every later `##` section is a **feature** of the system.
 - K41 **blueprint**: an implementation of a **blueprint interface**, an interface whose id ends in `.blueprints`. It
   describes one whole solution for that interface on one system. Its key is `<system>.<solution>`, so a blueprint is
   named `<id>.<system>.<solution>`, and its capability reference is `<system>.capabilities`. A choice inside a solution
