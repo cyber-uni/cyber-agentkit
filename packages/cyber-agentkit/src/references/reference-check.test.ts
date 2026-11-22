@@ -59,6 +59,7 @@ describe('checkReferences', () => {
 				status: 'passed',
 				failures: [],
 				unsupported: ['Retype'],
+				partial: [],
 				warnings: [],
 			},
 		])
@@ -370,7 +371,13 @@ describe('an interface under the plain name it replaces (UC19.10, R128)', () => 
 		const [entry] = checkReferences(layers, { names: ['project-tracker.contract'] })
 
 		expect(entry).toMatchObject({ name: 'project-tracker.contract', kind: 'interface', status: 'passed', failures: [] })
-		expect(entry?.warnings.map(({ code }) => code)).toEqual(['reference-renamed'])
+		expect(entry?.warnings).toEqual([
+			{
+				code: 'reference-renamed',
+				message: expect.stringContaining('rename the interface to project-tracker.blueprints'),
+			},
+			{ code: 'reference-renamed', message: expect.stringContaining('project-tracker.contract') },
+		])
 	})
 })
 

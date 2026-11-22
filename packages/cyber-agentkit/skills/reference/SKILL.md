@@ -163,5 +163,5 @@ Before reporting done, check each of these against the result. Report any that f
 - **C2.** No file in an installed plugin or skill, or in a managed folder, changed.
 - **C3.** The file and its path were shown to the user before the write or the delete, or, for a Create from text the user gave, right after the write. A delete also said what answers the name afterwards. A migrate showed every row of its plan.
 - **C4.** After a write, `load <name> --trace` reports the written file as `used`, or names what hides it.
-- **C5.** A written reference that declares `implements` passes `check <name>`.
+- **C5.** A written reference that declares `implements`, or is named `<system>.capabilities`, passes `check <name>`.
 - **C6.** A Load, Find, or Inspect answer matches what the `reference` command printed. A search that matched nothing says so and names no reference.

@@ -91,6 +91,10 @@ implements: project-tracker.capabilities@1
 - A listed section whose first line is `**Unsupported.**`, or that is left out, is listed as
   unsupported. A required section that is unsupported fails `check`. A section the interface does
   not list may sit anywhere.
+- A listed section whose first line is `**Partial.**` is honored only in part. It counts as present,
+  so a required section may be partial, and it is listed as partial beside the unsupported ones.
+- Either mark is followed by one sentence saying what is missing or why; a mark with none fails
+  `check`.
 
 Start one from the interface's sections:
 
@@ -122,7 +126,8 @@ reference implementations scaffold.recipe --format json
 ```
 
 It returns each implementation that passes `check` for the interface, with its `pin`,
-`description`, and the sections it does not support. `--trace` adds each one's name, tier, and
+`description`, the sections it does not support (`unsupported`), and the sections it supports only
+in part (`partial`). `--trace` adds each one's name, tier, and
 version, the interface's cardinality and accepted versions, and each implementation it left out
 with the reasons, such as `version: unknown version 2`.
 
@@ -171,6 +176,8 @@ too, naming its file: a project section is never checked against an interface.
 | `required` | a required section is left out or marked `**Unsupported.**` |
 | `interface` | an interface document's `interface` block is malformed |
 | `compose` | the document itself has a defect when composed |
+| `capability` | a [capability reference](/cyber-agentkit/concepts/capability-references/) does not open with System, Detect, and Verified, in that order, or declares `implements` |
+| `support-level` | a section's `**Partial.**` or `**Unsupported.**` mark has no sentence after it, in any reference |
 
 A name not found fails with its status code, such as `reference-missing` or `reference-ambiguous`.
 A name a `remove` turned off is listed `missing` and passes: it is off on purpose. `implementations` applies

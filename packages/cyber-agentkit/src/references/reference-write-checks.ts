@@ -1,8 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
-import { implementationTemplate, readTemplate, type Template, titleOf } from './create-reference.js'
+import {
+	capabilityReferenceTemplate,
+	implementationTemplate,
+	readTemplate,
+	type Template,
+	titleOf,
+} from './create-reference.js'
 import { baseLayers, resolveBase } from './reference-base.js'
+import { capabilitySystemOf } from './reference-capabilities.js'
 import { interfaceLookup } from './reference-check.js'
 import { layerNames } from './reference-contribution.js'
 import { hasBody, isMergeOperation, type MergeOperation, parseDocument } from './reference-document.js'
@@ -309,10 +316,14 @@ export function validateWrite(
 		return { name, merge, target, before: resolveReference(name, layers, options), extended: [] }
 	}
 
+	// A capability reference is stubbed with its opening sections (R140); a project section is not checked, so it is not.
+	const system = capabilitySystemOf(name.name)
 	const read: Template =
 		request.implements !== undefined || merge === 'remove'
 			? { content: '', metadata: {}, body: '' }
-			: readTemplate(request.template)
+			: request.template === undefined && system !== undefined && target.scope !== 'project'
+				? capabilityReferenceTemplate(system)
+				: readTemplate(request.template)
 	const title = titleOf(read)
 	if (title) {
 		throw new ReferenceFailure(

@@ -1,11 +1,15 @@
 ---
 title: Capability references and blueprints
-description: A capability reference says what one system can do; a blueprint says one way to fulfill a skill's interface on that system, building on it. Planned.
+description: A capability reference says what one system can do; a blueprint says one way to fulfill a skill's interface on that system, building on it. Capability references are built; blueprints are planned.
 ---
 
-:::note[Planned]
-This design is accepted and not yet built ([cyber-agentkit#366](https://github.com/cyber-uni/cyber-agentkit/issues/366)).
-The page describes the shape plugin authors will target. Each part is marked done here as it ships.
+:::note[Partly built]
+This design is accepted ([cyber-agentkit#366](https://github.com/cyber-uni/cyber-agentkit/issues/366)). Each part is
+marked here as it ships.
+
+- **Built:** capability references and the `**Partial.**` mark
+  ([cyber-agentkit#376](https://github.com/cyber-uni/cyber-agentkit/issues/376)).
+- **Planned:** blueprints, the doctor, and the registry of capability references.
 :::
 
 A skill that works with an outside system, such as an issue tracker, needs to know two things it should not carry
@@ -67,10 +71,29 @@ Since: Advanced.
 - **A feature section** may open with `**Partial.**` or `**Unsupported.**` and one sentence, and may carry
   `Since:` and `Until:` lines.
 
+Start one with the three opening sections stubbed, each saying what it holds:
+
+```sh
+npx -y cyber-agentkit reference create asana.capabilities --plugin <plugin folder>
+```
+
+`reference check` reads only its shape. It fails a capability reference whose first three sections are not System,
+Detect, and Verified in that order, one that declares `implements`, and a `**Partial.**` or `**Unsupported.**` mark
+with no sentence after it, in any reference. It never judges what a section says.
+
+A capability reference takes no plugin prefix: the system is its namespace, so `asana.capabilities`, not
+`cyber-asana.asana.capabilities`. Its `<system>` is one segment, with no dot.
+
 Keep it thin. The system's docs already cover general behavior, so link them. A capability reference earns its place
 by holding what a search cannot find: the facts a skill decides on, how your setup differs, and what running it showed.
 
 ## A blueprint
+
+:::note[Planned]
+Blueprints are not built yet ([cyber-agentkit#377](https://github.com/cyber-uni/cyber-agentkit/issues/377)). The
+`**Partial.**` mark they use already works on every interface implementation: a required section marked partial
+counts as present, and `reference implementations` lists the partial sections beside the unsupported ones.
+:::
 
 A skill that wants to work on any system publishes a **blueprint interface**, an
 [interface](/cyber-agentkit/concepts/reference-interfaces/) whose id ends in `.blueprints`, such as
@@ -105,11 +128,20 @@ lists each one with its system, how well it is verified, and which sections are 
 
 ## When your setup differs
 
+:::note[Planned]
+Flagging the blueprints that need a feature you marked unsupported comes with blueprints. Customizing the capability
+reference works today.
+:::
+
 Customize the capability reference, not the blueprints. A team on a self-hosted GitLab tier without epics marks the
 `Epics` feature unsupported in `gitlab.capabilities` for the repository. Every blueprint that needs `Epics` is then
 flagged when loaded here, with no change to any blueprint.
 
 ## When a step fails
+
+:::note[Planned]
+The doctor is not built yet ([cyber-agentkit#378](https://github.com/cyber-uni/cyber-agentkit/issues/378)).
+:::
 
 Nothing compares versions while a skill runs. When a step fails while following a blueprint, the agent names the
 blueprint and the capability reference, and offers to:

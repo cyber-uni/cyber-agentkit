@@ -1,15 +1,18 @@
 import { aliasIndex } from './reference-aliases.js'
+import { capabilitiesInterfaceWarning, capabilitySystemOf, checkCapability } from './reference-capabilities.js'
 import { catalogNames } from './reference-catalog.js'
 import { baseMovedWarnings, hiddenWarnings, splitComposeWarnings } from './reference-check-warnings.js'
 import type { ReferenceStatusCode, ReferenceWarning } from './reference-codes.js'
 import {
 	checkImplementation,
+	documentSections,
 	type InterfaceCheck,
 	interfaceIdOf,
 	interfaceSuffix,
 	type ReferenceInterface,
 	readImplements,
 	readInterface,
+	supportLevelProblems,
 } from './reference-interface.js'
 import type { ReferenceLayer, ReferenceLayers } from './reference-layers.js'
 import { heldPlugins } from './reference-package-plugins.js'
@@ -23,7 +26,8 @@ import {
 } from './resolve-reference.js'
 import { skillHoldings, withDefault } from './skill-defaults.js'
 
-export type ReferenceCheckKind = 'interface' | 'implementation' | 'none'
+/** `capability`: a capability reference, named `<system>.capabilities` (K40). */
+export type ReferenceCheckKind = 'interface' | 'implementation' | 'capability' | 'none'
 
 /** A failed check, named by the check; a name not `found` fails with its status code. */
 export type ReferenceCheckFailure = {
@@ -45,6 +49,8 @@ export type ReferenceCheckEntry = {
 	failures: ReferenceCheckFailure[]
 	/** For an implementation: the optional listed sections it marks `**Unsupported.**` or leaves out. */
 	unsupported: string[]
+	/** For an implementation: the listed sections it marks `**Partial.**`, in the interface's order (R142). */
+	partial: string[]
 	/**
 	 * What is passed on and never fails a check: a warning composing raised that depends on what is
 	 * installed or chosen (UC6.8), every warning a project section raised (R118), an interface's older
@@ -129,16 +135,28 @@ function bareName(resolved: ResolvedReference): string {
 	return name.slice(name.lastIndexOf('/') + 1)
 }
 
-/** What a composed document declares: an interface, an implementation, or neither. */
+/**
+ * Whether a `<system>.capabilities` name is the implementation of a `one` interface of that same id,
+ * the form an interface named the old way takes (repobuddy's `project-tracker.capabilities`): it is
+ * checked as an implementation, with a warning, until the rename ships.
+ */
+function implementsOwnName(name: string, metadata: Record<string, unknown>): boolean {
+	return readImplements(metadata).entry?.id === name
+}
+
+/** What a composed document declares: an interface, a capability reference, an implementation, or neither. */
 export function kindOf(resolved: ResolvedReference): ReferenceCheckKind {
 	const metadata = resolved.metadata ?? {}
-	if (interfaceIdOf(bareName(resolved)) !== undefined || metadata['interface'] !== undefined) return 'interface'
+	const name = bareName(resolved)
+	if (interfaceIdOf(name) !== undefined || metadata['interface'] !== undefined) return 'interface'
+	if (capabilitySystemOf(name) !== undefined && !implementsOwnName(name, metadata)) return 'capability'
 	return metadata['implements'] === undefined ? 'none' : 'implementation'
 }
 
 export type CheckResult = {
 	failures: ReferenceCheckFailure[]
 	unsupported: string[]
+	partial: string[]
 	/** What the check itself raises and passes on: an `implements` naming an interface's older id (R96). */
 	warnings: ReferenceWarning[]
 }
@@ -164,12 +182,16 @@ export function checkResolved(
 	lookup: InterfaceLookup,
 	accept?: { id: string; versions: readonly number[] },
 ): CheckResult {
-	const result: CheckResult = { failures: [], unsupported: [], warnings: [] }
+	const result: CheckResult = { failures: [], unsupported: [], partial: [], warnings: [] }
 	if (resolved.status !== 'found') return result
 	const { failures, warnings } = result
 	const name = bareName(resolved)
 	const metadata = resolved.metadata ?? {}
-	if (kindOf(resolved) === 'interface') {
+	const kind = kindOf(resolved)
+	const sections = documentSections(resolved.content ?? '')
+	if (kind === 'capability') {
+		failures.push(...checkCapability(name, metadata, sections))
+	} else if (kind === 'interface') {
 		const id = interfaceIdOf(name)
 		if (id === undefined) {
 			failures.push({
@@ -180,6 +202,8 @@ export function checkResolved(
 			for (const problem of readInterface(id, metadata).problems) {
 				failures.push({ check: 'interface', interface: id, message: problem })
 			}
+			const renamed = capabilitiesInterfaceWarning(id)
+			if (renamed) warnings.push(renamed)
 		}
 	} else {
 		const { entry, problems } = readImplements(metadata)
@@ -203,9 +227,15 @@ export function checkResolved(
 				})
 				failures.push(...checked.failures)
 				result.unsupported = checked.unsupported
+				result.partial = checked.partial
+				if (capabilitySystemOf(name) !== undefined) {
+					const renamed = capabilitiesInterfaceWarning(id)
+					if (renamed) warnings.push(renamed)
+				}
 			} else failures.push(iface.failure as ReferenceCheckFailure)
 		}
 	}
+	for (const problem of supportLevelProblems(sections)) failures.push({ check: 'support-level', message: problem })
 	const compose = composeFailure(resolved.warnings)
 	if (compose) failures.push(compose)
 	return result
@@ -251,7 +281,7 @@ function entryOf(
 	const { main, full } = answer
 	const found = main.status === 'found' || full.status === 'found'
 	const checked: CheckResult =
-		main.status === 'found' ? checkResolved(main, lookup) : { failures: [], unsupported: [], warnings: [] }
+		main.status === 'found' ? checkResolved(main, lookup) : { failures: [], unsupported: [], partial: [], warnings: [] }
 	const failures = [...checked.failures]
 	if (main.status !== 'found') {
 		if (!found && main.code !== 'reference-removed') {
@@ -266,6 +296,7 @@ function entryOf(
 		status: found ? (failures.length ? 'failed' : 'passed') : (main.status as Exclude<ReferenceStatus, 'found'>),
 		failures,
 		unsupported: checked.unsupported,
+		partial: checked.partial,
 		warnings: dedupe([
 			...checked.warnings,
 			...splitComposeWarnings(main.warnings).passed,

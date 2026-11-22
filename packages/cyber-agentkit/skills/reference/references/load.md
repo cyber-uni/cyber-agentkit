@@ -85,7 +85,7 @@ Follow a project section whenever your work is in its folder. When the work move
    ```
 
    Add `--accept <versions>`, such as `--accept 1,2`, when the caller names the interface versions it knows. The rules of step 1 apply: add `--root` only outside the repository, no package runner, no download, and no reading tier folders yourself.
-2. Exit 0 prints one JSON object. `implementations` lists each one the caller can load, with its `pin`, `description`, and the `unsupported` sections it does not honor. It is empty when there are none. `excluded` lists each one left out, with its `reasons`. An unknown interface exits 1 with one error value on stdout, code `interface-unknown`; then the interface is not loaded.
+2. Exit 0 prints one JSON object. `implementations` lists each one the caller can load, with its `pin`, `description`, the `unsupported` sections it does not honor, and the `partial` sections it honors only in part. It is empty when there are none. `excluded` lists each one left out, with its `reasons`. An unknown interface exits 1 with one error value on stdout, code `interface-unknown`; then the interface is not loaded.
 3. Hand the list to the caller. The caller picks the implementations it needs; load each by its `pin` with steps 1 to 6.
 4. Tell the user, briefly, about each excluded implementation and its reasons, and about an interface not loaded and its error.
 

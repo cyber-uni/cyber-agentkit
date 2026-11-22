@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { isMap, parseDocument as parseYaml } from 'yaml'
+import { capabilityTemplate } from './reference-capabilities.js'
 import { frontmatterPattern, parseDocument, parseSections } from './reference-document.js'
 import { ReferenceFailure } from './reference-error.js'
 import type { ReferenceInterface } from './reference-interface.js'
@@ -30,6 +31,11 @@ export function implementationTemplate(iface: ReferenceInterface): Template {
 		`---\ndescription: What this ${iface.id} implementation covers, and when an agent should read it.\nimplements: ${iface.id}@${iface.version}\n---\n\n${sections.join('\n')}`,
 		`the ${iface.id} interface`,
 	)
+}
+
+/** What `create <system>.capabilities` writes with no `--template` (R140): System, Detect, and Verified, stubbed. */
+export function capabilityReferenceTemplate(system: string): Template {
+	return parseTemplate(capabilityTemplate(system), `the ${system}.capabilities stub`)
 }
 
 export function readTemplate(path: string | undefined): Template {

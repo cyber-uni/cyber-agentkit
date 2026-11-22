@@ -1,6 +1,6 @@
 # Create a reference
 
-Create writes a new file from text the author gives, or an interface's stub. To change what an existing reference says in the customizer's own words, use Customize mode instead.
+Create writes a new file from text the author gives, an interface's stub, or a capability reference's stub. To change what an existing reference says in the customizer's own words, use Customize mode instead.
 
 ## 1. Check that it should be a reference
 
@@ -23,6 +23,7 @@ Create writes a new file from text the author gives, or an interface's stub. To 
 
 - Use lowercase words joined by `-`. A name is a file name, never a path, and never ends `.default`.
 - **A plugin prefixes every name it ships** with its own name and a dot: `cyber-asana.work-hierarchy`, not `work-hierarchy`. A repository's or user's own reference needs no prefix. A skill's default takes the name its skill loads.
+- **A capability reference is named `<system>.capabilities`**, with no plugin prefix: `asana.capabilities`. It says what one system the skills operate through commands or an API can do, such as a tracker or a tool; never a harness. `<system>` is one word or hyphenated words, with no dot.
 - **An implementation of an interface takes the interface's id as its namespace**: `<id>` when the interface's cardinality is `one`, `<id>.<key>` when it is `many`. Read the interface with `load <id>.interface`.
 - Run `load <name>`. If the name already resolves and the author wants a new document, pick another name. To change the existing one, go to Customize mode.
 - When a plugin or a skill renames a name it ships, list the old name in the new file's `aliases` frontmatter, so load lines and customizations written for the old name still reach it.
@@ -57,9 +58,11 @@ If `create` refuses, report its reason and write nothing. An existing file with 
 
 A plugin's file or a skill's default that changes how another plugin's reference reads, such as a house style, lists `extends: [<other plugin>]` in its frontmatter and holds only the sections it changes. It may also build on another reference of that plugin as `<plugin>/<reference>`, but only a repo, user, or managed file may choose another reference; a plugin's own `extends` naming one is skipped with a warning. `create` records in `sources` the version of each plugin it extends, so `check` warns the author when that plugin moves on. Never give such a file `merge: replace`; `create` refuses it.
 
-## 5. Stub an interface
+## 5. Stub an interface or a capability reference
 
-Run `create <name> --implements <id> --dry-run` instead of passing a template. It writes each section of the interface as a `##` heading, stubbed `**Unsupported.**` with what the section holds, and sets `implements: <id>@<version>` and `merge: replace`. With `--in <folder>`, it writes a project section with neither. Show it, write it on approval, then replace each stub with the section, or keep `**Unsupported.**` followed by one sentence on why. A required section cannot stay unsupported. Run `check <name>`; it must pass.
+Run `create <name> --implements <id> --dry-run` instead of passing a template. It writes each section of the interface as a `##` heading, stubbed `**Unsupported.**` with what the section holds, and sets `implements: <id>@<version>` and `merge: replace`. With `--in <folder>`, it writes a project section with neither. Show it, write it on approval, then replace each stub with the section, or keep a support level: `**Unsupported.**`, or `**Partial.**` for a section only partly honored, followed by one sentence on what is missing or why. A required section cannot stay unsupported; one marked partial counts as present. Run `check <name>`; it must pass.
+
+For a capability reference, run `create <system>.capabilities --dry-run` with no template. It stubs System, Detect, and Verified, in that order, each saying what it holds; they must stay the first three sections. Add one `##` section per feature after them. A feature may open with `**Partial.**` or `**Unsupported.**` and one sentence, and may carry a `Since:` or `Until:` line naming the version or tier it arrived in or left. Never add `implements`. Suggest the author keep it thin: link the system's docs for general behavior, and hold what a skill decides on, how this setup differs from the docs, and what running the commands found. `check` enforces only the shape, never what a section says. Show it, write it on approval, and run `check <name>`; it must pass.
 
 ## 6. Show the result
 
