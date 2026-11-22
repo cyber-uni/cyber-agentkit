@@ -1,0 +1,2 @@
+outcome:
+  - { id: write-one, prompt: write the release notes, criteria: [C1], files: files/write-one }

@@ -29,6 +29,10 @@ the skill already has, and any the author declined before for this skill.
 - A trigger miss becomes a new trigger case; a wrong result becomes a new outcome case. For a failure the author
   reports from real use that the suggestion does not fix, offer to mark its case known to fail with their reason
   ([fails](fails.md)), so it stays red until the skill is fixed; mark it only on yes.
+- Review how the skill is split by what it does. Suggest a part its own instructions file and eval folder, as
+  [create](create.md#3-build-the-skill) lays them out, when it has none, or when a section of `SKILL.md` every part
+  reads concerns that part only. A router table is one shape among several, such as one job split into steps; the
+  author picks the shape, and nothing is split without acceptance.
 - A change to a core aspect reopens every core aspect after it.
 - Never replace a reference load with a direct read (SHP-19).
 

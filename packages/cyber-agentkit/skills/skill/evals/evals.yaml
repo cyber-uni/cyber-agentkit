@@ -301,12 +301,34 @@ outcome:
       anything.
     files: files/doctor-override
     criteria: [C28]
+  # A job of three commands that each run on their own: create gives each its own instructions file and eval folder
+  # (R187). files/high-budget lets the nested test start without stopping on the budget.
+  - id: create-parts
+    prompt: "/skill a skill in .agents/skills for release announcements, with three
+      commands that each run on their own: draft, review, and publish. I approve
+      every draft; don't ask again."
+    files: files/high-budget
+    criteria: [C29]
+    checks:
+      C29:
+        - script: for p in draft review publish; do ls .agents/skills/*/references/$p.md
+            .agents/skills/*/evals/$p/evals.yaml >/dev/null 2>&1 || exit 1; done
+  # The release-notes skill in files/scoped-update has write and audit scopes, each current in its expected result. A
+  # change to the write command makes the write and root cases stale and leaves audit's current, so update's test
+  # runs those only and its report names the scopes (R189).
+  - id: update-scoped
+    prompt: "Implement issue #71: the write command of the release-notes skill in
+      .agents/skills should list breaking changes first. Report what you did when
+      done."
+    files: files/scoped-update
+    criteria: [C30]
 # The spec criteria each rubric tests, in the skill-design spec and its children. A rubric checks the outcome those
 # criteria state; for a stop, the Stop outcome of the spec's decision graph (R167) on edge E1, E2, or E3.
 #   C1 R1 | C2 R18, R21 | C3 R17, R19 | C4 R7 | C5 R6 (E1) | C6 R39 | C7 R37, R38 | C8 R94, R96 | C9 R92, R93
 #   C10 R142 to R147, R149 | C11 R5, R166 (E4) | C12 none yet | C13 R150 | C14 R166, R167 (E2)
 #   C15 R74, R167 (E3) | C16 R150, R167 (E1 to E3) | C17 R152, R153 (E3) | C18 none yet | C19 R154 | C20 none yet
 #   C21 R155, R159 | C23 R168 | C24 R168 | C25 none yet | C26 #323 | C28 R169, R170
+#   C29 R187 | C30 R188, R189
 rubrics:
   C1:
     - regex: "deploy-notes"
@@ -441,6 +463,10 @@ rubrics:
   C25:
     - regex: "[Cc]heck"
     - regex: "Test budget:|[Tt]est (result|ran|passed|failed)|criteri(on|a)"
+  # update tests the stale cases only, never every case, and its report names the scope that ran (R189).
+  C30:
+    - not-regex: "--all\\b"
+    - regex: "\\bwrite\\b[^\\n]{0,80}\\b(scope|stale)|\\b(scope|stale)[^\\n]{0,80}\\bwrite\\b"
   # The repository's override of triage.rules repeats a heading, so it fails composing; doctor names it and says what
   # to do, and changes nothing (#340).
   C28:

@@ -1,0 +1,12 @@
+trigger:
+  - { id: fire-write, prompt: write the release notes, expect: fire }
+  - { id: fire-changelog, prompt: draft the changelog for 2.0, expect: fire }
+  - { id: fire-audit, prompt: check the release notes, expect: fire }
+  - { id: skip-commit, prompt: write a commit message, expect: skip }
+  - { id: skip-review, prompt: review this pull request, expect: skip }
+  - { id: skip-readme, prompt: update the README, expect: skip }
+rubrics:
+  C1:
+    - file-contains: { path: RELEASE_NOTES.md, text: "## Release notes" }
+  C2:
+    - regex: "line \\d+"

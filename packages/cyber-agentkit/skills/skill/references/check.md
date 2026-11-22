@@ -48,5 +48,8 @@ fail, the check's ID, its severity (`critical` or `warning`), its statement, and
 quoted with its file. List the critical failures first: they must be fixed before a commit. A criterion the author
 attested as passing in real use counts as covered for VER-3, and VER-15 reports it as `attested, no rubric`, a warning,
 or as stale once the skill changed; never attest or renew a pass to clear a check ([attest](attest.md)). VER-16 warns with each case or criterion marked
-known to fail; never add or clear a mark to clear a check ([fails](fails.md)). With failures, offer `fix`
+known to fail; never add or clear a mark to clear a check ([fails](fails.md)). SHP-21 fails an eval folder named for no
+instructions file. VER-17 warns on a trigger case with no `id`, VER-18 on each stale case, with its scope and the input
+that changed or that it has no entry, and VER-19 on each entry carried forward without a run; report a carried entry
+as carried, never as a pass. With failures, offer `fix`
 as `SKILL.md`'s Rules say.

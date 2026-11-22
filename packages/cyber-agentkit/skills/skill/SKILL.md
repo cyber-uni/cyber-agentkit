@@ -271,3 +271,5 @@ Before reporting done, check each against the result, and report any that fails.
 - **C26.** A pass was attested only on the author's request naming its target and link, and then with `skill attest`.
 - **C27.** A known failure was marked only on the author's request with its reason, and then with `skill fails`.
 - **C28.** `doctor` changed no file, and named each reference that failed or warned with the file on top and the action it printed.
+- **C29.** `create` gave each part that runs on its own an instructions file and an eval folder, and each case an `id`.
+- **C30.** `update` tested only the stale cases, and its report named each scope that ran with why.

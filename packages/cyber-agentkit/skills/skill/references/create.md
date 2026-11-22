@@ -37,10 +37,17 @@ Write the Intent as the opening of `README.md`, and Research's `## Research` sec
 section of `SKILL.md`; every skill has one, even a skill only another skill loads. Write the steps of `SKILL.md` before
 it: the instructions an agent follows to do the job and meet each criterion. Follow the Shape.
 
+When the job has more than one part that runs on its own (commands, modes, or steps), give each part its own
+instructions file, `references/<part>.md`, and its outcome cases an eval folder of the same name, `evals/<part>/`, so
+a change to one part re-runs only its cases. A job of one part stays in `SKILL.md`, its cases in the root scope. A
+router table is one shape of a split, not the only one: a single job split into steps is another.
+
 ## 4. Verify
 
 1. Draft the Verification aspect as its Draft says, from the written Criteria and the Trigger's near misses, and
-   write it as in step 2.
+   write it as in step 2. Give every case an `id`. When the Shape split the job into parts, write each part's outcome
+   cases in its eval folder (`skill case add ... --scope <part>`), and the cases of `SKILL.md`'s own steps in the root
+   scope.
 2. Run [check](check.md) on the skill, deciding every `read` check yourself, without stopping to ask. When it finds
    a failure, repair it as [fix](fix.md) does at `create`'s level, and run `check` again.
 3. Estimate `test` against the test budget as `SKILL.md`'s Autonomy says. Within it, carry on into [test](test.md)

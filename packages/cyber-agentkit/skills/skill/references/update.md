@@ -17,13 +17,18 @@ its `references/`, `scripts/`, `assets/`, or `evals/`, or a reference the skill 
 ## 2. Change it
 
 1. Make the change the work names, and nothing else. At `ask`, propose it and stop for the answer first.
-2. When the change adds or alters a behavior, add a trigger or outcome case for it with `skill case add`, and a
-   criterion under `## Done when` with a rubric when the result changes. Removing or weakening a criterion is the
-   author's decision: stop as `SKILL.md`'s Autonomy says.
-3. When the author reports a failure seen in the skill's real use, write a case that reproduces it, and offer to mark it
+2. When the change adds or alters a behavior, add a trigger or outcome case for it with `skill case add`, with an
+   `id`, and a criterion under `## Done when` with a rubric when the result changes. Put an outcome case in the scope
+   of the part it changes: `--scope <part>` for a part with an eval folder (`evals/<part>/`), the root scope
+   otherwise. Removing or weakening a criterion is the author's decision: stop as `SKILL.md`'s Autonomy says.
+3. When an edit lands in a section of `SKILL.md` every part reads, but concerns only some parts, propose moving that
+   text into those parts' instructions files, so a later change to it re-runs only their cases. At `ask`, propose it
+   and stop for the answer. At `apply-safe`, make the move only when `check` and `test` pass after it with no
+   criterion worse; otherwise ask. At `apply`, make it and report it.
+4. When the author reports a failure seen in the skill's real use, write a case that reproduces it, and offer to mark it
    known to fail with the author's reason ([fails](fails.md)), so it stays red until the skill is fixed. Mark it only
    on yes.
-4. When a built or generated file depends on what was edited (a compiled script, a generated manifest), rebuild it as
+5. When a built or generated file depends on what was edited (a compiled script, a generated manifest), rebuild it as
    the repository's instructions say.
 
 ## 3. Check, then test
@@ -31,12 +36,14 @@ its `references/`, `scripts/`, `assets/`, or `evals/`, or a reference the skill 
 1. Run [check](check.md). Follow [fix](fix.md) for each failure it finds, at the same level, and stop when `check` still
    fails.
 2. Estimate `test` against the test budget as `SKILL.md`'s Autonomy says, and write the `Test budget:` line. Within the
-   budget, run [test](test.md) without asking. Over it, stop as Stops says, and keep the change.
+   budget, run [test](test.md) without asking. Over it, stop as Stops says, and keep the change. Name no case and
+   pass no `--all`: `test` then runs only the cases the change made stale, unless the author asked for every case.
 3. Follow [fix](fix.md) for each failure `test` finds. A criterion worse than before is reported, not hidden.
 
 ## Report
 
-The autonomy line, then what changed and why, each case or criterion added, and each decision made on the author's
-behalf. End with the final `check` result (each failing ID with its severity) and the `test` result per criterion and per
+The autonomy line, then what changed and why, each case or criterion added with its scope, any text moved out of a
+shared section, and each decision made on the author's behalf. Say which scopes `test` ran, each with the input that
+changed or the cases with no entry, and which stayed current, from the result's `selected`. End with the final `check` result (each failing ID with its severity) and the `test` result per criterion and per
 trigger case. When `test` did not run, give the `Test budget:` line or the reason it could not. Show these even when
 every check passed.
