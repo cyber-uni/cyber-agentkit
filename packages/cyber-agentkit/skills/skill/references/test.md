@@ -14,12 +14,11 @@ the author asks to accept one, or when the first passing run saves one (see Save
 
 ## 2. Run
 
-Run the cases as Verification's Run says. Pass a judge only when the author named one. Before the run, list each
-criterion whose checks are all `judge`. When the author named no judge, say those criteria will be reported as not
-tested and ask which model should judge them (lettered options: name one for `--judge <model>`, run without, or
-replace the `judge` with a `regex` or `script` through `fix`); a request that names the runs to make is not an answer, so
-run the rest and offer the rerun at the end. After a run without a judge, never read the replies and grade a
-not-tested criterion yourself: report it as not tested, and offer `--judge`. Pass `--model` only when the
+Run the cases as Verification's Run says. Without `--judge`, `judge` checks are graded by Claude Code's mid-tier
+model, and the result names the judge. Pass `--judge <model>` only when the author named a judge, such as a stronger
+one, and `--no-judge` only when the author asks to run without one; then the criteria whose checks are all `judge` are
+reported as not tested. After a run without a judge, never read the replies and grade a not-tested criterion yourself:
+report it as not tested, and offer a rerun without `--no-judge`. Pass `--model` only when the
 author named a model or a tier; without it the runs take the harness's mid-tier model. A case marked as having an
 outside effect is not run, and is reported as such. Each run is contained to its own folder, and reaches the network
 only for the hosts its case lists. When the test stops with `error: login:`, `error: sandbox:`, `error: dependency-missing:`,
@@ -70,6 +69,7 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
   "at": "2026-11-10T21:00:00Z",
   "verification": "skill-design.aspects.verification from cyber-agentkit",
   "model": "sonnet",
+  "judge": "sonnet",
   "runs": 3,
   "threshold": 2,
   "baseline": "without the skill",
@@ -121,7 +121,8 @@ whose `latest.json` has no `folder` or cannot be read is left alone, and nothing
 }
 ```
 
-`status` is `pass`, `fail`, `not-tested` (with a `reason`), or `not-run` (with a `reason`). Each `notRun` entry has a
+`judge` names the model that graded the `judge` checks; it is left out when none ran: the test ran with `--no-judge`,
+or no case that ran has one. `status` is `pass`, `fail`, `not-tested` (with a `reason`), or `not-run` (with a `reason`). Each `notRun` entry has a
 `kind`. `skipped` is a planned skip: a case the plan left out before running, such as one with an outside effect or one
 whose scripts were not trusted to run. `failed` is a harness failure: a run that started and errored, its `case` naming
 the run, as `two-prs (with-skill, run 1)`. The text report starts each line with `skipped:` or `failed to run:`. Results

@@ -21,8 +21,9 @@ The skill's Intent, its Criteria with their IDs, its Trigger description, and th
 
 Trigger cases (requests that should and should not fire the skill), outcome cases (sample inputs to run the skill on),
 and one rubric per Criteria ID. In `test`, it runs them and writes the result in the shape the `test` command of
-`/skill` defines, which `fix`, `enhance`, and the next `test` read. A rubric that needs a judge runs only when the
-author names one; otherwise that criterion is reported as not tested.
+`/skill` defines, which `fix`, `enhance`, and the next `test` read. A rubric that needs a judge is graded by a
+default judge unless the author names another; when the author runs without a judge, that criterion is reported as not
+tested.
 
 ## Check format
 
