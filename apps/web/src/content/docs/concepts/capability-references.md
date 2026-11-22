@@ -1,6 +1,6 @@
 ---
 title: Capability references and blueprints
-description: A capability reference says what one system can do; a blueprint says one way to fulfill a skill's interface on that system, building on it. Capability references are built; blueprints are planned.
+description: A capability reference says what one system can do; a blueprint says one way to fulfill a skill's interface on that system, building on it. Capability references and blueprints are built; the doctor is planned.
 ---
 
 :::note[Partly built]
@@ -8,8 +8,9 @@ This design is accepted ([cyber-agentkit#366](https://github.com/cyber-uni/cyber
 marked here as it ships.
 
 - **Built:** capability references and the `**Partial.**` mark
-  ([cyber-agentkit#376](https://github.com/cyber-uni/cyber-agentkit/issues/376)).
-- **Planned:** blueprints, the doctor, and the registry of capability references.
+  ([cyber-agentkit#376](https://github.com/cyber-uni/cyber-agentkit/issues/376)), and blueprints
+  ([cyber-agentkit#377](https://github.com/cyber-uni/cyber-agentkit/issues/377)).
+- **Planned:** the doctor and the registry of capability references.
 :::
 
 A skill that works with an outside system, such as an issue tracker, needs to know two things it should not carry
@@ -89,12 +90,6 @@ by holding what a search cannot find: the facts a skill decides on, how your set
 
 ## A blueprint
 
-:::note[Planned]
-Blueprints are not built yet ([cyber-agentkit#377](https://github.com/cyber-uni/cyber-agentkit/issues/377)). The
-`**Partial.**` mark they use already works on every interface implementation: a required section marked partial
-counts as present, and `reference implementations` lists the partial sections beside the unsupported ones.
-:::
-
 A skill that wants to work on any system publishes a **blueprint interface**, an
 [interface](/cyber-agentkit/concepts/reference-interfaces/) whose id ends in `.blueprints`, such as
 `project-tracker.blueprints`. Each blueprint implements it for one system, one whole way:
@@ -117,25 +112,45 @@ Workaround: link the old task from the new one.
 ```
 
 Its name, `project-tracker.blueprints.asana.custom-field`, says the system (`asana`), so its capability reference is
-`asana.capabilities`. Its `Needs:` lines name that reference's features.
+`asana.capabilities`. Its `Needs:` lines name that reference's features, comma-separated, as their headings read.
+
+Start one from the interface's stub, then add the `Needs:` lines:
+
+```sh
+npx -y cyber-agentkit reference create project-tracker.blueprints.asana.custom-field \
+  --implements project-tracker.blueprints --plugin <plugin folder>
+```
+
+`reference check` fails:
+
+- a blueprint interface whose cardinality is not `many`;
+- a blueprint whose capability reference cannot be found. When another plugin ships it, list that plugin as a
+  dependency;
+- a blueprint whose `Needs:` line names a feature its capability reference has no section for.
+
+Like any `many` implementation, a blueprint is `<id>.<key>`; its key is `<system>.<solution>`, and `check` fails a
+blueprint whose name has no solution.
 
 A blueprint describes one whole solution, because choices inside it often depend on each other. When its author knows
 a choice is independent of the rest, such as how sprints are modeled, that choice can be a reference of its own that
 the blueprint loads by name.
 
 The user picks a blueprint the way they pick any implementation: `reference implementations project-tracker.blueprints`
-lists each one with its system, how well it is verified, and which sections are partial or unsupported.
+lists each one with its system, its capability reference, that reference's Verified entries, and which sections are
+partial or unsupported. A blueprint whose capability reference cannot be found is left out, with the reason; add
+`--trace` to see it.
 
 ## When your setup differs
 
-:::note[Planned]
-Flagging the blueprints that need a feature you marked unsupported comes with blueprints. Customizing the capability
-reference works today.
-:::
-
 Customize the capability reference, not the blueprints. A team on a self-hosted GitLab tier without epics marks the
 `Epics` feature unsupported in `gitlab.capabilities` for the repository. Every blueprint that needs `Epics` is then
-flagged when loaded here, with no change to any blueprint.
+flagged when loaded here, with no change to any blueprint: `reference load` returns the blueprint with a
+`feature-unsupported` warning naming the section and the feature, such as
+`section Create needs Epics, which gitlab.capabilities marks **Unsupported.** here`. `reference check` reports the same
+warning and does not fail on it.
+
+A blueprint whose capability reference is missing still loads, with a warning. Loading reads files only: it runs no
+command and compares no version.
 
 ## When a step fails
 
