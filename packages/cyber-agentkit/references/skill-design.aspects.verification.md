@@ -299,7 +299,9 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 - **VER-4** [script] Every `files` folder and `setup` script an outcome case names exists.
 - **VER-5** [script] `threshold` is between 1 and `runs`.
 - **VER-6** [read, warning] Each `skip` case is a request a user could plausibly make that belongs to another job, not
-  an unrelated one, and the skill's own description rules it out, not another skill being installed to take it.
+  an unrelated one, and the skill's own description rules it out, not another skill being installed to take it. A
+  case another skill takes is still valid when that skill ships in the same plugin: it is always installed beside the
+  skill, and the test loads it. Only a skill from outside the plugin is the case this check rules out.
 - **VER-7** [read, warning] Each rubric decides its criterion, not something easier that happens to go with it.
 - **VER-8** [read] No case holds private data, such as real names, tokens, or customer text.
 - **VER-9** [script, warning] No outcome case's prompt tells the model to run a setup script; that step is the case's
