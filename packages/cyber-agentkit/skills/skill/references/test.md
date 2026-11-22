@@ -203,8 +203,14 @@ Results saved before these fields were added lack them.
 The expected result is kept per scope: `<skill folder>/evals/<name>/expected.json` for the cases of an eval folder,
 and `<skill folder>/evals/expected.json` for the trigger and root cases, which also holds the attested passes. Each
 holds one entry per case, keyed by its ID, under `entries`.
+A run is stopped when its cost passes a cap: the `costCap` (US dollars) the case names in its `evals.yaml` entry, else
+twice the `max` its entry recorded, and never below $0.50, which a case with no recorded `cost` takes. A stopped run
+errors with `Exceeded the run cost cap`, is reported as not run, and counts the cost it reached into the next cap. Say
+so when a case's runs stopped at the cap, and name its `costCap` as the way to give it more room. The estimate sums each
+planned case's recorded cost; a run with no recorded cost takes the last result's average price.
 Each entry records the case's `status`, `passed`, and `ran`, for an outcome case each criterion it tests under
-`criteria`, the `model`, when it was recorded (`at`), and `hashes` of the case's own definition and of its scope's
+`criteria`, the `model`, its runs' `cost` per arm (`skill` and `baseline`, each with `runs`, `total`, and the dearest run's
+`max`, in US dollars), when it was recorded (`at`), and `hashes` of the case's own definition and of its scope's
 inputs. `scope` is `trigger` for a trigger case, the eval folder's name for a case in `evals/<name>/`, and `root` for
 another outcome case. `inputs` keeps each recorded scope's inputs by name, so a later run names the one that changed. A criterion's expected result is
 computed from the entries of the cases that test it; when they were recorded at different times, it carries
