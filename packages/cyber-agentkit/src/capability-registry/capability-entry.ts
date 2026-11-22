@@ -37,12 +37,21 @@ export const capabilitySystemPattern: RegExp = /^[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+
 const linkLists = ['plugins', 'blueprints'] as const
 const knownKeys = new Set(['system', 'description', 'tags', 'status', ...linkLists])
 
-/** `<interface>.blueprints.<system>.<solution>`: the last `.blueprints.` ends the interface id (K41). */
-const blueprintName = /^(.+\.blueprints)\.([^./]+)\.([^/]+)$/
+const blueprintsInfix = '.blueprints.'
 
-/** The system a blueprint's name builds on, or `undefined` when the name is not a blueprint's. */
+/**
+ * The system a blueprint's name builds on, or `undefined` when the name is not a blueprint's:
+ * `<interface>.blueprints.<system>.<solution>`, where the last `.blueprints.` ends the interface id
+ * (K41). Plain string steps, so no name can make it slow.
+ */
 export function blueprintSystemOf(name: string): string | undefined {
-	return blueprintName.exec(name)?.[2]
+	if (name.includes('/')) return undefined
+	const at = name.lastIndexOf(blueprintsInfix)
+	if (at <= 0) return undefined
+	const key = name.slice(at + blueprintsInfix.length)
+	const dot = key.indexOf('.')
+	if (dot <= 0 || dot === key.length - 1) return undefined
+	return key.slice(0, dot)
 }
 
 /** The capability reference an entry registers: `<system>.capabilities`. */

@@ -78,6 +78,7 @@ describe('blueprintSystemOf', () => {
 		expect(blueprintSystemOf('a.blueprints.b.blueprints.gitlab.epics.v2')).toBe('gitlab')
 		expect(blueprintSystemOf('project-tracker.blueprints.asana')).toBeUndefined()
 		expect(blueprintSystemOf('asana.capabilities')).toBeUndefined()
+		expect(blueprintSystemOf(`a.blueprints.-.${'..blueprints.-.'.repeat(50_000)}`)).toBeUndefined()
 	})
 })
 
