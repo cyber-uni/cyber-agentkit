@@ -56,6 +56,13 @@ agent plugin of the same name, like `universal-plugin` does for itself.
 Research comes before code: every harness fact the library encodes rests on
 `.research/harness-detection`. The library must not claim to detect a harness it has not verified.
 
+## Harness-agnostic defaults
+
+No default names one harness's model, provider, or command. A default that depends on the harness
+comes from the harness the user chose (`--harness`, else the detected one), through its definition in
+`src/headless`. When that harness has no known value, use the harness's own default and warn, as
+`skill test --model` does.
+
 ## Where things live
 
 | Path | Holds |
