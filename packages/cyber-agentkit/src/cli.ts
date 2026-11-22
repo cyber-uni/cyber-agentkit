@@ -4,7 +4,9 @@ import { fileURLToPath } from 'node:url'
 import { cli, exitCodes } from 'clibuilder'
 import { homeHeader, result } from 'clibuilder/axi'
 import { createAssetCommand } from './assets/asset.command.js'
+import { declaredHarnesses } from './detection/declared-harnesses.js'
 import { detectHarness } from './detection/detect-harness.js'
+import { createHarnessCommand } from './detection/harness.command.js'
 import { installedHarnesses } from './detection/present-harnesses.js'
 import { createInstructionCommand } from './instruction-design/instruction.command.js'
 import { createProseUpdateCommand } from './prose-update/prose-update.command.js'
@@ -41,14 +43,18 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 	})
 		.default({
 			description:
-				'Show the harness running here, every harness installed on this machine with what showed it, and the commands to read references and assets.',
+				'Show the harness running here, every harness installed on this machine and every one the repo or the user declares, each with what showed it, and the commands to read references and assets.',
 			examples: [
-				{ command: 'cyber-agentkit', description: 'Show the running and installed harnesses and the commands' },
+				{
+					command: 'cyber-agentkit',
+					description: 'Show the running, installed, and declared harnesses and the commands',
+				},
 				{ command: 'cyber-agentkit --format json', description: 'The same, as JSON' },
 			],
 			run() {
 				const { harness, candidates, evidence } = detectHarness()
 				const signals = evidence.filter((e) => e.harness === harness).map(({ signal }) => signal)
+				const declared = declaredHarnesses()
 				return result(
 					{
 						...homeHeader({ description: 'Work with the AI agent harness running here', bin: 'cyber-agentkit' }),
@@ -56,7 +62,9 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 						running: { harness, evidence: signals },
 						...(candidates.length > 1 ? { candidates } : {}),
 						installed: installedHarnesses().map(({ harness, evidence }) => ({ harness, evidence })),
-						commands: ['reference', 'asset', 'prose-update', 'skill', 'instruction'],
+						declared: declared.harnesses.map(({ harness, evidence }) => ({ harness, evidence })),
+						...(declared.rejected.length ? { rejected: declared.rejected } : {}),
+						commands: ['reference', 'asset', 'prose-update', 'skill', 'instruction', 'harness'],
 					},
 					{
 						help: [
@@ -72,6 +80,7 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 		.command(createProseUpdateCommand())
 		.command(createSkillCommand({ plugin: { name, root } }))
 		.command(createInstructionCommand({ plugin: { name, root } }))
+		.command(createHarnessCommand())
 }
 
 /**

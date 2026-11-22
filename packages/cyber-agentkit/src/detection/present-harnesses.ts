@@ -4,6 +4,7 @@ import type { HarnessId } from '../harness/harness-id.js'
 import { harnessIds } from '../harness/harness-id.js'
 import type { Platform } from '../harness/platform.js'
 import { headlessInvocation } from '../headless/headless-invocation.js'
+import { type DeclaredHarnessesOptions, declaredHarnesses, type RejectedDeclaration } from './declared-harnesses.js'
 import { detectHarness } from './detect-harness.js'
 
 type Env = Readonly<Record<string, string | undefined>>
@@ -74,18 +75,23 @@ export type PresentHarnessSource =
 	| 'environment'
 	/** Its command is on `PATH` (R11). */
 	| 'installed'
+	/** The repo's or the user's `harnesses` reference lists it (`declaredHarnesses()`); no signal is needed. */
+	| 'declared'
 
 export interface PresentHarness {
 	readonly harness: HarnessId
+	/** The first of `sources`: how it is detected, or `declared` when it is only declared. */
 	readonly source: PresentHarnessSource
-	/** The environment variables or the executable path that showed it. */
+	/** Every way it was found, detected sources first, so a harness detected and declared lists both. */
+	readonly sources: readonly PresentHarnessSource[]
+	/** The environment variables, the executable path, or the declaring files that showed it. */
 	readonly evidence: readonly string[]
 }
 
-export interface PresentHarnessesOptions extends InstalledHarnessesOptions {
+export interface PresentHarnessesOptions extends InstalledHarnessesOptions, DeclaredHarnessesOptions {
 	/**
 	 * `false` (the default) returns only the running harness, or none when it is `unknown`. `true` adds every
-	 * harness whose environment signals are set and every harness installed on this machine.
+	 * harness whose environment signals are set, every harness installed on this machine, and every declared one.
 	 */
 	readonly all?: boolean | undefined
 }
@@ -95,30 +101,52 @@ export interface PresentHarnessesResult {
 	readonly running: HarnessId | 'unknown'
 	/** The harnesses to act for, the running one first, each once. */
 	readonly harnesses: readonly PresentHarness[]
+	/** With `all`, declaration entries that are not harness IDs, or files that are not declarations. Absent when none. */
+	readonly rejected?: readonly RejectedDeclaration[]
 }
 
 /**
  * The harnesses present here: by default the one running this process; with `all`, also every harness whose
- * environment signals are set and every harness installed on this machine (`installedHarnesses()`).
+ * environment signals are set, every harness installed on this machine (`installedHarnesses()`), and every harness
+ * the repo or the user declares (`declaredHarnesses()`).
  */
 export function presentHarnesses({
 	env = process.env,
 	platform,
 	all = false,
+	root,
+	cwd,
+	home,
 }: PresentHarnessesOptions = {}): PresentHarnessesResult {
 	const detection = detectHarness({ env })
-	const harnesses: PresentHarness[] = []
+	const harnesses: { harness: HarnessId; sources: PresentHarnessSource[]; evidence: string[] }[] = []
+	const add = (harness: HarnessId, source: PresentHarnessSource, evidence: readonly string[]) => {
+		const found = harnesses.find((present) => present.harness === harness)
+		if (!found) harnesses.push({ harness, sources: [source], evidence: [...evidence] })
+		else if (source === 'declared') {
+			found.sources.push(source)
+			found.evidence.push(...evidence)
+		}
+	}
 	const signals = (harness: HarnessId) =>
 		detection.evidence.filter((evidence) => evidence.harness === harness).map(({ signal }) => signal)
-	if (detection.harness !== 'unknown')
-		harnesses.push({ harness: detection.harness, source: 'running', evidence: signals(detection.harness) })
+	if (detection.harness !== 'unknown') add(detection.harness, 'running', signals(detection.harness))
+	let rejected: readonly RejectedDeclaration[] = []
 	if (all) {
-		for (const harness of detection.candidates)
-			if (!harnesses.some((present) => present.harness === harness))
-				harnesses.push({ harness, source: 'environment', evidence: signals(harness) })
-		for (const { harness, path } of installedHarnesses({ env, platform }))
-			if (!harnesses.some((present) => present.harness === harness))
-				harnesses.push({ harness, source: 'installed', evidence: [path] })
+		for (const harness of detection.candidates) add(harness, 'environment', signals(harness))
+		for (const { harness, path } of installedHarnesses({ env, platform })) add(harness, 'installed', [path])
+		const declared = declaredHarnesses({ root, cwd, home })
+		for (const { harness, evidence } of declared.harnesses) add(harness, 'declared', evidence)
+		rejected = declared.rejected
 	}
-	return { running: detection.harness, harnesses }
+	return {
+		running: detection.harness,
+		harnesses: harnesses.map(({ harness, sources, evidence }) => ({
+			harness,
+			source: sources[0] as PresentHarnessSource,
+			sources,
+			evidence,
+		})),
+		...(rejected.length ? { rejected } : {}),
+	}
 }

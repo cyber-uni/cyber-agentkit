@@ -293,6 +293,7 @@ describe('skill doctor', () => {
 	it('with --all-harnesses, reports per harness and reads agents/openai.yaml for Codex', async () => {
 		inClaudeCode()
 		pathWith('codex')
+		vi.stubEnv('HOME', realpathSync(mkdtempSync(join(tmpdir(), 'skill-doctor-home-'))))
 		const { root, dir } = repoWith('skills')
 		mkdirSync(join(dir, 'agents'))
 		writeFileSync(join(dir, 'agents', 'openai.yaml'), 'interface:\n  icon_small: logo.svg\n')
@@ -309,9 +310,91 @@ describe('skill doctor', () => {
 		expect(report.harnesses[1].skills[0].warnings).toEqual([expect.objectContaining({ code: 'codex-icon-ignored' })])
 		stdout.mockClear()
 		expect(await run([...args, '--format', 'text'])).toBe(0)
-		expect(printed()).toContain('== claude-code (running)')
-		expect(printed()).toContain('== codex (installed)')
+		expect(printed()).toContain('== claude-code (detected: running)')
+		expect(printed()).toContain('== codex (detected: installed)')
 		expect(printed()).toContain('warning codex-icon-ignored')
+	})
+
+	it('with --all-harnesses, checks a declared harness with no detection signal, and marks it declared', async () => {
+		noHarness()
+		pathWith()
+		const home = realpathSync(mkdtempSync(join(tmpdir(), 'skill-doctor-home-')))
+		vi.stubEnv('HOME', home)
+		vi.stubEnv('USERPROFILE', home)
+		const { root } = repoWith('skills')
+		const declare = ['node', 'cyber-agentkit', 'harness', 'add', 'vscode-copilot', '--scope', 'user', '--root', root]
+		expect(await run(declare)).toBe(0)
+		stdout.mockClear()
+		const args = ['node', 'cyber-agentkit', 'skill', 'doctor', 'triage', '--root', root, '--all-harnesses']
+		expect(await run([...args, '--format', 'json'])).toBe(0)
+		const report = JSON.parse(printed())
+		expect(report.running).toBe('unknown')
+		expect(report.harnesses).toEqual([
+			expect.objectContaining({
+				harness: 'vscode-copilot',
+				source: 'declared',
+				sources: ['declared'],
+				status: 'passed',
+				skills: [expect.objectContaining({ skill: 'triage' })],
+			}),
+		])
+		stdout.mockClear()
+		expect(await run([...args, '--format', 'text'])).toBe(0)
+		expect(printed()).toContain('== vscode-copilot (declared)')
+	})
+
+	it('marks a harness both detected and declared with both', async () => {
+		inClaudeCode()
+		pathWith()
+		const home = realpathSync(mkdtempSync(join(tmpdir(), 'skill-doctor-home-')))
+		vi.stubEnv('HOME', home)
+		const { root } = repoWith('skills')
+		expect(await run(['node', 'cyber-agentkit', 'harness', 'add', 'claude-code', '--root', root])).toBe(0)
+		stdout.mockClear()
+		const args = ['node', 'cyber-agentkit', 'skill', 'doctor', 'triage', '--root', root, '--all-harnesses']
+		expect(await run([...args, '--format', 'text'])).toBe(0)
+		expect(printed()).toContain('== claude-code (detected: running; declared)')
+	})
+
+	it('with --all-harnesses, checks a declared harness with no detection signal, and marks it declared', async () => {
+		noHarness()
+		pathWith()
+		const home = realpathSync(mkdtempSync(join(tmpdir(), 'skill-doctor-home-')))
+		vi.stubEnv('HOME', home)
+		vi.stubEnv('USERPROFILE', home)
+		const { root } = repoWith('skills')
+		const declare = ['node', 'cyber-agentkit', 'harness', 'add', 'vscode-copilot', '--scope', 'user', '--root', root]
+		expect(await run(declare)).toBe(0)
+		stdout.mockClear()
+		const args = ['node', 'cyber-agentkit', 'skill', 'doctor', 'triage', '--root', root, '--all-harnesses']
+		expect(await run([...args, '--format', 'json'])).toBe(0)
+		const report = JSON.parse(printed())
+		expect(report.running).toBe('unknown')
+		expect(report.harnesses).toEqual([
+			expect.objectContaining({
+				harness: 'vscode-copilot',
+				source: 'declared',
+				sources: ['declared'],
+				status: 'passed',
+				skills: [expect.objectContaining({ skill: 'triage' })],
+			}),
+		])
+		stdout.mockClear()
+		expect(await run([...args, '--format', 'text'])).toBe(0)
+		expect(printed()).toContain('== vscode-copilot (declared)')
+	})
+
+	it('marks a harness both detected and declared with both', async () => {
+		inClaudeCode()
+		pathWith()
+		const home = realpathSync(mkdtempSync(join(tmpdir(), 'skill-doctor-home-')))
+		vi.stubEnv('HOME', home)
+		const { root } = repoWith('skills')
+		expect(await run(['node', 'cyber-agentkit', 'harness', 'add', 'claude-code', '--root', root])).toBe(0)
+		stdout.mockClear()
+		const args = ['node', 'cyber-agentkit', 'skill', 'doctor', 'triage', '--root', root, '--all-harnesses']
+		expect(await run([...args, '--format', 'text'])).toBe(0)
+		expect(printed()).toContain('== claude-code (detected: running; declared)')
 	})
 
 	it('fails as a usage error when no skill has the name', async () => {

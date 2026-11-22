@@ -15,6 +15,14 @@ export {
 	readPluginDependencies,
 } from './dependencies/plugin-dependencies.js'
 export type {
+	DeclarationTier,
+	DeclaredHarness,
+	DeclaredHarnessesOptions,
+	DeclaredHarnessesResult,
+	RejectedDeclaration,
+} from './detection/declared-harnesses.js'
+export { declaredHarnesses } from './detection/declared-harnesses.js'
+export type {
 	DetectHarnessOptions,
 	HarnessDetectionResult,
 	HarnessEvidence,

@@ -15,6 +15,19 @@ function bin(...names: string[]): string {
 
 const claudeEnv = { CLAUDECODE: '1', CLAUDE_CODE_CHILD_SESSION: '1' }
 
+/** A repo root and a home directory with no declaration, unless `declare` writes one. */
+function places() {
+	const root = mkdtempSync(join(tmpdir(), 'present-harnesses-root-'))
+	const home = mkdtempSync(join(tmpdir(), 'present-harnesses-home-'))
+	const declare = (where: string, ...ids: string[]) => {
+		const dir = join(where, '.agents', 'references')
+		mkdirSync(dir, { recursive: true })
+		writeFileSync(join(dir, 'harnesses.yaml'), `declared: [${ids.join(', ')}]\n`)
+		return join(dir, 'harnesses.yaml')
+	}
+	return { root, home, declare }
+}
+
 describe('installedHarnesses', () => {
 	it('reports a harness whose verified headless executable is on PATH', () => {
 		const dir = bin('codex', 'copilot')
@@ -79,7 +92,14 @@ describe('presentHarnesses', () => {
 		const result = presentHarnesses({ env: { ...claudeEnv, PATH: bin('codex') }, platform: 'linux' })
 		expect(result).toEqual({
 			running: 'claude-code',
-			harnesses: [{ harness: 'claude-code', source: 'running', evidence: ['CLAUDECODE', 'CLAUDE_CODE_CHILD_SESSION'] }],
+			harnesses: [
+				{
+					harness: 'claude-code',
+					source: 'running',
+					sources: ['running'],
+					evidence: ['CLAUDECODE', 'CLAUDE_CODE_CHILD_SESSION'],
+				},
+			],
 		})
 	})
 
@@ -92,19 +112,72 @@ describe('presentHarnesses', () => {
 
 	it('adds the installed harnesses after the running one with all, each once', () => {
 		const dir = bin('claude', 'codex')
-		const result = presentHarnesses({ env: { ...claudeEnv, PATH: dir }, platform: 'linux', all: true })
+		const { root, home } = places()
+		const result = presentHarnesses({ env: { ...claudeEnv, PATH: dir }, platform: 'linux', all: true, root, home })
 		expect(result.harnesses).toEqual([
-			{ harness: 'claude-code', source: 'running', evidence: ['CLAUDECODE', 'CLAUDE_CODE_CHILD_SESSION'] },
-			{ harness: 'codex', source: 'installed', evidence: [join(dir, 'codex')] },
+			{
+				harness: 'claude-code',
+				source: 'running',
+				sources: ['running'],
+				evidence: ['CLAUDECODE', 'CLAUDE_CODE_CHILD_SESSION'],
+			},
+			{ harness: 'codex', source: 'installed', sources: ['installed'], evidence: [join(dir, 'codex')] },
 		])
 	})
 
 	it('adds nested harnesses from the environment with all, while the running one stays unknown', () => {
-		const result = presentHarnesses({ env: { ...claudeEnv, CODEX_THREAD_ID: 't' }, platform: 'linux', all: true })
+		const { root, home } = places()
+		const env = { ...claudeEnv, CODEX_THREAD_ID: 't' }
+		const result = presentHarnesses({ env, platform: 'linux', all: true, root, home })
 		expect(result.running).toBe('unknown')
 		expect(result.harnesses.map(({ harness, source }) => [harness, source])).toEqual([
 			['claude-code', 'environment'],
 			['codex', 'environment'],
 		])
+	})
+
+	it('adds a declared harness with all, with no detection signal, and names the file that declares it', () => {
+		const { root, home, declare } = places()
+		const file = declare(home, 'vscode-copilot')
+		const result = presentHarnesses({ env: {}, platform: 'linux', all: true, root, home })
+		expect(result).toEqual({
+			running: 'unknown',
+			harnesses: [{ harness: 'vscode-copilot', source: 'declared', sources: ['declared'], evidence: [file] }],
+		})
+	})
+
+	it('lists a harness both detected and declared once, with both sources', () => {
+		const { root, home, declare } = places()
+		const dir = bin('codex')
+		const file = declare(root, 'codex', 'claude-code')
+		const result = presentHarnesses({ env: { ...claudeEnv, PATH: dir }, platform: 'linux', all: true, root, home })
+		expect(result.harnesses).toEqual([
+			{
+				harness: 'claude-code',
+				source: 'running',
+				sources: ['running', 'declared'],
+				evidence: ['CLAUDECODE', 'CLAUDE_CODE_CHILD_SESSION', file],
+			},
+			{
+				harness: 'codex',
+				source: 'installed',
+				sources: ['installed', 'declared'],
+				evidence: [join(dir, 'codex'), file],
+			},
+		])
+	})
+
+	it('reads no declaration without all', () => {
+		const { root, home, declare } = places()
+		declare(home, 'vscode-copilot')
+		expect(presentHarnesses({ env: {}, platform: 'linux', root, home }).harnesses).toEqual([])
+	})
+
+	it('reports a declared entry that is not a harness ID, and checks the others', () => {
+		const { root, home, declare } = places()
+		const file = declare(home, 'cursor', 'vscode')
+		const result = presentHarnesses({ env: {}, platform: 'linux', all: true, root, home })
+		expect(result.harnesses.map(({ harness }) => harness)).toEqual(['cursor'])
+		expect(result.rejected).toEqual([{ file, harness: 'vscode', message: expect.stringContaining('vscode-copilot') }])
 	})
 })

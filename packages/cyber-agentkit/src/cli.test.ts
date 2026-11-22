@@ -132,15 +132,20 @@ describe('bare invocation', () => {
 		const out = stdout.mock.calls.map(([chunk]) => String(chunk)).join('')
 		expect(out).toContain('bin: cyber-agentkit')
 		expect(out).toContain('harness:')
-		expect(out).toContain('commands[5]: reference,asset,prose-update,skill,instruction')
+		expect(out).toContain('commands[6]: reference,asset,prose-update,skill,instruction,harness')
 	})
 
-	it('reports the running harness and every installed one, each with its evidence, in one call', async () => {
+	it('reports the running harness, every installed one, and every declared one, each with its evidence, in one call', async () => {
 		const bin = tempRoot()
 		for (const name of ['claude', 'codex']) {
 			writeFileSync(join(bin, name), '#!/bin/sh\n')
 			chmodSync(join(bin, name), 0o755)
 		}
+		const home = tempRoot()
+		mkdirSync(join(home, '.agents', 'references'), { recursive: true })
+		writeFileSync(join(home, '.agents', 'references', 'harnesses.yaml'), 'declared: [vscode-copilot, codex]\n')
+		vi.stubEnv('HOME', home)
+		vi.stubEnv('USERPROFILE', home)
 		vi.stubEnv('PATH', bin)
 		vi.stubEnv('CODEX_THREAD_ID', 't')
 		for (const name of ['CLAUDECODE', 'CLAUDE_CODE_CHILD_SESSION', 'CLAUDE_CODE_SESSION_ID', 'CLAUDE_CODE_ENTRYPOINT'])
@@ -156,6 +161,11 @@ describe('bare invocation', () => {
 		expect(out.installed).toEqual([
 			{ harness: 'claude-code', evidence: [join(bin, 'claude')] },
 			{ harness: 'codex', evidence: [join(bin, 'codex')] },
+		])
+		const declaration = join(home, '.agents', 'references', 'harnesses.yaml')
+		expect(out.declared).toEqual([
+			{ harness: 'codex', evidence: [declaration] },
+			{ harness: 'vscode-copilot', evidence: [declaration] },
 		])
 	})
 })
