@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "reference",
-	"at": "2026-11-22T20:01:34.665Z",
+	"at": "2026-11-22T20:14:45.818Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -12,7 +12,7 @@
 	"durationMs": 196154,
 	"criteria": ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"],
 	"reported": {
-		"scripts": "sha256:f5bd99104b4f1f61e98759c832365ea8ba50db5d54d46c943f0a8de1bf6a4d90",
+		"scripts": "sha256:b44e5487831b4ca3c8425b2a66acf2118b87f29e4039a0eaef86cf1792f12ece",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -74,6 +74,21 @@
 			"at": "2026-11-22T20:01:34.665Z",
 			"hashes": {
 				"case": "sha256:d3ebcfd9f2cade149ca4330f2aea5e12051b0f17a0f315686dbc7268ac0b856b",
+				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
+			}
+		},
+		"is-a-system-already-registered": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Before I write a capability reference for Linear, is one already in the registry?",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:14:45.818Z",
+			"hashes": {
+				"case": "sha256:bd614bb390dd5da6943074c3eb2a5559491e3832d77c35162f7a205978d0a9e2",
 				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
 			}
 		},
