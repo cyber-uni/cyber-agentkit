@@ -82,15 +82,30 @@ site's Verbs and skill names page is generated from it.
 
 ### Naming a skill that carries a verb
 
-A standalone skill is named `<verb>-<plugin>`, such as `doctor-buddy-agent-harness`:
+A standalone skill takes the bare verb as its name, such as `enhance`, `repair`, or `compare`. The plugin already
+scopes it, as in `/buddy-agent-harness:enhance`.
 
-1. A bare `doctor` collides across plugins. In a harness that lists skills without their plugin, such as Codex, a user
-   would not know which `doctor` to run.
+A verb common across the agentic ecosystem is the exception. Its skill is named `<verb>-<plugin>`, such as
+`doctor-buddy-agent-harness`. A verb is common when either holds:
+
+- A harness ships it as a built-in command. Claude Code, Codex, and GitHub Copilot CLI each have `/init` and
+  `/review`, all four harnesses have a `config` command, and Claude Code has `/doctor`.
+- It names a job that nearly every plugin does for itself. Most plugins have their own `init`, and a plugin with a
+  setup to examine has its own `doctor`.
+
+Today that is `init`, `doctor`, `config`, and `review`. To decide, ask: would another plugin or the harness itself
+offer this same bare name? If yes, use `<verb>-<plugin>`. If not, keep the bare verb.
+
+For a common verb, `<verb>-<plugin>` holds for three reasons:
+
+1. A bare `doctor` collides across plugins and with the harness's own `/doctor`. In a harness that lists skills
+   without their plugin, such as Codex, a user would not know which `doctor` to run.
 2. `<plugin>-<verb>` repeats the plugin in the full name: `/buddy-agent-harness:buddy-agent-harness-doctor`.
 3. Verb first lets a user type `doctor` and then pick which plugin's doctor to run from the list.
 
-A command behind a router skill takes the bare verb: `/reference check`, `/reference advise`, `/skill doctor`. The
-skill's name already scopes it, so it collides with nothing.
+A name that adds an object to the verb, such as `config-model-runners` or `review-api`, is already distinct and keeps
+that form. A command behind a router skill takes the bare verb: `/reference check`, `/reference advise`,
+`/skill doctor`. The skill's name already scopes it, so it collides with nothing.
 
 Verbs that only one plugin uses, such as `ship`, `publish`, `build`, or `jump`, are that plugin's own and are not
 listed here.
