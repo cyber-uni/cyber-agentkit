@@ -9,7 +9,7 @@ import type { PluginEvalRun } from './plugin-eval-backend.js'
 import type { PluginList } from './plugin-load.js'
 import { createSkillCommand } from './skill.command.js'
 import { goodEvals, goodSkill, shippedSandbox } from './skill-design.fixtures.js'
-import { acceptResult, keptAcceptedResults, type PromptfooRun } from './skill-test.js'
+import { acceptResult, keptAcceptedResults, type PromptfooRun, readExpected } from './skill-test.js'
 import type { TestResult } from './test-result.js'
 
 const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
@@ -378,39 +378,103 @@ describe('skill test', () => {
 			expect(readFileSync(join(results(root), '.gitignore'), 'utf8')).toBe('*\n')
 		})
 
-		it('writes expected.json with --accept, in the shape of latest.json', async () => {
+		const triggers = ['trigger-1', 'trigger-2', 'trigger-3', 'trigger-4', 'trigger-5', 'trigger-6']
+		const expectedOf = (skill: { folder: string }) =>
+			JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8'))
+
+		it('writes an entry per case it finished with --accept: its result per criterion, model, date, and hashes (R181)', async () => {
 			const skill = goodSkill()
 			const root = gitRepo()
-			await test(skill.folder, fakeRun({}, false), root)
-			expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
 			await test(skill.folder, fakeRun({}, false), root, '--accept')
-			const { folder, replies, ...latest } = JSON.parse(
-				readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'),
+			const latest = JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'))
+			const expected = expectedOf(skill)
+			expect(expected.version).toBe(2)
+			expect(Object.keys(expected.entries)).toEqual([...triggers, 'two-prs'])
+			const hashes = { case: expect.stringMatching(/^sha256:/), scope: expect.stringMatching(/^sha256:/) }
+			expect(expected.entries['two-prs']).toEqual({
+				scope: 'root',
+				status: 'fail',
+				passed: 0,
+				ran: 3,
+				criteria: {
+					C1: { status: 'fail', passed: 0, ran: 3, baseline: { passed: 0, ran: 3 } },
+					C2: { status: 'fail', passed: 0, ran: 3, baseline: { passed: 0, ran: 3 } },
+				},
+				model: latest.model,
+				at: latest.at,
+				hashes,
+			})
+			expect(expected.entries['trigger-1']).toMatchObject({
+				scope: 'trigger',
+				status: 'pass',
+				prompt: 'write release notes',
+				expect: 'fire',
+				fired: 3,
+				at: latest.at,
+				hashes,
+			})
+			// what stays on this machine never reaches the committed file
+			expect(JSON.stringify(expected)).not.toContain(skill.folder)
+			expect(expected).not.toHaveProperty('replies')
+			expect(printed()).toContain(
+				`"expectedWritten":{"by":"accept","cases":${JSON.stringify([...triggers, 'two-prs'])}}`,
 			)
-			expect(folder).toBeDefined()
-			expect(replies).toBeDefined() // the replies stay on this machine, like the folder
-			expect(JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8'))).toEqual(latest)
 		})
 
-		it('saves the first passing run as expected.json when there is none, and says so (R80)', async () => {
+		it('saves the entry of a case with none whose runs pass, without an accept, and says which (R80)', async () => {
 			const skill = goodSkill()
 			const root = gitRepo()
-			const expected = join(skill.folder, 'evals', 'expected.json')
 			expect(await test(skill.folder, fakeRun({}, false), root)).toBe(1)
-			expect(existsSync(expected)).toBe(false) // a failing first run saves none
+			// the trigger cases passed and had no entry; the failing outcome case gets none
+			const first = JSON.parse(printed())
+			expect(first.expectedWritten).toEqual({ by: 'pass', cases: triggers })
+			expect(first.notSavedAsExpected).toEqual([{ case: 'two-prs', reason: 'it failed' }])
+			expect(Object.keys(expectedOf(skill).entries)).toEqual(triggers)
+			const triggerAt = expectedOf(skill).entries['trigger-1'].at
+
+			stdout.mockClear()
 			expect(await test(skill.folder, fakeRun({}), root)).toBe(0)
-			expect(printed()).toContain('"savedAsExpected":true')
+			expect(JSON.parse(printed()).expectedWritten).toEqual({ by: 'pass', cases: ['two-prs'] })
+			expect(expectedOf(skill).entries['two-prs']).toMatchObject({ status: 'pass' })
+			// an existing entry changes only on the author's accept
+			expect(expectedOf(skill).entries['trigger-1'].at).toBe(triggerAt)
 			const {
 				folder: _folder,
 				replies: _replies,
 				...latest
 			} = JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'))
-			expect(latest).not.toHaveProperty('savedAsExpected')
-			expect(JSON.parse(readFileSync(expected, 'utf8'))).toEqual(latest)
+			expect(latest).not.toHaveProperty('expectedWritten')
 
-			const first = readFileSync(expected, 'utf8')
-			await test(skill.folder, fakeRun({}), root) // a later pass does not replace it
-			expect(readFileSync(expected, 'utf8')).toBe(first)
+			const kept = readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')
+			stdout.mockClear()
+			await test(skill.folder, fakeRun({}, false), root) // a later fail replaces no entry
+			expect(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')).toBe(kept)
+			expect(JSON.parse(printed())).not.toHaveProperty('expectedWritten')
+		})
+
+		it('says in the text report which entries it saved and which cases got none', async () => {
+			const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
+				createSkillCommand({ ...offline, runPromptfoo: fakeRun({}, false) }),
+			)
+			await app.parse(['node', 'cyber-agentkit', 'skill', 'test', goodSkill().folder, '--root', gitRepo()])
+			const lines = printed().split('\n')
+			expect(lines).toContain(`no expected entry yet, and passed: saved in evals/expected.json: ${triggers.join(', ')}`)
+			expect(lines).toContain(
+				'no expected entry for two-prs: it failed; run `skill accept` on the skill to accept it anyway',
+			)
+		})
+
+		it('drops the entry of a case the evals no longer hold when it writes (R181)', async () => {
+			const skill = goodSkill()
+			const root = gitRepo()
+			await test(skill.folder, fakeRun({}), root)
+			expect(Object.keys(expectedOf(skill).entries)).toContain('trigger-6')
+			writeFileSync(
+				join(skill.folder, 'evals', 'evals.yaml'),
+				goodEvals.replace('  - { prompt: write a commit message, expect: skip }\n', ''),
+			)
+			await test(skill.folder, fakeRun({}), root, '--accept')
+			expect(Object.keys(expectedOf(skill).entries)).toEqual([...triggers.slice(0, 5), 'two-prs'])
 		})
 
 		describe('a first result that is not every pass (#322)', () => {
@@ -432,20 +496,19 @@ describe('skill test', () => {
 				expect(await test(skill.folder, erroring, root)).toBe(1)
 				expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
 				const report = JSON.parse(printed())
-				expect(report).not.toHaveProperty('savedAsExpected')
-				expect(report.notSavedAsExpected).toBe('no run finished')
+				expect(report).not.toHaveProperty('expectedWritten')
+				expect(report.notSavedAsExpected).toContainEqual({ case: 'two-prs', reason: 'it was not run' })
 				expect(report.notRun.length).toBeGreaterThan(0)
 			})
 
-			it('does not save a result whose criteria are not tested, and says why', async () => {
+			it('saves no entry for a case whose criteria are not tested, and says why', async () => {
 				const skill = goodSkill({ 'evals/evals.yaml': goodEvals.replace(/rubrics:[\s\S]*$/, '') })
 				const root = gitRepo()
 				expect(await test(skill.folder, fakeRun({}), root)).toBe(0)
-				expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
 				const report = JSON.parse(printed())
 				expect(report.trigger.every((item: { status: string }) => item.status === 'pass')).toBe(true)
-				expect(report).not.toHaveProperty('savedAsExpected')
-				expect(report.notSavedAsExpected).toBe('not every trigger case and criterion passed: 2 not tested')
+				expect(report.notSavedAsExpected).toEqual([{ case: 'two-prs', reason: 'it tests no criterion with a rubric' }])
+				expect(Object.keys(expectedOf(skill).entries)).toEqual(triggers)
 			})
 
 			describe('a planned skip is no failure, a harness failure is (#327)', () => {
@@ -458,8 +521,10 @@ describe('skill test', () => {
 					expect(await test(skill.folder, fakeRun({}), root)).toBe(0)
 					expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
 					const report = JSON.parse(printed())
-					expect(report).not.toHaveProperty('savedAsExpected')
-					expect(report.notSavedAsExpected).toBe('every case was skipped before running')
+					expect(report).not.toHaveProperty('expectedWritten')
+					expect(report.notSavedAsExpected).toEqual([
+						{ case: 'post-it', reason: 'it was not run: it has an outside effect the run cannot contain' },
+					])
 					expect(report.notRun).toEqual([
 						{ case: 'post-it', reason: 'it has an outside effect the run cannot contain', kind: 'skipped' },
 					])
@@ -505,13 +570,12 @@ describe('skill test', () => {
 				})
 			})
 
-			it('still saves a result where every trigger case and criterion passes', async () => {
+			it('still saves every case of a result where every trigger case and criterion passes', async () => {
 				const skill = goodSkill()
 				const root = gitRepo()
 				expect(await test(skill.folder, fakeRun({}), root)).toBe(0)
-				expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(true)
 				const report = JSON.parse(printed())
-				expect(report.savedAsExpected).toBe(true)
+				expect(report.expectedWritten).toEqual({ by: 'pass', cases: [...triggers, 'two-prs'] })
 				expect(report).not.toHaveProperty('notSavedAsExpected')
 			})
 		})
@@ -530,14 +594,14 @@ describe('skill test', () => {
 				return ran
 			}
 
-			it('does not save a passing first result as expected, says it held it, and fails (#327)', async () => {
+			it('saves no entry for a passing case with sandbox failures, says it held it, and fails (#327)', async () => {
 				const skill = goodSkill()
 				const root = gitRepo()
 				expect(await test(skill.folder, breaking(), root)).toBe(1)
 				expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
 				const report = JSON.parse(printed())
-				expect(report.expectedHeld).toBe(true)
-				expect(report).not.toHaveProperty('savedAsExpected')
+				expect(report.expectedHeld).toEqual([...triggers, 'two-prs'])
+				expect(report).not.toHaveProperty('expectedWritten')
 				expect(report.sandboxFailures.length).toBeGreaterThan(0)
 				expect(report.cases.find((item: { case: string }) => item.case === 'two-prs')).toMatchObject({
 					status: 'pass',
@@ -545,15 +609,14 @@ describe('skill test', () => {
 				})
 			})
 
-			it('holds it back from --accept too, and accepts it by skill accept, with a warning', async () => {
+			it('holds them back from --accept too, and accepts them by skill accept, with a warning', async () => {
 				const skill = goodSkill()
 				const root = gitRepo()
 				await test(skill.folder, breaking(), root, '--accept')
 				expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
 				expect(await sub('accept', skill.folder, root)).toBe(0)
 				expect(stderr.mock.calls.join('')).toContain('warning: sandbox-failures:')
-				const expected = JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8'))
-				expect(expected.sandboxFailures.length).toBeGreaterThan(0)
+				expect(expectedOf(skill).entries['two-prs'].sandboxFailures.length).toBeGreaterThan(0)
 			})
 
 			it('warns at the top of the text report and lists the sandbox failures of each case', async () => {
@@ -565,7 +628,9 @@ describe('skill test', () => {
 				const lines = printed().split('\n')
 				expect(lines[1]).toMatch(/^warning: \d+ runs were sandbox failures/)
 				expect(lines).toContain(`sandbox failure: two-prs — 1 with the skill, 1 without — ${bwrap}`)
-				expect(printed()).toContain('not saved as evals/expected.json: it has sandbox failures')
+				expect(printed()).toContain(
+					`not saved in evals/expected.json: ${[...triggers, 'two-prs'].join(', ')} had sandbox failures; review them`,
+				)
 			})
 		})
 
@@ -577,14 +642,12 @@ describe('skill test', () => {
 			expect(stderr.mock.calls.join('')).toContain('no-result')
 			expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
 			await test(skill.folder, fakeRun({}, false), root)
+			expect(expectedOf(skill).entries).not.toHaveProperty('two-prs')
+			stdout.mockClear()
 			expect(await sub('accept', skill.folder, root, run)).toBe(0)
 			expect(run).not.toHaveBeenCalled()
-			const {
-				folder: _folder,
-				replies: _replies,
-				...latest
-			} = JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'))
-			expect(JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8'))).toEqual(latest)
+			expect(expectedOf(skill).entries['two-prs']).toMatchObject({ status: 'fail' })
+			expect(JSON.parse(printed()).cases).toEqual([...triggers, 'two-prs'])
 		})
 
 		it('compares with the expected result over the previous one, and says which', async () => {
@@ -601,11 +664,27 @@ describe('skill test', () => {
 			expect(latest().changed).toContainEqual({ case: 'two-prs', from: 'pass', to: 'fail' })
 		})
 
-		it('keeps the expected result it replaces in evals/accepted, up to the limit, dropping the oldest', () => {
+		it('keeps the expected result an accept changes in evals/accepted, up to the limit, dropping the oldest', () => {
 			const skill = goodSkill()
 			const accepted = join(skill.folder, 'evals', 'accepted')
 			const at = (n: number) => `2026-11-0${n}T00:00:00.000Z`
-			const accept = (n: number) => acceptResult({ at: at(n), cases: [] } as unknown as TestResult, skill.folder)
+			const accept = (n: number) =>
+				acceptResult(
+					{
+						version: 1,
+						skill: 'release-notes',
+						at: at(n),
+						verification: 'v',
+						runs: 3,
+						threshold: 2,
+						baseline: 'without the skill',
+						trigger: [{ case: 'trigger-1', prompt: 'p', expect: 'fire', fired: 3, ran: 3, status: 'pass' }],
+						criteria: [],
+						cases: [{ case: 'trigger-1', status: 'pass', passed: 3, ran: 3 }],
+						notRun: [],
+					},
+					skill.folder,
+				)
 			accept(1)
 			expect(existsSync(accepted)).toBe(false) // the first accepted result is the expected one alone
 			accept(1) // accepting the same run again keeps no copy of it
@@ -620,13 +699,18 @@ describe('skill test', () => {
 			expect(JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')).at).toBe(at(5))
 		})
 
-		it('keeps an expected result saved before the history as the newest entry, and names the cases that moved', async () => {
+		it('reads a version 1 expected result as entries, keeps it in the history, and names the cases that moved', async () => {
 			const skill = goodSkill()
 			const root = gitRepo()
 			const expected = join(skill.folder, 'evals', 'expected.json')
-			await test(skill.folder, fakeRun({}), root) // the first pass becomes expected.json
-			// an expected result written before cases carried counts, in which trigger-1 fired once in 3 runs
-			const old = JSON.parse(readFileSync(expected, 'utf8')) as TestResult
+			await test(skill.folder, fakeRun({}), root)
+			// an expected result in the version 1 form, one saved run, written before cases carried counts, in which
+			// trigger-1 fired once in 3 runs
+			const {
+				folder: _folder,
+				replies: _replies,
+				...old
+			} = JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8')) as TestResult
 			old.at = '2026-01-01T00:00:00.000Z'
 			old.cases = old.cases.map(({ case: id, status }) => ({ case: id, status }))
 			old.trigger = old.trigger.map((item) => (item.case === 'trigger-1' ? { ...item, fired: 1 } : item))
@@ -646,7 +730,7 @@ describe('skill test', () => {
 			expect(
 				JSON.parse(readFileSync(join(skill.folder, 'evals', 'accepted', '2026-01-01T00-00-00.000Z.json'), 'utf8')),
 			).toEqual(old)
-			expect(JSON.parse(readFileSync(expected, 'utf8')).at).toBe(latest.at)
+			expect(JSON.parse(readFileSync(expected, 'utf8'))).toMatchObject({ version: 2, at: latest.at })
 
 			// the text report names it too, its rate in each result, this run last
 			const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
@@ -657,10 +741,12 @@ describe('skill test', () => {
 		})
 
 		it('compares with the previous result when there is no expected one', async () => {
-			const skill = goodSkill()
+			// with no trigger case, a failing run saves no entry
+			const skill = goodSkill({ 'evals/evals.yaml': goodEvals.replace(/trigger:[\s\S]*?outcome:/, 'outcome:') })
 			const root = gitRepo()
 			await test(skill.folder, fakeRun({}, false), root)
 			await test(skill.folder, fakeRun({}, false), root)
+			expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
 			const second = JSON.parse(readFileSync(join(results(root), 'release-notes', 'latest.json'), 'utf8'))
 			expect(second.comparedWith).toBe('previous')
 		})
@@ -1012,8 +1098,10 @@ describe('skill test progress (UC6)', () => {
 	})
 })
 
-describe('skill test --case (R102)', () => {
+describe('skill test --case (R176)', () => {
 	const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+	const expectedOf = (skill: { folder: string }) =>
+		JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8'))
 	const gitRepo = () => {
 		const root = repo()
 		mkdirSync(join(root, '.git'))
@@ -1036,12 +1124,12 @@ describe('skill test --case (R102)', () => {
 		expect(printed()).toContain('"partial":{"cases":["trigger-2","two-prs"]}')
 	})
 
-	it('never saves a partial result as the expected result, even a first passing one', async () => {
+	it('saves the entries of the named cases only, when they have none and pass (R80, R176)', async () => {
 		const skill = goodSkill()
 		const root = gitRepo()
 		await test(skill.folder, fakeRun({}), root, '--case', 'two-prs')
-		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
-		expect(printed()).not.toContain('savedAsExpected')
+		expect(Object.keys(expectedOf(skill).entries)).toEqual(['two-prs'])
+		expect(JSON.parse(printed()).expectedWritten).toEqual({ by: 'pass', cases: ['two-prs'] })
 		expect(latestOf(root).partial).toBeDefined() // still saved as latest.json
 	})
 
@@ -1066,22 +1154,45 @@ describe('skill test --case (R102)', () => {
 		expect(errors()).toMatch(/unknown-case: no case nope, trigger-9/)
 	})
 
-	it('refuses --accept with --case as a usage error, and nothing runs', async () => {
-		const skill = goodSkill()
-		const run = vi.fn(fakeRun({}))
-		expect(await test(skill.folder, run, gitRepo(), '--case', 'two-prs', '--accept')).toBe(2)
-		expect(run).not.toHaveBeenCalled()
-		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
-	})
-
-	it('has skill accept refuse a partial latest result, naming why', async () => {
+	it('writes the entries of the named cases only with --accept, and leaves every other entry as it was (R181)', async () => {
 		const skill = goodSkill()
 		const root = gitRepo()
-		await test(skill.folder, fakeRun({}), root, '--case', 'two-prs')
-		stderr.mockClear()
-		expect(await sub('accept', skill.folder, root)).toBe(1)
-		expect(errors()).toMatch(/partial-result: .*ran only two-prs/)
+		await test(skill.folder, fakeRun({}), root) // every case passes and gets its entry
+		const before = expectedOf(skill)
+		await test(skill.folder, fakeRun({}, false), root, '--case', 'two-prs', '--accept')
+		const after = expectedOf(skill)
+		expect(after.entries['two-prs']).toMatchObject({ status: 'fail', at: latestOf(root).at })
+		for (const id of Object.keys(before.entries).filter((id) => id !== 'two-prs'))
+			expect(after.entries[id]).toEqual(before.entries[id])
+		// the expected result it changed is kept in the history
+		expect(readdirSync(join(skill.folder, 'evals', 'accepted'))).toHaveLength(1)
+	})
+
+	it('has skill accept write the entries of a partial result, those of its cases only', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}, false), root, '--case', 'two-prs')
 		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+		stdout.mockClear()
+		expect(await sub('accept', skill.folder, root)).toBe(0)
+		expect(Object.keys(expectedOf(skill).entries)).toEqual(['two-prs'])
+		expect(JSON.parse(printed()).cases).toEqual(['two-prs'])
+	})
+
+	it('computes a criterion from the entries of the cases that test it, giving the oldest date when they differ (R182)', async () => {
+		const evals = goodEvals.replace(
+			'rubrics:',
+			'  - { id: one-pr, prompt: write the notes for one, files: files/two-prs }\nrubrics:',
+		)
+		const skill = goodSkill({ 'evals/evals.yaml': evals })
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}), root, '--case', 'one-pr')
+		const first = latestOf(root).at
+		await test(skill.folder, fakeRun({}), root, '--case', 'two-prs')
+		const expected = readExpected(skill.folder) as TestResult
+		const c1 = expected.criteria.find((item) => item.id === 'C1')
+		expect(c1).toMatchObject({ status: 'pass', passed: 6, ran: 6, recorded: first })
+		expect(expected.cases.find((item) => item.case === 'one-pr')?.at).toBe(first)
 	})
 })
 
@@ -1520,7 +1631,7 @@ describe('skill test and the usage limit (R162, R163)', () => {
 		expect(String(config?.['limitFile'])).toMatch(/usage-limit\.json$/)
 	})
 
-	it('saves an incomplete result with the runs left, never as expected, and exits 1', async () => {
+	it('saves an incomplete result with the runs left, gives no case with a run at the limit an entry, and exits 1', async () => {
 		const skill = goodSkill()
 		const root = gitRepo()
 		expect(await test(skill.folder, limited(), root, '--accept')).toBe(1)
@@ -1535,10 +1646,29 @@ describe('skill test and the usage limit (R162, R163)', () => {
 		// 6 trigger cases with the skill, 1 outcome case in both arms: one run each left
 		expect(latest.incomplete?.left).toHaveLength(8)
 		expect(latest.incomplete?.runs).toMatch(/\.runs\.json$/)
-		expect(latest).not.toHaveProperty('savedAsExpected')
+		expect(latest).not.toHaveProperty('expectedWritten')
 		expect(await sub('accept', skill.folder, root)).toBe(1)
-		expect(stderr.mock.calls.join('')).toContain('error: incomplete-result:')
+		expect(stderr.mock.calls.join('')).toContain('error: nothing-finished:')
 		expect(existsSync(join(skill.folder, 'evals', 'expected.json'))).toBe(false)
+	})
+
+	it('accepts the cases an incomplete result finished, and none with a run at the limit (R162)', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		// only the outcome case's third runs reach the limit
+		const outcomeLimited: PromptfooRun = async (folder, config, out) => {
+			const ran = await fakeRun({})(folder, config, out)
+			if (!('output' in ran)) return ran
+			for (const item of (ran.output as { results: { results: Record<string, any>[] } }).results.results)
+				if (item['testCase'].description === 'two-prs' && item['repeatIndex'] === 2) {
+					item['response'].error = `limit reached: ${limitText}`
+					item['response'].metadata.limitReached = { text: limitText, started: false }
+				}
+			return ran
+		}
+		await test(skill.folder, outcomeLimited, root, '--accept')
+		const entries = Object.keys(JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')).entries)
+		expect(entries).toEqual(['trigger-1', 'trigger-2', 'trigger-3', 'trigger-4', 'trigger-5', 'trigger-6'])
 	})
 
 	it('says at the top of the text report that the limit was reached, when it resets, and which runs are left', async () => {
@@ -1551,7 +1681,9 @@ describe('skill test and the usage limit (R162, R163)', () => {
 		expect(lines[1]).toMatch(
 			/^warning: incomplete: the usage limit was reached \(You've hit your 5-hour limit .*\); 8 runs are left and count toward no pass rate: .*two-prs \(with skill, run 3\), two-prs \(without skill, run 3\)/,
 		)
-		expect(printed()).toContain('incomplete: not saved as the expected result; run `skill test --resume`')
+		expect(printed()).toContain(
+			'incomplete: a case with a run at the limit gets no expected entry; run `skill test --resume`',
+		)
 	})
 
 	it('resumes only the runs left, with the options the run had, and merges them into one complete result', async () => {
@@ -1842,5 +1974,73 @@ describe('skill test sandbox (#302)', () => {
 			])
 		expect(typeof code === 'number' ? code : 0).toBe(0)
 		expect(seen['providers'][0].config.sandbox).toEqual(shippedSandbox('folder-only'))
+	})
+})
+
+describe('skill carry (R183)', () => {
+	const errors = () => stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+	const gitRepo = () => {
+		const root = repo()
+		mkdirSync(join(root, '.git'))
+		return root
+	}
+	const expectedOf = (folder: string) => JSON.parse(readFileSync(join(folder, 'evals', 'expected.json'), 'utf8'))
+	async function carry(folder: string, ...extra: string[]) {
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
+			createSkillCommand({ ...offline, runPromptfoo: fakeRun({}) }),
+		)
+		return app
+			.parse<number | undefined>(['node', 'cyber-agentkit', 'skill', 'carry', folder, '--format', 'json', ...extra])
+			.then((code) => (typeof code === 'number' ? code : 0))
+	}
+
+	it('carries the entries of a scope to the current inputs with the reason, without a run', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}), root)
+		stdout.mockClear()
+		const before = expectedOf(skill.folder)
+		const path = join(skill.folder, 'SKILL.md')
+		writeFileSync(path, `${readFileSync(path, 'utf8')}\nA typo fixed.\n`)
+		expect(await carry(skill.folder, '--scope', 'root', '--reason', 'fixed a typo')).toBe(0)
+		const after = expectedOf(skill.folder)
+		expect(after.entries['two-prs']).toMatchObject({
+			status: 'pass',
+			at: before.entries['two-prs'].at,
+			carried: { reason: 'fixed a typo', at: expect.any(String) },
+		})
+		expect(after.entries['two-prs'].hashes.scope).not.toBe(before.entries['two-prs'].hashes.scope)
+		expect(after.entries['trigger-1']).toEqual(before.entries['trigger-1'])
+		expect(JSON.parse(printed())).toMatchObject({ carried: ['two-prs'], reason: 'fixed a typo' })
+	})
+
+	it('carries named cases, and the next test says it compared with a carried entry', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}), root)
+		expect(await carry(skill.folder, '--case', 'trigger-2', '--reason', 'reworded nothing')).toBe(0)
+		expect(expectedOf(skill.folder).entries['trigger-2'].carried.reason).toBe('reworded nothing')
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
+			createSkillCommand({ ...offline, runPromptfoo: fakeRun({}) }),
+		)
+		await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root])
+		expect(printed()).toContain(
+			'compared with a carried entry: trigger-2 was carried forward, not run (reworded nothing)',
+		)
+	})
+
+	it('refuses a case with no entry, a missing reason, and naming both or neither, writing nothing', async () => {
+		const skill = goodSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}, false), root) // two-prs fails, so it has no entry
+		const before = readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')
+		expect(await carry(skill.folder, '--case', 'two-prs', '--reason', 'x')).toBe(1)
+		expect(errors()).toContain('error: no-entry: two-prs has no expected entry to carry')
+		expect(await carry(skill.folder, '--case', 'two-prs', '--reason', ' ')).toBe(2)
+		expect(await carry(skill.folder, '--reason', 'x')).toBe(2)
+		expect(await carry(skill.folder, '--scope', 'root', '--case', 'trigger-1', '--reason', 'x')).toBe(2)
+		expect(await carry(skill.folder, '--scope', 'nope', '--reason', 'x')).toBe(2)
+		expect(errors()).toContain('error: unknown-scope:')
+		expect(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')).toBe(before)
 	})
 })

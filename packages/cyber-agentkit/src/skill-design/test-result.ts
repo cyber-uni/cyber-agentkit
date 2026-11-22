@@ -42,7 +42,24 @@ export type CriterionResult = {
 	/** Set when every case that tests it is a regression guard (R160): a pass without the skill too is expected. */
 	guard?: true
 	failures?: Failure[]
+	/**
+	 * In an expected result only (R182): when the entries of the cases that test it were recorded at different times, the
+	 * oldest of them.
+	 */
+	recorded?: string
+	/** In an expected result only (R183): set when an entry of a case that tests it was carried forward, not run. */
+	carried?: true
 }
+/** One criterion's result in one outcome case's runs, which the case's expected entry keeps (R181). */
+export type CaseCriterion = {
+	status: Status
+	/** Left out in an entry carried over from a version 1 expected result, which summed counts over its cases. */
+	passed?: number
+	ran?: number
+	baseline?: { passed: number; ran: number }
+}
+/** Why an expected entry was carried forward to the current inputs without a run (R183), and when. */
+export type Carried = { reason: string; at: string }
 /**
  * A case's status, with how many of its runs went right; results saved before the counts were recorded lack them.
  * `sandboxFailed` counts its runs with the skill that were sandbox failures (R154), left out when none was.
@@ -61,6 +78,12 @@ export type CaseStatus = {
 	baseline?: { passed: number; ran: number }
 	/** Set when the case named its own model (R161): the model its runs used, instead of the result's `model`. */
 	model?: string
+	/** For an outcome case that ran: each criterion it tests, as its runs decided it (R181). */
+	criteria?: Record<string, CaseCriterion>
+	/** In an expected result only: when the case's entry was recorded (R181). */
+	at?: string
+	/** In an expected result only: set when the case's entry was carried forward without a run (R183). */
+	carried?: Carried
 }
 /** One point of a case's pass rate: the result it comes from (its `at`), and how many runs went right of how many ran. */
 export type RatePoint = { at: string; passed: number; ran: number }
@@ -145,6 +168,9 @@ export type ResumeOptions = {
 }
 
 /** The saved result of `skill test`, the shape every Verification implementation writes (`test.md`). */
+/** What a run's inputs hashed to (R178, R180): by scope name (`trigger`, `root`), and by case ID. */
+export type InputHashes = { scopes: Record<string, string>; cases: Record<string, string> }
+
 export type TestResult = {
 	version: 1
 	skill: string
@@ -178,14 +204,22 @@ export type TestResult = {
 	cases: CaseStatus[]
 	/** Each mark of a known failure the run judged (#329); left out when there is none. */
 	knownFailures?: KnownFailure[]
-	/** Set when only the named cases ran (R102): the result covers them alone, is compared for them alone, and is never the expected result. */
+	/**
+	 * Set when only the named cases ran (R176): the result covers them alone and is compared for them alone; accepting it
+	 * writes their expected entries only.
+	 */
 	partial?: { cases: string[] }
+	/**
+	 * What the run's inputs hashed to (R178, R180): each scope's, and each case's own definition, by case ID. An expected
+	 * entry records its case's and its scope's. Results saved before it was recorded lack it.
+	 */
+	inputs?: InputHashes
 	notRun: NotRun[]
 	/** What the runs' containment refused (R107): a read or write outside the run's folder, or a host the case does not list. */
 	blocked?: Blocked[]
 	/** The runs, in either arm, that the test sandbox broke (R154); they count toward no pass rate. Left out when none was. */
 	sandboxFailures?: SandboxFailure[]
-	/** Set when the usage limit stopped the test before every run finished (R162); never the expected result. */
+	/** Set when the usage limit stopped the test before every run finished (R162); a case with a run at the limit gets no expected entry. */
 	incomplete?: Incomplete
 	/** Set on a result a resume made (R163): the `at` of the incomplete result whose runs it holds. */
 	resumedFrom?: string
@@ -197,19 +231,27 @@ export type TestResult = {
 	modelChanged?: { case: string; from: string; to: string }[]
 	/** Which result `changed` compares with: the skill's expected result, else the previous saved one. */
 	comparedWith?: 'expected' | 'previous'
+	/**
+	 * The expected entries of this run's cases that `changed` compared with and that were carried forward, not run
+	 * (R183), each with why.
+	 */
+	comparedCarried?: { case: string; reason: string }[]
 	/** The cases whose pass rate moved across the kept accepted results and this run, each with its rate in each, oldest first. */
 	moved?: { case: string; rates: RatePoint[] }[]
 	/** Set when there is neither an expected nor a previous result to compare with. */
 	noPrevious?: true
-	/** In a `test` report only: this run passed with no expected result, and was saved as it (R80). */
-	savedAsExpected?: true
 	/**
-	 * In a `test` report only (#322): there was no expected result and nothing failed, but not every trigger case and
-	 * criterion passed (some are `not-run` or `not-tested`, or no run finished), so it was not saved as it; says why.
+	 * In a `test` report only (R80): the cases whose expected entries this run wrote, and why: `accept` when the author
+	 * asked, `pass` for cases that had no entry and passed.
 	 */
-	notSavedAsExpected?: string
-	/** In a `test` report only: the result would have been saved as the expected one, but it has sandbox failures (R154). */
-	expectedHeld?: true
+	expectedWritten?: { by: 'accept' | 'pass'; cases: string[] }
+	/**
+	 * In a `test` report only (#322, R80): the cases that ran with no expected entry and got none, each with why: it
+	 * failed, was not run or not tested, or is known to fail.
+	 */
+	notSavedAsExpected?: { case: string; reason: string }[]
+	/** In a `test` report only (R154): the cases whose entries were held back because their runs had sandbox failures. */
+	expectedHeld?: string[]
 	cost?: number
 	/** How long the run took, in milliseconds; results saved before it was recorded lack it. */
 	durationMs?: number
@@ -539,12 +581,29 @@ export function readPromptfooOutput(
 		if (!ids.length) return { case: item.id, status: 'not-tested', ...guard }
 		const runs = byCase(item.id, main).filter(ok)
 		if (!runs.length) return { case: item.id, status: 'not-run', ...sandboxFailed(item.id), ...guard }
+		const baseRuns = meta.baselineRan ? byCase(item.id, other).filter(ok) : undefined
+		const perCriterion: Record<string, CaseCriterion> = {}
 		const each = ids.map((id) => {
-			const status = statusOf(runs.filter((row) => criterionPassed(row, id).pass).length, runs.length, item.id)
-			return status === 'fail' && markOf(item, id) !== undefined ? 'known-failure' : status
+			const passed = runs.filter((row) => criterionPassed(row, id).pass).length
+			const decided = statusOf(passed, runs.length, item.id)
+			const status = decided === 'fail' && markOf(item, id) !== undefined ? 'known-failure' : decided
+			perCriterion[id] = {
+				status,
+				passed,
+				ran: runs.length,
+				...(baseRuns
+					? {
+							baseline: {
+								passed: baseRuns.filter((row) => criterionPassed(row, id).pass).length,
+								ran: baseRuns.length,
+							},
+						}
+					: {}),
+			}
+			return status
 		})
 		const allPassed = (row: Row) => ids.every((id) => criterionPassed(row, id).pass)
-		const base = item.guard && meta.baselineRan ? byCase(item.id, other).filter(ok) : undefined
+		const base = item.guard ? baseRuns : undefined
 		return {
 			case: item.id,
 			status: each.includes('fail') ? 'fail' : each.includes('known-failure') ? 'known-failure' : 'pass',
@@ -553,6 +612,7 @@ export function readPromptfooOutput(
 			...sandboxFailed(item.id),
 			...guard,
 			...(base ? { baseline: { passed: base.filter(allPassed).length, ran: base.length } } : {}),
+			criteria: perCriterion,
 		}
 	}
 	const ownModel = new Map(plan.cases.flatMap((item) => (item.model ? [[item.id, item.model] as const] : [])))

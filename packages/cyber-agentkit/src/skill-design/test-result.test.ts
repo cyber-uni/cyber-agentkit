@@ -110,7 +110,17 @@ describe('readPromptfooOutput', () => {
 			},
 		])
 		// a case counts the runs that went right: every criterion it tests passed, or the trigger went as expected
-		expect(result.cases.at(-1)).toEqual({ case: 'two-prs', status: 'fail', passed: 1, ran: 3 })
+		// and keeps each criterion it tests as its own runs decided it, which its expected entry records (R181)
+		expect(result.cases.at(-1)).toEqual({
+			case: 'two-prs',
+			status: 'fail',
+			passed: 1,
+			ran: 3,
+			criteria: {
+				C1: { status: 'pass', passed: 3, ran: 3, baseline: { passed: 0, ran: 3 } },
+				C2: { status: 'fail', passed: 1, ran: 3, baseline: { passed: 3, ran: 3 } },
+			},
+		})
 		expect(result.cases[0]).toEqual({ case: 'trigger-1', status: 'pass', passed: 3, ran: 3 })
 		expect(result.cost).toBe(0.024)
 	})
@@ -425,7 +435,7 @@ describe('compareWithHistory', () => {
 	})
 })
 
-describe('a partial result (R102)', () => {
+describe('a partial result (R176)', () => {
 	const partialPlan: TestPlan = {
 		...plan,
 		only: ['two-prs'],
@@ -484,7 +494,7 @@ describe('sandbox failures (R154)', () => {
 			baseline: { passed: 0, ran: 1 },
 		})
 		expect(result.criteria[0]?.failures).toBeUndefined()
-		expect(result.cases.find((item) => item.case === 'two-prs')).toEqual({
+		expect(result.cases.find((item) => item.case === 'two-prs')).toMatchObject({
 			case: 'two-prs',
 			status: 'pass',
 			passed: 1,
@@ -502,7 +512,7 @@ describe('sandbox failures (R154)', () => {
 	it('reports a case whose every run the sandbox broke as not run, never as a fail', () => {
 		const all = [0, 1, 2].map((run) => broke({ case: 'two-prs', run, checks: { C1: false, C2: false } }))
 		const result = readPromptfooOutput({ results: { results: all } }, plan, meta)
-		expect(result.cases.find((item) => item.case === 'two-prs')).toEqual({
+		expect(result.cases.find((item) => item.case === 'two-prs')).toMatchObject({
 			case: 'two-prs',
 			status: 'not-run',
 			sandboxFailed: 3,
@@ -631,7 +641,7 @@ describe('guard cases (R160)', () => {
 
 	it('marks a guard case and the criteria only guards test, and counts its baseline runs', () => {
 		const result = readPromptfooOutput(output(both(true, true)), guarded, meta)
-		expect(result.cases.find((item) => item.case === 'two-prs')).toEqual({
+		expect(result.cases.find((item) => item.case === 'two-prs')).toMatchObject({
 			case: 'two-prs',
 			status: 'pass',
 			passed: 3,
@@ -693,7 +703,7 @@ describe('the usage limit (R162)', () => {
 	it('leaves the runs the limit ended or never started out of every pass rate', () => {
 		const result = readPromptfooOutput({ results: { results: rows() } }, plan, meta)
 		expect(result.criteria[0]).toMatchObject({ id: 'C1', passed: 1, ran: 1, baseline: { passed: 0, ran: 1 } })
-		expect(result.cases.find((item) => item.case === 'two-prs')).toEqual({
+		expect(result.cases.find((item) => item.case === 'two-prs')).toMatchObject({
 			case: 'two-prs',
 			status: 'pass',
 			passed: 1,
@@ -707,7 +717,7 @@ describe('the usage limit (R162)', () => {
 			plan,
 			meta,
 		)
-		expect(result.cases.find((item) => item.case === 'two-prs')).toEqual({ case: 'two-prs', status: 'not-run' })
+		expect(result.cases.find((item) => item.case === 'two-prs')).toMatchObject({ case: 'two-prs', status: 'not-run' })
 		expect(result.criteria[0]).toMatchObject({ status: 'not-run', ran: 0 })
 	})
 

@@ -14,6 +14,15 @@ import { tmpdir } from 'node:os'
 import { basename, join, relative } from 'node:path'
 import { stringify } from 'yaml'
 import { readAttestations } from './attestation.js'
+import {
+	type EvalSet,
+	type ExpectedFile,
+	expectedView,
+	finishedCases,
+	fromLegacy,
+	isExpectedFile,
+	mergeEntries,
+} from './expected-result.js'
 import { checkPluginsLoad, type DependencySources, type PluginList, resolveDependencyPlugins } from './plugin-load.js'
 import { promptfooConfig, promptfooPackages } from './promptfoo-config.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
@@ -313,11 +322,28 @@ export function expectedPath(skillFolder: string): string {
 }
 
 /**
- * The run result in the skill's `evals/expected.json`. A file that holds only attested passes (#323), or that cannot be
- * read, holds none.
+ * The skill's `evals/expected.json` laid out as a saved result (`expectedView`): the per-case form with each criterion
+ * computed from its entries (R182), or a version 1 file as it is. A file that holds only attested passes (#323), or
+ * that cannot be read, holds none.
  */
 export function readExpected(skillFolder: string): TestResult | undefined {
 	return readResult(expectedPath(skillFolder))
+}
+
+/**
+ * The skill's expected result in the per-case form, for a write to merge into: a version 1 file is read as entries
+ * (`fromLegacy`), with `evalSet` telling which criteria each case tests. Undefined when there is no run result in it.
+ */
+export function readExpectedFile(skillFolder: string, evalSet: EvalSet | undefined): ExpectedFile | undefined {
+	let value: unknown
+	try {
+		value = JSON.parse(readFileSync(expectedPath(skillFolder), 'utf8'))
+	} catch {
+		return undefined
+	}
+	if (isExpectedFile(value)) return value
+	const old = expectedView(value)
+	return old ? fromLegacy(old, evalSet) : undefined
 }
 
 /** Where the skill's past accepted results live, each as `<its at>.json`, beside the expected result. */
@@ -345,8 +371,7 @@ export function acceptedHistory(skillFolder: string): TestResult[] {
 
 function readResult(path: string): TestResult | undefined {
 	try {
-		const value = JSON.parse(readFileSync(path, 'utf8')) as TestResult
-		return typeof value?.at === 'string' ? value : undefined
+		return expectedView(JSON.parse(readFileSync(path, 'utf8')))
 	} catch {
 		return undefined
 	}
@@ -380,8 +405,12 @@ export function saveResult(
 		renameSync(latest, join(folder, `${stem(previous.at)}.json`))
 	}
 	const expected = readExpected(skillFolder)
+	const ran = new Set(finishedCases(result))
+	const carried = (expected?.cases ?? []).flatMap((item) =>
+		item.carried && ran.has(item.case) ? [{ case: item.case, reason: item.carried.reason }] : [],
+	)
 	const compared = expected
-		? compareWithPrevious(result, expected, 'expected')
+		? { ...compareWithPrevious(result, expected, 'expected'), ...(carried.length ? { comparedCarried: carried } : {}) }
 		: compareWithPrevious(result, previous, 'previous')
 	const saved: TestResult = { ...compareWithHistory(compared, acceptedHistory(skillFolder)), folder: skillFolder }
 	if (replies) {
@@ -447,24 +476,44 @@ function removeVanished(resultsRoot: string, current: string): void {
 }
 
 /**
- * Writes a saved result as the skill's expected result, the same shape as `latest.json`. It leaves out `folder`: the
- * file is committed, and an absolute path names the author's machine. It leaves out `replies` and `evalId` too: they
- * point at files and a database on that machine alone. The expected result it replaces moves to
- * `evals/accepted/<its at>.json`, unless it is the same run, and only the newest `keptAcceptedResults` stay there.
+ * Writes the entries of `cases` from a saved result into the skill's expected result (R181), leaving every other entry
+ * as it was and dropping the entry of a case `evalSet` no longer holds. Each entry keeps what a run decided, never its
+ * replies or an absolute path, since the file is committed. When the write replaces or drops an entry, the expected
+ * result it changes moves to `evals/accepted/<its at>.json` first, unless it is the same run, and only the newest
+ * `keptAcceptedResults` stay there. A write of no case changes nothing.
  */
-export function acceptResult(result: TestResult, skillFolder: string): string {
+export function acceptResult(
+	result: TestResult,
+	skillFolder: string,
+	cases: string[] = finishedCases(result),
+	evalSet?: EvalSet,
+): { path: string; written: string[]; dropped: string[] } {
 	const path = expectedPath(skillFolder)
-	mkdirSync(join(skillFolder, 'evals'), { recursive: true })
-	const replaced = existsSync(path) ? readResult(path) : undefined
-	// The passes the author attested (#323) outlive the run they were recorded beside.
+	const previous = readExpectedFile(skillFolder, evalSet)
+	const merged = mergeEntries(previous, result, cases, evalSet)
+	if (!merged.written.length && !merged.dropped.length) return { path, written: [], dropped: [] }
+	// The passes the author attested (#323) outlive the expected result they were recorded beside.
 	const attested = readAttestations(skillFolder)
-	if (replaced && replaced.at !== result.at) {
+	mkdirSync(join(skillFolder, 'evals'), { recursive: true })
+	if (previous && (merged.replaced || merged.dropped.length) && previous.at !== result.at && existsSync(path)) {
 		mkdirSync(acceptedFolder(skillFolder), { recursive: true })
-		renameSync(path, join(acceptedFolder(skillFolder), `${stem(replaced.at)}.json`))
+		renameSync(path, join(acceptedFolder(skillFolder), `${stem(previous.at)}.json`))
 	}
-	const { folder: _folder, replies: _replies, evalId: _evalId, attested: _attested, ...shared } = result
-	writeFileSync(path, `${JSON.stringify(attested.length ? { ...shared, attested } : shared, null, '\t')}\n`)
+	writeExpectedFile(skillFolder, merged.file, attested)
 	pruneAccepted(skillFolder)
+	return { path, written: merged.written, dropped: merged.dropped }
+}
+
+/** Writes the per-case expected result as it is, with the passes the author attested (#323), those in the file now by default. */
+export function writeExpectedFile(
+	skillFolder: string,
+	file: ExpectedFile,
+	attested = readAttestations(skillFolder),
+): string {
+	const path = expectedPath(skillFolder)
+	const { attested: _attested, ...rest } = file
+	mkdirSync(join(skillFolder, 'evals'), { recursive: true })
+	writeFileSync(path, `${JSON.stringify(attested.length ? { ...rest, attested } : rest, null, '\t')}\n`)
 	return path
 }
 

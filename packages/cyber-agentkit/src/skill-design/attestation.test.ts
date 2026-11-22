@@ -181,7 +181,7 @@ describe('skill attest (#323)', () => {
 		const root = gitRepo()
 		expect(await skill(['attest', folder, 'C2', url])).toBe(0)
 		expect(await skill(['test', folder, '--root', root])).toBe(0)
-		expect(printed()).toContain('"savedAsExpected":true')
+		expect(printed()).toContain('"expectedWritten":{"by":"pass"')
 		const expected = readExpectedFile(folder)
 		expect(typeof expected.at).toBe('string')
 		expect(expected.attested).toHaveLength(1)
@@ -206,13 +206,15 @@ rubrics:
 		expect(report).not.toHaveProperty('savedAsExpected')
 	})
 
-	it('does not count a stale attested pass toward saving the first run (#322)', async () => {
+	it('saves the entry of each passing case by its runs alone, and keeps a stale attested pass beside them (R80)', async () => {
 		const { folder } = noRubricForC2()
 		const root = gitRepo()
 		recordAttestation(folder, 'release-notes', attestation({ skillFingerprint: 'old' }))
 		expect(await skill(['test', folder, '--root', root])).toBe(0) // not tested is no failure
-		expect(printed()).not.toContain('"savedAsExpected":true')
-		expect(readExpectedFile(folder)).not.toHaveProperty('at')
+		const expected = readExpectedFile(folder)
+		expect(expected.entries['two-prs']).toMatchObject({ status: 'pass', criteria: { C1: { status: 'pass' } } })
+		expect(expected.entries['two-prs'].criteria).not.toHaveProperty('C2')
+		expect(expected.attested).toEqual([expect.objectContaining({ skillFingerprint: 'old' })])
 	})
 
 	it.each([
@@ -361,8 +363,19 @@ describe('a attested pass in skill report (#323)', () => {
 	it('acceptResult carries the attested passes into the new expected result', () => {
 		const { folder } = noRubricForC2()
 		recordAttestation(folder, 'release-notes', attestation())
-		acceptResult(run, folder)
-		expect(readExpectedFile(folder)).toEqual({ ...run, attested: [attestation()] })
+		const ran = {
+			...run,
+			cases: [
+				{ case: 'two-prs', status: 'pass', passed: 3, ran: 3, criteria: { C1: { status: 'pass', passed: 3, ran: 3 } } },
+			],
+		} as unknown as TestResult
+		acceptResult(ran, folder)
+		expect(readExpectedFile(folder)).toMatchObject({
+			version: 2,
+			at: run.at,
+			entries: { 'two-prs': { status: 'pass' } },
+			attested: [attestation()],
+		})
 		expect(readdirSync(join(folder, 'evals')).includes('accepted')).toBe(false)
 	})
 
