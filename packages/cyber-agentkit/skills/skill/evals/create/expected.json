@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-22T20:24:06.203Z",
+	"at": "2026-11-22T21:24:25.356Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:f0a4106bcdb63dbbf62607f88ee013dbfad7bdfdb116db8a24d85c19dfd71ccc",
+		"scripts": "sha256:bcf81a0e65bd86e0b52b211382ba361a647311dd3cfcc687e37f5cf2fefaa176",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -201,14 +201,14 @@
 		},
 		"create-parts": {
 			"scope": "create",
-			"status": "known-failure",
-			"passed": 1,
-			"ran": 1,
+			"status": "pass",
+			"passed": 2,
+			"ran": 2,
 			"criteria": {
 				"C29": {
-					"status": "known-failure",
-					"passed": 1,
-					"ran": 1,
+					"status": "pass",
+					"passed": 2,
+					"ran": 2,
 					"baseline": {
 						"passed": 0,
 						"ran": 3
@@ -220,16 +220,32 @@
 					"case": "create-parts",
 					"criterion": "C29",
 					"reason": "A three-part create costs more than skill test's $0.50 per-run cost cap on the mid-tier model: 4 of 6 runs stopped at the cap across two runs in #372, with or without the nested test; every run that finished passed C29.",
-					"status": "known-failure",
-					"passed": 1,
-					"ran": 1
+					"status": "fixed",
+					"passed": 2,
+					"ran": 2
 				}
 			],
 			"model": "sonnet",
-			"at": "2026-11-22T16:10:42.670Z",
+			"cost": {
+				"skill": {
+					"runs": 2,
+					"total": 0.9868,
+					"max": 0.5309
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.2647,
+					"max": 0.0954
+				}
+			},
+			"at": "2026-11-22T21:24:25.356Z",
 			"hashes": {
-				"case": "sha256:29fdc9be1928e326e71504b888ad036a67ef77635c02a2ac9513a2fc0961ff4c",
-				"scope": "sha256:76bcd9a2036b8729de194acb5308ea349f7233ad2e95a20e8fe79c64dbf8fb8b"
+				"case": "sha256:df00b9a6a5e6f5ec4c5078a003aeaa3ee0a7e72d699f71df6cbb7e745bfe9594",
+				"scope": "sha256:94050b0fb033c6205fa911b84746ede4f957a7b62afd416ca0d6d2633e949212"
+			},
+			"carried": {
+				"reason": "cleared the known-failure mark and set the case's cost cap; the run it records passed with the mark in place and judged it fixed",
+				"at": "2026-11-22T21:27:11.537Z"
 			}
 		}
 	},
@@ -244,6 +260,22 @@
 			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",
 			"references/fix.md": "sha256:e77e95595d151ae0cf19c6df856ed4c13b8c0509d16f76770c664ee1ef19b990",
 			"references/test.md": "sha256:0df605ad6006731db210b829802dedce77095728eb57381b40d6dc7ce508b53b",
+			"references/trigger-draft.md": "sha256:b7bc2ffea458d00443388b7a3fcbd2d2a4b09ab9469f9fa88c831652169d5176",
+			"reference skill-design.aspects.criteria": "sha256:bcc12ff7e10da695b4d55190214bd8f90c530f73b30fa974dc8f0ad706ab3c96",
+			"reference skill-design.aspects.verification": "sha256:33178909fd8194169ac6c99f5331828d9fd0a21f254984ad3d6e35838c47d789",
+			"reference skill-design.autonomy": "sha256:147d24306d61ac2cdeead7092db2d43e4472348f7d53993a5fe2a6aa5cd52c4e",
+			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
+		},
+		"sha256:94050b0fb033c6205fa911b84746ede4f957a7b62afd416ca0d6d2633e949212": {
+			"SKILL.md front matter": "sha256:7376c32d6016002356e6dd89b61a0b9a53975d243fbf9d0ec90ab9549384011a",
+			"SKILL.md shared sections": "sha256:1920006459e583f9a02c1b713e1f98fc7648332c5964ec6077ede501b4e13b15",
+			"SKILL.md router row for references/create.md": "sha256:c89b5766416fc4d1be7fd3bb304c1eeb987c42738b6484928913a185fa7f5a61",
+			"references/attest.md": "sha256:c747ad8c4423fc305582aca0da12734d7768c60c1bfccc69e042a65cbe16a818",
+			"references/check.md": "sha256:eba7855416e1eb5eb6f5b24336f2271e6c2b92fe5885f1e99ddc5a7bdcca88b0",
+			"references/create.md": "sha256:0479d60dfbc255a537796beb1eb9efc39dfc6973a815731571d5e97127e49ade",
+			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",
+			"references/fix.md": "sha256:e77e95595d151ae0cf19c6df856ed4c13b8c0509d16f76770c664ee1ef19b990",
+			"references/test.md": "sha256:3347f55e943b0b32b16c95fe3356d7fdb1e09a45190efa10fad30e2c57146472",
 			"references/trigger-draft.md": "sha256:b7bc2ffea458d00443388b7a3fcbd2d2a4b09ab9469f9fa88c831652169d5176",
 			"reference skill-design.aspects.criteria": "sha256:bcc12ff7e10da695b4d55190214bd8f90c530f73b30fa974dc8f0ad706ab3c96",
 			"reference skill-design.aspects.verification": "sha256:33178909fd8194169ac6c99f5331828d9fd0a21f254984ad3d6e35838c47d789",

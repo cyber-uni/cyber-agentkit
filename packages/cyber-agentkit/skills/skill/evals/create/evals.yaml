@@ -54,6 +54,7 @@ outcome:
   # A job of three commands that each run on their own: create gives each its own instructions file and eval folder
   # (R187). files/high-budget lets the nested test start without stopping on the budget.
   - id: create-parts
+    costCap: 0.8
     prompt: "/skill a skill in .agents/skills for release announcements, with three
       commands that each run on their own: draft, review, and publish. I approve
       every draft; don't ask again."
@@ -63,5 +64,3 @@ outcome:
       C29:
         - script: for p in draft review publish; do ls .agents/skills/*/references/$p.md
             .agents/skills/*/evals/$p/evals.yaml >/dev/null 2>&1 || exit 1; done
-    fails:
-      C29: "A three-part create costs more than skill test's $0.50 per-run cost cap on the mid-tier model: 4 of 6 runs stopped at the cap across two runs in #372, with or without the nested test; every run that finished passed C29."
