@@ -261,6 +261,7 @@ describe('checkReferences', () => {
 				'reference-renamed',
 				'repo-hides-user',
 				'interface-check',
+				'feature-unsupported',
 				'base-moved',
 				'reference-hidden',
 				'rename-invalid',

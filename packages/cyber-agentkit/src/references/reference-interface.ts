@@ -38,6 +38,7 @@ export type InterfaceCheck =
 	| 'compose'
 	| 'capability'
 	| 'support-level'
+	| 'blueprint'
 
 export type InterfaceCheckFailure = {
 	check: InterfaceCheck

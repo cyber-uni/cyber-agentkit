@@ -18,6 +18,10 @@ export type ReferenceImplementation = {
 	unsupported: string[]
 	/** The listed sections it marks `**Partial.**`, required ones included, in the interface's order (R142). */
 	partial: string[]
+	/** For a blueprint (K41): the system its key names, its capability reference, and that reference's Verified entries (R146). */
+	system?: string
+	capability?: string
+	verified?: string[]
 	name: string
 	/** `plugin`, or the `repo` or `user` tier of a bare-name implementation. */
 	tier: ReferenceTier
@@ -224,6 +228,7 @@ function interfaceImplementations(
 			description: firstLine(resolved.metadata?.['description']),
 			unsupported: checked.unsupported,
 			partial: checked.partial,
+			...(checked.blueprint ?? {}),
 			name,
 			tier,
 			version: declared.version,

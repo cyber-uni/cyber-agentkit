@@ -39,6 +39,7 @@ export const checkWarningClass = {
 	'project-section-key-ignored': 'project-section',
 	'interface-not-composed': 'defect',
 	'interface-check': 'environment',
+	'feature-unsupported': 'environment',
 	'base-moved': 'environment',
 	'reference-stale': 'environment',
 	'reference-renamed': 'environment',
