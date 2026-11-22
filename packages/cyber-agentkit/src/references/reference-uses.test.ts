@@ -1,4 +1,9 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { consumerPaths } from './reference-consumer-files.js'
+import { withoutFences } from './reference-loads.js'
 import { loadsIn } from './reference-uses.js'
 
 describe('loadsIn', () => {
@@ -63,5 +68,25 @@ describe('loadsIn: many sentences', () => {
 		expect(loadsIn('x. '.repeat(100000)).names).toEqual([])
 		expect(loadsIn(`${'Load x. '.repeat(50000)}`).names).toEqual([])
 		expect(performance.now() - started).toBeLessThan(1000)
+	})
+})
+
+describe('consumerPaths and withoutFences: what a skill reads', () => {
+	it('skips a skill folder’s evals and root README', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'uses-skill-'))
+		mkdirSync(join(dir, 'evals', 'files'), { recursive: true })
+		writeFileSync(join(dir, 'SKILL.md'), '# s\n')
+		writeFileSync(join(dir, 'README.md'), 'needs `universal-plugin`\n')
+		writeFileSync(join(dir, 'evals', 'files', 'SKILL.md'), 'Load `x.y` with the `reference` skill.\n')
+		const [consumer] = consumerPaths([dir], '/')
+		expect(consumer?.files.map((file) => file.path.slice(dir.length + 1))).toEqual(['SKILL.md'])
+	})
+
+	it('ignores an example span', () => {
+		expect(
+			loadsIn(
+				withoutFences('Load `a` with the `reference` skill. <example>Load `b` with the `reference` skill.</example>'),
+			).names,
+		).toEqual(['a'])
 	})
 })
