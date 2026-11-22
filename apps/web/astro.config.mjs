@@ -55,6 +55,10 @@ export default defineConfig({
 					items: [{ label: 'Registry', slug: 'interface-registry' }, { autogenerate: { directory: 'interfaces' } }],
 				},
 				{
+					label: 'Capability references',
+					items: [{ label: 'Registry', slug: 'capability-registry' }, { autogenerate: { directory: 'capabilities' } }],
+				},
+				{
 					label: 'Concepts',
 					items: [
 						{ label: 'Harness detection', slug: 'concepts/harness-detection' },

@@ -1,5 +1,19 @@
 ---
-import entries from '../generated/interfaces.json'
+// One registry area's list, filtered by tag, status, or typed text. `path` is the area's page folder;
+// `noun` names an entry in the empty and no-match lines and the filter's label.
+type Row = {
+	id: string
+	slug: string
+	description: string
+	tags: string[]
+	status: string
+	plugins: string[]
+	blueprints?: string[]
+}
+type Props = { entries: Row[]; path: string; noun: string; plural: string; searchHint: string }
+
+// biome-ignore lint/correctness/noUnusedVariables: used in the template
+const { entries, path, noun, plural, searchHint } = Astro.props
 
 // biome-ignore lint/correctness/noUnusedVariables: used in the template
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
@@ -11,11 +25,11 @@ const statuses = [...new Set(entries.map((entry) => entry.status).filter(Boolean
 
 {
 	entries.length === 0 ? (
-		<p>No interfaces are registered yet.</p>
+		<p>No {plural} are registered yet.</p>
 	) : (
 		<div class="iface-registry">
 			<div class="iface-controls">
-				<input type="search" id="iface-q" placeholder="Filter by id, description, tag, or plugin" aria-label="Filter interfaces" />
+				<input type="search" id="iface-q" placeholder={searchHint} aria-label={`Filter ${plural}`} />
 				<select id="iface-tag" aria-label="Filter by tag">
 					<option value="">All tags</option>
 					{tags.map((tag) => <option value={tag}>{tag}</option>)}
@@ -28,18 +42,20 @@ const statuses = [...new Set(entries.map((entry) => entry.status).filter(Boolean
 			<ul class="iface-list">
 				{entries.map((entry) => (
 					<li
-						data-text={[entry.id, entry.description, ...entry.tags, ...entry.plugins].join(' ').toLowerCase()}
+						data-text={[entry.id, entry.description, ...entry.tags, ...entry.plugins, ...(entry.blueprints ?? [])]
+							.join(' ')
+							.toLowerCase()}
 						data-tags={JSON.stringify(entry.tags)}
 						data-status={entry.status}
 					>
-						<a href={`${base}/interfaces/${entry.slug}/`}>{entry.id}</a>
+						<a href={`${base}/${path}/${entry.slug}/`}>{entry.id}</a>
 						{entry.status && <span class="iface-status">{entry.status}</span>}
 						{entry.description && <p>{entry.description}</p>}
 						{entry.tags.length > 0 && <p class="iface-tags">{entry.tags.join(' · ')}</p>}
 					</li>
 				))}
 			</ul>
-			<p id="iface-none" hidden>No interface matches.</p>
+			<p id="iface-none" hidden>No {noun} matches.</p>
 		</div>
 	)
 }

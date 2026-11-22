@@ -1,4 +1,4 @@
-// Pure logic for the interface registry generator: local-path mapping for this repo's own GitHub urls,
+// Pure logic for the registry generator: local-path mapping for this repo's own GitHub urls,
 // and the link checks, with `fetch` injected so tests never touch the network.
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -77,6 +77,37 @@ export function renderEntryPage(entry) {
 
 /** The page name for an id. Dots become dashes because Starlight's slugger would drop them from the url. */
 export const pageSlug = (id) => id.replaceAll('.', '-')
+
+/** The show page for one system's capability registry entry. Only the fields that are set appear. */
+export function renderCapabilityPage(entry) {
+	const sections = [`Capability reference: \`${entry.system}.capabilities\``]
+	if (entry.description) sections.push(entry.description)
+	if (entry.status) sections.push(`**Status:** ${entry.status}`)
+	if (entry.tags?.length) sections.push(`**Tags:** ${entry.tags.join(', ')}`)
+	if (entry.plugins?.length) sections.push(`## Shipped by\n\n${list(entry.plugins)}`)
+	if (entry.blueprints?.length) sections.push(`## Blueprints built on it\n\n${list(entry.blueprints)}`)
+	if (entry.body?.trim()) sections.push(entry.body.trim())
+	sections.push(
+		`[Edit this entry on GitHub](https://github.com/cyber-uni/cyber-agentkit/blob/main/registry/capabilities/${entry.system}.md)`,
+	)
+	const front = ['---', `title: ${JSON.stringify(entry.system)}`]
+	if (entry.description) front.push(`description: ${JSON.stringify(entry.description)}`)
+	front.push('---')
+	return `${front.join('\n')}\n\n${sections.join('\n\n')}\n`
+}
+
+/** The row the capability list page reads: the system, and every plugin and blueprint name to search by. */
+export function capabilityListRow(entry) {
+	return {
+		id: entry.system,
+		slug: pageSlug(entry.system),
+		description: entry.description ?? '',
+		tags: entry.tags ?? [],
+		status: entry.status ?? '',
+		plugins: (entry.plugins ?? []).map((plugin) => plugin.name),
+		blueprints: (entry.blueprints ?? []).map((blueprint) => blueprint.name),
+	}
+}
 
 /** The row the list page reads. */
 export function listRow(entry) {
