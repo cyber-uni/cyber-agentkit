@@ -20,6 +20,15 @@ export type {
 	HarnessEvidence,
 } from './detection/detect-harness.js'
 export { detectHarness } from './detection/detect-harness.js'
+export type {
+	InstalledHarness,
+	InstalledHarnessesOptions,
+	PresentHarness,
+	PresentHarnessesOptions,
+	PresentHarnessesResult,
+	PresentHarnessSource,
+} from './detection/present-harnesses.js'
+export { installedHarnesses, presentHarnesses } from './detection/present-harnesses.js'
 export type { HarnessEnvironment } from './harness/harness-environment.js'
 export type { HarnessId } from './harness/harness-id.js'
 export { harnessIds } from './harness/harness-id.js'

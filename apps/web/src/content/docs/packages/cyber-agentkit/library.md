@@ -23,6 +23,8 @@ if (harness !== 'unknown') skillsDirectories(harness)
 | Function | Answers |
 | --- | --- |
 | `detectHarness()` | Which harness is running |
+| `installedHarnesses()` | Which harnesses are installed here: each whose verified command (`claude`, `codex`, `copilot`, `cursor-agent`, `gemini`, `qwen`) is on `PATH`. A harness with no such command, such as Copilot in VS Code, is never reported |
+| `presentHarnesses()` | The harnesses to act for: the running one, or with `all: true` also every harness set in the environment and every installed one |
 | `managedPolicyLocations()` | Where managed policy lives: files, MDM domains, registry keys, servers |
 | `pluginStorage()` | Where installed plugins, marketplaces, and the enabled record live |
 | `enabledPlugins()` | Which plugins are enabled, resolved by scope precedence |
