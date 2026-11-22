@@ -29,7 +29,8 @@ A case's setup script and `script` checks run contained, as Verification's Run s
 `error: sandbox:` because this machine cannot run the sandbox, say so, and offer the folder-only sandbox: one test with
 `--sandbox folder-only`, or every test with a `skill-design.test.sandbox.meta.md` beside a `skill-design.test.sandbox.yaml` in the repo or user references folder, holding
 `extends: [cyber-agentkit/skill-design.test.sandbox.folder-only]` (the YAML holds only the settings it changes), as Verification's Run says. Never pick it on your own: it runs the skill's
-shell commands and scripts with no sandbox. When the test stops with `error: sandbox-invalid:` or
+shell commands and scripts with no sandbox. The choice is the author's, so end as a stop does, with the question and
+its options, each lettered. When the test stops with `error: sandbox-invalid:` or
 `error: sandbox-missing:`, pass the reason on as it is said; no run was made.
 When the test warns
 `untrusted-scripts:`, the skill is from outside this repository: name each script it lists to the author, and pass
