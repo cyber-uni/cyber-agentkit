@@ -116,6 +116,29 @@ function repo(): string {
 }
 
 describe('skill test', () => {
+	it('keeps the runs and names the step when the summary cannot be built (#401)', async () => {
+		const skill = goodSkill()
+		const broken: PromptfooRun = async () => ({
+			output: {
+				results: {
+					results: [
+						{
+							provider: { label: 'with-skill' },
+							testCase: { description: 'x' },
+							gradingResult: { componentResults: 'not a list' },
+						},
+					],
+				},
+			},
+		})
+		const root = repo()
+		expect(await test(skill.folder, broken, root)).not.toBe(0)
+		const said = stderr.mock.calls.map(([chunk]) => String(chunk)).join('')
+		expect(said).toContain('summary-failed: the runs finished but reading the runs failed')
+		const kept = /kept in (\S+\.raw-runs\.json)/.exec(said)?.[1]
+		expect(kept && existsSync(kept)).toBe(true)
+	})
+
 	it('runs both arms in isolation, saves the result, and compares with the previous one', async () => {
 		const skill = goodSkill()
 		const root = repo()

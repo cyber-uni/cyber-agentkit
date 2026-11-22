@@ -83,6 +83,8 @@ export const runPromptfoo: PromptfooRun = (folder, config, output) =>
 
 export type TestOptions = {
 	plan: TestPlan
+	/** Where the finished runs are kept when building the summary fails, so a paid run is never lost. */
+	rescueFolder?: string | undefined
 	skill: SkillFiles
 	skillName: string
 	baselineFolder?: string | undefined
@@ -148,7 +150,7 @@ export function testFingerprint(plan: TestPlan, skillFolder: string): string {
 }
 
 /** Why a test stopped before any run: a cause every run would share. */
-export type TestProblemCode = 'login' | 'sandbox' | 'dependency-missing' | 'plugin-load'
+export type TestProblemCode = 'login' | 'sandbox' | 'dependency-missing' | 'plugin-load' | 'summary-failed'
 
 /** Runs a plan and reads the result; the baseline falls back to a run without the skill when its folder holds no skill (R35). */
 export async function runTest(
@@ -244,46 +246,74 @@ export async function runTest(
 		const setup = setupProblem(ran.output)
 		if (setup) return setup
 		const dropped = options.baselineFolder !== undefined && baselineFolder === undefined
-		// A resume's runs take the numbers of the runs they stand for, beside the runs the incomplete result finished.
-		let rows = readRows(ran.output)
-		if (options.resume)
-			rows = [
-				...options.resume.rows.filter((row) => !limitReached(row)),
-				...rows
-					.filter((row) => !row.response?.metadata?.skipped)
-					.map((row) => {
-						const run = Number(row.testCase?.vars?.__run)
-						return Number.isInteger(run) && run > 0 ? { ...row, repeatIndex: run - 1 } : row
-					}),
-			]
-		const output = { results: { results: rows } }
-		const result = readPromptfooOutput(output, options.plan, {
-			skill: options.skillName,
-			at: options.at,
-			verification: options.verification,
-			baseline: baselineFolder
-				? `the skill at ${baselineFolder}`
-				: dropped
-					? 'not run: the baseline folder holds no skill'
-					: 'without the skill',
-			baselineRan: !dropped,
-		})
-		const evalId = (ran.output as { evalId?: unknown } | undefined)?.evalId
-		return {
-			result: {
-				...result,
-				...(sandboxLabel(options.sandbox) ? { sandbox: sandboxLabel(options.sandbox) } : {}),
-				durationMs,
-				totalRuns: plannedRuns(options.plan),
-				...(typeof evalId === 'string' && evalId ? { evalId } : {}),
-				...(options.resume ? { resumedFrom: options.resume.from } : {}),
-			},
-			replies: readReplies(output),
-			rows,
-			warnings,
+		let stage = 'reading the runs'
+		try {
+			const dropped = options.baselineFolder !== undefined && baselineFolder === undefined
+			// A resume's runs take the numbers of the runs they stand for, beside the runs the incomplete result finished.
+			let rows = readRows(ran.output)
+			if (options.resume)
+				rows = [
+					...options.resume.rows.filter((row) => !limitReached(row)),
+					...rows
+						.filter((row) => !row.response?.metadata?.skipped)
+						.map((row) => {
+							const run = Number(row.testCase?.vars?.__run)
+							return Number.isInteger(run) && run > 0 ? { ...row, repeatIndex: run - 1 } : row
+						}),
+				]
+			const output = { results: { results: rows } }
+			stage = 'building the result'
+			const result = readPromptfooOutput(output, options.plan, {
+				skill: options.skillName,
+				at: options.at,
+				verification: options.verification,
+				baseline: baselineFolder
+					? `the skill at ${baselineFolder}`
+					: dropped
+						? 'not run: the baseline folder holds no skill'
+						: 'without the skill',
+				baselineRan: !dropped,
+			})
+			stage = 'reading the replies'
+			const replies = readReplies(output)
+			const evalId = (ran.output as { evalId?: unknown } | undefined)?.evalId
+			return {
+				result: {
+					...result,
+					...(sandboxLabel(options.sandbox) ? { sandbox: sandboxLabel(options.sandbox) } : {}),
+					durationMs,
+					totalRuns: plannedRuns(options.plan),
+					...(typeof evalId === 'string' && evalId ? { evalId } : {}),
+					...(options.resume ? { resumedFrom: options.resume.from } : {}),
+				},
+				replies,
+				rows,
+				warnings,
+			}
+		} catch (error) {
+			// The runs are paid for: keep them, and say which part of the summary could not be built.
+			const message = error instanceof Error ? error.message : String(error)
+			const kept = keepRuns(options.rescueFolder, options.at, ran.output)
+			return {
+				code: 'summary-failed',
+				problem: `the runs finished but ${stage} failed: ${message}${kept ? `; the runs are kept in ${kept}` : ''}`,
+			}
 		}
 	} finally {
 		rmSync(folder, { recursive: true, force: true })
+	}
+}
+
+/** Writes a run's raw output beside the results, answering where, or undefined when there is no folder or the write fails. */
+function keepRuns(folder: string | undefined, at: string, output: unknown): string | undefined {
+	if (!folder) return undefined
+	try {
+		mkdirSync(folder, { recursive: true })
+		const path = join(folder, `${stem(at)}.raw-runs.json`)
+		writeFileSync(path, `${JSON.stringify(output)}\n`)
+		return path
+	} catch {
+		return undefined
 	}
 }
 
