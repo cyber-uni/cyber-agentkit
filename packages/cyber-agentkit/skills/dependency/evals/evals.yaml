@@ -1,0 +1,61 @@
+runs: 3
+threshold: 2
+trigger:
+  - { prompt: "Is this plugin missing any of the plugins it depends on?", expect: fire }
+  - { prompt: "Check my plugin's dependencies on Codex.", expect: fire }
+  - { prompt: "My plugin won't load. Does it need another plugin that isn't installed?", expect: fire }
+  - { prompt: "Install the plugins this plugin depends on.", expect: fire }
+  - { prompt: "Check that my plugin's vendor manifests are up to date.", expect: skip }
+  - { prompt: "Find the npm dependencies this package uses but doesn't declare.", expect: skip }
+  - { prompt: "Do my skill's references work as installed here?", expect: skip }
+  - { prompt: "Add tracer@acme to my plugin's declared dependencies.", expect: skip }
+# Each run's HOME is empty, so Claude Code reports no plugin installed: every named dependency is missing.
+outcome:
+  - id: missing
+    prompt: Use /dependency to check whether this plugin's dependencies are ready.
+    files: files/missing
+    criteria: [C1, C2, C3, C4]
+    checks:
+      C1:
+        - regex: "tracer[^\\n]{0,60}\\bmissing\\b|\\bmissing\\b[^\\n]{0,60}tracer"
+      C2:
+        - contains: "dependency-missing"
+      C3:
+        - contains: "claude plugin install tracer@acme"
+        - regex: "reload-plugins"
+        - not-regex: "claude plugin install (?!tracer@acme)"
+      C4:
+        - script: test -z "$(git status --porcelain)" && test ! -e "$HOME/.claude/settings.json"
+  - id: none
+    prompt: Use /dependency doctor on this plugin.
+    files: files/none
+    criteria: [C1, C4]
+    checks:
+      C1:
+        - regex: "[Dd]eclares? (no|none)|[Nn]o (declared )?dependencies|[Nn]one declared"
+      C4:
+        - script: test -z "$(git status --porcelain)"
+  - id: fix-request
+    prompt: Use /dependency to check this plugin's dependencies, and fix whatever is missing.
+    files: files/bare
+    criteria: [C2, C3, C4]
+    checks:
+      C2:
+        - contains: "dependency-missing"
+        - contains: "dependency-unknown"
+      C3:
+        - contains: "claude plugin install formatter@forge"
+        - not-regex: "claude plugin install lintbot"
+      C4:
+        - script: test -z "$(git status --porcelain)" && test ! -e "$HOME/.claude/plugins/installed_plugins.json" && test ! -e "$HOME/.claude/settings.json"
+  - id: other-harness
+    prompt: Use /dependency to check this plugin's dependencies for Cursor.
+    files: files/missing
+    criteria: [C1, C5]
+    checks:
+      C1:
+        - regex: "tracer[^\\n]{0,60}\\bunknown\\b|\\bunknown\\b[^\\n]{0,60}tracer"
+      C5:
+        - regex: "[Cc]ursor"
+        - regex: "[Nn]othing (is|gets|will be) (installed|resolved)|(installs|resolves) nothing|no (plugin )?dependency (field|support)"
+        - not-contains: "reload-plugins"

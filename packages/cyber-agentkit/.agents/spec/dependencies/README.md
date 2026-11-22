@@ -60,7 +60,7 @@ A2's goal comes from the owner (#110 discussion): `universal-plugin` does at the
 - **Entry points:**
   - CLI (primary): `cyber-agentkit dependency doctor [--plugin <root>] [--harness <id>]`.
   - Skill: the `dependency` router skill's `doctor` command (`/dependency doctor`), which runs the CLI. It has its own
-    spec.
+    spec, [dependencies/skill](./skill/README.md).
   - Library: `checkPluginDependencies(harness, { pluginRoot })`.
 - **Inputs:** the plugin root (default the current folder); the running harness, detected or given.
 - **Success:** each declared dependency with its state, then the steps that make the plugin ready, each problem with its
