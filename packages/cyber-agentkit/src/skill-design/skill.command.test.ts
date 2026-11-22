@@ -1,4 +1,13 @@
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+	chmodSync,
+	cpSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	realpathSync,
+	symlinkSync,
+	writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -190,18 +199,65 @@ describe('skill doctor', () => {
 		if (defaults) writeFileSync(join(dir, 'references', 'triage.rules.default.md'), '## Rules\n\nTriage.\n')
 		return { root, dir }
 	}
+	/** Clears every harness signal the test runner itself may carry, so the running harness is what a test sets. */
+	const noHarness = () => {
+		for (const key of Object.keys(process.env))
+			if (/^(CLAUDE|CODEX|CURSOR|COPILOT|OPENCODE|KILO|GEMINI|QWEN|CLINE|CRUSH|OPENHANDS|AUGMENT|AI_AGENT)/.test(key))
+				vi.stubEnv(key, undefined)
+	}
+	const inClaudeCode = () => {
+		noHarness()
+		vi.stubEnv('CLAUDECODE', '1')
+		vi.stubEnv('CLAUDE_CODE_SESSION_ID', 'session')
+	}
+	/** A PATH holding a stand-in for each harness command named, and the system folders git runs from. */
+	const pathWith = (...commands: string[]) => {
+		const bin = realpathSync(mkdtempSync(join(tmpdir(), 'skill-doctor-bin-')))
+		for (const name of commands) {
+			writeFileSync(join(bin, name), '#!/bin/sh\n')
+			chmodSync(join(bin, name), 0o755)
+		}
+		vi.stubEnv('PATH', [bin, '/usr/bin', '/bin'].join(':'))
+	}
+	afterEach(() => vi.unstubAllEnvs())
 
-	it("examines a named skill's references and exits 0 when they pass", async () => {
+	it("examines a named skill's references for the running harness and exits 0 when they pass", async () => {
+		inClaudeCode()
 		const { root, dir } = repoWith('skills')
 		const code = await run(['node', 'cyber-agentkit', 'skill', 'doctor', 'triage', '--root', root, '--format', 'json'])
 		expect(code).toBe(0)
-		expect(JSON.parse(printed())).toMatchObject({
-			status: 'passed',
-			skills: [{ skill: 'triage', folder: dir, references: [{ name: 'triage.rules', answeredBy: ['default'] }] }],
-		})
+		const report = JSON.parse(printed())
+		expect(report).toMatchObject({ status: 'passed', running: 'claude-code' })
+		expect(report.harnesses).toEqual([
+			expect.objectContaining({
+				harness: 'claude-code',
+				source: 'running',
+				status: 'passed',
+				skills: [
+					expect.objectContaining({
+						skill: 'triage',
+						folder: dir,
+						references: [expect.objectContaining({ name: 'triage.rules', answeredBy: ['default'] })],
+					}),
+				],
+			}),
+		])
+	})
+
+	it('says when no harness is detected and reads only the harness-neutral files', async () => {
+		noHarness()
+		const { root, dir } = repoWith('skills')
+		mkdirSync(join(dir, 'agents'))
+		writeFileSync(join(dir, 'agents', 'openai.yaml'), 'interface: [unclosed\n')
+		const code = await run(['node', 'cyber-agentkit', 'skill', 'doctor', 'triage', '--root', root, '--format', 'text'])
+		expect(code).toBe(0)
+		expect(printed()).toContain('harness unknown: no harness is detected running here')
+		expect(printed()).toContain('agents/openai.yaml is read by Codex, which is not checked here')
+		expect(printed()).not.toContain('codex-metadata-invalid')
 	})
 
 	it('exits 1 when a reference fails, and says what to do in text', async () => {
+		inClaudeCode()
 		const { root } = repoWith('skills', false)
 		const code = await run(['node', 'cyber-agentkit', 'skill', 'doctor', 'triage', '--root', root, '--format', 'text'])
 		expect(code).toBe(1)
@@ -209,24 +265,57 @@ describe('skill doctor', () => {
 		expect(printed()).toContain('reference create triage.rules')
 	})
 
-	it('examines every skill the detected harness loads when none is named', async () => {
+	it('examines every skill the running harness loads when none is named', async () => {
 		const { root, dir } = repoWith('.claude/skills')
-		vi.stubEnv('CLAUDECODE', '1')
-		vi.stubEnv('CLAUDE_CODE_SESSION_ID', 'session')
+		inClaudeCode()
 		vi.stubEnv('HOME', realpathSync(mkdtempSync(join(tmpdir(), 'skill-doctor-home-'))))
 		const cwd = process.cwd()
 		process.chdir(root)
 		try {
 			const code = await run(['node', 'cyber-agentkit', 'skill', 'doctor', '--root', root, '--format', 'json'])
 			expect(code).toBe(0)
-			expect(JSON.parse(printed()).skills).toContainEqual(expect.objectContaining({ skill: 'triage', folder: dir }))
+			const [section] = JSON.parse(printed()).harnesses
+			expect(section.skills).toContainEqual(expect.objectContaining({ skill: 'triage', folder: dir }))
 		} finally {
 			process.chdir(cwd)
-			vi.unstubAllEnvs()
 		}
 	})
 
+	it('checks the running harness only by default, even when another is installed', async () => {
+		inClaudeCode()
+		pathWith('codex')
+		const { root } = repoWith('skills')
+		const code = await run(['node', 'cyber-agentkit', 'skill', 'doctor', 'triage', '--root', root, '--format', 'json'])
+		expect(code).toBe(0)
+		expect(JSON.parse(printed()).harnesses.map(({ harness }: { harness: string }) => harness)).toEqual(['claude-code'])
+	})
+
+	it('with --all-harnesses, reports per harness and reads agents/openai.yaml for Codex', async () => {
+		inClaudeCode()
+		pathWith('codex')
+		const { root, dir } = repoWith('skills')
+		mkdirSync(join(dir, 'agents'))
+		writeFileSync(join(dir, 'agents', 'openai.yaml'), 'interface:\n  icon_small: logo.svg\n')
+		const args = ['node', 'cyber-agentkit', 'skill', 'doctor', 'triage', '--root', root, '--all-harnesses']
+		expect(await run([...args, '--format', 'json'])).toBe(0)
+		const report = JSON.parse(printed())
+		expect(report.status).toBe('warned')
+		expect(
+			report.harnesses.map(({ harness, source, status }: Record<string, string>) => [harness, source, status]),
+		).toEqual([
+			['claude-code', 'running', 'passed'],
+			['codex', 'installed', 'warned'],
+		])
+		expect(report.harnesses[1].skills[0].warnings).toEqual([expect.objectContaining({ code: 'codex-icon-ignored' })])
+		stdout.mockClear()
+		expect(await run([...args, '--format', 'text'])).toBe(0)
+		expect(printed()).toContain('== claude-code (running)')
+		expect(printed()).toContain('== codex (installed)')
+		expect(printed()).toContain('warning codex-icon-ignored')
+	})
+
 	it('fails as a usage error when no skill has the name', async () => {
+		inClaudeCode()
 		const { root } = repoWith('skills')
 		const code = await run(['node', 'cyber-agentkit', 'skill', 'doctor', 'no-such-skill', '--root', root])
 		expect(code).toBe(2)

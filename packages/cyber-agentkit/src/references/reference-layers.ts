@@ -64,6 +64,11 @@ export type ReferenceLayerOptions = {
 	defaultSkill?: string | undefined
 	/** Detects the harness and reads its settings. Defaults to `process.env`. */
 	env?: Readonly<Record<string, string | undefined>>
+	/**
+	 * The harnesses whose managed folders, enabled plugins, and skill folders are read, in place of the ones
+	 * detected from `env`, such as one harness at a time. An empty list reads none.
+	 */
+	harnesses?: readonly HarnessId[] | undefined
 }
 
 export type ReferencePlugin = {
@@ -287,9 +292,10 @@ export async function referenceLayers({
 	plugin,
 	defaultSkill,
 	env = process.env,
+	harnesses: chosen,
 }: ReferenceLayerOptions): Promise<ReferenceLayers> {
 	const root = referenceRoot(given, cwd)
-	const harnesses = detectedHarnesses(env)
+	const harnesses = chosen ?? detectedHarnesses(env)
 	const chain = workingChain(cwd, root)
 	const ownRoot = plugin && canonical(plugin.root)
 	const enabled = await enabledPluginLayers(harnesses, chain, { env, homedir: home, cwd: root, platform })

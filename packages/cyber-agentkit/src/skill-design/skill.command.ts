@@ -5,6 +5,7 @@ import type { cli } from 'clibuilder'
 import { command, exitCodes, t } from 'clibuilder'
 import { type Answer, CliError, type Format, printAnswer, result } from 'clibuilder/axi'
 import { collapseHome } from '../command-output/collapse-home.js'
+import { type PresentHarnessSource, presentHarnesses } from '../detection/present-harnesses.js'
 import { type HarnessId, harnessIds } from '../harness/harness-id.js'
 import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plugins.js'
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
@@ -1725,27 +1726,55 @@ function whereCommand({ plugin }: SkillCommandOptions): cli.Command {
 	})
 }
 
-function doctorText(report: SkillDoctorReport): string {
-	const lines: string[] = []
-	for (const skill of report.skills) {
-		lines.push(
-			`${skill.skill} (${skill.folder}): ${skill.status}${skill.references.length ? '' : ', loads no reference'}`,
-		)
-		for (const reference of skill.references) {
-			const by = reference.answeredBy.length ? reference.answeredBy.join(' < ') : 'no tier'
-			const file = reference.file ? ` [${reference.file}]` : ''
-			lines.push(`  ${reference.name}: ${reference.status}, answered by ${by}${file}`)
-			for (const { code, message, action } of reference.failures ?? [])
-				lines.push(`    fail ${code}: ${message}`, `      ${action}`)
-			for (const { code, message, action } of reference.warnings ?? [])
-				lines.push(`    warning ${code}: ${message}`, `      ${action}`)
-		}
-		for (const note of skill.notes ?? []) lines.push(`  note: ${note}`)
+/** One harness's examination: the skills it loads, checked as it reads them. */
+export type HarnessDoctorReport = SkillDoctorReport & {
+	/** The harness checked, or `unknown` when none is detected and only the harness-neutral files are read. */
+	harness: HarnessId | 'unknown'
+	/** How it was found: running this process, set in the environment beside another, or installed on `PATH`. */
+	source?: PresentHarnessSource
+}
+
+/** `skill doctor`'s answer: one examination per harness checked. */
+export type DoctorRunReport = {
+	status: SkillDoctorReport['status']
+	/** The harness running this process, as `detectHarness()` reports it. */
+	running: HarnessId | 'unknown'
+	harnesses: HarnessDoctorReport[]
+}
+
+function doctorSkillText(skill: SkillDoctorReport['skills'][number], lines: string[]): void {
+	lines.push(
+		`${skill.skill} (${skill.folder}): ${skill.status}${skill.references.length ? '' : ', loads no reference'}`,
+	)
+	for (const reference of skill.references) {
+		const by = reference.answeredBy.length ? reference.answeredBy.join(' < ') : 'no tier'
+		const file = reference.file ? ` [${reference.file}]` : ''
+		lines.push(`  ${reference.name}: ${reference.status}, answered by ${by}${file}`)
+		for (const { code, message, action } of reference.failures ?? [])
+			lines.push(`    fail ${code}: ${message}`, `      ${action}`)
+		for (const { code, message, action } of reference.warnings ?? [])
+			lines.push(`    warning ${code}: ${message}`, `      ${action}`)
 	}
-	const failed = report.skills.filter(({ status }) => status === 'failed').length
-	const warned = report.skills.filter(({ status }) => status === 'warned').length
-	lines.push(`${report.skills.length} skills: ${report.status} (${failed} failed, ${warned} warned)`)
-	if (report.unverified) lines.push(`note: ${report.unverified}`)
+	for (const { code, message, action } of skill.warnings ?? [])
+		lines.push(`  warning ${code}: ${message}`, `    ${action}`)
+	for (const note of skill.notes ?? []) lines.push(`  note: ${note}`)
+}
+
+function doctorText(report: DoctorRunReport): string {
+	const lines: string[] = []
+	for (const section of report.harnesses) {
+		if (report.harnesses.length > 1 || section.harness === 'unknown')
+			lines.push(
+				section.harness === 'unknown'
+					? 'harness unknown: no harness is detected running here, so only the harness-neutral files are read (SKILL.md and what it loads)'
+					: `== ${section.harness} (${section.source ?? 'running'})`,
+			)
+		for (const skill of section.skills) doctorSkillText(skill, lines)
+		const failed = section.skills.filter(({ status }) => status === 'failed').length
+		const warned = section.skills.filter(({ status }) => status === 'warned').length
+		lines.push(`${section.skills.length} skills: ${section.status} (${failed} failed, ${warned} warned)`)
+		if (section.unverified) lines.push(`note: ${section.unverified}`)
+	}
 	return `${lines.join('\n')}\n`
 }
 
@@ -1753,11 +1782,11 @@ function doctorCommand({ plugin }: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'doctor',
 		description:
-			"Examine whether each skill's references work as installed and configured here. Lists the references the skill loads, as `reference uses` does, and checks each one as `reference check` composes it through the managed, repo, user, plugin, and default tiers; for an interface whose implementations it loads, checks the interface and each implementation. Reports, per reference, the tiers that answer it, the file on top, and each failure or warning with what to do. Changes nothing. Given no skill, examines every skill the detected harnesses load here. Exits 1 when a reference fails; a warning alone exits 0.",
+			"Examine whether each skill's references work as installed and configured here, for the harness running now. Lists the references the skill loads, as `reference uses` does, and checks each one as `reference check` composes it through the managed, repo, user, plugin, and default tiers; for an interface whose implementations it loads, checks the interface and each implementation. For Codex it also checks the skill's `agents/openai.yaml`. Reports, per reference, the tiers that answer it, the file on top, and each failure or warning with what to do. Changes nothing. Given no skill, examines every skill the harness loads here. When no harness is detected, says so and reads only the harness-neutral files. `--all-harnesses` checks each harness detected on this machine instead, one report per harness. Exits 1 when a reference fails; a warning alone exits 0.",
 		arguments: [
 			{
 				name: 'skills',
-				description: 'Skill names or folders. Leave them out to examine every skill the detected harnesses load here.',
+				description: 'Skill names or folders. Leave them out to examine every skill each checked harness loads here.',
 				type: t.array(t.string()).optional(),
 			},
 		],
@@ -1767,30 +1796,53 @@ function doctorCommand({ plugin }: SkillCommandOptions): cli.Command {
 					'The repository root whose references answer. Defaults to the nearest folder at or above the current directory holding `.git`.',
 				type: t.string().optional(),
 			},
+			'all-harnesses': {
+				description:
+					'Check against every harness detected on this machine, not only the one running now: the running harness, any other whose environment signals are set, and each whose command is on PATH (`claude`, `codex`, `copilot`, `cursor-agent`, `gemini`, `qwen`). Reports per harness.',
+				type: t.boolean().optional(),
+			},
 		},
 		examples: [
 			{ command: 'cyber-agentkit skill doctor issue', description: "Examine one skill's references" },
 			{ command: 'cyber-agentkit skill doctor', description: 'Examine every skill loaded here' },
+			{
+				command: 'cyber-agentkit skill doctor --all-harnesses',
+				description: 'Examine every skill each harness on this machine loads',
+			},
 		],
-		async run(this: { format: Format }, args: { skills?: string[] | undefined; root?: string | undefined }) {
+		async run(
+			this: { format: Format },
+			args: { skills?: string[] | undefined; root?: string | undefined; 'all-harnesses'?: boolean | undefined },
+		) {
 			const home = homedir()
-			const layers = await referenceLayers({
-				root: args.root,
-				cwd: process.cwd(),
-				home,
-				platform: process.platform,
-				env: process.env,
-				plugin,
-			})
-			const root = layers.root ?? findRoot(process.cwd())
+			const present = presentHarnesses({ env: process.env, platform: process.platform, all: args['all-harnesses'] })
+			const targets: { harness: HarnessId | 'unknown'; source?: PresentHarnessSource }[] = present.harnesses.length
+				? present.harnesses.map(({ harness, source }) => ({ harness, source }))
+				: [{ harness: 'unknown' }]
+			const layered = await Promise.all(
+				targets.map(async (target) => ({
+					...target,
+					layers: await referenceLayers({
+						root: args.root,
+						cwd: process.cwd(),
+						home,
+						platform: process.platform,
+						env: process.env,
+						plugin,
+						harnesses: target.harness === 'unknown' ? [] : [target.harness],
+					}),
+				})),
+			)
+			const first = (layered[0] as (typeof layered)[number]).layers
+			const root = first.root ?? findRoot(process.cwd())
 			const named = args.skills ?? []
 			const skills = named.map((name) => {
 				const found = findSkill({
 					skill: name,
 					cwd: process.cwd(),
 					root,
-					harnesses: layers.harnesses,
-					also: layers.skills?.loaded?.map((skill) => skill.folder),
+					harnesses: present.harnesses.map(({ harness }) => harness),
+					also: layered.flatMap(({ layers }) => layers.skills?.loaded?.map((skill) => skill.folder) ?? []),
 					home,
 				})
 				if ('found' in found) return found.found
@@ -1799,16 +1851,31 @@ function doctorCommand({ plugin }: SkillCommandOptions): cli.Command {
 					for (const folder of found.folders) process.stderr.write(`  ${collapseHome(home, folder)}\n`)
 				throw CliError.reported(found.code === 'skill-not-found' ? exitCodes.usage : exitCodes.error)
 			})
-			const examined = named.length ? skills : (layers.skills?.loaded ?? [])
-			if (!named.length && !examined.length) {
-				process.stderr.write(
-					`error: no-skills: no skill is loaded here${layers.skills?.unverified ? `: ${layers.skills.unverified}` : ''}\n`,
-				)
+			if (!named.length && !layered.some(({ layers }) => layers.skills?.loaded?.length)) {
+				const why = layered.flatMap(({ layers }) => (layers.skills?.unverified ? [layers.skills.unverified] : []))
+				process.stderr.write(`error: no-skills: no skill is loaded here${why.length ? `: ${why.join('; ')}` : ''}\n`)
 				throw CliError.reported(exitCodes.error)
 			}
-			const report = doctorSkills(examined, layers, { display: (path) => collapseHome(home, path) })
-			const full: SkillDoctorReport =
-				!named.length && layers.skills?.unverified ? { ...report, unverified: layers.skills.unverified } : report
+			const display = (path: string) => collapseHome(home, path)
+			const harnesses = layered.map(({ harness, source, layers }): HarnessDoctorReport => {
+				const examined = named.length ? skills : (layers.skills?.loaded ?? [])
+				const report = doctorSkills(examined, layers, { display, harness })
+				return {
+					harness,
+					...(source ? { source } : {}),
+					...report,
+					...(!named.length && layers.skills?.unverified ? { unverified: layers.skills.unverified } : {}),
+				}
+			})
+			const full: DoctorRunReport = {
+				status: harnesses.some(({ status }) => status === 'failed')
+					? 'failed'
+					: harnesses.some(({ status }) => status === 'warned')
+						? 'warned'
+						: 'passed',
+				running: present.running,
+				harnesses,
+			}
 			const answer = result(full, { render: { text: doctorText } })
 			if (full.status === 'failed') answerThenFail(answer, this.format)
 			return answer

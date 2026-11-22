@@ -153,13 +153,80 @@ describe('doctorSkills', () => {
 		])
 	})
 
-	it("does not follow a harness's own file under agents/, whose harness is not verified", async () => {
+	it("does not follow a harness's own file under agents/ whose harness is not verified", async () => {
 		const root = repo()
-		const found = skill(root, 'codexy', 'See [its Codex file](agents/openai.yaml).')
-		write(found.folder, 'agents/openai.yaml', 'interface:\n  display_name: Codexy\n')
+		const found = skill(root, 'agenty', 'See [its other file](agents/other.md).')
+		write(found.folder, 'agents/other.md', 'Load `x.rules` with the `reference` skill of `cyber-agentkit`.\n')
 		const [entry] = doctorSkills([found], await layersOf(root)).skills
 		expect(entry).toMatchObject({ status: 'passed', references: [] })
-		expect(entry?.notes).toEqual([expect.stringMatching(/^agents\/openai\.yaml is for one harness/)])
+		expect(entry?.notes).toEqual([expect.stringMatching(/^agents\/other\.md is for one harness/)])
+	})
+
+	describe("Codex's agents/openai.yaml", () => {
+		const codexSkill = (root: string, metadata: string, body = 'See [its Codex file](agents/openai.yaml).') => {
+			const found = skill(root, 'codexy', body)
+			write(found.folder, 'agents/openai.yaml', metadata)
+			return found
+		}
+
+		it('is not examined when Codex is not the harness checked, and a note says so', async () => {
+			const root = repo()
+			const found = codexSkill(root, 'interface: [unclosed\n')
+			for (const harness of [undefined, 'unknown', 'claude-code'] as const) {
+				const [entry] = doctorSkills([found], await layersOf(root), { harness }).skills
+				expect(entry).toMatchObject({ status: 'passed', references: [] })
+				expect(entry?.warnings).toBeUndefined()
+				expect(entry?.notes).toEqual([
+					expect.stringMatching(/^agents\/openai\.yaml is read by Codex, which is not checked here/),
+				])
+			}
+		})
+
+		it('passes a valid file with icons under assets/ when Codex is checked', async () => {
+			const root = repo()
+			const found = codexSkill(root, 'interface:\n  display_name: Codexy\n  icon_small: ./assets/small.svg\n')
+			write(found.folder, 'assets/small.svg', '<svg/>')
+			const [entry] = doctorSkills([found], await layersOf(root), { harness: 'codex' }).skills
+			expect(entry).toMatchObject({ status: 'passed', references: [] })
+			expect(entry?.warnings).toBeUndefined()
+			expect(entry?.notes).toBeUndefined()
+		})
+
+		it('warns that Codex ignores a file that is not valid YAML', async () => {
+			const root = repo()
+			const found = codexSkill(root, 'interface: [unclosed\n', 'Just prose.')
+			const [entry] = doctorSkills([found], await layersOf(root), { harness: 'codex' }).skills
+			expect(entry?.status).toBe('warned')
+			expect(entry?.warnings).toEqual([
+				expect.objectContaining({ code: 'codex-metadata-invalid', message: expect.stringContaining('not valid YAML') }),
+			])
+		})
+
+		it('warns that Codex ignores a file that is not a mapping', async () => {
+			const root = repo()
+			const found = codexSkill(root, '- one\n- two\n')
+			const [entry] = doctorSkills([found], await layersOf(root), { harness: 'codex' }).skills
+			expect(entry?.warnings?.map(({ code }) => code)).toEqual(['codex-metadata-invalid'])
+		})
+
+		it('warns on an icon outside assets/ and on one that does not exist', async () => {
+			const root = repo()
+			const found = codexSkill(root, 'interface:\n  icon_small: ./logo.svg\n  icon_large: assets/large.png\n')
+			const [entry] = doctorSkills([found], await layersOf(root), { harness: 'codex' }).skills
+			expect(entry?.status).toBe('warned')
+			expect(entry?.warnings?.map(({ code, message }) => [code, message])).toEqual([
+				['codex-icon-ignored', expect.stringContaining('interface.icon_small')],
+				['codex-icon-missing', expect.stringContaining('assets/large.png')],
+			])
+		})
+
+		it('notes a policy that turns off implicit invocation', async () => {
+			const root = repo()
+			const found = codexSkill(root, 'policy:\n  allow_implicit_invocation: false\n')
+			const [entry] = doctorSkills([found], await layersOf(root), { harness: 'codex' }).skills
+			expect(entry?.status).toBe('passed')
+			expect(entry?.notes).toEqual([expect.stringContaining('only when it is named')])
+		})
 	})
 
 	it('passes a skill that loads no reference', async () => {
