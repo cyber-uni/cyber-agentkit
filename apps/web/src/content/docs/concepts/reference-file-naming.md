@@ -18,11 +18,11 @@ rule has no exceptions, so a file's name tells you how the command reads it.
 | Data-format default (json, yaml, yml, toml, txt) | the skill's `references/` folder | `<name>.default.<ext>` |
 | Metadata file of a non-Markdown reference | beside the reference | `<name>.meta.md`, or `<name>.default.meta.md` for a default |
 | Rename table | a plugin's `references/` folder | `_renames.yaml` |
-| Capability reference (planned) | the same places as an implementation | `<system>.capabilities.md` |
+| Capability reference | the same places as an implementation | `<system>.capabilities.md` |
 | Blueprint (planned) | the same places as an implementation | `<id>.<system>.<solution>.md`, where `<id>` ends in `.blueprints` |
 
-[Capability references and blueprints](/cyber-agentkit/concepts/capability-references/) explains the two planned
-forms.
+[Capability references and blueprints](/cyber-agentkit/concepts/capability-references/) explains both forms;
+blueprints are planned.
 
 Aliases have no file. A document lists its older names in its `aliases` frontmatter.
 
