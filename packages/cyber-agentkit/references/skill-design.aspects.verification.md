@@ -1,5 +1,5 @@
 ---
-description: The default Verification aspect of /skill - eval cases in evals/evals.yaml, run on promptfoo in a sandbox, several runs per case against a run without the skill.
+description: The default Verification aspect of /skill - eval cases in evals/evals.yaml and an eval folder per part, run on promptfoo in a sandbox, several runs per case against a run without the skill.
 tags: [skill-design, aspect, verification, evals, promptfoo]
 implements: skill-design.aspects.verification@1
 check-script: ../skills/skill/scripts/check-verification.mjs
@@ -115,7 +115,14 @@ known-failure mark all name a case by it, never by its place. An outcome case's 
 `id` is optional: one with none is `trigger-<n>`, its place in the list, so adding or moving a case renames the ones
 after it, and VER-17 warns. An `id` is letters, digits, `.`, `_`, and `-`, and never takes the `trigger-<n>` form.
 
-A case's `setup` names a script, relative to `evals/`, that each run runs in its folder, in both arms and on both
+A skill split in parts can group its outcome cases in scopes, one eval folder per part: `evals/<name>/evals.yaml`,
+named for the part's instructions file `references/<name>.md`, holds that part's `outcome` cases and nothing else. Its
+cases' `files` and `setup` are relative to that folder, such as `evals/<name>/files/<case id>/`. Trigger cases, the
+shared settings, and `rubrics` stay in `evals/evals.yaml`, whose outcome cases are the root scope's; the trigger cases
+are the trigger scope. A skill with no eval folder has the root and trigger scopes only. `test` refuses an eval folder
+named for no instructions file, one that holds more than `outcome`, and two cases with one ID across the files.
+
+A case's `setup` names a script, relative to the folder of the eval file that lists it, that each run runs in its folder, in both arms and on both
 backends, after the case's files are committed and before the model starts, so the model starts from the state it
 makes. The script is not copied into the run's folder. When it exits non-zero, the run is reported as not run, with the
 script's output, and counts toward no pass rate.
@@ -189,7 +196,15 @@ add `--accept` to write the entry of every case the run finished, or run `skill 
 the last saved result without running. Either leaves every other entry as it was, so a run of some cases updates
 those cases only; a case with a run at the usage limit gets none, and a case no longer in the evals loses its entry. A
 criterion's expected result is computed from the entries of the cases that test it, with the oldest date when they
-differ. `skill carry <folder> --scope trigger|root --reason "<why>"`, or `--case <id>`, carries entries forward to the
+differ. With no `--case`, `test` runs only the stale cases: a case with no entry, or whose own definition (its entry,
+files, setup script, and the rubrics it tests) or an input of its scope changed since its entry was recorded. A scope's
+inputs are derived from the skill: an instructions file's scope reads that file, every file it links or names and
+every reference it loads by name, in turn, its eval folder, and the sections of `SKILL.md` every part reads (a router
+table row belongs to the scope of the file it links); the root scope reads the whole `SKILL.md` body and what it
+reaches; the trigger scope reads the description and the descriptions of the plugin's other skills. A named reference
+counts as the content a run resolves; whitespace and line wrapping are no change; a change to built scripts, the
+harness, or the Verification implementation selects no case and is reported. `--all` runs every case.
+`skill carry <folder> --scope <scope> --reason "<why>"`, with `trigger`, `root`, or an eval folder's name, or `--case <id>`, carries entries forward to the
 current inputs without a run, for a change that alters no behavior; a carried entry is shown as carried, never as a
 pass from a run. Each accept that replaces or drops an entry moves the expected result it changes to
 `evals/accepted/`, keeping the 3 newest, and the report's `moved` names the cases whose pass rate changed across them

@@ -13,9 +13,9 @@ import type { CaseStatus, TestResult } from './test-result.js'
 
 const evalSet: EvalSet = {
 	cases: [
-		{ id: 'fire-1', kind: 'trigger', criteria: [] },
-		{ id: 'one-pr', kind: 'outcome', criteria: ['C1', 'C2'] },
-		{ id: 'two-prs', kind: 'outcome', criteria: ['C1'] },
+		{ id: 'fire-1', kind: 'trigger', scope: 'trigger', criteria: [] },
+		{ id: 'one-pr', kind: 'outcome', scope: 'root', criteria: ['C1', 'C2'] },
+		{ id: 'two-prs', kind: 'outcome', scope: 'root', criteria: ['C1'] },
 	],
 }
 const inputs = {

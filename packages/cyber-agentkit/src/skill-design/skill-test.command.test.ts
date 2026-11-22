@@ -8,7 +8,7 @@ import { parse } from 'yaml'
 import type { PluginEvalRun } from './plugin-eval-backend.js'
 import type { PluginList } from './plugin-load.js'
 import { createSkillCommand } from './skill.command.js'
-import { goodEvals, goodSkill, shippedSandbox } from './skill-design.fixtures.js'
+import { goodEvals, goodSkill, scopedSkill, shippedSandbox } from './skill-design.fixtures.js'
 import { acceptResult, keptAcceptedResults, type PromptfooRun, readExpected } from './skill-test.js'
 import type { TestResult } from './test-result.js'
 
@@ -166,7 +166,7 @@ describe('skill test', () => {
 		expect(first).toMatchObject({ version: 1, skill: 'release-notes', noPrevious: true, runs: 3, threshold: 2 })
 		expect(first.criteria.map((c: { status: string }) => c.status)).toEqual(['pass', 'pass'])
 
-		expect(await test(skill.folder, fakeRun({}, false), root)).toBe(1)
+		expect(await test(skill.folder, fakeRun({}, false), root, '--all')).toBe(1)
 		const second = JSON.parse(readFileSync(join(folder, 'latest.json'), 'utf8'))
 		expect(second.changed).toContainEqual({ case: 'two-prs', from: 'pass', to: 'fail' })
 		expect(readdirSync(folder).filter((name) => !name.endsWith('.replies.json'))).toHaveLength(2)
@@ -473,7 +473,7 @@ describe('skill test', () => {
 				join(skill.folder, 'evals', 'evals.yaml'),
 				goodEvals.replace('  - { prompt: write a commit message, expect: skip }\n', ''),
 			)
-			await test(skill.folder, fakeRun({}), root, '--accept')
+			await test(skill.folder, fakeRun({}), root, '--accept', '--all')
 			expect(Object.keys(expectedOf(skill).entries)).toEqual([...triggers.slice(0, 5), 'two-prs'])
 		})
 
@@ -657,9 +657,9 @@ describe('skill test', () => {
 			await test(skill.folder, fakeRun({}), root)
 			expect(latest()).toMatchObject({ noPrevious: true })
 			expect(latest()).not.toHaveProperty('comparedWith')
-			await test(skill.folder, fakeRun({}), root, '--accept') // expected: all pass
-			await test(skill.folder, fakeRun({}, false), root) // previous: all pass
-			await test(skill.folder, fakeRun({}, false), root) // previous: all fail, expected: all pass
+			await test(skill.folder, fakeRun({}), root, '--accept', '--all') // expected: all pass
+			await test(skill.folder, fakeRun({}, false), root, '--all') // previous: all pass
+			await test(skill.folder, fakeRun({}, false), root, '--all') // previous: all fail, expected: all pass
 			expect(latest().comparedWith).toBe('expected')
 			expect(latest().changed).toContainEqual({ case: 'two-prs', from: 'pass', to: 'fail' })
 		})
@@ -736,7 +736,7 @@ describe('skill test', () => {
 			const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
 				createSkillCommand({ runPromptfoo: fakeRun({}), plugin: ownPlugin }),
 			)
-			await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root])
+			await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root, '--all'])
 			expect(printed()).toContain('moved across accepted results: trigger-1 1 of 3 → 3 of 3 → now 3 of 3')
 		})
 
@@ -811,7 +811,7 @@ describe('skill test', () => {
 			const latest = join(results(root), 'release-notes', 'latest.json')
 			const saved = JSON.parse(readFileSync(latest, 'utf8'))
 			writeFileSync(latest, JSON.stringify({ ...saved, folder: join(tmpdir(), 'skill-vanished-xyz') }))
-			await test(skill.folder, fakeRun({}), root)
+			await test(skill.folder, fakeRun({}), root, '--all')
 			expect(JSON.parse(readFileSync(latest, 'utf8')).folder).toBe(skill.folder)
 		})
 	})
@@ -902,17 +902,17 @@ describe('skill test progress (UC6)', () => {
 			const saved = JSON.parse(readFileSync(latest, 'utf8'))
 			writeFileSync(latest, JSON.stringify({ ...saved, durationMs: 14 * 60_000, cost: 8.5 }))
 			stderr.mockClear()
-			await testWith(skill.folder, fakeRun({}), root)
+			await testWith(skill.folder, fakeRun({}), root, '--all')
 			expect(errors()[0]).toContain('; last time about 14 min, $8.50\n')
 			// an older result has a cost and no duration
 			writeFileSync(latest, JSON.stringify({ ...saved, durationMs: undefined, cost: 8.5 }))
 			stderr.mockClear()
-			await testWith(skill.folder, fakeRun({}), root)
+			await testWith(skill.folder, fakeRun({}), root, '--all')
 			expect(errors()[0]).toContain('; last time about $8.50\n')
 			// the last result made a different number of runs, such as a full run before a partial one
 			writeFileSync(latest, JSON.stringify({ ...saved, durationMs: 14 * 60_000, cost: 8.5, totalRuns: 75 }))
 			stderr.mockClear()
-			await testWith(skill.folder, fakeRun({}), root)
+			await testWith(skill.folder, fakeRun({}), root, '--all')
 			expect(errors()[0]).toContain('; last time 75 runs took about 14 min, $8.50\n')
 		})
 
@@ -965,7 +965,7 @@ describe('skill test progress (UC6)', () => {
 			const saved = JSON.parse(readFileSync(latest, 'utf8'))
 			writeFileSync(latest, JSON.stringify({ ...saved, cost: 3, totalRuns: 12, durationMs: 120_000 }))
 			stdout.mockClear()
-			await test(skill.folder, fakeRun({}), root, '--estimate', '--budget-cost', '5', '--budget-runs', '20')
+			await test(skill.folder, fakeRun({}), root, '--estimate', '--all', '--budget-cost', '5', '--budget-runs', '20')
 			expect(JSON.parse(printed())).toMatchObject({
 				runs: 24,
 				estimate: 6,
@@ -1545,14 +1545,14 @@ describe('skill test model (R161)', () => {
 		expect(first).toMatch(/^release-notes: 3 runs per case, threshold 2, baseline without the skill, model sonnet$/m)
 		expect(first).toContain('model trigger-1: haiku\nmodel two-prs: claude-opus-5-5\n')
 		expect(first).not.toContain('model changed')
-		const second = await text('--model', 'top')
+		const second = await text('--model', 'top', '--all')
 		expect(second).toContain(
 			'warning: model changed since expected: sonnet → opus for trigger-2, trigger-3, trigger-4, trigger-5, trigger-6',
 		)
-		const third = await text('--model', 'top')
+		const third = await text('--model', 'top', '--all')
 		expect(third).toContain('warning: model changed since expected: sonnet → opus')
 		acceptLatest(skill.folder)
-		expect(await text('--model', 'top')).not.toContain('model changed')
+		expect(await text('--model', 'top', '--all')).not.toContain('model changed')
 	})
 })
 
@@ -2023,7 +2023,7 @@ describe('skill carry (R183)', () => {
 		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
 			createSkillCommand({ ...offline, runPromptfoo: fakeRun({}) }),
 		)
-		await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root])
+		await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root, '--all'])
 		expect(printed()).toContain(
 			'compared with a carried entry: trigger-2 was carried forward, not run (reworded nothing)',
 		)
@@ -2042,5 +2042,138 @@ describe('skill carry (R183)', () => {
 		expect(await carry(skill.folder, '--scope', 'nope', '--reason', 'x')).toBe(2)
 		expect(errors()).toContain('error: unknown-scope:')
 		expect(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')).toBe(before)
+	})
+})
+
+describe('skill test runs the stale cases only (R177)', () => {
+	const gitRepo = () => {
+		const root = repo()
+		mkdirSync(join(root, '.git'))
+		return root
+	}
+	/** The case IDs a run handed promptfoo, in plan order. */
+	const ran = (seen: { config?: Record<string, unknown> }) =>
+		((seen.config?.['tests'] ?? []) as { description: string }[]).map((item) => item.description)
+	const report = () => JSON.parse(printed().slice(printed().lastIndexOf('\n{') + 1)) as TestResult
+	const every = ['fire-write', 'fire-audit', 'skip-commit', 'overview', 'audit-one', 'write-two']
+
+	it('runs every case the first time, then only the cases of the scope whose instructions changed, and says why', async () => {
+		const skill = scopedSkill()
+		const root = gitRepo()
+		const first: { config?: Record<string, unknown> } = {}
+		expect(await test(skill.folder, fakeRun(first), root)).toBe(0)
+		expect(ran(first)).toEqual(every)
+		expect(report()).not.toHaveProperty('partial')
+		expect(report().selected?.current).toBe(0)
+
+		const path = join(skill.folder, 'references', 'audit.md')
+		writeFileSync(path, `${readFileSync(path, 'utf8')}2. Name the line of each problem.\n`)
+		stdout.mockClear()
+		const second: { config?: Record<string, unknown> } = {}
+		expect(await test(skill.folder, fakeRun(second), root)).toBe(0)
+		// The root scope reads SKILL.md's whole body, so it reaches every instructions file too (R178).
+		expect(ran(second)).toEqual(['overview', 'audit-one'])
+		expect(report().partial).toEqual({ cases: ['overview', 'audit-one'] })
+		expect(report().selected).toEqual({
+			stale: ['overview', 'audit-one'],
+			scopes: [
+				{ scope: 'root', cases: ['overview'], inputsChanged: ['references/audit.md'] },
+				{ scope: 'audit', cases: ['audit-one'], inputsChanged: ['references/audit.md'] },
+			],
+			current: 4,
+		})
+	})
+
+	it('runs only the cases added, and the text report names their scope', async () => {
+		const skill = scopedSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}), root)
+		const audit = join(skill.folder, 'evals', 'audit', 'evals.yaml')
+		writeFileSync(
+			audit,
+			`${readFileSync(audit, 'utf8')}  - { id: audit-two, prompt: audit two, criteria: [C3] }\n  - { id: audit-three, prompt: audit three, criteria: [C3] }\n`,
+		)
+		const evals = join(skill.folder, 'evals', 'evals.yaml')
+		writeFileSync(
+			evals,
+			readFileSync(evals, 'utf8').replace(
+				'trigger:\n',
+				'trigger:\n  - { id: fire-draft, prompt: draft the notes, expect: fire }\n',
+			),
+		)
+		const seen: { config?: Record<string, unknown> } = {}
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'text' }).command(
+			createSkillCommand({ ...offline, runPromptfoo: fakeRun(seen) }),
+		)
+		stdout.mockClear()
+		await app.parse(['node', 'cyber-agentkit', 'skill', 'test', skill.folder, '--root', root])
+		expect(ran(seen)).toEqual(['fire-draft', 'audit-two', 'audit-three'])
+		expect(printed()).toContain('stale: scope trigger, 1 case (no entry: fire-draft)')
+		expect(printed()).toContain('stale: scope audit, 2 cases (no entry: audit-two, audit-three)')
+		expect(printed()).toContain('current: 6 cases not run')
+	})
+
+	it('runs nothing when every case is current, and every case with --all', async () => {
+		const skill = scopedSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}), root)
+		const run = vi.fn(fakeRun({}))
+		stdout.mockClear()
+		expect(await test(skill.folder, run, root)).toBe(0)
+		expect(run).not.toHaveBeenCalled()
+		expect(JSON.parse(printed())).toMatchObject({ skill: 'release-notes', ran: 0, selected: { stale: [], current: 6 } })
+		const all: { config?: Record<string, unknown> } = {}
+		stdout.mockClear()
+		expect(await test(skill.folder, fakeRun(all), root, '--all')).toBe(0)
+		expect(ran(all)).toEqual(every)
+		expect(report()).not.toHaveProperty('selected')
+	})
+
+	it('reads a change only to whitespace as none, and counts only the selected runs in the estimate', async () => {
+		const skill = scopedSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}), root)
+		const style = join(skill.folder, 'references', 'style.md')
+		writeFileSync(style, readFileSync(style, 'utf8').replace('Keep each line short.', 'Keep  each\nline short.'))
+		stdout.mockClear()
+		await test(skill.folder, fakeRun({}), root, '--estimate', '--budget-runs', '60')
+		expect(JSON.parse(printed())).toMatchObject({ runs: 0, selected: { stale: [] } })
+		writeFileSync(style, `${readFileSync(style, 'utf8')}Use the active voice.\n`)
+		stdout.mockClear()
+		await test(skill.folder, fakeRun({}), root, '--estimate')
+		// overview and write-two, each 3 runs in both arms
+		expect(JSON.parse(printed())).toMatchObject({ runs: 12, selected: { stale: ['overview', 'write-two'] } })
+		stdout.mockClear()
+		await test(skill.folder, fakeRun({}), root, '--estimate', '--all')
+		expect(JSON.parse(printed())).toMatchObject({ runs: 27 })
+	})
+
+	it("carries an instructions file's scope past a change, so the next test runs only the root case", async () => {
+		const skill = scopedSkill()
+		const root = gitRepo()
+		await test(skill.folder, fakeRun({}), root)
+		const style = join(skill.folder, 'references', 'style.md')
+		writeFileSync(style, `${readFileSync(style, 'utf8')}Fix the typo.\n`)
+		expect(await sub('carry', skill.folder, root)).toBe(2) // no --reason
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
+			createSkillCommand({ ...offline, runPromptfoo: fakeRun({}) }),
+		)
+		const carry = (...extra: string[]) =>
+			app
+				.parse<number | undefined>(['node', 'cyber-agentkit', 'skill', 'carry', skill.folder, ...extra])
+				.then((code) => (typeof code === 'number' ? code : 0))
+		expect(await carry('--scope', 'publish', '--reason', 'typo')).toBe(2)
+		expect(stderr.mock.calls.join('')).toContain('the scopes are trigger, root, audit, write')
+		expect(await carry('--scope', 'write', '--reason', 'typo')).toBe(0)
+		const seen: { config?: Record<string, unknown> } = {}
+		stdout.mockClear()
+		await test(skill.folder, fakeRun(seen), root)
+		expect(ran(seen)).toEqual(['overview'])
+	})
+
+	it('refuses --all with --case', async () => {
+		const skill = scopedSkill()
+		expect(await test(skill.folder, fakeRun({}), gitRepo(), '--all', '--case', 'overview')).toBe(2)
+		expect(stderr.mock.calls.join('')).toContain('error: case-conflict:')
 	})
 })
