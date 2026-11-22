@@ -34,6 +34,6 @@ facts, is a section of that node, not a node of its own. Chosen because `src/` i
 | a rule, model, or the why | `design/` (decisions in `design/decisions/`) |
 | a term used by more than one node | `glossary.md` |
 
-Nodes so far: [`dependencies/`](./dependencies/README.md), the plugin dependency check and the how-to document it
+Nodes so far: [`dependencies/`](./dependencies/README.md), the plugin dependency doctor and the how-to document it
 generates; [`reference/`](./reference/README.md), loading the instructions a skill names, composed from the tiers that hold
 them (draft; its child specs are resolve, write, interfaces, and skill); [`prose-update/`](./prose-update/README.md), updating prose a tool wrote earlier without losing the owner's edits (draft); [`skill-design/`](./skill-design/README.md), designing a skill through aspects an author can swap one at a time (draft; its child specs are create, check, test, fix, enhance, customize, and vet).
