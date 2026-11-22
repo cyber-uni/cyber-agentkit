@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { type AttestationView, attestationsIn, skillFingerprint, viewAttestations } from './attestation.js'
+import { expectedView } from './expected-result.js'
 import { criteriaFiles, readText, type SkillFiles } from './skill-files.js'
 import { acceptedHistory, expectedPath } from './skill-test.js'
-import type { KnownFailure, NotRun, RatePoint, SandboxFailure, Status, TestResult } from './test-result.js'
+import type { Carried, KnownFailure, NotRun, RatePoint, SandboxFailure, Status, TestResult } from './test-result.js'
 import { compareWithHistory, notRunKind } from './test-result.js'
 
 /** Where `skill test` is documented; the Markdown links it when it says how a result is saved. */
@@ -24,6 +25,8 @@ export type EvalReport = {
 	 */
 	attested?: AttestationView[]
 	at?: string
+	/** The oldest date of the case entries, when they were recorded at different times (R182); `at` is the newest write. */
+	oldest?: string
 	runs?: number
 	threshold?: number
 	/** `without the skill` when the baseline ran; otherwise why it did not. */
@@ -57,6 +60,10 @@ export type EvalReport = {
 		without?: Count
 		/** Every case that tests it is a regression guard (R160). */
 		guard?: true
+		/** The oldest date of the entries it is computed from, when they were recorded at different times (R182). */
+		recorded?: string
+		/** Set when an entry it is computed from was carried forward, not run (R183). */
+		carried?: true
 		result: string
 	}[]
 	/** The outcome cases: every case that is not a trigger case. A guard counts its baseline runs that passed (R160). */
@@ -68,6 +75,10 @@ export type EvalReport = {
 		sandboxFailed?: number
 		guard?: true
 		baseline?: Count
+		/** When its entry was recorded (R181). */
+		at?: string
+		/** Set when its entry was carried forward without a run, with why (R183). */
+		carried?: Carried
 		result: string
 	}[]
 	notRun?: NotRun[]
@@ -139,6 +150,11 @@ function guardText(text: string, c: { status: Status; baseline?: Count }, thresh
 	return `${text} (guard)`
 }
 
+/** A carried entry as a reader reads it (R183): never a pass from a run. */
+function carriedText(carried: Carried | undefined): string {
+	return carried ? `; carried, not run (${carried.reason})` : ''
+}
+
 /** The criterion checks that passed with the skill and without, over the criteria the baseline scored, guards left out. */
 function gapOf(result: TestResult): { with: Count; without: Count } | undefined {
 	// A known failure counts toward no pass rate (#329).
@@ -170,6 +186,7 @@ export function evalReport(
 	if (!result) return { skill, hasResult: false, ...attestedOf }
 	const attestedIn = (id: string) => attested.find((entry) => entry.case === undefined && entry.id === id)
 	const brokenIn = new Map((result.cases ?? []).map((c) => [c.case, c.sandboxFailed]))
+	const carriedIn = new Map((result.cases ?? []).flatMap((c) => (c.carried ? [[c.case, c.carried] as const] : [])))
 	const report: EvalReport = {
 		skill,
 		hasResult: true,
@@ -180,6 +197,8 @@ export function evalReport(
 		baselineRan: result.baseline === 'without the skill',
 		...attestedOf,
 	}
+	const dates = [...new Set((result.cases ?? []).flatMap((c) => (c.at ? [c.at] : [])))].sort()
+	if (dates.length > 1) report.oldest = dates[0] as string
 	if (result.model) report.model = result.model
 	if (result.judge) report.judge = result.judge
 	const caseModels = (result.cases ?? []).flatMap((c) => (c.model ? [{ case: c.case, model: c.model }] : []))
@@ -201,10 +220,11 @@ export function evalReport(
 		expect: t.expect,
 		fired: t.fired,
 		ran: t.ran,
-		result:
+		result: `${
 			t.status === 'known-failure'
 				? knownText(known.filter((k) => k.case === t.case))
-				: resultText(t.status, brokenIn.get(t.case)),
+				: resultText(t.status, brokenIn.get(t.case))
+		}${carriedText(carriedIn.get(t.case))}`,
 	}))
 
 	const rate = (count: Count) => count.passed / count.ran
@@ -236,16 +256,21 @@ export function evalReport(
 						: typeof c.passed === 'number'
 							? c.status
 							: `${c.status}${c.reason ? `: ${c.reason}` : ''}`
-			}${seen ? `; attested${seen.stale ? ', stale: skill changed since' : ''} (${seen.evidence})` : ''}`,
+			}${c.carried ? '; carried, not run' : ''}${c.recorded ? `; oldest entry ${c.recorded}` : ''}${seen ? `; attested${seen.stale ? ', stale: skill changed since' : ''} (${seen.evidence})` : ''}`,
+			...(c.recorded ? { recorded: c.recorded } : {}),
+			...(c.carried ? { carried: true as const } : {}),
 		}))
 
 	report.cases = (result.cases ?? [])
 		.filter((c) => !trigger.some((t) => t.case === c.case))
-		.map((c) => {
+		.map(({ criteria: _criteria, ...c }) => {
 			if (c.status === 'known-failure')
-				return { ...c, result: knownText(known.filter((k) => k.case === c.case && k.criterion !== undefined)) }
+				return {
+					...c,
+					result: `${knownText(known.filter((k) => k.case === c.case && k.criterion !== undefined))}${carriedText(c.carried)}`,
+				}
 			const text = resultText(c.status, c.sandboxFailed)
-			return { ...c, result: c.guard ? guardText(text, c, result.threshold) : text }
+			return { ...c, result: `${c.guard ? guardText(text, c, result.threshold) : text}${carriedText(c.carried)}` }
 		})
 	report.notRun = result.notRun ?? []
 	report.sandboxFailures = result.sandboxFailures ?? []
@@ -272,17 +297,19 @@ export function evalReport(
 export function readEvalReport(skill: string, folder: string, labels: Record<string, string>): EvalReport {
 	const path = expectedPath(folder)
 	if (!existsSync(path)) return evalReport(skill, undefined)
-	let result: TestResult
+	let value: unknown
 	try {
-		result = JSON.parse(readFileSync(path, 'utf8')) as TestResult
+		value = JSON.parse(readFileSync(path, 'utf8'))
 	} catch (error) {
 		throw new Error(`${path} is not valid JSON: ${(error as Error).message}`)
 	}
-	const attested = viewAttestations(attestationsIn(result), skillFingerprint(folder))
+	const attested = viewAttestations(attestationsIn(value), skillFingerprint(folder))
+	// The per-case form is read as a saved result, each criterion computed from its entries (R182).
+	const result = expectedView(value)
 	// A file that holds only attested passes (#323) has no run to report, only them.
-	if (typeof result?.at !== 'string') {
+	if (!result) {
 		if (attested.length) return evalReport(skill, undefined, { attested })
-		throw new Error(`${path} is not a saved test result: it has no \`at\``)
+		throw new Error(`${path} is not a saved test result: it has no \`at\` and no entries`)
 	}
 	return evalReport(skill, result, { labels, history: acceptedHistory(folder), attested })
 }
@@ -311,7 +338,7 @@ export function reportMarkdown(report: EvalReport, { testLink = defaultTestLink 
 	}
 	const runs = report.runs ?? 0
 	out.push(
-		`Tested ${String(report.at).slice(0, 10)}: ${plural(runs, 'run')} per case, passes at ${report.threshold} of ${runs}, ${
+		`Tested ${report.oldest ? `${report.oldest.slice(0, 10)} to ` : ''}${String(report.at).slice(0, 10)}: ${plural(runs, 'run')} per case, passes at ${report.threshold} of ${runs}, ${
 			report.baselineRan
 				? 'against the same prompts without the skill.'
 				: `with no baseline to compare (${report.baseline ?? 'none recorded'}).`

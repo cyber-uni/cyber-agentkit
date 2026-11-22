@@ -54,7 +54,7 @@ export type TestPlan = {
 	timeout: number
 	/** Runs at once (R103). */
 	concurrency: number
-	/** Set when only the named cases run (R102): their IDs, in plan order. */
+	/** Set when only the named cases run (R176): their IDs, in plan order. */
 	only?: string[]
 	cases: PlannedCase[]
 	/** Every criterion ID the skill lists, in order. */
@@ -86,7 +86,7 @@ export function planTest(
 		judge?: string | undefined
 		/** Why a criterion whose checks need a judge is not tested when there is none, over the default reason. */
 		noJudge?: string | undefined
-		/** Run only the cases with these IDs (R102). */
+		/** Run only the cases with these IDs (R176). */
 		cases?: string[] | undefined
 		/** The machine's hardware threads; tests set it. */
 		threads?: number | undefined

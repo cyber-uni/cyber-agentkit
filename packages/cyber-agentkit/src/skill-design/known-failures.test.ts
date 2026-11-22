@@ -409,6 +409,12 @@ describe('skill fails (#329)', () => {
 	})
 })
 
+/** The case IDs a skill's expected result has entries for; none when it has no file. */
+const readExpectedEntries = (folder: string): string[] =>
+	existsSync(join(folder, 'evals', 'expected.json'))
+		? Object.keys(JSON.parse(readFileSync(join(folder, 'evals', 'expected.json'), 'utf8')).entries ?? {})
+		: []
+
 describe('a known failure in skill test (#329)', () => {
 	it('exits 0 on a known failure, reports it apart, and never saves it as the first expected result', async () => {
 		const { folder } = skillWith('    fails:\n      C2: "keeps merge commits (#341)"\n')
@@ -422,9 +428,9 @@ describe('a known failure in skill test (#329)', () => {
 		expect(text).toContain('C2: known failure 0 of 3, baseline 0 of 3')
 		expect(text).toContain('known failure: two-prs C2 0 of 3 — keeps merge commits (#341)')
 		expect(text).toContain(
-			'not saved as evals/expected.json: not every trigger case and criterion passed: 1 known to fail',
+			'no expected entry for two-prs: it is known to fail; run `skill accept` on the skill to accept it anyway',
 		)
-		expect(existsSync(join(folder, 'evals', 'expected.json'))).toBe(false)
+		expect(readExpectedEntries(folder)).not.toContain('two-prs')
 	})
 
 	it('exits 1 on a mark the run passed, with the command that clears it', async () => {
@@ -435,7 +441,8 @@ describe('a known failure in skill test (#329)', () => {
 		expect(text).toContain(
 			`fixed? remove the mark: two-prs C2 passed 3 of 3, marked known to fail (keeps merge commits (#341)); clear it with \`cyber-agentkit skill fails ${folder} two-prs C2 --clear\``,
 		)
-		expect(existsSync(join(folder, 'evals', 'expected.json'))).toBe(false)
+		expect(text).toContain('no expected entry for two-prs: its known-failure mark is out of date; clear it first')
+		expect(readExpectedEntries(folder)).not.toContain('two-prs')
 	})
 
 	it('still fails on a failure the mark does not name', async () => {

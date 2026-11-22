@@ -158,8 +158,8 @@ reason, and an outcome case's is a mapping of the criteria known to fail, each t
 sentence or a link), and an outcome case marks only criteria it tests. `test` judges a mark at the same threshold as a
 pass: below it, the case or criterion is a `known failure (<reason>)`, apart from the passes and failures, and the test
 still exits 0; at or above it, `test` reports `fixed? remove the mark` with the command that clears it and exits 1, so a
-fix is noticed and no mark outlives its failure. A known failure never counts as a pass: a result with one is never
-saved as the first expected result, and `report` shows it with its reason, never as a pass rate. `skill fails <folder>`
+fix is noticed and no mark outlives its failure. A known failure never counts as a pass: its case gets no expected
+entry unless the author accepts it, and `report` shows it with its reason, never as a pass rate. `skill fails <folder>`
 lists every mark; `skill fails <folder> <case> [<criterion>] --reason "<text or link>"` adds one or replaces its reason,
 and `--clear` clears it, keeping the file's comments and layout. A trigger case is named by its `id`, or `trigger-<n>` when it has none. Only the skill's author
 marks a known failure, when they ask for one, with the reason; an agent never adds one to make a test pass or to clear a
@@ -182,10 +182,18 @@ error before any run. `--model` does not change the judge; only `--judge` does. 
 differently on the model its users run. It saves the result, prints it, and exits 1 when a case or a criterion fails. Each run's result stays local (the
 results folder ignores itself). Each save keeps `latest.json` and the 5 most recent past results of the skill, and deletes
 older ones. The reply of every run, passed or failed, goes in a file beside the result that its `replies` field names. It also deletes the results of any other skill whose recorded skill folder no longer exists, and leaves a
-result with no recorded folder alone. Add `--accept` to also keep the result as the skill's expected result,
-`evals/expected.json`, which `changed` compares with in later runs; `skill accept <folder>` does the same with the last
-saved result without running. Each accept moves the expected result it replaces to `evals/accepted/`, keeping the 3
-newest, and the report's `moved` names the cases whose pass rate changed across them and this run. `expected.json` is
+result with no recorded folder alone. The skill's expected result, `evals/expected.json`, which `changed`
+compares with in later runs, holds one entry per case, keyed by its ID: its result per criterion, the model, when it
+was recorded, and the hashes of its definition and its scope's inputs. A case with no entry whose runs pass gets one;
+add `--accept` to write the entry of every case the run finished, or run `skill accept <folder>` to do the same with
+the last saved result without running. Either leaves every other entry as it was, so a run of some cases updates
+those cases only; a case with a run at the usage limit gets none, and a case no longer in the evals loses its entry. A
+criterion's expected result is computed from the entries of the cases that test it, with the oldest date when they
+differ. `skill carry <folder> --scope trigger|root --reason "<why>"`, or `--case <id>`, carries entries forward to the
+current inputs without a run, for a change that alters no behavior; a carried entry is shown as carried, never as a
+pass from a run. Each accept that replaces or drops an entry moves the expected result it changes to
+`evals/accepted/`, keeping the 3 newest, and the report's `moved` names the cases whose pass rate changed across them
+and this run. `expected.json` is
 optional, and the checks do not require it. Each run makes model calls:
 say so before the first run in a session.
 
@@ -259,7 +267,7 @@ say so before the first run in a session.
 - At most `concurrency` runs go at once: by default the largest number below half the machine's hardware threads (7 of
   16), and at least 1. A larger `concurrency` is lowered to that.
 - `skill test <folder> --case <id>` (repeatable) runs only the named cases, by ID: a case's `id`, or `trigger-<n>` for a trigger case with none. The result is
-  marked partial, is compared with the expected result for those cases only, and is never saved as the expected result.
+  marked partial, and is compared with those cases' expected entries only; accepting it writes theirs only.
 - A run stops after `timeout` seconds (300 by default, set in `evals.yaml`); its Claude process and the shells and commands it started are killed, and it counts as not run with the reason `time limit`. A process stuck in uninterruptible disk sleep cannot be killed; the test stops waiting for it and goes on.
 - A run that errors or hits its time or token limit counts as not run, never as a pass.
 - In a run, one shell command stops after 30 seconds unless the model asks for longer, and after 2 minutes at most;
@@ -356,9 +364,9 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   evidence; never record it for them.
 - VER-16: leave the mark while the failure is known; fix the skill, and once `test` reports `fixed?`, ask the author
   whether to clear it. Never clear a mark, or add one, on your own judgment.
-- VER-17: give each trigger case an `id` that names what it asks, such as `changelog-v2`. Its expected result and
-  history are under `trigger-<n>`, so the case reads as new until the next accepted run; move a known-failure mark
-  with it.
+- VER-17: give each trigger case an `id` that names what it asks, such as `changelog-v2`. Its expected entry and
+  history are under `trigger-<n>`, so the case reads as new until its next entry is saved or accepted; move a
+  known-failure mark with it.
 
 ## Enhance
 

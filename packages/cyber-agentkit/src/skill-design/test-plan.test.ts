@@ -107,7 +107,7 @@ describe('planTest', () => {
 	})
 })
 
-describe('planTest --case and concurrency (R102, R103)', () => {
+describe('planTest --case and concurrency (R176, R103)', () => {
 	const planned = (options: Parameters<typeof planTest>[1], evals = goodEvals) => {
 		const result = planTest(makeSkill({ 'SKILL.md': goodSkillMd, 'evals/evals.yaml': evals }), options)
 		if (!('plan' in result)) throw new Error(result.problem)

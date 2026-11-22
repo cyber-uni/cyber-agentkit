@@ -26,6 +26,8 @@ import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from 
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
 import { addCase, addTriggerCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
 import { type EvalReport, readEvalReport, reportMarkdown, skillCriteria } from './eval-report.js'
+import { carryEntries, finishedCases, readEvalSet, sandboxFailedCases } from './expected-result.js'
+import { inputHashes } from './input-hashes.js'
 import {
 	clearKnownFailure,
 	type KnownFailureMark,
@@ -51,12 +53,14 @@ import {
 	lastResult,
 	type PromptfooRun,
 	readExpected,
+	readExpectedFile,
 	readLatest,
 	resultsFolder,
 	runPromptfoo,
 	runTest,
 	saveResult,
 	testFingerprint,
+	writeExpectedFile,
 } from './skill-test.js'
 import {
 	harnessDefault,
@@ -456,21 +460,28 @@ function testText(result: TestResult, folder?: string): string {
 		)
 	if (result.replies) lines.push(`replies of every run: ${folder ? join(folder, result.replies) : result.replies}`)
 	if (result.partial)
-		lines.push(`partial: only ${result.partial.cases.join(', ')} ran; not saved as the expected result`)
+		lines.push(`partial: only ${result.partial.cases.join(', ')} ran; compared with their expected entries only`)
 	if (incomplete)
 		lines.push(
-			`incomplete: not saved as the expected result; run \`skill test --resume\` on the skill${incomplete.resets ? ` after the limit resets (${incomplete.resets})` : ' after the limit resets'} to run only the runs left`,
+			`incomplete: a case with a run at the limit gets no expected entry; run \`skill test --resume\` on the skill${incomplete.resets ? ` after the limit resets (${incomplete.resets})` : ' after the limit resets'} to run only the runs left`,
 		)
 	if (result.resumedFrom) lines.push(`resumed: holds the runs of ${result.resumedFrom} and the runs it had left`)
-	if (result.savedAsExpected) lines.push('no expected result yet: saved this passing result as evals/expected.json')
-	if (result.notSavedAsExpected)
+	if (result.expectedWritten)
 		lines.push(
-			`not saved as evals/expected.json: ${result.notSavedAsExpected}; run \`skill accept\` on the skill to accept it anyway`,
+			result.expectedWritten.by === 'accept'
+				? `accepted into evals/expected.json: ${result.expectedWritten.cases.join(', ')}`
+				: `no expected entry yet, and passed: saved in evals/expected.json: ${result.expectedWritten.cases.join(', ')}`,
 		)
-	if (result.expectedHeld)
+	for (const item of result.notSavedAsExpected ?? [])
 		lines.push(
-			'not saved as evals/expected.json: it has sandbox failures; review it, then run `skill accept` on the skill to accept it anyway',
+			`no expected entry for ${item.case}: ${item.reason}; run \`skill accept\` on the skill to accept it anyway`,
 		)
+	if (result.expectedHeld?.length)
+		lines.push(
+			`not saved in evals/expected.json: ${result.expectedHeld.join(', ')} had sandbox failures; review them, then run \`skill accept\` on the skill to accept them`,
+		)
+	for (const item of result.comparedCarried ?? [])
+		lines.push(`compared with a carried entry: ${item.case} was carried forward, not run (${item.reason})`)
 	if (result.noPrevious) lines.push('no expected or previous result to compare with')
 	else
 		for (const item of result.changed ?? [])
@@ -549,7 +560,7 @@ function testCommand({
 			},
 			case: {
 				description:
-					"Run only the case with this ID: a case's own `id`, or `trigger-<n>` for the nth trigger case when it has none; repeat it for more. The result is marked partial, is compared for those cases only, and is never saved as the expected result.",
+					"Run only the case with this ID: a case's own `id`, or `trigger-<n>` for the nth trigger case when it has none; repeat it for more. The result is marked partial and is compared with those cases' expected entries only; accepting it writes theirs only.",
 				type: t.array(t.string()).optional(),
 			},
 			'trust-scripts': {
@@ -564,7 +575,7 @@ function testCommand({
 			},
 			accept: {
 				description:
-					"After the run, also write its result to the skill's `evals/expected.json`, the expected result that later runs compare with. A result with sandbox failures is held back: accept it with `skill accept` once you have seen it.",
+					"After the run, also write the entry of each case it finished to the skill's `evals/expected.json`, the expected result that later runs compare with, leaving every other case's entry as it was. A case whose runs had sandbox failures is held back: accept it with `skill accept` once you have seen it. A case with a run at the usage limit gets no entry.",
 				type: t.boolean().optional(),
 			},
 			estimate: {
@@ -635,12 +646,6 @@ function testCommand({
 			if (!skill) {
 				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
 				throw CliError.reported(exitCodes.error)
-			}
-			if (args.accept && args.case?.length) {
-				process.stderr.write(
-					'error: partial-accept: --accept cannot be used with --case; a partial result is never the expected result\n',
-				)
-				throw CliError.reported(exitCodes.usage)
 			}
 			// A resume runs again with the options the incomplete result was made with (R163).
 			let resume: { rows: Row[]; latest: TestResult; incomplete: Incomplete } | undefined
@@ -892,10 +897,13 @@ function testCommand({
 				...(args['trust-scripts'] ? { trustScripts: true } : {}),
 				...(args.sandbox !== undefined ? { sandbox: args.sandbox } : {}),
 			}
+			// The run records what its inputs hashed to, so the entries it writes say what they were recorded against (R181).
+			const inputs = inputHashes(skill, planned.plan.criteria)
+			const recorded: TestResult = inputs ? { ...ran.result, inputs } : ran.result
 			const toSave: TestResult =
-				ran.result.incomplete && fingerprint
-					? { ...ran.result, incomplete: { ...ran.result.incomplete, fingerprint, options } }
-					: ran.result
+				recorded.incomplete && fingerprint
+					? { ...recorded, incomplete: { ...recorded.incomplete, fingerprint, options } }
+					: recorded
 			const saved = saveResult(
 				resultFolder,
 				toSave,
@@ -916,26 +924,8 @@ function testCommand({
 				(noneRan && saved.cases.some((item) => !skipped.has(item.case)))
 			// A mark the run passed fails the test until it is cleared, so a fix is noticed (#329).
 			const fixed = !!saved.knownFailures?.some((item) => item.status === 'fixed')
-			const candidate = !failed && !fixed && !saved.partial && !saved.incomplete && !readExpected(skill.folder)
-			// The first run that passes becomes the expected result when there is none (R80): at least one entry, and every
-			// one `pass`, so a result of `not-run` or `not-tested` entries never does (#322), nor one with a known failure
-			// (#329); an incomplete one never does (R162).
-			const allPass = entries.length > 0 && entries.every((item) => item.status === 'pass')
-			const firstPass = candidate && allPass
-			const notSaved = candidate && !allPass ? notSavedReason(entries, noneRan, noneRan && !harnessFailed) : undefined
-			// A result with sandbox failures becomes the expected one only by `skill accept`, once the author has seen it (R154).
-			const held = (args.accept || firstPass) && !!saved.sandboxFailures?.length && !saved.incomplete
-			if ((args.accept || firstPass) && !held && !saved.incomplete) acceptResult(saved, skill.folder)
-			const reported: TestResult = withAttested(
-				held
-					? { ...saved, expectedHeld: true }
-					: !args.accept && firstPass
-						? { ...saved, savedAsExpected: true }
-						: !args.accept && notSaved
-							? { ...saved, notSavedAsExpected: notSaved }
-							: saved,
-				skill.folder,
-			)
+			const written = writeExpectedEntries(saved, skill.folder, planned.plan.criteria, !!args.accept)
+			const reported: TestResult = withAttested({ ...saved, ...written }, skill.folder)
 			const answer = result(reported, { render: { text: () => testText(reported, resultFolder) } })
 			if (failed || fixed || saved.incomplete || harnessFailed) answerThenFail(answer, this.format)
 			return answer
@@ -943,17 +933,69 @@ function testCommand({
 	})
 }
 
-/** Why a first result with no fail is still not saved as the expected one (#322). */
-function notSavedReason(entries: { status: string }[], noneRan: boolean, planned: boolean): string {
-	if (noneRan) return planned ? 'every case was skipped before running' : 'no run finished'
-	if (entries.length === 0) return 'it has no trigger case or criterion'
-	const count = (status: string) => entries.filter((item) => item.status === status).length
-	const parts = [
-		count('not-run') && `${count('not-run')} not run`,
-		count('not-tested') && `${count('not-tested')} not tested`,
-		count('known-failure') && `${count('known-failure')} known to fail`,
-	].filter(Boolean)
-	return `not every trigger case and criterion passed: ${parts.join(', ')}`
+/**
+ * Writes the expected entries a test earns (R80, R181) and answers what the report says of them. With `accept`, every
+ * case the run finished gets its entry, but a case whose runs had sandbox failures is held back until the author accepts
+ * it with `skill accept` (R154). Without it, only a finished case with no entry whose runs passed, and whose
+ * known-failure mark the run did not find fixed (#329), gets one; a case that
+ * ran with no entry and did not pass gets none, and the report says why (#322). A case with a run at the usage limit
+ * gets none either way (R162).
+ */
+function writeExpectedEntries(
+	saved: TestResult,
+	skillFolder: string,
+	criteria: string[],
+	accept: boolean,
+): Pick<TestResult, 'expectedWritten' | 'notSavedAsExpected' | 'expectedHeld'> {
+	const evalSet = readEvalSet(skillFolder, criteria)
+	const expected = readExpected(skillFolder)
+	const hasEntry = new Set(
+		(expected?.cases ?? [])
+			.filter((item) => item.status !== 'not-run' && item.status !== 'not-tested')
+			.map((item) => item.case),
+	)
+	const finished = new Set(finishedCases(saved))
+	const broken = sandboxFailedCases(saved)
+	const statusOf = new Map(saved.cases.map((item) => [item.case, item.status]))
+	// A case whose known-failure mark the run found fixed fails the test until the mark is cleared (#329).
+	const outdated = new Set((saved.knownFailures ?? []).filter((k) => k.status === 'fixed').map((k) => k.case))
+	const eligible = accept
+		? [...finished]
+		: [...finished].filter((id) => !hasEntry.has(id) && statusOf.get(id) === 'pass' && !outdated.has(id))
+	const held = eligible.filter((id) => broken.has(id))
+	const cases = eligible.filter((id) => !broken.has(id))
+	const out: Pick<TestResult, 'expectedWritten' | 'notSavedAsExpected' | 'expectedHeld'> = {}
+	if (cases.length) {
+		const { written } = acceptResult(saved, skillFolder, cases, evalSet)
+		if (written.length) out.expectedWritten = { by: accept ? 'accept' : 'pass', cases: written }
+	}
+	if (held.length) out.expectedHeld = held
+	if (!accept) {
+		const limited = new Set((saved.incomplete?.left ?? []).map((item) => item.case))
+		const reasons: Record<string, string> = {
+			fail: 'it failed',
+			'known-failure': 'it is known to fail',
+			'not-run': 'it was not run',
+			'not-tested': 'it tests no criterion with a rubric',
+		}
+		const unsaved = saved.cases.flatMap((item) => {
+			if (hasEntry.has(item.case) || broken.has(item.case)) return []
+			if (item.status === 'pass')
+				return outdated.has(item.case)
+					? [{ case: item.case, reason: 'its known-failure mark is out of date; clear it first' }]
+					: []
+			if (saved.partial && !saved.partial.cases.includes(item.case)) return []
+			const skipped = saved.notRun.find((entry) => entry.case === item.case)
+			const reason = limited.has(item.case)
+				? 'it has a run at the usage limit'
+				: item.status === 'not-run' && skipped
+					? `it was not run: ${skipped.reason}`
+					: reasons[item.status]
+			return reason ? [{ case: item.case, reason }] : []
+		})
+		if (unsaved.length) out.notSavedAsExpected = unsaved
+	}
+	return out
 }
 
 function attestCommand(_options: SkillCommandOptions): cli.Command {
@@ -1195,7 +1237,7 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'accept',
 		description:
-			"Write the skill's last saved test result to its `evals/expected.json` as the expected result, without running the test or spending anything. The expected result it replaces moves to `evals/accepted/`, which keeps the 3 newest. Fails when there is no saved result.",
+			"Write the entry of each case the skill's last saved test result finished to its `evals/expected.json`, without running the test or spending anything, and leave every other case's entry as it was. A result of some cases (`--case`) writes theirs only; one the usage limit stopped writes no entry for a case with a run at the limit; an entry of a case the evals no longer hold is dropped. The expected result an accept changes moves to `evals/accepted/`, which keeps the 3 newest. Fails when there is no saved result, or when it finished no case.",
 		arguments: [{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() }],
 		options: {
 			root: {
@@ -1206,7 +1248,7 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 		examples: [
 			{
 				command: 'cyber-agentkit skill accept .agents/skills/release-notes',
-				description: 'Keep the last saved result as the expected result',
+				description: 'Keep the cases of the last saved result as their expected entries',
 			},
 		],
 		async run(this: { format: Format }, args: { folder: string; root?: string | undefined }) {
@@ -1222,26 +1264,134 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 				process.stderr.write(`error: no-result: no saved test result for ${name}; run \`skill test\` first\n`)
 				throw CliError.reported(exitCodes.error)
 			}
-			if (latest.partial) {
+			const cases = finishedCases(latest)
+			if (!cases.length) {
 				process.stderr.write(
-					`error: partial-result: the last test of ${name} ran only ${latest.partial.cases.join(', ')}; run the whole test to accept it\n`,
+					`error: nothing-finished: the last test of ${name} finished no case, so it has no entry to accept; run \`skill test\`${latest.incomplete ? ' --resume after the limit resets' : ''}\n`,
 				)
 				throw CliError.reported(exitCodes.error)
 			}
-			if (latest.incomplete) {
+			const limited = [...new Set((latest.incomplete?.left ?? []).map((item) => item.case))]
+			if (limited.length)
 				process.stderr.write(
-					`error: incomplete-result: the usage limit stopped the last test of ${name} with ${latest.incomplete.left.length} runs left; run \`skill test --resume\` to finish it, then accept it\n`,
+					`warning: limit-reached: the usage limit stopped the last test of ${name}, so ${limited.join(', ')} get no entry; run \`skill test --resume\` to finish them\n`,
 				)
-				throw CliError.reported(exitCodes.error)
-			}
 			if (latest.sandboxFailures?.length)
 				process.stderr.write(
 					`warning: sandbox-failures: ${latest.sandboxFailures.length} runs of this result were sandbox failures and count toward no pass rate; accepted as you asked\n`,
 				)
-			const path = acceptResult(latest, skill.folder)
+			const accepted = acceptResult(
+				latest,
+				skill.folder,
+				cases,
+				readEvalSet(
+					skill.folder,
+					latest.criteria.map((item) => item.id),
+				),
+			)
 			return result(
-				{ skill: name, accepted: latest.at, expected: path },
-				{ render: { text: () => `accepted ${latest.at} as ${path}\n` } },
+				{
+					skill: name,
+					accepted: latest.at,
+					expected: accepted.path,
+					cases: accepted.written,
+					...(accepted.dropped.length ? { dropped: accepted.dropped } : {}),
+				},
+				{
+					render: {
+						text: () =>
+							`accepted ${latest.at} into ${accepted.path}: ${accepted.written.join(', ')}\n${accepted.dropped.length ? `dropped the entries of cases no longer in the evals: ${accepted.dropped.join(', ')}\n` : ''}`,
+					},
+				},
+			)
+		},
+	})
+}
+
+function carryCommand(_options: SkillCommandOptions): cli.Command {
+	return command({
+		name: 'carry',
+		description:
+			"Carry expected entries forward to the skill's current inputs without a run, for a change that alters no behavior, such as a typo fix: each entry named takes the hashes of the case and its scope as they are now, and is marked carried with the reason, keeping its result and the date it was recorded. `test` and `report` show a carried entry as carried, never as a pass from a run. Name the cases with --case, or a whole scope with --scope (`trigger` or `root`). Runs nothing.",
+		arguments: [
+			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
+		],
+		options: {
+			reason: {
+				description: 'Why the change alters no behavior, kept with each entry carried.',
+				type: t.string(),
+			},
+			case: {
+				description: 'Carry the entry of the case with this ID; repeat it for more.',
+				type: t.array(t.string()).optional(),
+			},
+			scope: {
+				description: 'Carry every entry of this scope: `trigger` for the trigger cases, `root` for the outcome cases.',
+				type: t.string().optional(),
+			},
+		},
+		examples: [
+			{
+				command:
+					"cyber-agentkit skill carry .agents/skills/release-notes --scope root --reason 'fixed a typo in the steps'",
+				description: 'Carry every outcome entry past a typo fix',
+			},
+		],
+		async run(
+			this: { format: Format },
+			args: { folder: string; reason: string; case?: string[] | undefined; scope?: string | undefined },
+		) {
+			const skill = readSkill(args.folder)
+			if (!skill) {
+				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			if (!args.reason.trim()) {
+				process.stderr.write('error: no-reason: give the reason the change alters no behavior with --reason\n')
+				throw CliError.reported(exitCodes.usage)
+			}
+			if (!args.case?.length === !args.scope) {
+				process.stderr.write('error: carry-what: name the cases with --case, or one scope with --scope, not both\n')
+				throw CliError.reported(exitCodes.usage)
+			}
+			if (args.scope !== undefined && args.scope !== 'trigger' && args.scope !== 'root') {
+				process.stderr.write(`error: unknown-scope: no scope ${args.scope}; the scopes are trigger and root\n`)
+				throw CliError.reported(exitCodes.usage)
+			}
+			const name =
+				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
+			const criteria = (criteriaItems(skill)?.ids ?? []).filter((id): id is string => id !== undefined)
+			const evalSet = readEvalSet(skill.folder, criteria)
+			const inputs = inputHashes(skill, criteria)
+			const file = readExpectedFile(skill.folder, evalSet)
+			if (!file || !inputs || !evalSet) {
+				process.stderr.write(
+					`error: no-expected: ${name} has ${file ? 'no readable evals/evals.yaml' : 'no expected result to carry'}\n`,
+				)
+				throw CliError.reported(exitCodes.error)
+			}
+			const ids = args.scope
+				? Object.entries(file.entries).flatMap(([id, entry]) => (entry.scope === args.scope ? [id] : []))
+				: [...new Set(args.case ?? [])]
+			const carried = carryEntries(file, ids, inputs, { reason: args.reason.trim(), at: new Date().toISOString() })
+			if (carried.missing.length) {
+				process.stderr.write(
+					`error: no-entry: ${carried.missing.join(', ')} ${carried.missing.length === 1 ? 'has' : 'have'} no expected entry to carry; run \`skill test\` on ${carried.missing.length === 1 ? 'it' : 'them'} instead\n`,
+				)
+				throw CliError.reported(exitCodes.error)
+			}
+			if (!carried.carried.length) {
+				process.stderr.write(`error: no-entry: the ${args.scope} scope has no expected entry to carry\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			const path = writeExpectedFile(skill.folder, carried.file)
+			return result(
+				{ skill: name, expected: path, carried: carried.carried, reason: args.reason.trim() },
+				{
+					render: {
+						text: () => `carried ${carried.carried.join(', ')} in ${path}: ${args.reason.trim()}\n`,
+					},
+				},
 			)
 		},
 	})
@@ -1979,7 +2129,7 @@ export function createSkillCommand(options: SkillCommandOptions = {}): cli.Comma
 	return command({
 		name: 'skill',
 		description:
-			"Work on agent skills as /skill does: find a skill's folder from its name, examine whether a skill's references work here, check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept a test result as its expected result, attest a criterion or case that passed in real use, mark a case known to fail, report its accepted results for docs, or vet a third-party skill before installing it.",
+			"Work on agent skills as /skill does: find a skill's folder from its name, examine whether a skill's references work here, check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept the cases of a test result as their expected entries, carry entries forward past a change that alters no behavior, attest a criterion or case that passed in real use, mark a case known to fail, report its accepted results for docs, or vet a third-party skill before installing it.",
 		commands: [
 			whereCommand(options),
 			doctorCommand(options),
@@ -1987,6 +2137,7 @@ export function createSkillCommand(options: SkillCommandOptions = {}): cli.Comma
 			testCommand(options),
 			caseCommand(options),
 			acceptCommand(options),
+			carryCommand(options),
 			attestCommand(options),
 			failsCommand(options),
 			reportCommand(options),
