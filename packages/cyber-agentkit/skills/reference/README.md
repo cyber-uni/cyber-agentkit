@@ -64,6 +64,8 @@ Load the implementations of the `scaffold.recipe` interface with the `reference`
 
 The skill runs `implementations <id>` and hands back each implementation's pin, which the calling skill loads by name.
 
+The calling skill also declares what it loads in its front matter, under `metadata.references` and `metadata.reference-interfaces`, so the tools that list a skill's loads read them in any language. `SKILL.md`'s Wire a skill gives the form.
+
 A calling skill may ship its own default of a reference at `references/<name>.default.md`. Loading passes the calling skill's folder as `--default`, so the default sits below every plugin, user, project, and managed contribution, and anyone can customize it. The skill reads the default by itself only when the command cannot run. A copy at `references/<name>.md`, the old layout, is not read as a default.
 
 `scripts/reference.mjs` is the package's `reference` command bundled into this folder. It ships through the npm package and runs with no `node_modules`. Loading never falls back to `npx` or the network; the other modes fall back to `pnpm exec cyber-agentkit`, or to `npx` pinned to this release's exact version, when the launcher is missing.

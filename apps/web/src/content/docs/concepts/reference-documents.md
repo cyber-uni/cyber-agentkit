@@ -68,6 +68,34 @@ A skill loads references by naming them in one line:
 Load `agent-readiness-weights` and `release-checklist` with the `reference` skill of `cyber-agentkit`.
 ```
 
+### Declaring what a skill loads
+
+A skill also lists the references it loads in its `SKILL.md` front matter, under the `metadata` map the
+[Agent Skills specification](https://agentskills.io/specification) defines. The spec makes each `metadata`
+value a string, so each list is one string of names separated by spaces:
+
+```yaml
+---
+name: release
+description: Cuts a release.
+metadata:
+  references: agent-readiness-weights release-checklist
+  reference-interfaces: scaffold.recipe
+---
+```
+
+`references` lists the reference names, and `reference-interfaces` the
+[interfaces](/cyber-agentkit/concepts/reference-interfaces/) whose implementations the skill loads.
+`reference uses`, `skill doctor`, and `reference defaults` read these lists, so they find a skill's loads
+whatever language its text is written in. When a skill declares either key, the lists are the whole of what it
+loads.
+
+A skill that declares neither is read for its loads instead. Each backticked name in its text that resolves to
+a reference here, in any tier or as a default beside the skill, counts as a load, and so does each English
+load line like the one above. `skill check` fails SHP-20 on a load the lists leave out, on a declared name the
+text never mentions in backticks, and on names listed in bullets under a lead-in such as "Load these with the
+`reference` skill:", so a skill moves to the declared list.
+
 ## Naming reference files
 
 A file's name says its form: `<name>.md` for a reference, `<name>.default.md` for a skill's copy, `<id>.interface.md`
