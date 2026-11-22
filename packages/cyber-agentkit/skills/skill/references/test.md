@@ -34,7 +34,7 @@ shell commands and scripts with no sandbox. When the test stops with `error: san
 When the test warns
 `untrusted-scripts:`, the skill is from outside this repository: name each script it lists to the author, and pass
 `--trust-scripts` only when the author has read them and says to run them. Never pass it on your own. To add or
-remove a case, use `skill case add` (with `--expect fire` or `skip` for a trigger case) and `skill case remove`, never `rm` or a rewrite of a case folder in the shell.
+remove a case, use `skill case add` (with `--expect fire` or `skip` for a trigger case, or `--scope <part>` for an outcome case of a part with an eval folder) and `skill case remove`, never `rm` or a rewrite of a case folder in the shell.
 
 Without `--case`, `test` runs only the stale cases, as Verification's Run says: those with no expected entry, or whose
 definition or scope inputs changed since their entry. Pass `--all` only when the author asks for every case, such as

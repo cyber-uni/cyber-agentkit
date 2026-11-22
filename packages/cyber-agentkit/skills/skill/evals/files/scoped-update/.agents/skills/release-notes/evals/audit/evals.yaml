@@ -1,0 +1,2 @@
+outcome:
+  - { id: audit-one, prompt: check the release notes, criteria: [C2], files: files/audit-one }

@@ -25,7 +25,7 @@ node <this skill's folder>/scripts/cyber-agentkit.mjs skill fails <skill folder>
 node <this skill's folder>/scripts/cyber-agentkit.mjs skill fails <skill folder> <case> [<criterion>] --clear
 ```
 
-It writes the case's `fails` in `evals/evals.yaml` and keeps every comment and the layout of the rest. Marking one
+It writes the case's `fails` in the eval file that lists it, `evals/evals.yaml` or an eval folder's, and keeps every comment and the layout of the rest. Marking one
 already marked replaces its reason. `--clear` with no criterion clears every mark of the case. It refuses, writing
 nothing, a mark with no reason and a criterion the case does not test.
 

@@ -1,16 +1,18 @@
 import { writeFileSync } from 'node:fs'
 import { isMap, isScalar, type Pair, type parseDocument, type YAMLMap } from 'yaml'
-import { inPlace, lineStart, nextLine, readEvals } from './eval-case.js'
+import { type EvalFile, inPlace, lineStart, nextLine, readEvalFiles } from './eval-case.js'
 import { type EvalsFile, evalsProblems, knownFailureMarks, triggerCaseId } from './verification-checks.js'
 
 /**
  * `skill fails`: marks a trigger case, or one criterion of an outcome case, as known to fail, with the reason, as
- * `it.fails` marks a test (#329). The mark is the case's `fails` in `evals/evals.yaml`, so it is reviewed and versioned
- * beside the case. Each edit changes only the text of the mark, so every comment and the layout of the rest stay.
+ * `it.fails` marks a test (#329). The mark is the case's `fails` in the eval file that lists it (`evals/evals.yaml`, or
+ * `evals/<name>/evals.yaml` of a scope), so it is reviewed and versioned beside the case. Each edit changes only the text of the mark, so every comment and the layout of the rest stay.
  */
 
 /** A mark of a known failure: a trigger case's (its `id`, or `trigger-<n>`) has no criterion. */
 export type KnownFailureMark = { case: string; criterion?: string; reason: string }
+/** A listed mark, with the eval file it is in, relative to the skill. */
+export type ListedMark = KnownFailureMark & { file: string }
 
 /** Why `skill fails` changed nothing. */
 export type MarkProblemCode = 'evals-invalid' | 'unknown-case' | 'bad-criterion' | 'no-reason' | 'not-marked'
@@ -38,15 +40,42 @@ function withoutMarks(value: unknown): unknown {
 	}
 }
 
-const read = (skillFolder: string) => readEvals(skillFolder, (value) => evalsProblems(withoutMarks(value)))
+const read = (skillFolder: string) => readEvalFiles(skillFolder, (value) => evalsProblems(withoutMarks(value)))
 
-/** Every mark in the skill's `evals/evals.yaml`, trigger cases first, in file order. */
-export function listKnownFailures(skillFolder: string): { evals: string; marks: KnownFailureMark[] } | MarkProblem {
-	const evals = read(skillFolder)
-	if ('problem' in evals) return evals.problem
-	const value = (evals.doc.toJS() ?? {}) as EvalsFile
-	const marks = knownFailureMarks(value).filter((mark) => typeof mark.reason === 'string')
-	return { evals: evals.file, marks }
+/** Every mark in the skill's eval files, the root file's first, trigger cases first, in file order. */
+export function listKnownFailures(
+	skillFolder: string,
+): { evals: string; files: string[]; marks: ListedMark[] } | MarkProblem {
+	const all = read(skillFolder)
+	if ('problem' in all) return all.problem
+	const marks = all.files.flatMap((file) =>
+		knownFailureMarks((file.doc.toJS() ?? {}) as EvalsFile)
+			.filter((mark) => typeof mark.reason === 'string')
+			.map((mark) => ({ ...mark, file: file.label })),
+	)
+	const [root] = all.files as [EvalFile, ...EvalFile[]]
+	return { evals: root.file, files: all.files.map((file) => file.label), marks }
+}
+
+/** The IDs of every case of the skill's eval files, as `skill fails` names them. */
+const skillCaseIds = (files: EvalFile[]) =>
+	files.flatMap((file) => {
+		const value = (file.doc.toJS() ?? {}) as EvalsFile
+		return [
+			...(value.trigger ?? []).map((item, at) => triggerCaseId(item, at)),
+			...(value.outcome ?? []).map((item) => item.id),
+		]
+	})
+
+/** The eval file that lists the case a target names, or the problem that none does. */
+function fileOf(files: EvalFile[], target: Target): EvalFile | MarkProblem {
+	const found = files.find((file) => skillCaseIds([file]).includes(target.case))
+	if (found) return found
+	const ids = skillCaseIds(files)
+	return {
+		code: 'unknown-case',
+		problem: `${files.length === 1 ? 'evals/evals.yaml' : 'the skill'} has no case ${target.case}; its cases are ${ids.join(', ') || 'none'}`,
+	}
 }
 
 /** The entry a target names, by case ID (R175): a trigger case's own `id` or `trigger-<n>`, or an outcome case's `id`. */
@@ -170,9 +199,11 @@ export function markKnownFailure(
 ): { evals: string; mark: KnownFailureMark; replaced?: string } | MarkProblem {
 	if (reason.trim() === '')
 		return { code: 'no-reason', problem: 'a mark needs the reason the case is known to fail, a sentence or a link' }
-	const evals = read(skillFolder)
-	if ('problem' in evals) return evals.problem
-	const { file, source, doc } = evals
+	const all = read(skillFolder)
+	if ('problem' in all) return all.problem
+	const holder = fileOf(all.files, target)
+	if ('problem' in holder) return holder
+	const { file, source, doc } = holder
 	const found = locate(doc, target)
 	if ('problem' in found) return found
 	const text = JSON.stringify(reason)
@@ -224,9 +255,11 @@ export function clearKnownFailure(
 	skillFolder: string,
 	target: Target,
 ): { evals: string; cleared: KnownFailureMark[] } | MarkProblem {
-	const evals = read(skillFolder)
-	if ('problem' in evals) return evals.problem
-	const { file, source, doc } = evals
+	const all = read(skillFolder)
+	if ('problem' in all) return all.problem
+	const holder = fileOf(all.files, target)
+	if ('problem' in holder) return holder
+	const { file, source, doc } = holder
 	const found = locate(doc, target)
 	if ('problem' in found) return found
 	const value = (doc.toJS() ?? {}) as Record<string, unknown[]>

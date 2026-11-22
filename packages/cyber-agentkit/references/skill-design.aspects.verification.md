@@ -32,6 +32,9 @@ instructions make the model do: whether it triggers, what it does, and what it r
    never by deleting or rewriting case folders in the shell.
    `skill case add` also takes `--criteria C1,C2` and `--check <ID>=<script>`, and adds the entry after the last case
    without reformatting the others.
+   A case of a part with its own instructions file (Shape) goes in that part's eval folder: add it with
+   `--scope <part>`, which writes `evals/<part>/evals.yaml` and puts its files under `evals/<part>/files/<case id>/`.
+   A case of `SKILL.md`'s own steps stays in the root scope. Give every case an `id`.
    When a case needs a state plain files cannot hold, such as a git history with a start commit and uncommitted work,
    give it a setup script (`skill case add ... --setup` scaffolds `evals/setup/<case id>.sh`) that makes that state.
    A case whose state is most of another's starts from a copy of that case's script with `--from <case id>`.
@@ -120,7 +123,9 @@ named for the part's instructions file `references/<name>.md`, holds that part's
 cases' `files` and `setup` are relative to that folder, such as `evals/<name>/files/<case id>/`. Trigger cases, the
 shared settings, and `rubrics` stay in `evals/evals.yaml`, whose outcome cases are the root scope's; the trigger cases
 are the trigger scope. A skill with no eval folder has the root and trigger scopes only. `test` refuses an eval folder
-named for no instructions file, one that holds more than `outcome`, and two cases with one ID across the files.
+named for no instructions file, one that holds more than `outcome`, and two cases with one ID across the files; `check`
+fails the first as SHP-21 and the others as VER-1. `skill case` and `skill fails` edit the eval file that lists the
+case.
 
 A case's `setup` names a script, relative to the folder of the eval file that lists it, that each run runs in its folder, in both arms and on both
 backends, after the case's files are committed and before the model starts, so the model starts from the state it
@@ -323,8 +328,9 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 
 ## Criteria
 
-- **VER-1** [script] `evals/evals.yaml` exists and follows the format in Cases: among others, every `fails` mark has a
-  reason and names only criteria its case tests.
+- **VER-1** [script] `evals/evals.yaml` exists, and it and each eval folder's `evals.yaml` follow the format in Cases:
+  among others, every `fails` mark has a reason and names only criteria its case tests, an eval folder's file holds
+  its `outcome` cases only, and no ID names two cases across the files.
 - **VER-2** [script, warning] It has at least three `skip` trigger cases, and at least three `fire` ones unless the skill is
   name-only.
 - **VER-3** [script] Every Criteria ID has a rubric, and every rubric names a Criteria ID.
@@ -355,6 +361,11 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
   so none is forgotten.
 - **VER-17** [script, warning] Every trigger case has its own `id`; the warning names each one with none by its
   `trigger-<n>`.
+- **VER-18** [script, warning] No case is stale: each has an entry in `evals/expected.json` recorded against its own
+  definition and its scope's inputs as they are now. The warning names each stale case's scope and the input that
+  changed, or that it has no entry, from the files alone.
+- **VER-19** [script, warning] No expected entry is carried forward without a run; the warning lists each carried
+  entry with its reason and date, so none reads as a pass from a run.
 
 ## Fix
 
@@ -377,6 +388,10 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 - VER-15: an attested criterion with no rubric may stay so when a run cannot judge it cheaply; otherwise give it a
   rubric. For a stale attested pass, ask the author to check the changed skill in real use again and record the new
   evidence; never record it for them.
+- VER-18: run `skill test` with no case named, which runs exactly the stale cases, and accept the result once it shows
+  no criterion worse than before. For a change that alters no behavior, the author may carry the entries forward
+  instead (`skill carry`); never carry them for the author.
+- VER-19: leave a carried entry while its reason holds; the next `test` that runs its case replaces it.
 - VER-16: leave the mark while the failure is known; fix the skill, and once `test` reports `fixed?`, ask the author
   whether to clear it. Never clear a mark, or add one, on your own judgment.
 - VER-17: give each trigger case an `id` that names what it asks, such as `changelog-v2`. Its expected entry and
@@ -385,7 +400,8 @@ own definition (`headlessInvocation(<harness>).isolation` in the library), not f
 
 ## Enhance
 
-- A trigger miss or a wrong result seen while the skill was used: add it as a case.
+- A trigger miss or a wrong result seen while the skill was used: add it as a case, in the scope of the part it
+  concerns.
 - A case that passes with and without the skill alike: it does not show what the skill adds.
 - A `judge` rubric that a deterministic check could replace (VER-14).
 - A behavior of a bundled script that an eval checks: move it to an ordinary test in the project's suite.

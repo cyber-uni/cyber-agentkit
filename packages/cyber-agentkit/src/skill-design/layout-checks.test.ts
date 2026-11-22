@@ -42,6 +42,7 @@ describe('checkLayout', () => {
 			'SHP-9 pass',
 			'SHP-10 pass',
 			'SHP-11 pass',
+			'SHP-21 pass',
 		])
 	})
 

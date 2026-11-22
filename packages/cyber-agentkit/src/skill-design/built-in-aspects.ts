@@ -169,6 +169,13 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				statement:
 					'The front matter declares each reference the skill loads under `metadata.references`, and each interface whose implementations it loads under `metadata.reference-interfaces`, as one string of names separated by spaces; every declared name is mentioned in backticks where it is loaded, and the text loads no name the lists leave out.',
 			},
+			{
+				id: 'SHP-21',
+				how: 'script',
+				severity: 'critical',
+				statement:
+					'Each eval folder, a folder under `evals/` holding an `evals.yaml`, is named for an instructions file: `evals/<name>/` holds the cases of `references/<name>.md`.',
+			},
 		],
 	},
 	{

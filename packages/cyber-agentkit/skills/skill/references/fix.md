@@ -33,7 +33,8 @@ that still fails, and never add one to make `test` pass.
 
 ### Core aspect fixes
 
-The Fix for Shape and Trigger, the core aspects `SKILL.md` writes out. "Draft" names that aspect's Draft in `SKILL.md`.
+The Fix for Shape and Trigger, the core aspects `SKILL.md` writes out. "Draft" names that aspect's Draft: Shape's in
+`SKILL.md`, and Trigger's in [trigger-draft.md](trigger-draft.md).
 
 **Shape.** Move the text or the step as Draft says, and update the links. For SHP-1, offer the ways to trim in
 [SHP-1: ways to trim](#shp-1-ways-to-trim). For SHP-5, propose the reference and the interface the skill should depend
@@ -71,8 +72,10 @@ At `ask`, offer each one, lettered, with its estimate, and apply only what the a
 
 ## 4. Check again
 
-Run [check](check.md) again in full. Then estimate `test` against the test budget as `SKILL.md`'s Autonomy says, and write
-the `Test budget:` line. Within the budget, run [test](test.md) without asking, so the report holds the latest result.
+Run [check](check.md) again in full. Then pick the cases to test: the cases that failed, and the cases the repair
+made stale, which `skill test <skill folder> --estimate --format json` lists in `selected.stale`. Name each with
+`--case`, not every case. Estimate that run against the test budget as `SKILL.md`'s Autonomy says, and write the
+`Test budget:` line. Within the budget, run [test](test.md) without asking, so the report holds the latest result.
 Over it, stop as Stops says, keeping every repair. For a skill from an installed plugin, offer to file an issue with the plugin's source,
 and file none unless the author accepts.
 

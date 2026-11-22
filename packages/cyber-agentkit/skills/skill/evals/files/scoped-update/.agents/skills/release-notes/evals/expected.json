@@ -1,0 +1,111 @@
+{
+	"version": 2,
+	"skill": "release-notes",
+	"at": "2026-11-01T00:00:00.000Z",
+	"verification": "v",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"criteria": ["C1", "C2"],
+	"entries": {
+		"fire-write": {
+			"scope": "trigger",
+			"status": "pass",
+			"at": "2026-11-01T00:00:00.000Z",
+			"hashes": {
+				"case": "sha256:313962811e2e073d3f889f62491265748b643d9ba16c10e0e8a8285ffff96130",
+				"scope": "sha256:af9e5ea0b17f7bb9797dc25f533a6e947deddc33455eb2d21cc8b90298fb3a3a"
+			}
+		},
+		"fire-changelog": {
+			"scope": "trigger",
+			"status": "pass",
+			"at": "2026-11-01T00:00:00.000Z",
+			"hashes": {
+				"case": "sha256:48343f4596a1491cadc91ec752932a22e25853f6f9fefe139296462f987034ae",
+				"scope": "sha256:af9e5ea0b17f7bb9797dc25f533a6e947deddc33455eb2d21cc8b90298fb3a3a"
+			}
+		},
+		"fire-audit": {
+			"scope": "trigger",
+			"status": "pass",
+			"at": "2026-11-01T00:00:00.000Z",
+			"hashes": {
+				"case": "sha256:fd7871ab8b3dcb91b7eb87bcab32515fb2efb8a9689dcb39d43d815a12542a39",
+				"scope": "sha256:af9e5ea0b17f7bb9797dc25f533a6e947deddc33455eb2d21cc8b90298fb3a3a"
+			}
+		},
+		"skip-commit": {
+			"scope": "trigger",
+			"status": "pass",
+			"at": "2026-11-01T00:00:00.000Z",
+			"hashes": {
+				"case": "sha256:0d1f322731c00a2f7c50e03fada2a17eced9959023556e14ded3fb048c2335ee",
+				"scope": "sha256:af9e5ea0b17f7bb9797dc25f533a6e947deddc33455eb2d21cc8b90298fb3a3a"
+			}
+		},
+		"skip-review": {
+			"scope": "trigger",
+			"status": "pass",
+			"at": "2026-11-01T00:00:00.000Z",
+			"hashes": {
+				"case": "sha256:073ae3a1838ef728d20646fb7bfb4456d3b57cb353563a09c036228b82945e95",
+				"scope": "sha256:af9e5ea0b17f7bb9797dc25f533a6e947deddc33455eb2d21cc8b90298fb3a3a"
+			}
+		},
+		"skip-readme": {
+			"scope": "trigger",
+			"status": "pass",
+			"at": "2026-11-01T00:00:00.000Z",
+			"hashes": {
+				"case": "sha256:a22ff58c099a50185c9aa247e6a6a2781197ba1f3e0e4809c16cb40d9cca8897",
+				"scope": "sha256:af9e5ea0b17f7bb9797dc25f533a6e947deddc33455eb2d21cc8b90298fb3a3a"
+			}
+		},
+		"audit-one": {
+			"scope": "audit",
+			"status": "pass",
+			"at": "2026-11-01T00:00:00.000Z",
+			"hashes": {
+				"case": "sha256:24cf43d6a0ea7a4974162894625295639f77b134e296f29bf4632b08f32ae992",
+				"scope": "sha256:cc59316f6237ba8aef0c80560a6c21f6c9e43d4625748f34d41e7981a7021dfd"
+			}
+		},
+		"write-one": {
+			"scope": "write",
+			"status": "pass",
+			"at": "2026-11-01T00:00:00.000Z",
+			"hashes": {
+				"case": "sha256:aab135b3fa2841db08b11776780526fb9e39e8bc6c63e397a7ed7943aef107a0",
+				"scope": "sha256:a02fa0bb60f1fdcb2f4c9ce197c04c06dbba278fb9988504dd40d63e2e1cd140"
+			}
+		}
+	},
+	"inputs": {
+		"sha256:af9e5ea0b17f7bb9797dc25f533a6e947deddc33455eb2d21cc8b90298fb3a3a": {
+			"description": "sha256:34c2ec76961b03d667d548e2916f539d63edbece4854ba0db27c3b69589351b6",
+			"evals/evals.yaml settings": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+		},
+		"sha256:2ba847222dc13ab396002d2983f79b09bbc29a692a3e19cf91972e37e19ce939": {
+			"SKILL.md front matter": "sha256:d8ba7d9f85f79bf71cec0c3d7c413acb3bd63a5fa78bf053431bffff382b49f1",
+			"SKILL.md body": "sha256:1eaca7997801fe1005b75df29753458fba29431034aa6e53b2f6fe7b06cb0a2f",
+			"references/audit.md": "sha256:f2ba4cd054597003e1006ec3a069180a08caa6fd3d9843956948eac580bfbfa8",
+			"references/write.md": "sha256:b9917d63ebae9132e60df3d3a227b464ffa5ffbd921a9daa768f231674edfbc0",
+			"evals/evals.yaml settings": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+		},
+		"sha256:cc59316f6237ba8aef0c80560a6c21f6c9e43d4625748f34d41e7981a7021dfd": {
+			"SKILL.md front matter": "sha256:d8ba7d9f85f79bf71cec0c3d7c413acb3bd63a5fa78bf053431bffff382b49f1",
+			"SKILL.md shared sections": "sha256:e78e915a79a69837a8894d2bc29cd8fe9961961637643011e786af243c04c094",
+			"SKILL.md router row for references/audit.md": "sha256:539402799cbc0d7ccd10f541e6abb3928e8f4197214b643a3d8177584e8a8861",
+			"references/audit.md": "sha256:f2ba4cd054597003e1006ec3a069180a08caa6fd3d9843956948eac580bfbfa8",
+			"evals/evals.yaml settings": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+		},
+		"sha256:a02fa0bb60f1fdcb2f4c9ce197c04c06dbba278fb9988504dd40d63e2e1cd140": {
+			"SKILL.md front matter": "sha256:d8ba7d9f85f79bf71cec0c3d7c413acb3bd63a5fa78bf053431bffff382b49f1",
+			"SKILL.md shared sections": "sha256:e78e915a79a69837a8894d2bc29cd8fe9961961637643011e786af243c04c094",
+			"SKILL.md router row for references/write.md": "sha256:07551a503e2645fadba624b161d4e1b4eb72bcc1743dedf2dbf03caa8bf7fa1e",
+			"references/write.md": "sha256:b9917d63ebae9132e60df3d3a227b464ffa5ffbd921a9daa768f231674edfbc0",
+			"evals/evals.yaml settings": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+		}
+	}
+}

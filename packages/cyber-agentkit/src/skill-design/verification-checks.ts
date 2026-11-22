@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse } from 'yaml'
 import { readAttestations, skillFingerprint } from './attestation.js'
+import { evalFolderNames } from './eval-suite.js'
 import { isNameOnly } from './name-only-skills.js'
 import type { CheckOutcome } from './skill-check-types.js'
 import { criteriaItems, type SkillFiles } from './skill-files.js'
@@ -326,6 +327,43 @@ export function knownFailureMarks(evals: EvalsFile): { case: string; criterion?:
 	]
 }
 
+/** The keys an eval folder's file may hold: its cases only, since triggers and shared settings are at the root. */
+const folderKeys = new Set(['outcome'])
+
+/**
+ * The outcome cases of each eval folder named for an instructions file (K11), each with the folder its `files` and
+ * `setup` are relative to, or the first problem with one folder's file. A folder named for no instructions file is
+ * left to SHP-21.
+ */
+function scopedEvals(
+	skill: SkillFiles,
+	criteria: string[] | undefined,
+): { cases: { item: NonNullable<EvalsFile['outcome']>[number]; base: string }[] } | { problem: string } {
+	const cases: { item: NonNullable<EvalsFile['outcome']>[number]; base: string }[] = []
+	for (const name of evalFolderNames(skill.folder)) {
+		if (!skill.files.includes(`references/${name}.md`)) continue
+		const base = `evals/${name}`
+		let value: unknown
+		try {
+			value = parse(readFileSync(join(skill.folder, base, 'evals.yaml'), 'utf8')) ?? {}
+		} catch (error) {
+			return { problem: `${base}/evals.yaml is not valid YAML: ${(error as Error).message.split('\n')[0]}` }
+		}
+		const problems = [
+			...evalsProblems(value),
+			...(isRecord(value)
+				? Object.keys(value)
+						.filter((key) => !folderKeys.has(key))
+						.map((key) => `\`${key}\` belongs in evals/evals.yaml; an eval folder holds its outcome cases only`)
+				: []),
+			...(criteria ? failsProblems(value, criteria) : []),
+		]
+		if (problems.length) return { problem: `${base}/evals.yaml: ${[...new Set(problems)].join('; ')}` }
+		for (const item of (value as EvalsFile).outcome ?? []) cases.push({ item, base })
+	}
+	return { cases }
+}
+
 /** VER-1 to VER-5, VER-9, VER-11 to VER-13, and VER-15 to VER-17, the default Verification aspect's script checks. */
 export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 	const later = [
@@ -368,6 +406,23 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 	]
 	if (problems.length) return blocked(problems.join('; '))
 	const evals = value as EvalsFile
+	// Each eval folder holds its scope's outcome cases (K11); one named for no instructions file is SHP-21's to report.
+	const scoped = scopedEvals(
+		skill,
+		items?.ids.filter((id): id is string => id !== undefined),
+	)
+	if ('problem' in scoped) return blocked(scoped.problem)
+	const cases = [...(evals.outcome ?? []).map((item) => ({ item, base: 'evals' })), ...scoped.cases]
+	const ids = [
+		...(evals.trigger ?? []).map((item, index) => triggerCaseId(item, index)),
+		...cases.map((c) => c.item.id),
+	]
+	const twice = [...new Set(ids.filter((id, at) => ids.indexOf(id) !== at))]
+	if (twice.length)
+		return blocked(
+			`case ID${twice.length === 1 ? '' : 's'} ${twice.join(', ')} name${twice.length === 1 ? 's' : ''} more than one case across the skill's eval files; give each case its own`,
+		)
+	const outcome = cases.map((c) => c.item)
 	const outcomes: CheckOutcome[] = [{ id: 'VER-1', status: 'pass' }]
 
 	const fire = evals.trigger?.filter((item) => item.expect === 'fire').length ?? 0
@@ -394,7 +449,7 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 	else {
 		const ids = items.ids.filter((id): id is string => id !== undefined)
 		const rubrics = Object.keys(evals.rubrics ?? {})
-		const cases = evals.outcome ?? []
+		const cases = outcome
 		const covered = (id: string) => {
 			if (rubrics.includes(id)) return true
 			const testing = cases.filter((item) => (item.criteria ?? ids).includes(id))
@@ -413,12 +468,12 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 		outcomes.push(message ? { id: 'VER-3', status: 'fail', message, file } : { id: 'VER-3', status: 'pass' })
 	}
 
-	const missing = (evals.outcome ?? []).flatMap((item) => [
-		...(item.files !== undefined && !existsSync(join(skill.folder, 'evals', item.files))
-			? [`case ${item.id}: evals/${item.files} does not exist`]
+	const missing = cases.flatMap(({ item, base }) => [
+		...(item.files !== undefined && !existsSync(join(skill.folder, base, item.files))
+			? [`case ${item.id}: ${base}/${item.files} does not exist`]
 			: []),
-		...(item.setup !== undefined && !isFile(join(skill.folder, 'evals', item.setup))
-			? [`case ${item.id}: setup script evals/${item.setup} does not exist`]
+		...(item.setup !== undefined && !isFile(join(skill.folder, base, item.setup))
+			? [`case ${item.id}: setup script ${base}/${item.setup} does not exist`]
 			: []),
 	])
 	outcomes.push(
@@ -435,7 +490,7 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 			: { id: 'VER-5', status: 'fail', message: `\`threshold\` ${threshold} is more than \`runs\` ${runs}`, file },
 	)
 
-	const preamble = (evals.outcome ?? []).filter((item) => setupStep.test(item.prompt))
+	const preamble = outcome.filter((item) => setupStep.test(item.prompt))
 	outcomes.push(
 		preamble.length
 			? {
@@ -452,7 +507,7 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 			`rubric ${id}`,
 			list,
 		]),
-		...(evals.outcome ?? []).flatMap((item) =>
+		...outcome.flatMap((item) =>
 			Object.entries(item.checks ?? {}).map(([id, list]): [string, Record<string, unknown>[]] => [
 				`case ${item.id}: checks ${id}`,
 				list,
@@ -476,11 +531,11 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 			: { id: 'VER-11', status: 'pass' },
 	)
 
-	const gitWrites = (evals.outcome ?? []).flatMap((item) => {
+	const gitWrites = cases.flatMap(({ item, base }) => {
 		if (item.setup === undefined) return []
-		const path = join(skill.folder, 'evals', item.setup)
+		const path = join(skill.folder, base, item.setup)
 		if (!isFile(path)) return []
-		return gitWriteLines(readFileSync(path, 'utf8')).map((line) => `case ${item.id}: evals/${item.setup} ${line}`)
+		return gitWriteLines(readFileSync(path, 'utf8')).map((line) => `case ${item.id}: ${base}/${item.setup} ${line}`)
 	})
 	outcomes.push(
 		gitWrites.length
@@ -497,9 +552,8 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 	if (!items) outcomes.push({ id: 'VER-13', status: 'not-checked', message: 'the skill has no `## Done when`' })
 	else {
 		const ids = items.ids.filter((id): id is string => id !== undefined)
-		const cases = evals.outcome ?? []
 		const unlisted = ids.filter(
-			(id) => !attestedIds.has(id) && !cases.some((item) => (item.criteria ?? ids).includes(id)),
+			(id) => !attestedIds.has(id) && !outcome.some((item) => (item.criteria ?? ids).includes(id)),
 		)
 		outcomes.push(
 			unlisted.length
@@ -517,10 +571,9 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 	else {
 		const ids = items ? items.ids.filter((id): id is string => id !== undefined) : []
 		const rubrics = Object.keys(evals.rubrics ?? {})
-		const cases = evals.outcome ?? []
 		const hasRubric = (id: string) =>
 			rubrics.includes(id) ||
-			cases.some((item) => (item.criteria ?? ids).includes(id) && item.checks && id in item.checks)
+			outcome.some((item) => (item.criteria ?? ids).includes(id) && item.checks && id in item.checks)
 		const fingerprint = skillFingerprint(skill.folder)
 		const attestedOnly = [...attestedIds].filter((id) => ids.includes(id) && !hasRubric(id))
 		const unknown = [...attestedIds].filter((id) => !ids.includes(id))
@@ -539,7 +592,7 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 	}
 
 	// Each known failure stays named until it is fixed and its mark cleared (#329).
-	const known = knownFailureMarks(evals)
+	const known = knownFailureMarks({ ...evals, outcome })
 	outcomes.push(
 		known.length
 			? {

@@ -1,6 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { Document, isMap, isSeq, parseDocument, type YAMLMap, type YAMLSeq } from 'yaml'
+import { evalFolderNames, rootScope, triggerScope } from './eval-suite.js'
 import {
 	caseIdPattern,
 	type EvalsFile,
@@ -21,6 +22,7 @@ export type CaseProblemCode =
 	| 'bad-criterion'
 	| 'case-exists'
 	| 'unknown-case'
+	| 'unknown-scope'
 	| 'no-setup'
 	| 'evals-invalid'
 	| 'outside-evals'
@@ -65,29 +67,91 @@ function strictlyInside(root: string, path: string): boolean {
 	return from !== '' && !from.startsWith('..') && !isAbsolute(from)
 }
 
-/** Reads a skill's `evals/evals.yaml` as text and as a document, or why it cannot be edited. */
-export function readEvals(
+type Doc = ReturnType<typeof parseDocument>
+
+/** One eval file of a skill, as text and as a document. */
+export type EvalFile = {
+	/** The scope: `root` for `evals/evals.yaml`, else the eval folder's name. */
+	scope: string
+	/** The file's path. */
+	file: string
+	/** The file as messages name it, relative to the skill: `evals/evals.yaml`, `evals/<name>/evals.yaml`. */
+	label: string
+	/** The folder the file's `files` and `setup` paths are relative to. */
+	folder: string
+	source: string
+	doc: Doc
+}
+
+type ReadProblem = { problem: { code: 'evals-invalid'; problem: string } }
+
+function readEvalFile(
 	skillFolder: string,
-	problemsOf: (value: unknown) => string[] = evalsProblems,
-):
-	| { file: string; source: string; doc: ReturnType<typeof parseDocument> }
-	| { problem: { code: 'evals-invalid'; problem: string } } {
-	const file = join(skillFolder, 'evals', 'evals.yaml')
+	scope: string,
+	problemsOf: (value: unknown) => string[],
+): EvalFile | ReadProblem {
+	const root = scope === rootScope
+	const label = root ? 'evals/evals.yaml' : `evals/${scope}/evals.yaml`
+	const folder = root ? join(skillFolder, 'evals') : join(skillFolder, 'evals', scope)
+	const file = join(folder, 'evals.yaml')
 	const source = existsSync(file) ? readFileSync(file, 'utf8') : ''
 	const doc = parseDocument(source)
 	if (doc.errors.length)
 		return {
 			problem: {
 				code: 'evals-invalid' as const,
-				problem: `evals/evals.yaml is not valid YAML: ${doc.errors[0]?.message.split('\n')[0]}`,
+				problem: `${label} is not valid YAML: ${doc.errors[0]?.message.split('\n')[0]}`,
 			},
 		}
-	const value = doc.toJS() ?? {}
-	const problems = problemsOf(value)
+	const problems = problemsOf(doc.toJS() ?? {})
 	if (problems.length)
-		return { problem: { code: 'evals-invalid' as const, problem: `evals/evals.yaml: ${problems.join('; ')}` } }
-	return { file, source, doc }
+		return { problem: { code: 'evals-invalid' as const, problem: `${label}: ${problems.join('; ')}` } }
+	return { scope, file, label, folder, source, doc }
 }
+
+/** Reads a skill's `evals/evals.yaml` as text and as a document, or why it cannot be edited. */
+export function readEvals(
+	skillFolder: string,
+	problemsOf: (value: unknown) => string[] = evalsProblems,
+): { file: string; source: string; doc: Doc } | ReadProblem {
+	const read = readEvalFile(skillFolder, rootScope, problemsOf)
+	return 'problem' in read ? read : { file: read.file, source: read.source, doc: read.doc }
+}
+
+/** Every eval file of a skill: the root file, then each eval folder's, or why one cannot be edited. */
+export function readEvalFiles(
+	skillFolder: string,
+	problemsOf: (value: unknown) => string[] = evalsProblems,
+): { files: EvalFile[] } | ReadProblem {
+	const files: EvalFile[] = []
+	for (const scope of [rootScope, ...evalFolderNames(skillFolder)]) {
+		const read = readEvalFile(skillFolder, scope, problemsOf)
+		if ('problem' in read) return read
+		files.push(read)
+	}
+	return { files }
+}
+
+/** The outcome cases of every eval file, each with the file that lists it. */
+type Listed = { id: string; files?: string; setup?: string }
+const outcomeOf = (value: unknown) => ((value as EvalsFile).outcome ?? []) as unknown as Listed[]
+const listedIn = (file: EvalFile) => outcomeOf(file.doc.toJS() ?? {})
+
+/** The eval file that holds the case `id`, with its entry, or undefined. */
+function findCase(files: EvalFile[], id: string): { file: EvalFile; entry: Listed } | undefined {
+	for (const file of files) {
+		const entry = listedIn(file).find((item) => item.id === id)
+		if (entry) return { file, entry }
+	}
+	return undefined
+}
+
+/** The file that lists the ID among all the skill's cases, as `label`, or undefined. */
+const holderOf = (files: EvalFile[], id: string): EvalFile | undefined =>
+	files.find((file) => caseIds((file.doc.toJS() ?? {}) as EvalsFile).includes(id))
+
+/** The path of `path` (relative to `from`) as relative to `to`, with `/` separators. */
+const rebased = (path: string, from: string, to: string) => relative(to, resolve(from, path)).split('\\').join('/')
 
 /** Where the line holding `offset` starts. */
 export const lineStart = (source: string, offset: number) => source.lastIndexOf('\n', offset - 1) + 1
@@ -190,14 +254,20 @@ export type CaseCheck = { criterion: string; script: string }
 /** A criterion ID, as a case's `criteria` and `checks` name it. */
 const criterionId = /^[A-Za-z][A-Za-z0-9._-]*$/
 
+/** A scope's name, as the name of an instructions file and its eval folder. */
+const scopeName = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+
 /**
- * Adds an outcome case: its entry in `evals/evals.yaml` (made when missing), its files folder `evals/files/<id>/`,
- * and, with `setup`, its setup script `evals/setup/<id>.sh`. With `setup`, the files folder is made only when `files`
- * is also set. `criteria` and the criteria of `checks` become the case's `criteria`, and each check a `script` check
- * of its criterion. The entry goes after the last case in the file's own text, so no other entry is rewritten.
- * With `from`, the new case starts from that case's setup: its setup script is a copy of the other case's, and,
- * unless `files` is set, it names the other case's files folder instead of making one. Changes nothing when the ID is
- * taken or not a plain name, or when `from` names no case with a setup script.
+ * Adds an outcome case: its entry in an eval file (made when missing), its files folder `files/<id>/`, and, with
+ * `setup`, its setup script `setup/<id>.sh`, both beside that file. With `setup`, the files folder is made only when
+ * `files` is also set. `criteria` and the criteria of `checks` become the case's `criteria`, and each check a `script`
+ * check of its criterion. The entry goes after the last case in the file's own text, so no other entry is rewritten.
+ * Without `scope`, or with `root`, the file is `evals/evals.yaml`; with the name of an instructions file
+ * (`references/<name>.md`), it is `evals/<name>/evals.yaml`, and its paths are written relative to that folder.
+ * With `from`, the new case starts from that case's setup, in any scope: its setup script is a copy of the other
+ * case's, and, unless `files` is set, it names the other case's files folder instead of making one. Changes nothing
+ * when the ID is taken in any scope or not a plain name, when the scope has no instructions file, or when `from`
+ * names no case with a setup script.
  */
 export function addCase(
 	skillFolder: string,
@@ -205,6 +275,7 @@ export function addCase(
 	{
 		prompt,
 		from,
+		scope = rootScope,
 		setup = from !== undefined,
 		files = !setup,
 		criteria = [],
@@ -212,6 +283,7 @@ export function addCase(
 	}: {
 		prompt: string
 		from?: string | undefined
+		scope?: string | undefined
 		setup?: boolean | undefined
 		files?: boolean | undefined
 		criteria?: string[] | undefined
@@ -226,40 +298,81 @@ export function addCase(
 				code: 'bad-criterion',
 				problem: `${JSON.stringify(criterion)} is not a criterion ID, such as C1: use letters, digits, '.', '_', and '-', starting with a letter`,
 			}
-	const read = readEvals(skillFolder)
-	if ('problem' in read) return read.problem
-	const { file, source, doc } = read
-	const before = (doc.toJS() ?? {}) as EvalsFile
-	if (caseIds(before).includes(id)) return { code: 'case-exists', problem: `evals/evals.yaml already has a case ${id}` }
+	if (scope === triggerScope)
+		return {
+			code: 'unknown-scope',
+			problem:
+				'the scope `trigger` holds trigger cases, which are always in evals/evals.yaml; an outcome case goes in `root` or the scope of an instructions file',
+		}
+	if (scope !== rootScope) {
+		if (!scopeName.test(scope) || scope.includes('..') || !existsSync(join(skillFolder, 'references', `${scope}.md`)))
+			return {
+				code: 'unknown-scope',
+				problem: `${JSON.stringify(scope)} is no scope: there is no references/${scope}.md; use \`root\` or the name of an instructions file`,
+			}
+	}
+	const all = readEvalFiles(skillFolder)
+	if ('problem' in all) return all.problem
+	const holder = holderOf(all.files, id)
+	if (holder) return { code: 'case-exists', problem: `${holder.label} already has a case ${id}` }
 	const evals = join(skillFolder, 'evals')
-	const origin = from === undefined ? undefined : (before.outcome ?? []).find((item) => item.id === from)
-	if (from !== undefined && !origin)
+	const target =
+		all.files.find((item) => item.scope === scope) ??
+		({
+			scope,
+			label: `evals/${scope}/evals.yaml`,
+			folder: join(evals, scope),
+			file: join(evals, scope, 'evals.yaml'),
+			source: '',
+			doc: parseDocument(''),
+		} satisfies EvalFile)
+	const { file, source, doc, folder: base } = target
+	const before = (doc.toJS() ?? {}) as EvalsFile
+	const found = from === undefined ? undefined : findCase(all.files, from)
+	const origin = found?.entry
+	if (from !== undefined && !origin) {
+		const ids = all.files.flatMap((item) => listedIn(item).map((entry) => entry.id))
 		return {
 			code: 'unknown-case',
-			problem: `evals/evals.yaml has no outcome case ${from} to start from; its cases are ${(before.outcome ?? []).map((item) => item.id).join(', ') || 'none'}`,
+			problem: `${all.files.length === 1 ? 'evals/evals.yaml' : 'the skill'} has no outcome case ${from} to start from; its cases are ${ids.join(', ') || 'none'}`,
 		}
+	}
 	let startScript: string | undefined
-	if (origin) {
+	if (origin && found) {
 		if (origin.setup === undefined)
 			return { code: 'no-setup', problem: `case ${from} has no setup script to start from` }
-		const path = resolve(evals, origin.setup)
+		const path = resolve(found.file.folder, origin.setup)
 		if (!strictlyInside(evals, path))
 			return {
 				code: 'outside-evals',
 				problem: `case ${from} names ${origin.setup}, which is outside the skill's evals folder`,
 			}
 		if (!existsSync(path))
-			return { code: 'no-setup', problem: `case ${from}'s setup script evals/${origin.setup} does not exist` }
+			return {
+				code: 'no-setup',
+				problem: `case ${from}'s setup script ${relative(skillFolder, path)} does not exist`,
+			}
 		startScript = readFileSync(path, 'utf8')
 	}
-	const sharedFiles = origin && !files ? origin.files : undefined
+	const sharedFiles =
+		origin && found && !files && origin.files !== undefined
+			? found.file === target
+				? origin.files
+				: rebased(origin.files, found.file.folder, base)
+			: undefined
 	const filesPath = join('files', id)
 	const setupPath = join('setup', `${id}.sh`)
 	for (const path of [...(files ? [filesPath] : []), ...(setup ? [setupPath] : [])]) {
-		if (!strictlyInside(evals, join(evals, path)))
-			return { code: 'outside-evals', problem: `evals/${path} is outside the skill's evals folder` }
-		if (existsSync(join(evals, path)))
-			return { code: 'case-exists', problem: `evals/${path} already exists; remove it or pick another ID` }
+		if (!strictlyInside(evals, join(base, path)))
+			return {
+				code: 'outside-evals',
+				problem: `${relative(skillFolder, join(base, path))} is outside the skill's evals folder`,
+			}
+		if (existsSync(join(base, path)))
+			return {
+				code: 'case-exists',
+				problem: `${relative(skillFolder, join(base, path))} already exists; remove it or pick another ID`,
+			}
 	}
 	const named = [...new Set([...criteria, ...checks.map((check) => check.criterion)])]
 	const scripts: Record<string, { script: string }[]> = {}
@@ -285,16 +398,16 @@ export function addCase(
 		})()
 	const paths: string[] = []
 	if (files) {
-		mkdirSync(join(evals, filesPath), { recursive: true })
-		paths.push(join('evals', filesPath))
+		mkdirSync(join(base, filesPath), { recursive: true })
+		paths.push(relative(skillFolder, join(base, filesPath)))
 	}
 	if (setup) {
-		mkdirSync(join(evals, 'setup'), { recursive: true })
-		writeFileSync(join(evals, setupPath), startScript ?? setupScaffold(id))
-		chmodSync(join(evals, setupPath), 0o755)
-		paths.push(join('evals', setupPath))
+		mkdirSync(join(base, 'setup'), { recursive: true })
+		writeFileSync(join(base, setupPath), startScript ?? setupScaffold(id))
+		chmodSync(join(base, setupPath), 0o755)
+		paths.push(relative(skillFolder, join(base, setupPath)))
 	}
-	mkdirSync(evals, { recursive: true })
+	mkdirSync(base, { recursive: true })
 	writeFileSync(file, text)
 	return { skill: skillFolder, case: id, evals: file, paths }
 }
@@ -311,11 +424,12 @@ export function addTriggerCase(
 ): CaseChange | { code: CaseProblemCode; problem: string } {
 	const bad = idProblem(id)
 	if (bad) return bad
-	const read = readEvals(skillFolder)
-	if ('problem' in read) return read.problem
-	const { file, source, doc } = read
+	const all = readEvalFiles(skillFolder)
+	if ('problem' in all) return all.problem
+	const holder = holderOf(all.files, id)
+	if (holder) return { code: 'case-exists', problem: `${holder.label} already has a case ${id}` }
+	const { file, source, doc } = all.files[0] as EvalFile
 	const before = (doc.toJS() ?? {}) as EvalsFile
-	if (caseIds(before).includes(id)) return { code: 'case-exists', problem: `evals/evals.yaml already has a case ${id}` }
 	const entry = { id, prompt, expect }
 	const expected = { ...before, trigger: [...(before.trigger ?? []), entry] }
 	const problems = evalsProblems(expected)
@@ -333,49 +447,58 @@ export function addTriggerCase(
 }
 
 /**
- * Removes an outcome case: its entry, and the files folder and setup script it names when no other case names them.
- * Refuses, changing nothing, when a path the entry names reaches outside the skill's `evals/` folder.
+ * Removes an outcome case: its entry from the eval file that lists it, in any scope, and the files folder and setup
+ * script it names (relative to that file's folder) when no other case names them. Refuses, changing nothing, when a path
+ * the entry names reaches outside the skill's `evals/` folder.
  */
 export function removeCase(skillFolder: string, id: string): CaseChange | { code: CaseProblemCode; problem: string } {
 	const bad = idProblem(id)
 	if (bad) return bad
-	const read = readEvals(skillFolder)
-	if ('problem' in read) return read.problem
-	const { file, source, doc } = read
-	const outcome = doc.get('outcome')
-	const items = (doc.toJS()?.outcome ?? []) as { id: string; files?: string; setup?: string }[]
-	const index = items.findIndex((item) => item.id === id)
-	if (index < 0 || !isSeq(outcome))
+	const all = readEvalFiles(skillFolder)
+	if ('problem' in all) return all.problem
+	const found = findCase(all.files, id)
+	if (!found) {
+		const ids = all.files.flatMap((item) => listedIn(item).map((entry) => entry.id))
 		return {
 			code: 'unknown-case',
-			problem: `evals/evals.yaml has no outcome case ${id}; its cases are ${items.map((item) => item.id).join(', ') || 'none'}`,
+			problem: `${all.files.length === 1 ? 'evals/evals.yaml' : 'the skill'} has no outcome case ${id}; its cases are ${ids.join(', ') || 'none'}`,
 		}
+	}
+	const { file: holder, entry } = found
+	const { file, source, doc } = holder
+	const outcome = doc.get('outcome')
+	const items = listedIn(holder)
+	const index = items.findIndex((item) => item.id === id)
+	if (!isSeq(outcome)) return { code: 'unknown-case', problem: `${holder.label} has no outcome case ${id}` }
 	const evals = join(skillFolder, 'evals')
-	const entry = items[index] as (typeof items)[number]
 	const named = [entry.files, entry.setup].filter((path): path is string => path !== undefined)
 	for (const path of named)
-		if (!strictlyInside(evals, resolve(evals, path)))
+		if (!strictlyInside(evals, resolve(holder.folder, path)))
 			return {
 				code: 'outside-evals',
-				problem: `case ${id} names ${path}, which is outside the skill's evals folder; remove it from evals/evals.yaml by hand`,
+				problem: `case ${id} names ${path}, which is outside the skill's evals folder; remove it from ${holder.label} by hand`,
 			}
-	const others = items.filter((_, other) => other !== index)
+	const others = all.files.flatMap((item) =>
+		listedIn(item)
+			.filter((other) => !(item === holder && other.id === id))
+			.map((other) => ({ item: other, folder: item.folder })),
+	)
 	const shared = (path: string) =>
-		others.some((item) =>
+		others.some(({ item, folder }) =>
 			[item.files, item.setup].some(
-				(theirs) => theirs !== undefined && resolve(evals, theirs) === resolve(evals, path),
+				(theirs) => theirs !== undefined && resolve(folder, theirs) === resolve(holder.folder, path),
 			),
 		)
 	const paths: string[] = []
 	for (const path of named) {
-		const target = resolve(evals, path)
+		const target = resolve(holder.folder, path)
 		if (shared(path) || !existsSync(target)) continue
 		rmSync(target, { recursive: true, force: true })
 		paths.push(relative(skillFolder, target))
 	}
 	const value = doc.toJS()
 	const text =
-		inPlace({ ...value, outcome: others }, removedText(source, doc, index)) ??
+		inPlace({ ...value, outcome: items.filter((_, other) => other !== index) }, removedText(source, doc, index)) ??
 		(() => {
 			outcome.delete(index)
 			return doc.toString()
