@@ -1,6 +1,6 @@
 ---
 title: Harness detection
-description: How cyber-agentkit identifies which AI agent harness is running and which are installed, and when it answers unknown.
+description: How cyber-agentkit identifies which AI agent harness is running and which are installed, when it answers unknown, and how to declare a harness it cannot find.
 ---
 
 `detectHarness()` reads environment variables that each harness sets on the processes it spawns.
@@ -59,17 +59,23 @@ The library reports `unknown` rather than guess:
 ## Running and installed harnesses
 
 `detectHarness()` answers which harness runs this process. `installedHarnesses()` answers which harnesses are
-on this machine, and `presentHarnesses({ all: true })` joins the two. `cyber-agentkit` with no command reports
-both in one call: `running` with the variables that showed it, and `installed` with the path that showed each
-one. `skill doctor --all-harnesses` checks every harness `presentHarnesses({ all: true })` returns.
+on this machine, and `declaredHarnesses()` which ones you [declared](#declared-harnesses).
+`presentHarnesses({ all: true })` joins all three. `cyber-agentkit` with no command reports them in one call:
+`running` with the variables that showed it, `installed` with the path that showed each one, and `declared` with
+the files that declare each one. `skill doctor --all-harnesses` checks every harness
+`presentHarnesses({ all: true })` returns, and heads each report with `detected: <source>`, `declared`, or both.
 
-Each harness comes from one of three sources:
+Each harness comes from one or more of four sources. The first three are detected; `declared` is not:
 
 | Source | Means | Backed by |
 | --- | --- | --- |
 | `running` | The one harness whose rule matches this process's environment (the table above) | Environment variables |
 | `environment` | One of several harnesses whose rules match, as in a nested session; `running` is then `unknown` | Environment variables |
 | `installed` | Its headless command is on `PATH`; the command is not run | `claude`, `codex`, `copilot`, `cursor-agent`, `gemini`, or `qwen` |
+| `declared` | The repo or the user declares it | A `harnesses` declaration file |
+
+Each harness is listed once. Its `sources` lists every source that found it, detected ones first, and its
+`source` is the first of them. A harness both detected and declared lists both.
 
 A harness with no headless command is never reported installed. The Cursor IDE without `cursor-agent` and
 GitHub Copilot in VS Code fall here. Every other signal for them was checked against vendor sources and
@@ -82,7 +88,41 @@ rejected:
   Chat built in, so the extensions folder does not show it.
 - **Config folders such as `~/.claude` or `~/.cursor`.** Other tools write into them.
 
-Another program named like a harness command reads as that harness.
+Another program named like a harness command reads as that harness. To have such a harness checked anyway,
+declare it.
+
+## Declared harnesses
+
+When detection cannot find a harness you use, declare it. A declaration needs no signal, so it covers the
+Cursor IDE and GitHub Copilot in VS Code:
+
+```sh
+npx -y cyber-agentkit harness add vscode-copilot --scope user
+npx -y cyber-agentkit harness add cursor
+npx -y cyber-agentkit harness list
+npx -y cyber-agentkit harness remove cursor
+```
+
+`harness add` and `harness remove` change the repo declaration, `.agents/references/harnesses.yaml` at the
+root, or with `--scope user` your own, `~/.agents/references/harnesses.yaml`. Each is a
+[reference](/cyber-agentkit/concepts/reference-documents/) named `harnesses`, YAML or JSON, holding a
+`declared` list of harness IDs:
+
+```yaml
+declared:
+  - cursor
+  - vscode-copilot
+```
+
+The repo and user declarations combine: a harness either one lists is declared, and `harness list` names the
+files that declare each one. A repo declaration cannot take away a harness the user declares. This differs from
+how a data reference resolves elsewhere, where the highest tier answers whole, so each tier's file is read on its
+own and the lists are joined. Only the repo and user tiers are read.
+
+An ID must be one of `harnessIds`: `claude-code`, `cursor`, `codex`, `copilot-cli`, `opencode`, `kilo`,
+`gemini-cli`, `qwen-code`, `vscode-copilot`, `cline`, `crush`, `openhands`, or `augment`. `harness add` refuses
+any other ID as a usage error that names the valid ones. An unknown ID written in a file by hand is skipped and
+reported under `rejected`, as is a file that is not a mapping with a `declared` list.
 
 ## Forks
 

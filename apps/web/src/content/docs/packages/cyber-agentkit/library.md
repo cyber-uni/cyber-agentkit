@@ -24,7 +24,8 @@ if (harness !== 'unknown') skillsDirectories(harness)
 | --- | --- |
 | `detectHarness()` | Which harness is running |
 | `installedHarnesses()` | Which harnesses are installed here, by their command on `PATH`; see [Running and installed harnesses](/cyber-agentkit/concepts/harness-detection/#running-and-installed-harnesses) for which ones it can find |
-| `presentHarnesses()` | The harnesses to act for: the running one, or with `all: true` also every harness set in the environment and every installed one |
+| `presentHarnesses()` | The harnesses to act for: the running one, or with `all: true` also every harness set in the environment, every installed one, and every declared one |
+| `declaredHarnesses()` | Which harnesses the repo and the user declare; see [Declared harnesses](/cyber-agentkit/concepts/harness-detection/#declared-harnesses) |
 | `managedPolicyLocations()` | Where managed policy lives: files, MDM domains, registry keys, servers |
 | `pluginStorage()` | Where installed plugins, marketplaces, and the enabled record live |
 | `enabledPlugins()` | Which plugins are enabled, resolved by scope precedence |
