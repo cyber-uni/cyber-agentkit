@@ -1207,13 +1207,13 @@ function failsCommand(_options: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'fails',
 		description:
-			"List, add, or clear the marks of the eval cases known to fail, as `it.fails` marks a test. A mark is the case's `fails` in `evals/evals.yaml`, with the reason: a trigger case's takes no criterion, an outcome case's names one of the criteria it tests. `skill test` judges a mark at the same threshold as a pass: below it, a known failure, which exits 0; at or above it, `fixed?`, which exits 1 until the mark is cleared. Marking one already marked replaces its reason. The edit keeps every comment and the layout of the rest of the file. Only the skill's author marks a known failure, with a reason; an agent never adds one to make a test pass.",
+			"List, add, or clear the marks of the eval cases known to fail, as `it.fails` marks a test. A mark is the case's `fails` in the eval file that lists it (`evals/evals.yaml`, or `evals/<name>/evals.yaml` of a scope), with the reason, so the case is found in any scope and its file edited: a trigger case's takes no criterion, an outcome case's names one of the criteria it tests. `skill test` judges a mark at the same threshold as a pass: below it, a known failure, which exits 0; at or above it, `fixed?`, which exits 1 until the mark is cleared. Marking one already marked replaces its reason. The edit keeps every comment and the layout of the rest of the file. Only the skill's author marks a known failure, with a reason; an agent never adds one to make a test pass.",
 		arguments: [
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
 			{
 				name: 'case',
 				description:
-					"The case to mark or clear, by its ID: a case's own `id`, or `trigger-<n>` for the nth trigger case when it has none. Leave it out to list every mark.",
+					"The case to mark or clear, by its ID: a case's own `id`, or `trigger-<n>` for the nth trigger case when it has none. Leave it out to list every mark of every scope, each with the file it is in.",
 				type: t.string().optional(),
 			},
 			{
@@ -1277,12 +1277,12 @@ function failsCommand(_options: SkillCommandOptions): cli.Command {
 				const listed = listKnownFailures(skill.folder)
 				if ('problem' in listed) return fail(listed)
 				return result(
-					{ skill: name, evals: listed.evals, marks: listed.marks },
+					{ skill: name, evals: listed.evals, files: listed.files, marks: listed.marks },
 					{
 						render: {
 							text: () =>
 								listed.marks.length
-									? `${listed.marks.length === 1 ? '1 mark' : `${listed.marks.length} marks`} of a known failure in ${listed.evals}:\n${listed.marks.map((mark) => `${markTarget(mark)} — ${mark.reason}\n`).join('')}`
+									? `${listed.marks.length === 1 ? '1 mark' : `${listed.marks.length} marks`} of a known failure in ${[...new Set(listed.marks.map((mark) => mark.file))].join(', ')}:\n${listed.marks.map((mark) => `${markTarget(mark)} — ${mark.reason}${listed.files.length > 1 ? ` (${mark.file})` : ''}\n`).join('')}`
 									: `no case of ${name} is marked known to fail\n`,
 						},
 					},
@@ -1748,7 +1748,7 @@ function triedText(tried: TriedSetup): string {
 function caseFailure(failed: { code: string; problem: string }): never {
 	process.stderr.write(`error: ${failed.code}: ${failed.problem}\n`)
 	throw CliError.reported(
-		['bad-case-id', 'bad-criterion', 'bad-check', 'bad-expect', 'outside-evals'].includes(failed.code)
+		['bad-case-id', 'bad-criterion', 'bad-check', 'bad-expect', 'outside-evals', 'unknown-scope'].includes(failed.code)
 			? exitCodes.usage
 			: exitCodes.error,
 	)
@@ -1766,7 +1766,7 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 	const add = command({
 		name: 'add',
 		description:
-			"Add an outcome case to a skill: its entry in `evals/evals.yaml`, its files folder `evals/files/<case>/`, and with `--setup` a setup script `evals/setup/<case>.sh` that each run runs before the model starts, or with `--from` a copy of another case's. With `--expect`, add a trigger case instead: only its entry, with its ID. The entry goes after the last case of its kind, and every other entry keeps its formatting. Touches nothing outside the skill's `evals/` folder, and changes nothing when a case of that ID exists.",
+			"Add an outcome case to a skill: its entry in `evals/evals.yaml`, its files folder `evals/files/<case>/`, and with `--setup` a setup script `evals/setup/<case>.sh` that each run runs before the model starts, or with `--from` a copy of another case's. With `--scope <name>`, the case goes in the eval folder of that instructions file instead: `evals/<name>/evals.yaml`, with its folders `evals/<name>/files/<case>/` and `evals/<name>/setup/<case>.sh`. With `--expect`, add a trigger case instead: only its entry in `evals/evals.yaml`, with its ID. The entry goes after the last case of its kind, and every other entry keeps its formatting. Touches nothing outside the skill's `evals/` folder, and changes nothing when a case of that ID exists in any scope.",
 		arguments: [
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() },
 			{
@@ -1783,6 +1783,11 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 					'Add a trigger case that expects the skill to `fire` or `skip` on the prompt, instead of an outcome case. It takes none of the other options.',
 				type: t.string().optional(),
 			},
+			scope: {
+				description:
+					'The scope of an outcome case: the name of an instructions file, `references/<name>.md`, whose eval folder `evals/<name>/` takes the case (its `evals.yaml` is made when missing). `root`, the default, is `evals/evals.yaml`. Refused with `unknown-scope` when there is no such instructions file, and for `trigger`, since trigger cases are always in `evals/evals.yaml`. A trigger case (`--expect`) takes no scope.',
+				type: t.string().optional(),
+			},
 			setup: {
 				description:
 					'Also scaffold a setup script, for a case that needs a state plain files cannot hold, such as git history. With it, no files folder is made unless `--files` is given too.',
@@ -1794,7 +1799,7 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 			},
 			from: {
 				description:
-					"Start from another outcome case's setup: the new setup script `evals/setup/<case>.sh` is a copy of that case's, to edit, and the new case names that case's files folder unless `--files` is given. Implies `--setup`.",
+					"Start from another outcome case's setup, in any scope: the new setup script `evals/setup/<case>.sh` is a copy of that case's, to edit, and the new case names that case's files folder unless `--files` is given. Implies `--setup`.",
 				type: t.string().optional(),
 			},
 			criteria: {
@@ -1830,6 +1835,11 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 			},
 			{
 				command:
+					"cyber-agentkit skill case add .agents/skills/release-notes keepachangelog --prompt 'write the changelog entry' --scope changelog",
+				description: 'Add a case to the eval folder of the instructions file references/changelog.md',
+			},
+			{
+				command:
 					"cyber-agentkit skill case add .agents/skills/release-notes changelog-v2 --prompt 'draft the changelog for v2' --expect fire",
 				description: 'Add a trigger case with its own ID',
 			},
@@ -1841,6 +1851,7 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 				case: string
 				prompt: string
 				expect?: string | undefined
+				scope?: string | undefined
 				setup?: boolean | undefined
 				files?: boolean | undefined
 				from?: string | undefined
@@ -1855,7 +1866,7 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 						code: 'bad-expect',
 						problem: `--expect ${JSON.stringify(args.expect)} is not \`fire\` or \`skip\``,
 					})
-				const outcomeOnly = (['setup', 'files', 'from', 'criteria', 'check'] as const).filter(
+				const outcomeOnly = (['scope', 'setup', 'files', 'from', 'criteria', 'check'] as const).filter(
 					(name) => args[name] !== undefined,
 				)
 				if (outcomeOnly.length)
@@ -1880,6 +1891,7 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 			const added = addCase(skill.folder, args.case, {
 				prompt: args.prompt,
 				from: args.from,
+				scope: args.scope,
 				setup: args.setup || args.from !== undefined,
 				files: args.files === true || (!args.setup && args.from === undefined),
 				criteria: args.criteria
@@ -1895,7 +1907,7 @@ function caseCommand({ runPromptfoo: run = runPromptfoo, plugin }: SkillCommandO
 	const remove = command({
 		name: 'remove',
 		description:
-			"Remove an outcome case from a skill: its entry in `evals/evals.yaml`, and the files folder and setup script it names when no other case names them. Refuses, changing nothing, when one of them is outside the skill's `evals/` folder.",
+			"Remove an outcome case from a skill: its entry in the eval file that lists it (`evals/evals.yaml`, or the `evals/<name>/evals.yaml` of its scope), and the files folder and setup script it names, relative to that file, when no other case names them. Refuses, changing nothing, when one of them is outside the skill's `evals/` folder.",
 		arguments: [
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md.', type: t.string() },
 			{ name: 'case', description: "The outcome case's ID.", type: t.string() },
