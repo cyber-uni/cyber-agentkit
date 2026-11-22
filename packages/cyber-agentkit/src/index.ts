@@ -1,6 +1,21 @@
 export type { LoadAssetOptions } from './assets/load-asset.js'
 export { loadAsset } from './assets/load-asset.js'
 export type { ResolvedAsset } from './assets/resolve-asset.js'
+export type { CapabilityEntry, CapabilityEntryResult } from './capability-registry/capability-entry.js'
+export {
+	blueprintSystemOf,
+	capabilityEntryLinks,
+	capabilityEntryText,
+	capabilitySystemPattern,
+	parseCapabilityEntry,
+} from './capability-registry/capability-entry.js'
+export {
+	capabilityArea,
+	capabilityEntryUrl,
+	capabilityRegistryUrl,
+	lookupCapability,
+	readCapabilityRegistry,
+} from './capability-registry/capability-registry.js'
 export type {
 	CheckedDependency,
 	CheckPluginDependenciesOptions,
@@ -70,8 +85,9 @@ export {
 } from './interface-registry/interface-entry.js'
 export type { InterfaceLookup, NearMatch } from './interface-registry/interface-lookup.js'
 export { lookupInterface, normalizeInterfaceId } from './interface-registry/interface-lookup.js'
-export type { RegistryFetch, RegistryRead } from './interface-registry/interface-registry.js'
+export type { RegistryArea, RegistryFetch, RegistryRead } from './interface-registry/interface-registry.js'
 export {
+	interfaceArea,
 	interfaceEntryUrl,
 	interfaceRegistry,
 	interfaceRegistryUrl,

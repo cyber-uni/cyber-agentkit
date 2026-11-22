@@ -1,12 +1,17 @@
 import type { Gh } from './github-cli.js'
-import { type InterfaceEntry, interfaceEntryText } from './interface-entry.js'
 import type { InterfaceLookup, NearMatch } from './interface-lookup.js'
-import { interfaceRegistry } from './interface-registry.js'
+import { interfaceRegistry, type RegistryArea } from './interface-registry.js'
 
 /** How an entry reaches the registry: a pull request adding its file, or an issue carrying it as text. */
 export type RecordRoute = 'pull-request' | 'issue'
 
 export type RouteChoice = { route: RecordRoute; why: string; login?: string }
+
+/** One entry to record: the registry area it goes to, its name (the file name without `.md`), and its text. */
+export type RegistryRequest = { area: RegistryArea; name: string; text: string }
+
+/** The lookup result a request carries, whatever kind of entry was compared. */
+export type RequestLookup = Pick<InterfaceLookup<unknown>, 'near' | 'compared'>
 
 const upstream = `${interfaceRegistry.owner}/${interfaceRegistry.repo}`
 
@@ -34,8 +39,8 @@ function nearLines(near: readonly NearMatch[]): string[] {
 }
 
 /** The lookup result both routes carry, so the reviewer sees what was compared and what was shown. */
-export function lookupSummary(lookup: InterfaceLookup): string {
-	const compared = `The lookup compared it against ${lookup.compared} registered interface${lookup.compared === 1 ? '' : 's'}.`
+export function lookupSummary(lookup: RequestLookup, area: RegistryArea): string {
+	const compared = `The lookup compared it against ${lookup.compared} registered ${area.counted[lookup.compared === 1 ? 0 : 1]}.`
 	if (!lookup.near.length) return `${compared} It found no near matches.`
 	return [
 		`${compared} These near matches were shown, and the registrant chose to go on:`,
@@ -44,36 +49,29 @@ export function lookupSummary(lookup: InterfaceLookup): string {
 	].join('\n')
 }
 
-export function requestTitle(id: string, route: RecordRoute): string {
+export function requestTitle({ area, name }: RegistryRequest, route: RecordRoute): string {
 	return route === 'pull-request'
-		? `docs(registry): register the ${id} interface`
-		: `Register the ${id} reference interface`
+		? `docs(registry): register the ${name} ${area.short}`
+		: `Register the ${name} ${area.noun}`
 }
 
-export function requestBody(entry: InterfaceEntry, lookup: InterfaceLookup, route: RecordRoute): string {
-	const path = `${interfaceRegistry.folder}/${entry.id}.md`
-	const lines = [`Registers the \`${entry.id}\` reference interface.`, '', '## Lookup', '', lookupSummary(lookup), '']
+export function requestBody(request: RegistryRequest, lookup: RequestLookup, route: RecordRoute): string {
+	const { area, name, text } = request
+	const path = `${area.folder}/${name}.md`
+	const lines = [`Registers the \`${name}\` ${area.noun}.`, '', '## Lookup', '', lookupSummary(lookup, area), '']
 	if (route === 'pull-request') lines.push('## Entry', '', `Adds \`${path}\`.`)
 	else {
-		lines.push(
-			'## Entry',
-			'',
-			`A maintainer turns this into \`${path}\`:`,
-			'',
-			'````md',
-			interfaceEntryText(entry).trimEnd(),
-			'````',
-		)
+		lines.push('## Entry', '', `A maintainer turns this into \`${path}\`:`, '', '````md', text.trimEnd(), '````')
 	}
 	lines.push('', 'Opened by `cyber-agentkit reference register`.')
 	return `${lines.join('\n')}\n`
 }
 
 /** The new-issue page with the request filled in, for when the GitHub tool cannot open it. */
-export function newIssueUrl(entry: InterfaceEntry, lookup: InterfaceLookup): string {
+export function newIssueUrl(request: RegistryRequest, lookup: RequestLookup): string {
 	const params = new URLSearchParams({
-		title: requestTitle(entry.id, 'issue'),
-		body: requestBody(entry, lookup, 'issue'),
+		title: requestTitle(request, 'issue'),
+		body: requestBody(request, lookup, 'issue'),
 	})
 	return `https://github.com/${upstream}/issues/new?${params.toString()}`
 }
@@ -89,7 +87,7 @@ async function must(run: Gh, args: readonly string[], what: string): Promise<str
 }
 
 /** Opens an issue carrying the entry and the lookup result, and gives its url. */
-export async function recordAsIssue(run: Gh, entry: InterfaceEntry, lookup: InterfaceLookup): Promise<string> {
+export async function recordAsIssue(run: Gh, request: RegistryRequest, lookup: RequestLookup): Promise<string> {
 	return must(
 		run,
 		[
@@ -98,9 +96,9 @@ export async function recordAsIssue(run: Gh, entry: InterfaceEntry, lookup: Inte
 			'-R',
 			upstream,
 			'--title',
-			requestTitle(entry.id, 'issue'),
+			requestTitle(request, 'issue'),
 			'--body',
-			requestBody(entry, lookup, 'issue'),
+			requestBody(request, lookup, 'issue'),
 		],
 		'Opening the issue',
 	)
@@ -112,13 +110,14 @@ export async function recordAsIssue(run: Gh, entry: InterfaceEntry, lookup: Inte
  */
 export async function recordAsPullRequest(
 	run: Gh,
-	entry: InterfaceEntry,
-	lookup: InterfaceLookup,
+	request: RegistryRequest,
+	lookup: RequestLookup,
 	login: string,
 ): Promise<string> {
-	const { repo, branch: base, folder } = interfaceRegistry
+	const { repo, branch: base } = interfaceRegistry
+	const { area, name, text } = request
 	const fork = `${login}/${repo}`
-	const branch = `register-interface/${entry.id}`
+	const branch = `${area.branch}/${name}`
 	await must(run, ['repo', 'fork', upstream, '--clone=false', '--remote=false'], 'Forking the registry repository')
 	const sha = await must(
 		run,
@@ -137,16 +136,16 @@ export async function recordAsPullRequest(
 	])
 	if (!ref.ok && !/already exists/i.test(ref.stderr))
 		throw new RecordFailure(`Creating the branch failed: ${ref.stderr}`)
-	const content = Buffer.from(interfaceEntryText(entry), 'utf8').toString('base64')
+	const content = Buffer.from(text, 'utf8').toString('base64')
 	await must(
 		run,
 		[
 			'api',
 			'-X',
 			'PUT',
-			`repos/${fork}/contents/${folder}/${entry.id}.md`,
+			`repos/${fork}/contents/${area.folder}/${name}.md`,
 			'-f',
-			`message=${requestTitle(entry.id, 'pull-request')}`,
+			`message=${requestTitle(request, 'pull-request')}`,
 			'-f',
 			`content=${content}`,
 			'-f',
@@ -166,9 +165,9 @@ export async function recordAsPullRequest(
 			'--head',
 			`${login}:${branch}`,
 			'--title',
-			requestTitle(entry.id, 'pull-request'),
+			requestTitle(request, 'pull-request'),
 			'--body',
-			requestBody(entry, lookup, 'pull-request'),
+			requestBody(request, lookup, 'pull-request'),
 		],
 		'Opening the pull request',
 	)
