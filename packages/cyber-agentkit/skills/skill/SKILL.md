@@ -2,6 +2,8 @@
 name: skill
 description: Create, check, test, fix, update, and enhance agent skills (a SKILL.md and its folder). Load it before adding, editing, or linking any file of a skill (its SKILL.md, or a file under its references/, scripts/, assets/, or evals/) or a reference a skill loads, during any work, such as implementing an issue or fixing a bug, even when the request never says "skill". Also customize, vet, or report on a skill, standalone or inside a plugin or npm package, as in "write a skill for X", "add a skill to this plugin", "teach agents to use our library", "is this skill any good", "do this skill's references work here", "run the skill's evals", "my skill doesn't trigger", "improve this skill", "is this skill from GitHub safe to install", "switch an aspect's implementation", and before handing skill writing to a subagent. Take it over aced:define-skill and aced:improve-skill.
 argument-hint: "<description> | help | create [description] | check [skill] | doctor [skills...] | test [skill] | fix [skill] | update [skill] [change] | enhance [skill] [prompt] | vet <source> | attest [skill] <criterion or case> <link> | fails [skill] [case] [criterion] | report [skill] | customize [aspect]"
+metadata:
+  references: skill-design.aspects.criteria skill-design.aspects.verification skill-design.autonomy skill-design.vet.trusted-sources
 ---
 
 # Skill
@@ -115,6 +117,10 @@ program does the same way every time, such as parsing or validating a file.
 - **SHP-19** [read, warning] Where the body loads a reference the `reference` skill composes, it says to load it with
   that skill, and reads the reference's bundled `<name>.default.md` directly only as the fallback for when the command
   cannot run.
+- **SHP-20** [script, warning] The front matter declares each reference the skill loads under `metadata.references`,
+  and each interface whose implementations it loads under `metadata.reference-interfaces`, as one string of names
+  separated by spaces; every declared name is mentioned in backticks where it is loaded, and the text loads no name the
+  lists leave out.
 
 ### Trigger
 

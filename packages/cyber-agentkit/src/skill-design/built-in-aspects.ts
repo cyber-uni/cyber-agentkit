@@ -162,6 +162,13 @@ export const builtInAspects: { aspect: string; checks: BuiltInCheck[] }[] = [
 				statement:
 					"Where the body loads a reference the `reference` skill composes, it says to load it with that skill, and reads the reference's bundled `<name>.default.md` directly only as the fallback for when the command cannot run.",
 			},
+			{
+				id: 'SHP-20',
+				how: 'script',
+				severity: 'warning',
+				statement:
+					'The front matter declares each reference the skill loads under `metadata.references`, and each interface whose implementations it loads under `metadata.reference-interfaces`, as one string of names separated by spaces; every declared name is mentioned in backticks where it is loaded, and the text loads no name the lists leave out.',
+			},
 		],
 	},
 	{

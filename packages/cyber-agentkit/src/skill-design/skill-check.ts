@@ -1,6 +1,8 @@
+import type { KnownName } from '../references/reference-loads.js'
 import { builtInAspects } from './built-in-aspects.js'
 import { type AspectToCheck, mergeChecks, type SkillCheckReport } from './check-skill.js'
 import { checkLayout } from './layout-checks.js'
+import { checkLoads } from './load-checks.js'
 import { isNameOnly } from './name-only-skills.js'
 import type { ScriptRun } from './run-check-script.js'
 import { checkShape, checkShapeBody } from './shape-checks.js'
@@ -9,17 +11,26 @@ import type { SkillFiles } from './skill-files.js'
 import { checkSpec } from './spec-checks.js'
 import { checkTrigger } from './trigger-checks.js'
 
-const builtInCode: Record<string, (skill: SkillFiles) => AspectToCheck['reported']> = {
+const builtInCode: Record<string, (skill: SkillFiles, known?: KnownName) => AspectToCheck['reported']> = {
 	specification: checkSpec,
-	shape: (skill) => [...checkShape(skill), ...checkLayout(skill), ...checkShapeBody(skill)],
+	shape: (skill, known) => [
+		...checkShape(skill),
+		...checkLayout(skill),
+		...checkShapeBody(skill),
+		checkLoads(skill, known),
+	],
 	trigger: checkTrigger,
 }
 
-/** Checks a skill against the built-in aspects and every swappable one, running each one's check script. */
+/**
+ * Checks a skill against the built-in aspects and every swappable one, running each one's check script. `known`
+ * says which names resolve to a reference where the skill is checked, for SHP-20.
+ */
 export function checkSkill(
 	skill: SkillFiles,
 	swappable: LoadedAspect[],
 	run: (script: string, folder: string) => ScriptRun,
+	known?: KnownName,
 ): SkillCheckReport {
 	const kind = isNameOnly(skill) ? 'name-only' : 'matched'
 	const aspects: AspectToCheck[] = builtInAspects.map(({ aspect, checks }) => {
@@ -32,7 +43,7 @@ export function checkSkill(
 			aspect,
 			implementation: 'built in',
 			checks: checks.map(({ appliesTo: _, ...check }) => check),
-			reported: builtInCode[aspect]?.(skill),
+			reported: builtInCode[aspect]?.(skill, known),
 			...(Object.keys(skipped).length ? { skipped } : {}),
 		}
 	})
