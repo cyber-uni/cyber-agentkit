@@ -300,3 +300,12 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
   skills docs. `skill doctor` reads the file when it checks Codex.
 - Added R11: a harness counts as installed when its verified headless executable (R9) is on `PATH`.
   `skill doctor --all-harnesses` checks those harnesses beside the running one.
+
+## 2026-11-22 (installed signals for IDE-only harnesses)
+
+- Added E-CUR-N1 to N3 and E-VSC-N1 to N5, and the R11 table "IDE-only harnesses": every candidate signal that
+  the Cursor IDE or Copilot in VS Code is installed (a `cursor` or `code` command, app and user-data folders,
+  the Copilot Chat extension folder) was checked against vendor docs and source and rejected. Neither harness
+  is reported installed. VS Code was read at microsoft/vscode `82a40f4` (1.148.0) and microsoft/vscode-docs
+  `5077ff7`.
+- Lead E-CUR-N3: Cursor's CLI page now names the command `agent`; its installer still links `cursor-agent`.

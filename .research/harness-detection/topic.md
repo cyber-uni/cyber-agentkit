@@ -303,6 +303,22 @@ Record variable names only, never values. For each harness:
 | Amp | Not installed; needs an Amp account | shell, MCP |
 | OpenHands CLI binary | Captured: CLI 1.16.0 with a local mock LLM. Shell commands carry no `AI_AGENT`; hooks carry `OPENHANDS_*` (E-OH-D9, E-OH-D10) | done (shell, hook) |
 
+## Installed signals for IDE-only harnesses (2026-11-22)
+
+[cyber-agentkit#350](https://github.com/cyber-uni/cyber-agentkit/issues/350) asked what shows that the Cursor IDE
+or Copilot in VS Code is installed and set up, since neither has the headless command R11 looks for.
+
+Cursor: the old shell page that named a `cursor` command now redirects to a missing page, and the current docs
+(read whole through `llms-full.txt`) name no command, app folder, or user-data folder for the IDE. Forum threads
+and third-party code name `~/.config/Cursor`, but they are not vendor sources. Nothing was accepted (E-CUR-N1,
+E-CUR-N2). The CLI page now names the command `agent`, and the installer links both names (E-CUR-N3).
+
+VS Code: Copilot Chat now ships inside VS Code as a built-in extension (E-VSC-N1), so the extensions folder no
+longer shows it (E-VSC-N5). The `code` command is documented and on `PATH` by default on Windows and Linux, but it
+shows VS Code, not a Copilot user: sign-in lives with VS Code's GitHub authentication, not in a documented file
+(E-VSC-N3), and `chat.disableAIFeatures` switches the feature off (E-VSC-N4). Accepting `code` would read every
+VS Code user as a Copilot user, so it was rejected (E-VSC-N2).
+
 ## Cross-harness findings
 
 - **Compatibility aliases blur `CLAUDE_*` names.** Three harnesses pass `CLAUDE_PLUGIN_ROOT`,

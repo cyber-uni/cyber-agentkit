@@ -1,6 +1,6 @@
 ---
 title: Harness detection
-description: How cyber-agentkit identifies which AI agent harness is running, and when it answers unknown.
+description: How cyber-agentkit identifies which AI agent harness is running and which are installed, and when it answers unknown.
 ---
 
 `detectHarness()` reads environment variables that each harness sets on the processes it spawns.
@@ -55,6 +55,34 @@ The library reports `unknown` rather than guess:
 - **Harnesses with no verified signal.** Goose documents `GOOSE_TERMINAL=1`, but its shell tool
   does not set it. Antigravity, Rovo Dev, Kiro, Amp, Factory Droid, Devin Desktop, and Warp have no
   variable that could be verified from outside. The library does not detect them.
+
+## Running and installed harnesses
+
+`detectHarness()` answers which harness runs this process. `installedHarnesses()` answers which harnesses are
+on this machine, and `presentHarnesses({ all: true })` joins the two. `cyber-agentkit` with no command reports
+both in one call: `running` with the variables that showed it, and `installed` with the path that showed each
+one. `skill doctor --all-harnesses` checks every harness `presentHarnesses({ all: true })` returns.
+
+Each harness comes from one of three sources:
+
+| Source | Means | Backed by |
+| --- | --- | --- |
+| `running` | The one harness whose rule matches this process's environment (the table above) | Environment variables |
+| `environment` | One of several harnesses whose rules match, as in a nested session; `running` is then `unknown` | Environment variables |
+| `installed` | Its headless command is on `PATH`; the command is not run | `claude`, `codex`, `copilot`, `cursor-agent`, `gemini`, or `qwen` |
+
+A harness with no headless command is never reported installed. The Cursor IDE without `cursor-agent` and
+GitHub Copilot in VS Code fall here. Every other signal for them was checked against vendor sources and
+rejected:
+
+- **A `cursor` or `code` command.** Cursor's command is added only by a menu action, and no current Cursor
+  page documents it. `code` shows that VS Code is installed, not that Copilot is signed in or turned on
+  (`chat.disableAIFeatures` turns it off), and Cursor can install a `code` command too.
+- **App, user-data, or extension folders.** Cursor documents none of its folders. VS Code now ships Copilot
+  Chat built in, so the extensions folder does not show it.
+- **Config folders such as `~/.claude` or `~/.cursor`.** Other tools write into them.
+
+Another program named like a harness command reads as that harness.
 
 ## Forks
 

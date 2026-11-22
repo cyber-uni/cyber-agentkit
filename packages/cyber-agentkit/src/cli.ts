@@ -5,6 +5,7 @@ import { cli, exitCodes } from 'clibuilder'
 import { homeHeader, result } from 'clibuilder/axi'
 import { createAssetCommand } from './assets/asset.command.js'
 import { detectHarness } from './detection/detect-harness.js'
+import { installedHarnesses } from './detection/present-harnesses.js'
 import { createInstructionCommand } from './instruction-design/instruction.command.js'
 import { createProseUpdateCommand } from './prose-update/prose-update.command.js'
 import { createReferenceCommand } from './references/reference.command.js'
@@ -39,15 +40,22 @@ function app({ name, version, root }: CliHost, format: 'toon' | 'text') {
 			'Work with the AI agent harness running here: read its layered reference documents, and update prose a tool wrote earlier.',
 	})
 		.default({
-			description: 'Show the harness running here and the commands to read its references and assets.',
-			examples: [{ command: 'cyber-agentkit', description: 'Show the detected harness and the commands' }],
+			description:
+				'Show the harness running here, every harness installed on this machine with what showed it, and the commands to read references and assets.',
+			examples: [
+				{ command: 'cyber-agentkit', description: 'Show the running and installed harnesses and the commands' },
+				{ command: 'cyber-agentkit --format json', description: 'The same, as JSON' },
+			],
 			run() {
-				const { harness, candidates } = detectHarness()
+				const { harness, candidates, evidence } = detectHarness()
+				const signals = evidence.filter((e) => e.harness === harness).map(({ signal }) => signal)
 				return result(
 					{
 						...homeHeader({ description: 'Work with the AI agent harness running here', bin: 'cyber-agentkit' }),
 						harness,
+						running: { harness, evidence: signals },
 						...(candidates.length > 1 ? { candidates } : {}),
+						installed: installedHarnesses().map(({ harness, evidence }) => ({ harness, evidence })),
 						commands: ['reference', 'asset', 'prose-update', 'skill', 'instruction'],
 					},
 					{
