@@ -668,7 +668,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 })
 `
 
-	function spend(tokens: number): Record<string, any> {
+	function spend(tokens: number, caps?: Record<string, number>): Record<string, any> {
 		const root = mkdtempSync(join(tmpdir(), 'provider-cost-'))
 		mkdirSync(join(root, 'node_modules', 'promptfoo'), { recursive: true })
 		writeFileSync(join(root, 'node_modules', 'promptfoo', 'package.json'), '{"name":"promptfoo","main":"index.js"}')
@@ -678,7 +678,7 @@ exports.loadApiProvider = async (_id, { options }) => ({
 			join(root, 'run.mjs'),
 			`import Provider from './provider.mjs'
 const provider = new Provider({ config: { sandbox: ${claudeBox}, arm: 'baseline', skillName: 'demo', isolation: ${isolation}, costCap: 0.5, inner: {} } })
-console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}' } })))
+console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome', rubrics: '{}'${caps ? `, costCap: ${JSON.stringify(JSON.stringify(caps))}` : ''} } })))
 `,
 		)
 		return JSON.parse(
@@ -701,6 +701,19 @@ console.log(JSON.stringify(await provider.callApi('hi', { vars: { kind: 'outcome
 		const response = spend(40_000)
 		expect(response.metadata).toMatchObject({ budget: null, stopped: true })
 		expect(response.error).toBe('Exceeded the run cost cap: about $0.60 of $0.50')
+	})
+
+	it("holds the arm to the case's cap instead of the default, and lets a run under it go on (#394)", () => {
+		expect(spend(40_000, { skill: 2, baseline: 2 }).error).toBeUndefined()
+		const response = spend(40_000, { skill: 2, baseline: 0.55 })
+		expect(response.error).toBe('Exceeded the run cost cap: about $0.60 of $0.55')
+	})
+
+	it('records the cost a stopped run reached, and says it was stopped at the cap (#394)', () => {
+		const response = spend(40_000)
+		expect(response.cost).toBeCloseTo(0.6, 2)
+		expect(response.metadata.costCapped).toMatchObject({ cap: 0.5 })
+		expect(response.metadata.costCapped.reached).toBeCloseTo(0.6, 2)
 	})
 })
 

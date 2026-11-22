@@ -31,12 +31,14 @@ export type EvalsFile = {
 	 * `mid`, `top`) or a model ID, wins over the test's model (R161). `fails` marks it known to fail, with the reason
 	 * (#329).
 	 */
-	trigger?: { id?: string; prompt: string; expect: 'fire' | 'skip'; model?: string; fails?: string }[]
+	trigger?: { id?: string; prompt: string; expect: 'fire' | 'skip'; model?: string; costCap?: number; fails?: string }[]
 	outcome?: {
 		id: string
 		prompt: string
 		/** A tier (`small`, `mid`, `top`) or a model ID the case's runs use, over the test's model (R161). */
 		model?: string
+		/** The most one run of the case may cost, in US dollars, over the cap its recorded cost sets (#394). */
+		costCap?: number
 		files?: string
 		/** A script, relative to `evals/`, that each run runs in its folder after the files are committed. */
 		setup?: string
@@ -66,6 +68,8 @@ export const positionalTriggerId = /^trigger-\d+$/
 export const triggerCaseId = (item: { id?: unknown }, index: number): string =>
 	typeof item.id === 'string' ? item.id : `trigger-${index + 1}`
 const isFile = (path: string) => existsSync(path) && statSync(path).isFile()
+/** A run's own cost cap (#394): a positive number of US dollars. */
+const isCostCap = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0
 /** A tier or a model ID: one word, no space, so it cannot carry a second flag. */
 const isModel = (value: unknown) => typeof value === 'string' && /^[A-Za-z0-9][\w.:/@[\]-]*$/.test(value)
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -151,6 +155,8 @@ export function evalsProblems(value: unknown): string[] {
 					problems.push(`trigger case ${index + 1} needs a \`prompt\` and \`expect: fire\` or \`skip\``)
 				else if (item['model'] !== undefined && !isModel(item['model']))
 					problems.push(`trigger case ${index + 1}: \`model\` is not a tier or a model ID`)
+				if (isRecord(item) && item['costCap'] !== undefined && !isCostCap(item['costCap']))
+					problems.push(`trigger case ${index + 1}: \`costCap\` is not a positive number of US dollars`)
 				if (isRecord(item) && item['id'] !== undefined) {
 					const id = item['id']
 					if (typeof id !== 'string' || !caseIdPattern.test(id) || id.includes('..'))
@@ -193,6 +199,8 @@ export function evalsProblems(value: unknown): string[] {
 					problems.push(`${where}: \`network\` is not a list of host names`)
 				if (item['model'] !== undefined && !isModel(item['model']))
 					problems.push(`${where}: \`model\` is not a tier or a model ID`)
+				if (item['costCap'] !== undefined && !isCostCap(item['costCap']))
+					problems.push(`${where}: \`costCap\` is not a positive number of US dollars`)
 				if (item['guard'] !== undefined && typeof item['guard'] !== 'boolean')
 					problems.push(`${where}: \`guard\` is not true or false`)
 				const checks = item['checks']

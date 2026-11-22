@@ -64,6 +64,45 @@ describe('estimateTest (#214)', () => {
 	})
 })
 
+describe('estimateTest per case (#394)', () => {
+	const costs = {
+		o0: { skill: { runs: 3, total: 0.9, max: 0.4 }, baseline: { runs: 3, total: 0.3, max: 0.2 } },
+		t0: { skill: { runs: 3, total: 0.06, max: 0.03 } },
+	}
+
+	it("sums each case's recorded cost per arm", () => {
+		// o0: 3 × 0.30 + 3 × 0.10; t0: 3 × 0.02
+		const estimate = estimateTest('s', plan(1, 1), undefined, 'claude-code', undefined, undefined, costs)
+		expect(estimate).toMatchObject({ runs: 9, estimate: 1.26, basis: 'per-case' })
+		expect(estimate).not.toHaveProperty('unrecordedRuns')
+		expect(estimateText(estimate)).toContain("about $1.26 (from each case's recorded cost)")
+	})
+
+	it("prices a run with no recorded cost at the last result's average", () => {
+		// o1 has no cost: 6 runs at 6 / 30 = 0.2
+		const estimate = estimateTest(
+			's',
+			plan(2, 0),
+			{ cost: 6, totalRuns: 30 },
+			'claude-code',
+			undefined,
+			undefined,
+			costs,
+		)
+		expect(estimate).toMatchObject({ runs: 12, estimate: 2.4, basis: 'per-case', unrecordedRuns: 6 })
+		expect(estimateText(estimate)).toContain('6 runs at the average price')
+	})
+
+	it('falls back to the last result when no planned case records a cost', () => {
+		expect(
+			estimateTest('s', plan(1, 0), { cost: 6, totalRuns: 30 }, 'claude-code', undefined, undefined, {}),
+		).toMatchObject({
+			basis: 'last-result',
+			estimate: 1.2,
+		})
+	})
+})
+
 describe('parseTestBudget (#238)', () => {
 	it('reads the cost and run count under the test budget heading', () => {
 		expect(parseTestBudget('## create\n\napply\n\n## test budget\n\n$0.01 or 1 runs\n')).toEqual({

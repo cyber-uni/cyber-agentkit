@@ -1,3 +1,4 @@
+import { type CaseCost, expectedRunCost } from './run-cost.js'
 import type { TestPlan } from './test-plan.js'
 import { plannedRuns } from './test-progress.js'
 import type { TestResult } from './test-result.js'
@@ -35,8 +36,14 @@ export type TestEstimate = {
 	runs: number
 	/** The estimated cost in US dollars, or `null` when no cost is known and the run count stands in for it. */
 	estimate: number | null
-	/** `last-result` scales the last saved result's cost; `per-run-default` multiplies the harness's default per-run cost. */
-	basis: 'last-result' | 'per-run-default' | 'none'
+	/**
+	 * `per-case` sums each planned case's recorded cost per arm (#394), pricing a run with no recorded cost at the last
+	 * saved result's average, else the default; `last-result` scales the last saved result's cost; `per-run-default`
+	 * multiplies the harness's default per-run cost.
+	 */
+	basis: 'per-case' | 'last-result' | 'per-run-default' | 'none'
+	/** With the `per-case` basis: how many planned runs had no recorded cost and took the fallback price. */
+	unrecordedRuns?: number
 	/** The last saved result, when there is one: how many runs it made, what they cost, and how long they took. */
 	last?: { runs?: number; cost?: number; durationMs?: number }
 	budget: TestBudget & { from: BudgetSource }
@@ -47,9 +54,10 @@ export type TestEstimate = {
 }
 
 /**
- * Estimates what `skill test` will cost before any run (#214). With a saved result that records its cost and run
- * count, the estimate is that cost times the planned runs over the runs it made; otherwise it is the planned runs
- * times the harness's default per-run cost. With neither, no cost is known and the run count is held to the budget.
+ * Estimates what `skill test` will cost before any run (#214). Each planned case's runs cost what its expected entry
+ * recorded per arm (#394). A run with no recorded cost, and a plan whose cases record none, take the price of a saved
+ * result that records its cost and run count, that cost over the runs it made; otherwise the harness's default per-run
+ * cost. With none of these no cost is known and the run count is held to the budget.
  */
 export function estimateTest(
 	skill: string,
@@ -58,12 +66,36 @@ export function estimateTest(
 	harness: string,
 	budget: TestBudget = defaultTestBudget,
 	from: BudgetSource = 'default',
+	costs: Record<string, CaseCost> = {},
 ): TestEstimate {
 	const runs = plannedRuns(plan)
 	const perRun = defaultCostPerRun[harness]
+	const fallback = last?.cost && last.totalRuns ? last.cost / last.totalRuns : perRun
+	// Each planned run is one case, one arm; a trigger case runs with the skill only.
+	let recordedSum = 0
+	let recordedRuns = 0
+	for (const item of plan.cases) {
+		const recorded = costs[item.id]
+		for (const arm of item.kind === 'trigger' ? (['skill'] as const) : (['skill', 'baseline'] as const)) {
+			const each = expectedRunCost(recorded?.[arm])
+			if (each === undefined) continue
+			recordedSum += each * plan.runs
+			recordedRuns += plan.runs
+		}
+	}
+	const unrecorded = runs - recordedRuns
+	const perCase = recordedRuns > 0 && (unrecorded === 0 || fallback !== undefined)
 	const fromLast = last?.cost && last.totalRuns ? (last.cost * runs) / last.totalRuns : undefined
-	const estimate = fromLast ?? (perRun === undefined ? null : perRun * runs)
-	const basis = fromLast !== undefined ? 'last-result' : estimate === null ? 'none' : 'per-run-default'
+	const estimate = perCase
+		? recordedSum + unrecorded * (fallback ?? 0)
+		: (fromLast ?? (perRun === undefined ? null : perRun * runs))
+	const basis = perCase
+		? 'per-case'
+		: fromLast !== undefined
+			? 'last-result'
+			: estimate === null
+				? 'none'
+				: 'per-run-default'
 	const rounded = estimate === null ? null : Math.round(estimate * 100) / 100
 	const lastSeen = last
 		? {
@@ -80,6 +112,7 @@ export function estimateTest(
 		runs,
 		estimate: rounded,
 		basis,
+		...(basis === 'per-case' && unrecorded ? { unrecordedRuns: unrecorded } : {}),
 		...(lastSeen && Object.keys(lastSeen).length ? { last: lastSeen } : {}),
 		budget: { ...budget, from },
 		within,
@@ -92,7 +125,13 @@ export function estimateText(estimate: TestEstimate): string {
 	const cost =
 		estimate.estimate === null
 			? 'no cost known'
-			: `about $${estimate.estimate.toFixed(2)} (${estimate.basis === 'last-result' ? 'from the last result' : 'at the default per-run cost'})`
+			: `about $${estimate.estimate.toFixed(2)} (${
+					estimate.basis === 'per-case'
+						? `from each case's recorded cost${estimate.unrecordedRuns ? `, ${estimate.unrecordedRuns} runs at the average price` : ''}`
+						: estimate.basis === 'last-result'
+							? 'from the last result'
+							: 'at the default per-run cost'
+				})`
 	let line = `skill test: ${estimate.runs} runs, ${cost}; budget $${estimate.budget.cost} or ${estimate.budget.runs} runs: ${estimate.within ? 'within' : 'over'}`
 	const took = estimate.last?.durationMs
 	if (took)

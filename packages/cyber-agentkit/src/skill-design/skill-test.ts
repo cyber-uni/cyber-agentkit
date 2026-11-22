@@ -28,6 +28,7 @@ import {
 import { checkPluginsLoad, type DependencySources, type PluginList, resolveDependencyPlugins } from './plugin-load.js'
 import { promptfooConfig, promptfooPackages } from './promptfoo-config.js'
 import { promptfooHookSource, promptfooProviderSource } from './promptfoo-provider-source.js'
+import type { CaseCost } from './run-cost.js'
 import { recognizeSandboxFault } from './sandbox-faults.js'
 import { readSkill, type SkillFiles } from './skill-files.js'
 import { copyPlugin, findSkillPlugin } from './skill-plugin.js'
@@ -94,6 +95,8 @@ export type TestOptions = {
 	harness?: SkillTestHarness | undefined
 	/** The sandbox settings each run takes, as `skill-design.test.sandbox` resolved them (#302). */
 	sandbox: SandboxSettings
+	/** What each case's runs last cost, per arm, by case ID, from its expected entry; a run's cost cap grows from it (#394). */
+	costs?: Record<string, CaseCost> | undefined
 	/** Where progress lines go while promptfoo runs (R98, R99); without it the run reports none. */
 	progress?: Pick<ProgressWatch, 'write' | 'heartbeatMs' | 'pollMs' | 'now'> | undefined
 	/** Where the plugins the skill's plugin depends on are found; without it only `--plugin` folders, of which there are none. */
@@ -219,6 +222,7 @@ export async function runTest(
 			limitFile: join(folder, 'usage-limit.json'),
 			slots,
 			sandbox: options.sandbox,
+			costs: options.costs,
 		})
 		writeFileSync(join(folder, 'promptfooconfig.yaml'), stringify(config))
 		const started = Date.now()

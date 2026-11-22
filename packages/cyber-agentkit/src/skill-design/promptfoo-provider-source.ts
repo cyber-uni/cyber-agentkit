@@ -663,7 +663,10 @@ export default class SkillRun {
       }
       const skillHook = { matcher: 'Skill', hooks: [watchSkill] }
       const faults = watchSandboxFaults(sandboxFaults)
-      const spend = watchCost(costCap)
+      // The case's own cap for this arm over the config's default (#394).
+      const caps = vars.costCap ? JSON.parse(vars.costCap) : {}
+      const runCap = caps[arm] ?? costCap
+      const spend = watchCost(runCap)
       let hooks = { PreToolUse: [skillHook, ...spend.hooks], ...faults.hooks }
       let contained
       let watch
@@ -701,7 +704,12 @@ export default class SkillRun {
         response.output = ''
       }
       // A capped run answers an error, as the Agent SDK's own cap did.
-      if (spend.over()) response.error = 'Exceeded the run cost cap: about $' + spend.over().toFixed(2) + ' of $' + costCap.toFixed(2)
+      // It records the cost reached, so the next cap can grow from it (#394).
+      if (spend.over()) {
+        response.error = 'Exceeded the run cost cap: about $' + spend.over().toFixed(2) + ' of $' + runCap.toFixed(2)
+        response.cost = Math.max(response.cost ?? 0, spend.over())
+        response.metadata = { ...response.metadata, costCapped: { reached: spend.over(), cap: runCap } }
+      }
       watch?.review(response.metadata?.toolCalls)
       const calls = response.metadata?.skillCalls ?? []
       const fired = hookFired || calls.some((call) => names.includes(call.name) || names.includes(call.input?.skill))

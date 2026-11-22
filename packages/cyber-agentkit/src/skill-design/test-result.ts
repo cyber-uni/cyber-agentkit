@@ -1,4 +1,5 @@
 import type { AttestationView } from './attestation.js'
+import { armCost, type CaseCost } from './run-cost.js'
 import { recognizeSandboxFault } from './sandbox-faults.js'
 import type { Selection } from './stale-cases.js'
 import type { TestPlan } from './test-plan.js'
@@ -81,6 +82,8 @@ export type CaseStatus = {
 	model?: string
 	/** For an outcome case that ran: each criterion it tests, as its runs decided it (R181). */
 	criteria?: Record<string, CaseCriterion>
+	/** What its runs cost, per arm, counting a run stopped at the cost cap at the cost it reached (#394). */
+	cost?: CaseCost
 	/** In an expected result only: when the case's entry was recorded (R181). */
 	at?: string
 	/** In an expected result only: set when the case's entry was carried forward without a run (R183). */
@@ -657,7 +660,17 @@ export function readPromptfooOutput(
 		),
 		...outcomes.map(outcomeStatus),
 		...plan.notRun.map((item) => ({ case: item.case, status: 'not-run' as Status })),
-	].map(withModel)
+	]
+		.map(withModel)
+		.map((item) => {
+			const mine = (label: string) =>
+				rows.filter((row) => row.testCase?.description === item.case && row.provider?.label === label)
+			const skill = armCost(mine(main).map((row) => row.cost))
+			const baseline = armCost(mine(other).map((row) => row.cost))
+			return skill || baseline
+				? { ...item, cost: { ...(skill ? { skill } : {}), ...(baseline ? { baseline } : {}) } }
+				: item
+		})
 	const cost = rows.reduce((sum, row) => sum + (row.cost ?? 0), 0)
 	const blocked: Blocked[] = rows.flatMap((row) =>
 		(row.response?.metadata?.blocked ?? []).map((item) => ({

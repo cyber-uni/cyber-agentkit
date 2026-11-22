@@ -79,6 +79,16 @@ describe('checkVerification', () => {
 			expect(one(network)).toEqual(['outcome case 1: `network` is not a list of host names'])
 	})
 
+	it('accepts a positive number of dollars as a case cost cap, and rejects others (#394)', () => {
+		const outcome = (costCap: unknown) => evalsProblems({ outcome: [{ id: 'a', prompt: 'p', costCap }] })
+		const trigger = (costCap: unknown) => evalsProblems({ trigger: [{ prompt: 'p', expect: 'fire', costCap }] })
+		expect(outcome(2)).toEqual([])
+		expect(trigger(0.75)).toEqual([])
+		for (const costCap of [0, -1, '2', null])
+			expect(outcome(costCap)).toEqual(['outcome case 1: `costCap` is not a positive number of US dollars'])
+		expect(trigger('1')).toEqual(['trigger case 1: `costCap` is not a positive number of US dollars'])
+	})
+
 	it('accepts true or false as a case guard, and rejects others (R160)', () => {
 		const one = (guard: unknown) => evalsProblems({ outcome: [{ id: 'a', prompt: 'p', guard }] })
 		expect(one(true)).toEqual([])

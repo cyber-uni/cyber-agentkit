@@ -35,6 +35,19 @@ describe('inputHashes (R178 to R180)', () => {
 		expect(after.scopes).toEqual(before.scopes)
 	})
 
+	it("leaves a case's hash alone for a change to its cost cap (#394)", () => {
+		const skill = goodSkill()
+		const before = hashes(skill)
+		writeFileSync(
+			join(skill.folder, 'evals', 'evals.yaml'),
+			goodEvals.replace(
+				'{ id: two-prs, prompt: write the notes,',
+				'{ id: two-prs, costCap: 2, prompt: write the notes,',
+			),
+		)
+		expect(hashes(skill)).toEqual(before)
+	})
+
 	it('changes a case for a change to its files folder or a shared rubric it tests', () => {
 		const skill = goodSkill()
 		const before = hashes(skill)

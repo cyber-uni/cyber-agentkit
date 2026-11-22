@@ -1,3 +1,4 @@
+import { armCaps, type CaseCost, runCostCap } from './run-cost.js'
 import { sandboxFaults } from './sandbox-faults.js'
 import { harnessDefault, type SkillTestHarness } from './skill-test-harness.js'
 import type { TestPlan } from './test-plan.js'
@@ -15,6 +16,8 @@ export const promptfooPackages = [
 ] as const
 
 export type ConfigOptions = {
+	/** What each case's runs last cost, per arm, by case ID: a run's cost cap grows from it (#394). */
+	costs?: Record<string, CaseCost> | undefined
 	skillName: string
 	skillFolder: string
 	/** The other version to compare with; without it the baseline is a run without the skill. */
@@ -51,13 +54,6 @@ export type ConfigOptions = {
 	/** The config's description; `skill test: <skill name>` when absent. */
 	description?: string | undefined
 }
-
-/**
- * What one run may spend, in US dollars, as the provider estimates it from the run's transcript. The provider holds
- * it, not the Agent SDK's `max_budget_usd`: Claude Code shows that budget to the model as a reminder, and a run that
- * sees "$0.50 budget" stops for that reason instead of the skill's own (#238).
- */
-export const runCostCap = 0.5
 
 /** The Agent SDK options for every run: only the run folder's own skills and settings, no web, a turn cap. */
 function inner(model: string | undefined): Record<string, unknown> {
@@ -168,6 +164,8 @@ export function promptfooConfig(plan: TestPlan, options: ConfigOptions): Record<
 				kind: item.kind,
 				// A case's own model wins over the run's (R161).
 				...(item.model ? { model: item.model } : {}),
+				// The most each arm's run may cost: the case's own cap, else its recorded cost with headroom (#394).
+				costCap: JSON.stringify(armCaps(item.costCap, options.costs?.[item.id])),
 				...(item.files ? { files: item.files } : {}),
 				...(item.setup ? { setup: item.setup } : {}),
 				...(item.network?.length ? { network: JSON.stringify(item.network) } : {}),

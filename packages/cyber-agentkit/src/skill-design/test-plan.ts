@@ -20,6 +20,8 @@ export type PlannedCase = {
 	 * turns a tier into the harness's model.
 	 */
 	model?: string
+	/** The most one run of the case may cost, in US dollars: the case's own cap, which wins over the one its recorded cost sets (#394). */
+	costCap?: number
 	/** The folder whose copy each run starts in. */
 	files?: string
 	/** For an outcome case: the setup script each run runs in its folder before the model starts (R155). */
@@ -175,6 +177,7 @@ export function planEvals(
 			prompt: item.prompt,
 			expect: item.expect,
 			...(item.model ? { model: item.model } : {}),
+			...(item.costCap ? { costCap: item.costCap } : {}),
 			...(item.fails !== undefined ? { fails: item.fails } : {}),
 			rubrics: {},
 			judged: {},
@@ -188,6 +191,7 @@ export function planEvals(
 		const ids = (item.criteria ?? criteria).filter((id) => criteria.includes(id) && !untested.has(id))
 		const planned: PlannedCase = { id: item.id, kind: 'outcome', prompt: item.prompt, rubrics: {}, judged: {} }
 		if (item.model) planned.model = item.model
+		if (item.costCap) planned.costCap = item.costCap
 		if (item.files !== undefined) planned.files = resolve(folder, item.files)
 		if (item.setup !== undefined) planned.setup = resolve(folder, item.setup)
 		if (item.network?.length) planned.network = item.network
