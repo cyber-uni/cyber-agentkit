@@ -1,9 +1,8 @@
-import { existsSync, readFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { join, resolve } from 'node:path'
-import { parse } from 'yaml'
+import { mergedEvals, readEvalSuite } from './eval-suite.js'
 import { criteriaItems, type SkillFiles } from './skill-files.js'
-import { type EvalsFile, evalsProblems, failsProblems, triggerCaseId } from './verification-checks.js'
+import { type EvalsFile, triggerCaseId } from './verification-checks.js'
 
 export const defaultRuns = 3
 export const defaultThreshold = 2
@@ -74,7 +73,10 @@ export function concurrencyBound(threads: number): number {
 	return Math.max(1, Math.ceil(threads / 2) - 1)
 }
 
-/** Reads `evals/evals.yaml` and decides what runs: which cases, which checks, and what is reported without a run. */
+/**
+ * Reads the skill's evals, the root `evals/evals.yaml` and each eval folder's (K11), and decides what runs: which
+ * cases, which checks, and what is reported without a run.
+ */
 export function planTest(
 	skill: SkillFiles,
 	{
@@ -92,36 +94,19 @@ export function planTest(
 		threads?: number | undefined
 	} = {},
 ): PlanResult {
-	const path = join(skill.folder, 'evals', 'evals.yaml')
-	if (!existsSync(path)) return { code: 'no-cases', problem: 'the skill has no evals/evals.yaml' }
-	let value: unknown
-	try {
-		value = parse(readFileSync(path, 'utf8'))
-	} catch (error) {
-		return {
-			code: 'evals-invalid',
-			problem: `evals/evals.yaml is not valid YAML: ${(error as Error).message.split('\n')[0]}`,
-		}
-	}
-	const problems = evalsProblems(value)
-	if (problems.length) return { code: 'evals-invalid', problem: `evals/evals.yaml: ${problems.join('; ')}` }
-	const evals = value as EvalsFile
-	if (!evals.trigger?.length && !evals.outcome?.length)
-		return { code: 'no-cases', problem: 'evals/evals.yaml lists no case' }
-
 	const items = criteriaItems(skill)
 	// A mark on a case with no `criteria` names one of the skill's criteria (#329).
-	const marks = items
-		? failsProblems(
-				value,
-				items.ids.filter((id): id is string => id !== undefined),
-			)
-		: []
-	if (marks.length) return { code: 'evals-invalid', problem: `evals/evals.yaml: ${marks.join('; ')}` }
+	const criteria = items ? items.ids.filter((id): id is string => id !== undefined) : []
+	const suite = readEvalSuite(skill.folder, items ? criteria : undefined)
+	if ('problem' in suite) return suite
+	const evalsFolder = join(skill.folder, 'evals')
+	const evals = mergedEvals(suite, evalsFolder)
+	if (!evals.trigger?.length && !evals.outcome?.length)
+		return { code: 'no-cases', problem: 'evals/evals.yaml lists no case' }
 	return planEvals(evals, {
-		criteria: items ? items.ids.filter((id): id is string => id !== undefined) : [],
+		criteria,
 		...(items ? {} : { noCriteria: 'the skill has no `## Done when`; run `/skill check` and `/skill fix`' }),
-		folder: join(skill.folder, 'evals'),
+		folder: evalsFolder,
 		file: 'evals/evals.yaml',
 		judge,
 		noJudge,

@@ -1,4 +1,4 @@
-import { cpSync, existsSync, readFileSync } from 'node:fs'
+import { cpSync, existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 
 /** The plugin in the working copy that a skill folder is part of (R91). */
@@ -9,7 +9,8 @@ export type SkillPlugin = {
 	name: string
 }
 
-function skillsFolders(root: string, manifest: Record<string, unknown>): string[] {
+/** The folders a plugin's manifest names as holding its skills, `./skills/` when it names none. */
+export function skillsFolders(root: string, manifest: Record<string, unknown>): string[] {
 	const skills = manifest['skills']
 	const entries = typeof skills === 'string' ? [skills] : Array.isArray(skills) ? skills : ['./skills/']
 	return entries.filter((entry): entry is string => typeof entry === 'string').map((entry) => resolve(root, entry))
@@ -59,4 +60,25 @@ export function copyPlugin(root: string, target: string, without?: string, repla
 	})
 	if (left !== undefined && replacement !== undefined)
 		cpSync(replacement, join(target, relative(root, left)), { recursive: true })
+}
+
+/** The skill folders of a plugin: each folder under one of its skills folders that holds a `SKILL.md`, sorted. */
+export function pluginSkills(root: string): string[] {
+	let manifest: Record<string, unknown>
+	try {
+		manifest = JSON.parse(readFileSync(join(root, '.claude-plugin', 'plugin.json'), 'utf8')) as Record<string, unknown>
+	} catch {
+		return []
+	}
+	return skillsFolders(root, manifest)
+		.flatMap((folder) => {
+			try {
+				return readdirSync(folder, { withFileTypes: true })
+					.filter((entry) => entry.isDirectory() && existsSync(join(folder, entry.name, 'SKILL.md')))
+					.map((entry) => join(folder, entry.name))
+			} catch {
+				return []
+			}
+		})
+		.sort()
 }

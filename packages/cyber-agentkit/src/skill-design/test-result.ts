@@ -1,5 +1,6 @@
 import type { AttestationView } from './attestation.js'
 import { recognizeSandboxFault } from './sandbox-faults.js'
+import type { Selection } from './stale-cases.js'
 import type { TestPlan } from './test-plan.js'
 import { recognizeUsageLimit } from './usage-limits.js'
 
@@ -168,8 +169,27 @@ export type ResumeOptions = {
 }
 
 /** The saved result of `skill test`, the shape every Verification implementation writes (`test.md`). */
-/** What a run's inputs hashed to (R178, R180): by scope name (`trigger`, `root`), and by case ID. */
-export type InputHashes = { scopes: Record<string, string>; cases: Record<string, string> }
+/**
+ * What a run's inputs hashed to (R178, R180): each scope's, by its name (`trigger`, `root`, or an instructions file's),
+ * and each case's own definition, by case ID. Results saved before scopes were derived (#369) lack `scopeOf` and
+ * `inputs`.
+ */
+export type InputHashes = {
+	scopes: Record<string, string>
+	cases: Record<string, string>
+	/** The scope of each case, by case ID. */
+	scopeOf?: Record<string, string>
+	/** Each scope's inputs, each by name to its hash, so a report names the one that changed (R177). */
+	inputs?: Record<string, Record<string, string>>
+	/** What a run depends on that selects no case, to be reported when it changes (R179). */
+	reported?: Reported
+}
+
+/**
+ * What a run depends on that is no input of any scope (R179): the hash of the skill's built scripts, the harness, and
+ * the Verification implementation. A change to one makes no case stale; the report lists it. The model is R161's.
+ */
+export type Reported = { scripts?: string; harness?: string; verification?: string }
 
 export type TestResult = {
 	version: 1
@@ -219,6 +239,11 @@ export type TestResult = {
 	blocked?: Blocked[]
 	/** The runs, in either arm, that the test sandbox broke (R154); they count toward no pass rate. Left out when none was. */
 	sandboxFailures?: SandboxFailure[]
+	/**
+	 * Set when the test ran the stale cases only (R177), as it does with no case named: each scope with a stale case,
+	 * which cases, and the input that changed, and how many cases were current.
+	 */
+	selected?: Selection
 	/** Set when the usage limit stopped the test before every run finished (R162); a case with a run at the limit gets no expected entry. */
 	incomplete?: Incomplete
 	/** Set on a result a resume made (R163): the `at` of the incomplete result whose runs it holds. */

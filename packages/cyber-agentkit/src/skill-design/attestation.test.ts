@@ -170,7 +170,7 @@ describe('skill attest (#323)', () => {
 		const run = readExpectedFile(folder)
 		expect(await skill(['attest', folder, 'C2', url])).toBe(0)
 		expect(readExpectedFile(folder)).toEqual({ ...run, attested: [expect.objectContaining({ id: 'C2' })] })
-		expect(await skill(['test', folder, '--root', root, '--accept'])).toBe(0)
+		expect(await skill(['test', folder, '--root', root, '--accept', '--all'])).toBe(0)
 		const after = readExpectedFile(folder)
 		expect(after.at).not.toBe(run.at)
 		expect(after.attested).toEqual([expect.objectContaining({ id: 'C2', evidence: url })])

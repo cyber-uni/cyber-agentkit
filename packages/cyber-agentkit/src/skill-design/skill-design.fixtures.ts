@@ -149,3 +149,58 @@ export function shippedSandbox(template: 'claude-code' | 'folder-only'): Sandbox
 	if ('problem' in read) throw new Error(read.problem)
 	return read.settings as SandboxSettings
 }
+
+/**
+ * A skill whose evals are in scopes (K11): a router `SKILL.md` linking two instructions files, `write` (which links a
+ * style guide) and `audit`, each with an eval folder of its own, and a root outcome case beside the trigger cases.
+ */
+export const scopedSkillFiles: Record<string, string> = {
+	'SKILL.md': `---
+name: release-notes
+description: Write or audit release notes for a release. Not for summarizing one pull request.
+---
+
+# Release notes
+
+Route the request to one command, and follow its file.
+
+| Command | File |
+| --- | --- |
+| \`write\` | [write.md](references/write.md) |
+| \`audit\` | [audit.md](references/audit.md) |
+
+## Done when
+
+- **C1.** The notes start with a \`## Release notes\` heading.
+- **C2.** No merge commit appears.
+- **C3.** Each problem names the line it is on.
+`,
+	'references/write.md': '# Write\n\n1. Read the merged pull requests.\n2. Follow [the style guide](style.md).\n',
+	'references/style.md': '# Style\n\nKeep each line short.\n',
+	'references/audit.md': '# Audit\n\n1. Read the notes.\n',
+	'evals/evals.yaml': `trigger:
+  - { id: fire-write, prompt: write release notes, expect: fire }
+  - { id: fire-audit, prompt: audit the release notes, expect: fire }
+  - { id: skip-commit, prompt: write a commit message, expect: skip }
+outcome:
+  - { id: overview, prompt: what can you do, criteria: [C1] }
+rubrics:
+  C1:
+    - contains: "## Release notes"
+  C2:
+    - not-regex: "Merge (pull request|branch)"
+  C3:
+    - contains: "line"
+`,
+	'evals/write/evals.yaml': `outcome:
+  - { id: write-two, prompt: write the notes, criteria: [C1, C2], files: files/write-two }
+`,
+	'evals/write/files/write-two/prs.json': '[]',
+	'evals/audit/evals.yaml': `outcome:
+  - { id: audit-one, prompt: audit the notes, criteria: [C3] }
+`,
+}
+
+/** A skill holding `scopedSkillFiles`, with `extra` over them. */
+export const scopedSkill = (extra: Record<string, string> = {}): SkillFiles =>
+	makeSkill({ ...scopedSkillFiles, ...extra })

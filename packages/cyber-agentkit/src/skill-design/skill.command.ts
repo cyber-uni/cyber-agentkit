@@ -27,7 +27,7 @@ import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckRepor
 import { addCase, addTriggerCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
 import { type EvalReport, readEvalReport, reportMarkdown, skillCriteria } from './eval-report.js'
 import { carryEntries, finishedCases, readEvalSet, sandboxFailedCases } from './expected-result.js'
-import { inputHashes } from './input-hashes.js'
+import { builtScriptsHash, inputHashes, runResolver } from './input-hashes.js'
 import {
 	clearKnownFailure,
 	type KnownFailureMark,
@@ -71,10 +71,19 @@ import {
 	skillTestHarnesses,
 } from './skill-test-harness.js'
 import { type SkillVetReport, vetSkill } from './skill-vet.js'
+import { type Selection, selectionLines, selectStale } from './stale-cases.js'
 import { defaultTestBudget, estimateTest, estimateText, parseTestBudget } from './test-estimate.js'
 import { planScripts, planTest, withoutScripts } from './test-plan.js'
 import { planLine } from './test-progress.js'
-import type { CaseStatus, Incomplete, KnownFailure, ResumeOptions, Row, TestResult } from './test-result.js'
+import type {
+	CaseStatus,
+	Incomplete,
+	InputHashes,
+	KnownFailure,
+	ResumeOptions,
+	Row,
+	TestResult,
+} from './test-result.js'
 import { notRunKind, notRunLine } from './test-result.js'
 import {
 	defaultTemplate,
@@ -459,6 +468,8 @@ function testText(result: TestResult, folder?: string): string {
 			`blocked: ${item.case} run ${item.run} (${item.arm}) tried to ${item.what === 'network' ? 'reach' : item.what} ${item.target}`,
 		)
 	if (result.replies) lines.push(`replies of every run: ${folder ? join(folder, result.replies) : result.replies}`)
+	// Which scopes ran and why, when the current cases were left out (R177).
+	if (result.selected?.current || result.selected?.notSelecting?.length) lines.push(...selectionLines(result.selected))
 	if (result.partial)
 		lines.push(`partial: only ${result.partial.cases.join(', ')} ran; compared with their expected entries only`)
 	if (incomplete)
@@ -516,7 +527,7 @@ function testCommand({
 	return command({
 		name: 'test',
 		description:
-			"Run a skill's evals (evals/evals.yaml) on promptfoo or `claude plugin eval`, several runs per case, each in a fresh folder, beside a run without the skill, and save the result. Makes model calls. Exits 1 when a case or criterion fails, a run errors or is a sandbox failure, or the usage limit stops the test; a case the plan skips, such as one with an outside effect, is no failure.",
+			"Run a skill's evals (evals/evals.yaml, and evals/<name>/evals.yaml for each instructions file's scope) on promptfoo or `claude plugin eval`, several runs per case, each in a fresh folder, beside a run without the skill, and save the result. With no --case or --all, only the stale cases run: those with no expected entry, or whose own definition or a scope input changed since their entry was recorded; the report names, per scope, what changed. Makes model calls. Exits 1 when a case or criterion fails, a run errors or is a sandbox failure, or the usage limit stops the test; a case the plan skips, such as one with an outside effect, is no failure.",
 		arguments: [
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
 		],
@@ -563,6 +574,11 @@ function testCommand({
 					"Run only the case with this ID: a case's own `id`, or `trigger-<n>` for the nth trigger case when it has none; repeat it for more. The result is marked partial and is compared with those cases' expected entries only; accepting it writes theirs only.",
 				type: t.array(t.string()).optional(),
 			},
+			all: {
+				description:
+					"Run every case, not only the stale ones. Without it or --case, a case whose expected entry is current with its definition and its scope's inputs does not run.",
+				type: t.boolean().optional(),
+			},
 			'trust-scripts': {
 				description:
 					"Run the setup scripts and `script` checks of a skill whose folder is outside the repository (`--root`, else the one holding the current directory). Without it, test lists them and reports the cases that need them as not run. Read them first: they run on this machine, contained to each run's folder with no network.",
@@ -570,7 +586,7 @@ function testCommand({
 			},
 			resume: {
 				description:
-					'Run only the runs the last result left when the usage limit stopped it, with the options that run had, and merge them into it. Refused when the last result is not incomplete, or when the skill or its eval cases changed since; takes no --case, --model, --judge, --no-judge, --baseline, --harness, or --backend.',
+					'Run only the runs the last result left when the usage limit stopped it, with the options that run had, and merge them into it. Refused when the last result is not incomplete, or when the skill or its eval cases changed since; takes no --case, --all, --model, --judge, --no-judge, --baseline, --harness, or --backend.',
 				type: t.boolean().optional(),
 			},
 			accept: {
@@ -580,7 +596,7 @@ function testCommand({
 			},
 			estimate: {
 				description:
-					'Make no run: print how many runs the test plans, its estimated cost (from the last saved result, else the default per-run cost), whether that is within the budget, and the `Test budget:` line to report. The budget is the one `skill-design.autonomy` sets under `## test budget`, unless --budget-cost or --budget-runs gives one.',
+					'Make no run: print how many runs the test plans (the stale cases only, unless --case or --all), its estimated cost (from the last saved result, else the default per-run cost), whether that is within the budget, and the `Test budget:` line to report. The budget is the one `skill-design.autonomy` sets under `## test budget`, unless --budget-cost or --budget-runs gives one.',
 				type: t.boolean().optional(),
 			},
 			'budget-cost': {
@@ -593,7 +609,14 @@ function testCommand({
 			},
 		},
 		examples: [
-			{ command: 'cyber-agentkit skill test .agents/skills/release-notes', description: 'Test one skill' },
+			{
+				command: 'cyber-agentkit skill test .agents/skills/release-notes',
+				description: 'Test one skill: run its stale cases only',
+			},
+			{
+				command: 'cyber-agentkit skill test .agents/skills/release-notes --all',
+				description: 'Run every case, current or not',
+			},
 			{
 				command: 'cyber-agentkit skill test .agents/skills/release-notes --case two-prs --case trigger-1',
 				description: 'Try a change on two cases only',
@@ -637,6 +660,7 @@ function testCommand({
 				resume?: boolean | undefined
 				'trust-scripts'?: boolean | undefined
 				case?: string[] | undefined
+				all?: boolean | undefined
 				estimate?: boolean | undefined
 				'budget-cost'?: number | undefined
 				'budget-runs'?: number | undefined
@@ -651,7 +675,18 @@ function testCommand({
 			let resume: { rows: Row[]; latest: TestResult; incomplete: Incomplete } | undefined
 			if (args.resume) {
 				const given = (
-					['case', 'model', 'judge', 'no-judge', 'baseline', 'harness', 'backend', 'sandbox', 'estimate'] as const
+					[
+						'case',
+						'all',
+						'model',
+						'judge',
+						'no-judge',
+						'baseline',
+						'harness',
+						'backend',
+						'sandbox',
+						'estimate',
+					] as const
 				).filter((key) => args[key] !== undefined)
 				if (given.length) {
 					process.stderr.write(
@@ -746,15 +781,57 @@ function testCommand({
 				}
 				judge = resolved.model ?? harnessDefault
 			}
-			const planned = planTest(skill, {
+			if (args.all && args.case?.length) {
+				process.stderr.write('error: case-conflict: --all runs every case; drop it, or drop --case\n')
+				throw CliError.reported(exitCodes.usage)
+			}
+			const home = homedir()
+			const layers = await referenceLayers({
+				root: args.root,
+				cwd: process.cwd(),
+				home,
+				platform: process.platform,
+				env: process.env,
+				plugin,
+			})
+			const verification = loadAspect('skill-design.aspects.verification', layers, (path) => collapseHome(home, path))
+			const planOptions = {
 				judge,
 				...(args['no-judge'] ? { noJudge: 'it needs a judge, and the test ran with --no-judge' } : {}),
-				cases: args.case,
 				threads,
-			})
+			}
+			let planned = planTest(skill, { ...planOptions, cases: args.case })
 			if ('problem' in planned) {
 				process.stderr.write(`error: ${planned.code}: ${planned.problem}\n`)
 				throw CliError.reported(planned.code === 'unknown-case' ? exitCodes.usage : exitCodes.error)
+			}
+			// What the run's inputs hash to, recorded with it (R181), and what it depends on that selects nothing (R179).
+			const hashed = inputHashes(skill, planned.plan.criteria, { resolve: runResolver(layers, skill.folder) })
+			const scriptsHash = builtScriptsHash(skill)
+			const inputs: InputHashes | undefined = hashed && {
+				...hashed,
+				reported: {
+					...(scriptsHash ? { scripts: scriptsHash } : {}),
+					harness: harness.id,
+					verification: `${verification.name} from ${verification.implementation}`,
+				},
+			}
+			// With no case named, only the stale cases run (R177); a resume runs what the stopped test planned.
+			let selection: Selection | undefined
+			const evalSet = readEvalSet(skill.folder, planned.plan.criteria)
+			if (!args.case?.length && !args.all && !resume && inputs && evalSet) {
+				selection = selectStale(evalSet, inputs, readExpectedFile(skill.folder, evalSet))
+				if (selection.stale.length < evalSet.cases.length) {
+					if (selection.stale.length) planned = planTest(skill, { ...planOptions, cases: selection.stale })
+					else {
+						const { judge: _judge, ...rest } = planned.plan
+						planned = { plan: { ...rest, cases: [], notRun: [], only: [] }, warnings: planned.warnings }
+					}
+					if ('problem' in planned) {
+						process.stderr.write(`error: ${planned.code}: ${planned.problem}\n`)
+						throw CliError.reported(exitCodes.error)
+					}
+				}
 			}
 			for (const warning of planned.warnings) process.stderr.write(`warning: ${warning}\n`)
 			if (planned.plan.judge === harnessDefault)
@@ -798,15 +875,6 @@ function testCommand({
 				)
 				throw CliError.reported(exitCodes.error)
 			}
-			const home = homedir()
-			const layers = await referenceLayers({
-				root: args.root,
-				cwd: process.cwd(),
-				home,
-				platform: process.platform,
-				env: process.env,
-				plugin,
-			})
 			if (args.estimate) {
 				const skillName =
 					typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
@@ -827,10 +895,42 @@ function testCommand({
 					},
 					flagged ? 'flags' : configured ? 'reference' : 'default',
 				)
-				return result(estimate, { render: { text: () => estimateText(estimate) } })
+				const answered = selection ? { ...estimate, selected: selection } : estimate
+				return result(answered, {
+					render: {
+						text: () =>
+							`${
+								selection
+									? selectionLines(selection)
+											.map((line) => `${line}\n`)
+											.join('')
+									: ''
+							}${estimateText(estimate)}`,
+					},
+				})
+			}
+			// Every case is current: nothing runs, and the report says so (R177).
+			if (selection && !selection.stale.length) {
+				const nothing = {
+					skill:
+						typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName,
+					ran: 0,
+					selected: selection,
+					notRun: planned.plan.notRun,
+				}
+				return result(nothing, {
+					render: {
+						text: () =>
+							`${[
+								`${nothing.skill}: nothing to run; every case is current with its expected entry`,
+								...selectionLines(selection),
+								...planned.plan.notRun.map((item) => notRunLine(item)),
+								'run `skill test --all` to run every case',
+							].join('\n')}\n`,
+					},
+				})
 			}
 			const sandbox = testSandbox(layers, args.sandbox)
-			const verification = loadAspect('skill-design.aspects.verification', layers, (path) => collapseHome(home, path))
 			const name =
 				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
 			// Progress goes to stderr, never into the result, and `--silent` turns it off (R100).
@@ -889,7 +989,7 @@ function testCommand({
 			const options: ResumeOptions = {
 				harness: harness.id,
 				backend,
-				...(args.case?.length ? { cases: args.case } : {}),
+				...(args.case?.length ? { cases: args.case } : planned.plan.only?.length ? { cases: planned.plan.only } : {}),
 				...(args.model !== undefined ? { model: args.model } : {}),
 				...(args.judge !== undefined ? { judge: args.judge } : {}),
 				...(args['no-judge'] ? { noJudge: true as const } : {}),
@@ -898,8 +998,11 @@ function testCommand({
 				...(args.sandbox !== undefined ? { sandbox: args.sandbox } : {}),
 			}
 			// The run records what its inputs hashed to, so the entries it writes say what they were recorded against (R181).
-			const inputs = inputHashes(skill, planned.plan.criteria)
-			const recorded: TestResult = inputs ? { ...ran.result, inputs } : ran.result
+			const recorded: TestResult = {
+				...ran.result,
+				...(inputs ? { inputs } : {}),
+				...(selection ? { selected: selection } : {}),
+			}
 			const toSave: TestResult =
 				recorded.incomplete && fingerprint
 					? { ...recorded, incomplete: { ...recorded.incomplete, fingerprint, options } }
@@ -1308,11 +1411,11 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 	})
 }
 
-function carryCommand(_options: SkillCommandOptions): cli.Command {
+function carryCommand({ plugin }: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'carry',
 		description:
-			"Carry expected entries forward to the skill's current inputs without a run, for a change that alters no behavior, such as a typo fix: each entry named takes the hashes of the case and its scope as they are now, and is marked carried with the reason, keeping its result and the date it was recorded. `test` and `report` show a carried entry as carried, never as a pass from a run. Name the cases with --case, or a whole scope with --scope (`trigger` or `root`). Runs nothing.",
+			"Carry expected entries forward to the skill's current inputs without a run, for a change that alters no behavior, such as a typo fix: each entry named takes the hashes of the case and its scope as they are now, and is marked carried with the reason, keeping its result and the date it was recorded. `test` and `report` show a carried entry as carried, never as a pass from a run. Name the cases with --case, or a whole scope with --scope: `trigger`, `root`, or the name of an instructions file with an eval folder. Runs nothing.",
 		arguments: [
 			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
 		],
@@ -1326,7 +1429,8 @@ function carryCommand(_options: SkillCommandOptions): cli.Command {
 				type: t.array(t.string()).optional(),
 			},
 			scope: {
-				description: 'Carry every entry of this scope: `trigger` for the trigger cases, `root` for the outcome cases.',
+				description:
+					'Carry every entry of this scope: `trigger` for the trigger cases, `root` for the outcome cases of evals/evals.yaml, or `<name>` for those of evals/<name>/.',
 				type: t.string().optional(),
 			},
 		},
@@ -1354,15 +1458,26 @@ function carryCommand(_options: SkillCommandOptions): cli.Command {
 				process.stderr.write('error: carry-what: name the cases with --case, or one scope with --scope, not both\n')
 				throw CliError.reported(exitCodes.usage)
 			}
-			if (args.scope !== undefined && args.scope !== 'trigger' && args.scope !== 'root') {
-				process.stderr.write(`error: unknown-scope: no scope ${args.scope}; the scopes are trigger and root\n`)
-				throw CliError.reported(exitCodes.usage)
-			}
 			const name =
 				typeof skill.frontmatter?.['name'] === 'string' ? (skill.frontmatter['name'] as string) : skill.folderName
 			const criteria = (criteriaItems(skill)?.ids ?? []).filter((id): id is string => id !== undefined)
 			const evalSet = readEvalSet(skill.folder, criteria)
-			const inputs = inputHashes(skill, criteria)
+			// The inputs as a test hashes them, so a carried entry is current for the next test (R183).
+			const home = homedir()
+			const layers = await referenceLayers({
+				cwd: process.cwd(),
+				home,
+				platform: process.platform,
+				env: process.env,
+				plugin,
+			})
+			const inputs = inputHashes(skill, criteria, { resolve: runResolver(layers, skill.folder) })
+			if (inputs && args.scope !== undefined && !(args.scope in inputs.scopes)) {
+				process.stderr.write(
+					`error: unknown-scope: no scope ${args.scope}; the scopes are ${Object.keys(inputs.scopes).join(', ')}\n`,
+				)
+				throw CliError.reported(exitCodes.usage)
+			}
 			const file = readExpectedFile(skill.folder, evalSet)
 			if (!file || !inputs || !evalSet) {
 				process.stderr.write(
@@ -1371,7 +1486,9 @@ function carryCommand(_options: SkillCommandOptions): cli.Command {
 				throw CliError.reported(exitCodes.error)
 			}
 			const ids = args.scope
-				? Object.entries(file.entries).flatMap(([id, entry]) => (entry.scope === args.scope ? [id] : []))
+				? Object.entries(file.entries).flatMap(([id, entry]) =>
+						(inputs.scopeOf?.[id] ?? entry.scope) === args.scope ? [id] : [],
+					)
 				: [...new Set(args.case ?? [])]
 			const carried = carryEntries(file, ids, inputs, { reason: args.reason.trim(), at: new Date().toISOString() })
 			if (carried.missing.length) {

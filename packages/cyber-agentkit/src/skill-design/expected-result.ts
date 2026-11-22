@@ -1,8 +1,6 @@
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parse } from 'yaml'
 import type { Attestation } from './attestation.js'
-import { scopeOfCase } from './input-hashes.js'
+import { readEvalSuite, rootScope, suiteCases, triggerScope } from './eval-suite.js'
 import type {
 	Carried,
 	CaseCriterion,
@@ -10,12 +8,12 @@ import type {
 	CriterionResult,
 	InputHashes,
 	KnownFailure,
+	Reported,
 	SandboxFailure,
 	Status,
 	TestResult,
 	TriggerResult,
 } from './test-result.js'
-import { type EvalsFile, triggerCaseId } from './verification-checks.js'
 
 /**
  * A skill's expected result as one entry per case, keyed by its ID (R181): what `evals/expected.json` holds from version
@@ -26,7 +24,7 @@ import { type EvalsFile, triggerCaseId } from './verification-checks.js'
 
 /** One case's expected entry (R181): its result, the model, when it was recorded, and the hashes it was recorded against. */
 export type ExpectedEntry = {
-	/** The scope the case belongs to: `trigger` or `root` until #369 adds more. */
+	/** The scope the case belongs to (K11): `trigger`, `root`, or the name of an instructions file. */
 	scope: string
 	status: Status
 	passed?: number
@@ -74,31 +72,30 @@ export type ExpectedFile = {
 	/** Why a criterion was not tested, as the last whole run said, for a criterion no entry tests. */
 	notTested?: Record<string, string>
 	entries: Record<string, ExpectedEntry>
+	/**
+	 * The inputs of each scope an entry was recorded against, by that scope hash, each input by name to its hash, so a
+	 * later run names the input that changed (R177). Only the hashes some entry records are kept.
+	 */
+	inputs?: Record<string, Record<string, string>>
+	/** What the last write's run depended on that selects no case (R179), to report when it changes. */
+	reported?: Reported
 	attested?: Attestation[]
 }
 
-/** A skill's eval set as an expected result needs it: each case ID in order, its kind, and the criteria it tests. */
-export type EvalSet = { cases: { id: string; kind: 'trigger' | 'outcome'; criteria: string[] }[] }
+/** A skill's eval set as an expected result needs it: each case ID in order, its kind, its scope, and the criteria it tests. */
+export type EvalSet = { cases: { id: string; kind: 'trigger' | 'outcome'; scope: string; criteria: string[] }[] }
 
-/** Reads a skill's eval set from its `evals/evals.yaml`, or undefined when it cannot be read. */
+/** Reads a skill's eval set from its evals, the root file and each eval folder's (K11), or undefined when it cannot be read. */
 export function readEvalSet(skillFolder: string, criteria: string[]): EvalSet | undefined {
-	let evals: EvalsFile
-	try {
-		evals = (parse(readFileSync(join(skillFolder, 'evals', 'evals.yaml'), 'utf8')) ?? {}) as EvalsFile
-	} catch {
-		return undefined
-	}
+	const suite = readEvalSuite(skillFolder)
+	if ('problem' in suite) return undefined
 	return {
-		cases: [
-			...(evals.trigger ?? []).map((item, index) => ({
-				id: triggerCaseId(item, index),
-				kind: 'trigger' as const,
-				criteria: [],
-			})),
-			...(evals.outcome ?? [])
-				.filter((item) => typeof item?.id === 'string')
-				.map((item) => ({ id: item.id, kind: 'outcome' as const, criteria: item.criteria ?? criteria })),
-		],
+		cases: suiteCases(suite, join(skillFolder, 'evals')).map((item) => ({
+			id: item.id,
+			kind: item.kind,
+			scope: item.scope,
+			criteria: item.kind === 'outcome' ? (item.item.criteria ?? criteria) : [],
+		})),
 	}
 }
 
@@ -129,7 +126,7 @@ function entryOf(result: TestResult, id: string): ExpectedEntry | undefined {
 	const item = result.cases.find((c) => c.case === id)
 	if (!item) return undefined
 	const trigger = result.trigger.find((t) => t.case === id)
-	const scope = scopeOfCase(trigger ? 'trigger' : 'outcome')
+	const scope = result.inputs?.scopeOf?.[id] ?? (trigger ? triggerScope : rootScope)
 	const model = item.model ?? result.model
 	const caseHash = result.inputs?.cases[id]
 	const scopeHash = result.inputs?.scopes[scope]
@@ -190,7 +187,7 @@ export function legacyEntries(old: TestResult, evalSet: EvalSet | undefined): Re
 		const sandboxFailures = (old.sandboxFailures ?? []).filter((s) => s.case === item.case)
 		const model = item.model ?? old.model
 		entries[item.case] = {
-			scope: scopeOfCase(trigger ? 'trigger' : 'outcome'),
+			scope: evalSet?.cases.find((c) => c.id === item.case)?.scope ?? (trigger ? triggerScope : rootScope),
 			status: item.status,
 			...(item.passed !== undefined ? { passed: item.passed } : {}),
 			...(item.ran !== undefined ? { ran: item.ran } : {}),
@@ -288,9 +285,34 @@ export function mergeEntries(
 		criteria: result.criteria.map((c) => c.id),
 		...(Object.keys(notTested).length ? { notTested } : {}),
 		entries: ordered,
+		...keptInputs(ordered, previous?.inputs, result.inputs),
+		...(result.inputs?.reported
+			? { reported: result.inputs.reported }
+			: previous?.reported
+				? { reported: previous.reported }
+				: {}),
 		...(previous?.attested?.length ? { attested: previous.attested } : {}),
 	}
 	return { file, written, dropped, replaced }
+}
+
+/**
+ * The inputs of each scope hash the entries record (R177): those `known` kept, with the ones `now` gives for its
+ * scopes, and none an entry no longer records.
+ */
+function keptInputs(
+	entries: Record<string, ExpectedEntry>,
+	known: ExpectedFile['inputs'],
+	now: InputHashes | undefined,
+): Pick<ExpectedFile, 'inputs'> {
+	const byHash: Record<string, Record<string, string>> = { ...(known ?? {}) }
+	for (const [scope, hash] of Object.entries(now?.scopes ?? {})) {
+		const list = now?.inputs?.[scope]
+		if (list) byHash[hash] = list
+	}
+	const used = [...new Set(Object.values(entries).flatMap((entry) => (entry.hashes ? [entry.hashes.scope] : [])))]
+	const inputs = Object.fromEntries(used.flatMap((hash) => (byHash[hash] ? [[hash, byHash[hash]]] : [])))
+	return Object.keys(inputs).length ? { inputs } : {}
 }
 
 /**
@@ -309,15 +331,17 @@ export function carryEntries(
 	for (const id of ids) {
 		const entry = entries[id]
 		const caseHash = inputs.cases[id]
-		const scopeHash = entry ? inputs.scopes[entry.scope] : undefined
-		if (!entry || !caseHash || !scopeHash) {
+		const scope = entry ? (inputs.scopeOf?.[id] ?? entry.scope) : undefined
+		const scopeHash = scope ? inputs.scopes[scope] : undefined
+		if (!entry || !scope || !caseHash || !scopeHash) {
 			missing.push(id)
 			continue
 		}
-		entries[id] = { ...entry, hashes: { case: caseHash, scope: scopeHash }, carried }
+		entries[id] = { ...entry, scope, hashes: { case: caseHash, scope: scopeHash }, carried }
 		done.push(id)
 	}
-	return { file: { ...file, entries }, carried: done, missing }
+	const { inputs: _inputs, ...rest } = file
+	return { file: { ...rest, entries, ...keptInputs(entries, file.inputs, inputs) }, carried: done, missing }
 }
 
 const sum = (values: (number | undefined)[]) => values.reduce<number>((total, value) => total + (value ?? 0), 0)
