@@ -31,7 +31,7 @@ Each contribution applies with its `merge`: `patch` (the default) replaces the t
 | bring reference files written for version 1 to the 2.0 form, or rename them as a plugin renamed their names, as a `reference-legacy-format` or `reference-renamed` warning asks | [Migrate](#migrate) |
 | make a skill load a reference | [Wire a skill](#wire-a-skill) |
 | find what text an agent reads (a skill folder, an `AGENTS.md`, an agent definition, a command file) hard-codes that could move into references, or list the references it loads | [Advise](#advise) |
-| make an interface discoverable in the public registry, or check whether one like it is registered | [Register](#register) |
+| make an interface or a system's capability reference discoverable in the public registry, or check whether one like it is registered | [Register](#register) |
 | examine the system a capability reference (`<system>.capabilities`) describes: does the system here match what it says, before updating Verified or after a step failed, as `/reference doctor <name>` | [Doctor](#doctor) |
 
 Ask only when the request fits two modes. Otherwise pick one; outside Load, say which. Invoked as `/reference` with no request, run `list` from [Find](#find) and ask what to do with one.
@@ -141,10 +141,10 @@ Advise on what a text hard-codes that could move into references. It works on an
 
 ## Register
 
-Registering makes an interface discoverable in the public registry. It is optional: using an interface never needs it, and `load`, `list`, and `check` never read the registry.
+Registering makes an interface, or a system's capability reference, discoverable in the public registry. It is optional: using either never needs it, and `load`, `list`, and `check` never read the registry.
 
-1. Run `register <id>` with what is known: `--description`, `--plugin`, `--tag`, `--status`, `--interface <url>`, or `--file <entry.md>` for a prepared entry. It looks the id up in the live registry first, and needs a network. With none it stops with `registry-unreachable` and records nothing: say so, and do not guess.
-2. On `interface-registered`, the id is taken. Show the entry's `url` and use that interface. Changing its entry is a pull request that edits it.
+1. Run `register <id>` with what is known: `--description`, `--plugin`, `--tag`, `--status`, `--interface <url>`, or `--file <entry.md>` for a prepared entry. For a system, run `register <system>.capabilities`, with `--plugin` for each plugin that ships it and `--blueprint` for each blueprint built on it, in place of `--interface`. It looks the id up in the live registry first, and needs a network. With none it stops with `registry-unreachable` and records nothing: say so, and do not guess.
+2. On `interface-registered` or `capability-registered`, the name is taken. Show the entry's `url` and use it. Changing its entry, such as adding a plugin or a blueprint, is a pull request that edits it.
 3. When it lists `near` matches, show each with its reasons and stop. Never decide yourself that one is the same or different. The user decides to reuse one, extend one, or go on. Only after they choose to go on, run again with `--seen <each id shown>`.
 4. With no near matches left, it shows the `route` it would take (`pull-request` or `issue`), `why`, and the `entry`. Show all three and ask. Opening an issue or a pull request is an outward action: run with `--yes` for the default route, or `--as issue` / `--as pull-request`, only on the user's explicit yes. With no user present, open nothing.
 5. Report the `url` it gives. When `recorded` is `false` with a `url`, the GitHub tool is signed out: give the user that page to file the issue.

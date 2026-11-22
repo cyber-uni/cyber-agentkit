@@ -4,12 +4,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import {
+	capabilityListRow,
 	checkEntryLinks,
 	checkExternal,
 	localPath,
 	problemMessages,
+	renderCapabilityPage,
 	renderEntryPage,
-} from './interface-registry-lib.mjs'
+} from './registry-lib.mjs'
 
 const base = 'https://github.com/cyber-uni/cyber-agentkit'
 const repo = mkdtempSync(join(tmpdir(), 'registry-'))
@@ -72,4 +74,30 @@ test('page shows only set fields', () => {
 	assert.match(page, /title: "i"/)
 	assert.match(page, /\*\*Tags:\*\* t/)
 	assert.doesNotMatch(page, /Implementations|Used by|Status/)
+})
+
+test('a capability page names its reference, its plugins, and its blueprints, and only set fields', () => {
+	const page = renderCapabilityPage({
+		system: 'asana',
+		plugins: [{ name: 'cyber-asana', url: 'https://example.com/p' }],
+		blueprints: [{ name: 'project-tracker.blueprints.asana.sections' }],
+	})
+	assert.match(page, /title: "asana"/)
+	assert.match(page, /Capability reference: `asana\.capabilities`/)
+	assert.match(page, /## Shipped by\n\n- \[cyber-asana\]\(https:\/\/example\.com\/p\)/)
+	assert.match(page, /## Blueprints built on it\n\n- project-tracker\.blueprints\.asana\.sections/)
+	assert.match(page, /registry\/capabilities\/asana\.md/)
+	assert.doesNotMatch(page, /Status|Tags/)
+})
+
+test('a capability row carries the blueprint names to search by', () => {
+	assert.deepEqual(capabilityListRow({ system: 'asana', blueprints: [{ name: 'x.blueprints.asana.s' }] }), {
+		id: 'asana',
+		slug: 'asana',
+		description: '',
+		tags: [],
+		status: '',
+		plugins: [],
+		blueprints: ['x.blueprints.asana.s'],
+	})
 })

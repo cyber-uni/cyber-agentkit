@@ -1,0 +1,25 @@
+---
+title: Capability registry
+description: Every registered system, with the plugins that ship its capability reference and the blueprints built on it.
+---
+
+import RegistryList from '../../components/RegistryList.astro'
+import entries from '../../generated/capabilities.json'
+
+Systems whose [capability reference](/cyber-agentkit/concepts/capability-references/) someone chose to register. Each
+entry is one system: the plugins that ship `<system>.capabilities`, and the blueprints built on it. Look here before
+you write a capability reference, so two plugins do not describe one system differently.
+
+Registering is optional, and loading a reference never reads the registry. Add a system with
+`npx -y cyber-agentkit reference register <system>.capabilities --plugin <plugin> --blueprint <blueprint>`. It looks the
+system up first, then opens a pull request that adds `registry/capabilities/<system>.md`, or an issue carrying it,
+once you confirm. To add your plugin or a blueprint to a system already listed, open a pull request that edits its
+entry.
+
+<RegistryList
+  entries={entries}
+  path="capabilities"
+  noun="system"
+  plural="systems"
+  searchHint="Filter by system, description, tag, plugin, or blueprint"
+/>

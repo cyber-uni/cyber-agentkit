@@ -7,13 +7,13 @@
 		"node": ">=22.12.0"
 	},
 	"scripts": {
-		"generate": "node scripts/generate-package-docs.mjs && node scripts/generate-interface-registry.mjs && node scripts/generate-verbs-page.mjs",
-		"predev": "node scripts/generate-package-docs.mjs && node scripts/generate-interface-registry.mjs && node scripts/generate-verbs-page.mjs",
+		"generate": "node scripts/generate-package-docs.mjs && node scripts/generate-registry.mjs && node scripts/generate-verbs-page.mjs",
+		"predev": "node scripts/generate-package-docs.mjs && node scripts/generate-registry.mjs && node scripts/generate-verbs-page.mjs",
 		"dev": "astro dev",
-		"prebuild": "node scripts/generate-package-docs.mjs && node scripts/generate-interface-registry.mjs && node scripts/generate-verbs-page.mjs",
+		"prebuild": "node scripts/generate-package-docs.mjs && node scripts/generate-registry.mjs && node scripts/generate-verbs-page.mjs",
 		"build": "astro build",
 		"preview": "astro preview",
-		"pretypecheck": "node scripts/generate-package-docs.mjs && node scripts/generate-interface-registry.mjs && node scripts/generate-verbs-page.mjs",
+		"pretypecheck": "node scripts/generate-package-docs.mjs && node scripts/generate-registry.mjs && node scripts/generate-verbs-page.mjs",
 		"typecheck": "astro check",
 		"test": "node --test scripts/*.test.mjs",
 		"astro": "astro"

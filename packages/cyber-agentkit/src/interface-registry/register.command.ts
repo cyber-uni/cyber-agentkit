@@ -2,6 +2,20 @@ import { readFileSync } from 'node:fs'
 import type { cli } from 'clibuilder'
 import { command, exitCodes, t } from 'clibuilder'
 import { CliError, isCliError, result } from 'clibuilder/axi'
+import {
+	type CapabilityEntry,
+	capabilityEntryText,
+	capabilitySystemPattern,
+	parseCapabilityEntry,
+} from '../capability-registry/capability-entry.js'
+import {
+	capabilityArea,
+	capabilityEntryUrl,
+	capabilityRegistryUrl,
+	lookupCapability,
+	readCapabilityRegistry,
+} from '../capability-registry/capability-registry.js'
+import { capabilitiesSuffix } from '../references/reference-capabilities.js'
 import { gh } from './github-cli.js'
 import { type InterfaceEntry, interfaceEntryText, interfaceIdPattern, parseInterfaceEntry } from './interface-entry.js'
 import { lookupInterface, type NearMatch } from './interface-lookup.js'
@@ -10,10 +24,13 @@ import {
 	newIssueUrl,
 	RecordFailure,
 	type RecordRoute,
+	type RegistryRequest,
+	type RequestLookup,
 	recordAsIssue,
 	recordAsPullRequest,
 } from './interface-record.js'
 import {
+	interfaceArea,
 	interfaceEntryUrl,
 	interfaceRegistryUrl,
 	RegistryUnreachable,
@@ -22,6 +39,8 @@ import {
 
 export type ReferenceRegisterReport = {
 	id: string
+	/** For `<system>.capabilities`, the system whose capability registry entry this is. */
+	system?: string
 	/** Whether an issue or pull request was opened. */
 	recorded: boolean
 	route?: RecordRoute
@@ -29,7 +48,7 @@ export type ReferenceRegisterReport = {
 	why?: string
 	/** The issue or pull request opened, or the new-issue page to open when the GitHub tool could not. */
 	url?: string
-	/** How many registered interfaces the lookup compared. */
+	/** How many registered interfaces, or systems for a capability reference, the lookup compared. */
 	compared: number
 	/** The near matches shown, each with why it matched. */
 	near?: NearMatch[]
@@ -41,6 +60,7 @@ type RegisterArgs = {
 	id: string
 	description: string | undefined
 	plugin: string[] | undefined
+	blueprint: string[] | undefined
 	tag: string[] | undefined
 	status: string | undefined
 	interface: string | undefined
@@ -56,47 +76,162 @@ function usage(message: string, code: string, help?: string): never {
 	throw new CliError(message, { code, exitCode: exitCodes.usage, ...(help ? { help: [help] } : {}) })
 }
 
-/** The entry to record: from `--file` when given, with each option given on the command line over it. */
-function entryFrom(args: RegisterArgs): InterfaceEntry {
-	let entry: InterfaceEntry = { id: args.id }
-	if (args.file !== undefined) {
-		let text: string
-		try {
-			text = readFileSync(args.file, 'utf8')
-		} catch {
-			usage(`Cannot read the entry file \`${args.file}\`.`, 'entry-unreadable')
-		}
-		const parsed = parseInterfaceEntry(text, args.id)
-		if (parsed.problems.length) {
-			usage(`The entry file \`${args.file}\` has problems: ${parsed.problems.join('; ')}.`, 'entry-invalid')
-		}
-		entry = parsed.entry
+function readEntryFile<Entry>(
+	file: string,
+	name: string,
+	parse: (text: string, fileId: string) => { entry: Entry; problems: string[] },
+): Entry {
+	let text: string
+	try {
+		text = readFileSync(file, 'utf8')
+	} catch {
+		usage(`Cannot read the entry file \`${file}\`.`, 'entry-unreadable')
 	}
-	const list = (values: string[] | undefined) =>
-		values
-			?.flatMap((value) => value.split(','))
-			.map((value) => value.trim())
-			.filter(Boolean)
+	const parsed = parse(text, name)
+	if (parsed.problems.length) {
+		usage(`The entry file \`${file}\` has problems: ${parsed.problems.join('; ')}.`, 'entry-invalid')
+	}
+	return parsed.entry
+}
+
+const list = (values: string[] | undefined) =>
+	values
+		?.flatMap((value) => value.split(','))
+		.map((value) => value.trim())
+		.filter(Boolean)
+
+/** The fields both kinds of entry take from the command line, each over the same field of `--file`. */
+function sharedFields<Entry extends Pick<InterfaceEntry, 'description' | 'plugins' | 'tags' | 'status'>>(
+	entry: Entry,
+	args: RegisterArgs,
+): Entry {
 	if (args.description?.trim()) entry.description = args.description.trim()
 	const plugins = list(args.plugin)
 	if (plugins?.length) entry.plugins = plugins.map((name) => ({ name }))
 	const tags = list(args.tag)
 	if (tags?.length) entry.tags = tags
 	if (args.status?.trim()) entry.status = args.status.trim()
+	return entry
+}
+
+/** The interface entry to record: from `--file` when given, with each option given on the command line over it. */
+function interfaceEntryFrom(args: RegisterArgs): InterfaceEntry {
+	const entry = sharedFields<InterfaceEntry>(
+		args.file === undefined ? { id: args.id } : readEntryFile(args.file, args.id, parseInterfaceEntry),
+		args,
+	)
 	if (args.interface?.trim()) entry.interface = args.interface.trim()
 	return entry
+}
+
+/** The system's entry to record, the same way. `--blueprint` names a blueprint built on it. */
+function capabilityEntryFrom(system: string, args: RegisterArgs): CapabilityEntry {
+	const entry = sharedFields<CapabilityEntry>(
+		args.file === undefined ? { system } : readEntryFile(args.file, system, parseCapabilityEntry),
+		args,
+	)
+	const blueprints = list(args.blueprint)
+	if (blueprints?.length) entry.blueprints = blueprints.map((name) => ({ name }))
+	return entry
+}
+
+/** What registering one name needs: where it goes, its entry, and how to look it up. */
+type Registration = {
+	request: RegistryRequest
+	system?: string
+	lookup(): Promise<RequestLookup & { same?: string }>
+	/** The error for a name already registered. */
+	registered(same: string): CliError
+	folderUrl: string
+	/** Which registry, for the unreachable error. */
+	registry: string
+}
+
+function registration(id: string, args: RegisterArgs): Registration {
+	if (id.endsWith(capabilitiesSuffix)) {
+		const system = id.slice(0, -capabilitiesSuffix.length)
+		if (!capabilitySystemPattern.test(system)) {
+			usage(
+				`\`${id}\` names no system: \`<system>.capabilities\` takes one name segment, letters, digits, and \`-\` or \`_\` between them.`,
+				'id-invalid',
+			)
+		}
+		if (args.interface !== undefined)
+			usage('`--interface` is for an interface; a capability reference implements none.', 'option-not-for-capabilities')
+		const entry = capabilityEntryFrom(system, args)
+		return {
+			request: { area: capabilityArea, name: system, text: capabilityEntryText(entry) },
+			system,
+			async lookup() {
+				const found = lookupCapability(system, entry.description, (await readCapabilityRegistry()).entries)
+				return found.same ? { ...found, same: found.same.system } : { near: found.near, compared: found.compared }
+			},
+			registered: (same) =>
+				new CliError(`\`${same}\` is already in the capability registry; nothing was recorded.`, {
+					code: 'capability-registered',
+					details: { id, registered: same, url: capabilityEntryUrl(same) },
+					help: [
+						`Use the registered system's entry. Adding your plugin or a blueprint to it is an update: open a pull request that edits ${capabilityEntryUrl(same)}.`,
+					],
+				}),
+			folderUrl: capabilityRegistryUrl,
+			registry: 'capability registry',
+		}
+	}
+	if (!interfaceIdPattern.test(id)) {
+		usage(
+			`\`${id}\` is not an interface id: use letters, digits, and \`-\`, \`_\`, or \`.\` between them.`,
+			'id-invalid',
+		)
+	}
+	if (args.blueprint !== undefined)
+		usage('`--blueprint` is for a capability reference, `<system>.capabilities`.', 'option-not-for-interfaces')
+	const entry = interfaceEntryFrom({ ...args, id })
+	return {
+		request: { area: interfaceArea, name: id, text: interfaceEntryText(entry) },
+		async lookup() {
+			const found = lookupInterface(id, entry.description, (await readInterfaceRegistry()).entries)
+			return found.same ? { ...found, same: found.same.id } : { near: found.near, compared: found.compared }
+		},
+		registered: (same) =>
+			new CliError(`\`${same}\` is already registered; nothing was recorded.`, {
+				code: 'interface-registered',
+				details: { id, registered: same, url: interfaceEntryUrl(same) },
+				help: [
+					`Use the registered interface. Changing its entry is an update: open a pull request that edits ${interfaceEntryUrl(same)}.`,
+				],
+			}),
+		folderUrl: interfaceRegistryUrl,
+		registry: 'interface registry',
+	}
 }
 
 export function registerCommand(path: string): cli.Command {
 	return command({
 		name: 'register',
 		description:
-			'Record a reference interface in the public registry so others can find it: look the id up first, stop on the same id or show near matches, then open a pull request or an issue only when confirmed. Optional; using an interface never needs it.',
-		arguments: [{ name: 'id', description: 'The interface id, the name a skill loads it by.', type: t.string() }],
+			"Record a reference interface, or a system's capability reference (`<system>.capabilities`), in the public registry so others can find it: look the name up first, stop on the same name or show near matches, then open a pull request or an issue only when confirmed. Optional; using either never needs it.",
+		arguments: [
+			{
+				name: 'id',
+				description:
+					'The interface id, the name a skill loads it by, or `<system>.capabilities` to register a system in the capability registry.',
+				type: t.string(),
+			},
+		],
 		options: {
-			description: { description: 'What the interface does, in one line.', type: t.string().optional() },
+			description: {
+				description: 'What the interface does, or what the system is, in one line.',
+				type: t.string().optional(),
+			},
 			plugin: {
-				description: 'A plugin that defines it. Repeatable, or comma-separated.',
+				description:
+					'A plugin that defines the interface, or ships the capability reference. Repeatable, or comma-separated.',
+				type: t.array(t.string()).optional(),
+			},
+			blueprint: {
+				description:
+					'For `<system>.capabilities`: a blueprint built on it, by its full name. Repeatable, or comma-separated.',
 				type: t.array(t.string()).optional(),
 			},
 			tag: { description: 'A tag. Repeatable, or comma-separated.', type: t.array(t.string()).optional() },
@@ -104,7 +239,7 @@ export function registerCommand(path: string): cli.Command {
 			interface: { description: 'A link to the full interface document.', type: t.string().optional() },
 			file: {
 				description:
-					'A prepared entry: Markdown with an `id` header and any optional field and body. Options given override its fields.',
+					'A prepared entry: Markdown with an `id` header (`system` for a capability reference) and any optional field and body. Options given override its fields.',
 				type: t.string().optional(),
 			},
 			seen: {
@@ -133,42 +268,37 @@ export function registerCommand(path: string): cli.Command {
 				command: `${path} register pull-request-host --seen change-request-host --as issue`,
 				description: 'Go on past a near match you read, as an issue',
 			},
+			{
+				command: `${path} register asana.capabilities --plugin cyber-asana --blueprint project-tracker.blueprints.asana.sections`,
+				description: 'Register a system, with the plugin that ships its capability reference and a blueprint on it',
+			},
 		],
 		async run(args: RegisterArgs) {
 			const id = args.id.trim()
-			if (!interfaceIdPattern.test(id)) {
-				usage(
-					`\`${id}\` is not an interface id: use letters, digits, and \`-\`, \`_\`, or \`.\` between them.`,
-					'id-invalid',
-				)
-			}
 			const forced = args.as === undefined ? undefined : routes[args.as.trim().toLowerCase()]
 			if (args.as !== undefined && !forced)
 				usage(`\`--as ${args.as}\` is not a route.`, 'route-unknown', 'Use `--as pull-request` or `--as issue`.')
-			const entry = entryFrom({ ...args, id })
+			const plan = registration(id, args)
+			const { request } = plan
 
 			try {
-				const registry = await readInterfaceRegistry()
-				const lookup = lookupInterface(id, entry.description, registry.entries)
-				if (lookup.same) {
-					throw new CliError(`\`${lookup.same.id}\` is already registered; nothing was recorded.`, {
-						code: 'interface-registered',
-						details: { id, registered: lookup.same.id, url: interfaceEntryUrl(lookup.same.id) },
-						help: [
-							`Use the registered interface. Changing its entry is an update: open a pull request that edits ${interfaceEntryUrl(lookup.same.id)}.`,
-						],
-					})
-				}
+				const lookup = await plan.lookup()
+				if (lookup.same) throw plan.registered(lookup.same)
 				const seen = new Set((args.seen ?? []).flatMap((value) => value.split(',')).map((value) => value.trim()))
 				const unseen = lookup.near.filter((match) => !seen.has(match.id))
-				const base = { id, compared: lookup.compared, ...(lookup.near.length ? { near: lookup.near } : {}) }
+				const base = {
+					id,
+					...(plan.system ? { system: plan.system } : {}),
+					compared: lookup.compared,
+					...(lookup.near.length ? { near: lookup.near } : {}),
+				}
 				if (unseen.length) {
 					return result<ReferenceRegisterReport>(
 						{ ...base, recorded: false },
 						{
 							help: [
-								'None of these is taken as the same interface; you decide. Nothing was recorded.',
-								`Reuse one, or extend one with a pull request that edits its entry under ${interfaceRegistryUrl}.`,
+								`None of these is taken as the same ${plan.system ? 'system' : 'interface'}; you decide. Nothing was recorded.`,
+								`Reuse one, or extend one with a pull request that edits its entry under ${plan.folderUrl}.`,
 								`To go on, run again with \`--seen ${unseen.map((match) => match.id).join(',')}\`.`,
 							],
 						},
@@ -181,7 +311,7 @@ export function registerCommand(path: string): cli.Command {
 					recorded: false,
 					route: choice.route,
 					why: choice.why,
-					entry: interfaceEntryText(entry),
+					entry: request.text,
 				}
 				if (!forced && !args.yes) {
 					return result(shown, {
@@ -203,13 +333,13 @@ export function registerCommand(path: string): cli.Command {
 							},
 						)
 					}
-					const url = await recordAsPullRequest(gh, entry, lookup, login)
+					const url = await recordAsPullRequest(gh, request, lookup, login)
 					return result<ReferenceRegisterReport>({ ...shown, recorded: true, url })
 				}
 				const signedIn = (await gh(['auth', 'status'])).ok
 				if (!signedIn) {
 					return result<ReferenceRegisterReport>(
-						{ ...shown, url: newIssueUrl(entry, lookup) },
+						{ ...shown, url: newIssueUrl(request, lookup) },
 						{
 							help: [
 								'The GitHub tool (`gh`) is not signed in, so nothing was filed. Open the url to file the issue, or run `gh auth login` and run again.',
@@ -217,12 +347,12 @@ export function registerCommand(path: string): cli.Command {
 						},
 					)
 				}
-				const url = await recordAsIssue(gh, entry, lookup)
+				const url = await recordAsIssue(gh, request, lookup)
 				return result<ReferenceRegisterReport>({ ...shown, recorded: true, url })
 			} catch (error) {
 				if (isCliError(error)) throw error
 				if (error instanceof RegistryUnreachable) {
-					throw new CliError(`Cannot read the interface registry (${error.message}); nothing was recorded.`, {
+					throw new CliError(`Cannot read the ${plan.registry} (${error.message}); nothing was recorded.`, {
 						code: 'registry-unreachable',
 						help: ['The lookup reads the live registry, so it needs a network. Run again when GitHub can be reached.'],
 					})

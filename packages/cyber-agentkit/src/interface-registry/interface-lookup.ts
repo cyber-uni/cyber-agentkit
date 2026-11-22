@@ -15,9 +15,9 @@ export type NearMatch = {
 	reasons: string[]
 }
 
-export type InterfaceLookup = {
+export type InterfaceLookup<Entry = InterfaceEntry> = {
 	/** The entry whose id equals the new one once normalized. Changing it is an update, not a new entry. */
-	same?: InterfaceEntry
+	same?: Entry
 	/** Entries that look close. The lookup never decides one is the same: the person running it does. */
 	near: NearMatch[]
 	/** How many entries were compared. */
@@ -69,7 +69,11 @@ function editDistance(a: string, b: string): number {
 }
 
 /** Why `entry` looks close to the new id and description, or nothing when it does not. */
-function nearReasons(id: string, description: string | undefined, entry: InterfaceEntry): string[] {
+function nearReasons(
+	id: string,
+	description: string | undefined,
+	entry: { id: string; description?: string },
+): string[] {
 	const reasons: string[] = []
 	const newId = normalizeInterfaceId(id)
 	const oldId = normalizeInterfaceId(entry.id)
@@ -110,16 +114,28 @@ export function lookupInterface(
 	description: string | undefined,
 	entries: readonly InterfaceEntry[],
 ): InterfaceLookup {
+	return lookupByName(id, description, entries, (entry) => entry.id)
+}
+
+/** The same lookup over entries of any registry area, each named by `nameOf`. */
+export function lookupByName<Entry extends { description?: string }>(
+	id: string,
+	description: string | undefined,
+	entries: readonly Entry[],
+	nameOf: (entry: Entry) => string,
+): InterfaceLookup<Entry> {
 	const key = normalizeInterfaceId(id)
-	const same = entries.find((entry) => normalizeInterfaceId(entry.id) === key)
+	const same = entries.find((entry) => normalizeInterfaceId(nameOf(entry)) === key)
 	const near: NearMatch[] = []
 	for (const entry of entries) {
 		if (entry === same) continue
-		const reasons = nearReasons(id, description, entry)
+		const name = nameOf(entry)
+		const reasons = nearReasons(id, description, {
+			id: name,
+			...(entry.description ? { description: entry.description } : {}),
+		})
 		if (reasons.length)
-			near.push(
-				entry.description ? { id: entry.id, description: entry.description, reasons } : { id: entry.id, reasons },
-			)
+			near.push(entry.description ? { id: name, description: entry.description, reasons } : { id: name, reasons })
 	}
 	near.sort((a, b) => b.reasons.length - a.reasons.length || a.id.localeCompare(b.id))
 	return same ? { same, near, compared: entries.length } : { near, compared: entries.length }

@@ -1,17 +1,17 @@
 ---
 title: Capability references and blueprints
-description: A capability reference says what one system can do; a blueprint says one way to fulfill a skill's interface on that system, building on it. Capability references, blueprints, and the doctor are built; the registry is planned.
+description: A capability reference says what one system can do; a blueprint says one way to fulfill a skill's interface on that system, building on it. Capability references, blueprints, the doctor, and the registry are built.
 ---
 
-:::note[Partly built]
-This design is accepted ([cyber-agentkit#366](https://github.com/cyber-uni/cyber-agentkit/issues/366)). Each part is
-marked here as it ships.
+:::note[Built]
+This design is accepted ([cyber-agentkit#366](https://github.com/cyber-uni/cyber-agentkit/issues/366)), and each part
+has shipped.
 
 - **Built:** capability references and the `**Partial.**` mark
   ([cyber-agentkit#376](https://github.com/cyber-uni/cyber-agentkit/issues/376)), blueprints
-  ([cyber-agentkit#377](https://github.com/cyber-uni/cyber-agentkit/issues/377)), and the doctor
-  ([cyber-agentkit#378](https://github.com/cyber-uni/cyber-agentkit/issues/378)).
-- **Planned:** the registry of capability references.
+  ([cyber-agentkit#377](https://github.com/cyber-uni/cyber-agentkit/issues/377)), the doctor
+  ([cyber-agentkit#378](https://github.com/cyber-uni/cyber-agentkit/issues/378)), and the registry of capability
+  references ([cyber-agentkit#379](https://github.com/cyber-uni/cyber-agentkit/issues/379)).
 :::
 
 A skill that works with an outside system, such as an issue tracker, needs to know two things it should not carry
@@ -177,6 +177,23 @@ The doctor changes no file. Its report leaves out local paths, hosts, and tokens
 is. A name that is not a capability reference is an error, and nothing runs.
 
 Authors run the doctor against their own system before they update Verified.
+
+## Find whether a system is described
+
+Before you write a capability reference, look the system up in the
+[capability registry](/cyber-agentkit/capability-registry/). Each entry is one system and lists the plugins that ship
+its capability reference and the blueprints built on it, so two plugins need not describe one system differently.
+
+Registering is optional, and loading never reads the registry. To add a system, or your plugin to one:
+
+```sh
+npx -y cyber-agentkit reference register asana.capabilities --plugin cyber-asana \
+  --blueprint project-tracker.blueprints.asana.sections
+```
+
+It looks the system up first. On the same system it stops and points at the entry, which you extend with a pull
+request; on a near one it shows why and stops until you choose. It then opens a pull request that adds
+`registry/capabilities/asana.md`, or an issue carrying it, only once you confirm.
 
 ## When a step fails
 

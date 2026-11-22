@@ -41,7 +41,8 @@ export const interfaceIdPattern: RegExp = /^[A-Za-z0-9]+(?:[-_.][A-Za-z0-9]+)*$/
 const linkLists = ['plugins', 'implementations', 'usage'] as const
 const knownKeys = new Set(['id', 'description', 'tags', 'status', 'interface', ...linkLists])
 
-function readLinks(value: unknown, key: string, problems: string[]): InterfaceLink[] | undefined {
+/** A list of names or `{name, url}` items under `key`; each malformed item is a named problem. */
+export function readLinks(value: unknown, key: string, problems: string[]): InterfaceLink[] | undefined {
 	if (value === undefined || value === null) return undefined
 	if (!Array.isArray(value)) {
 		problems.push(`\`${key}\` is not a list`)
@@ -64,7 +65,8 @@ function readLinks(value: unknown, key: string, problems: string[]): InterfaceLi
 	return links.length ? links : undefined
 }
 
-function readText(metadata: Record<string, unknown>, key: string, problems: string[]): string | undefined {
+/** A text field under `key`, trimmed; anything but text is a named problem. */
+export function readText(metadata: Record<string, unknown>, key: string, problems: string[]): string | undefined {
 	const value = metadata[key]
 	if (value === undefined || value === null) return undefined
 	if (typeof value !== 'string') {
@@ -74,11 +76,12 @@ function readText(metadata: Record<string, unknown>, key: string, problems: stri
 	return value.trim() || undefined
 }
 
-/**
- * Reads a registry entry from its Markdown text. `fileId`, the file name without `.md`, must match
- * the `id` in the header. Each problem is named; a field with a problem is left out.
- */
-export function parseInterfaceEntry(text: string, fileId?: string): InterfaceEntryResult {
+/** An entry's header, as a mapping, and its body. A missing or malformed header is a named problem. */
+export function readEntryHeader(text: string): {
+	metadata: Record<string, unknown>
+	body: string
+	problems: string[]
+} {
 	const problems: string[] = []
 	const match = frontmatterPattern.exec(text)
 	let metadata: Record<string, unknown> = {}
@@ -93,6 +96,27 @@ export function parseInterfaceEntry(text: string, fileId?: string): InterfaceEnt
 			problems.push('the header is not valid YAML')
 		}
 	} else problems.push('the entry has no `---` header')
+	return { metadata, body, problems }
+}
+
+/** The `tags` field, trimmed; anything but a list of words is a named problem. */
+export function readTags(metadata: Record<string, unknown>, problems: string[]): string[] | undefined {
+	const value = metadata['tags']
+	if (value === undefined || value === null) return undefined
+	if (Array.isArray(value) && value.every((tag) => typeof tag === 'string')) {
+		const tags = value.map((tag) => tag.trim()).filter(Boolean)
+		return tags.length ? tags : undefined
+	}
+	problems.push('`tags` is not a list of words')
+	return undefined
+}
+
+/**
+ * Reads a registry entry from its Markdown text. `fileId`, the file name without `.md`, must match
+ * the `id` in the header. Each problem is named; a field with a problem is left out.
+ */
+export function parseInterfaceEntry(text: string, fileId?: string): InterfaceEntryResult {
+	const { metadata, body, problems } = readEntryHeader(text)
 
 	const id = typeof metadata['id'] === 'string' ? metadata['id'].trim() : ''
 	if (!id) problems.push('`id` is missing')
@@ -102,13 +126,7 @@ export function parseInterfaceEntry(text: string, fileId?: string): InterfaceEnt
 		problems.push(`\`id\` \`${id}\` does not match the file name \`${fileId}.md\``)
 	for (const key of Object.keys(metadata)) if (!knownKeys.has(key)) problems.push(`\`${key}\` is not an entry field`)
 
-	const tagsValue = metadata['tags']
-	let tags: string[] | undefined
-	if (tagsValue !== undefined && tagsValue !== null) {
-		if (Array.isArray(tagsValue) && tagsValue.every((tag) => typeof tag === 'string')) {
-			tags = tagsValue.map((tag) => tag.trim()).filter(Boolean)
-		} else problems.push('`tags` is not a list of words')
-	}
+	const tags = readTags(metadata, problems)
 
 	const entry: InterfaceEntry = { id: id || fileId || '' }
 	const description = readText(metadata, 'description', problems)
@@ -117,7 +135,7 @@ export function parseInterfaceEntry(text: string, fileId?: string): InterfaceEnt
 		const links = readLinks(metadata[key], key, problems)
 		if (links) entry[key] = links
 	}
-	if (tags?.length) entry.tags = tags
+	if (tags) entry.tags = tags
 	const status = readText(metadata, 'status', problems)
 	if (status) entry.status = status
 	const link = readText(metadata, 'interface', problems)

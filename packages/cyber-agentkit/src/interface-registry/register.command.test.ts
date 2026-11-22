@@ -52,13 +52,17 @@ const registry = {
 		'---\nid: change-request-host\ndescription: Where a change is proposed and reviewed as a pull request.\n---\n',
 }
 
-const fetchMock = vi.fn(registryHost(registry))
+const capabilities = {
+	'gitlab.md': '---\nsystem: gitlab\ndescription: GitLab, a code host with issues and epics.\n---\n',
+}
+
+const fetchMock = vi.fn(registryHost(registry, capabilities))
 
 beforeEach(() => {
 	ghHoisted.calls = []
 	ghHoisted.answer = () => fail('not signed in')
 	fetchMock.mockReset()
-	fetchMock.mockImplementation(registryHost(registry))
+	fetchMock.mockImplementation(registryHost(registry, capabilities))
 	vi.stubGlobal('fetch', fetchMock)
 })
 
@@ -217,8 +221,113 @@ describe('register', () => {
 	})
 })
 
+describe('register <system>.capabilities', () => {
+	it('stops on a system already in the capability registry and points at its entry', async () => {
+		signedIn()
+		expect(await register('GitLab.capabilities', { yes: true })).toBe(1)
+		expect(json()).toMatchObject({
+			code: 'capability-registered',
+			registered: 'gitlab',
+			url: 'https://github.com/cyber-uni/cyber-agentkit/blob/main/registry/capabilities/gitlab.md',
+		})
+		expect(opened()).toEqual([])
+	})
+
+	it('compares systems only, not interfaces, and shows a near system', async () => {
+		signedIn()
+		expect(await register('gitlab-dedicated.capabilities')).toBe(0)
+		const report = json<ReferenceRegisterReport & { help: string[] }>()
+		expect(report).toMatchObject({ id: 'gitlab-dedicated.capabilities', system: 'gitlab-dedicated', compared: 1 })
+		expect(report.near).toEqual([expect.objectContaining({ id: 'gitlab' })])
+		expect(report.help[0]).toBe('None of these is taken as the same system; you decide. Nothing was recorded.')
+	})
+
+	it('shows the system entry with its plugins and blueprints, then opens a pull request adding it', async () => {
+		signedIn()
+		const args = {
+			description: 'Asana, a work-management service.',
+			plugin: ['cyber-asana'],
+			blueprint: ['project-tracker.blueprints.asana.sections,project-tracker.blueprints.asana.custom-field'],
+		}
+		expect(await register('asana.capabilities', args)).toBe(0)
+		const text = [
+			'---',
+			'system: asana',
+			'description: Asana, a work-management service.',
+			'plugins:',
+			'  - name: cyber-asana',
+			'blueprints:',
+			'  - name: project-tracker.blueprints.asana.sections',
+			'  - name: project-tracker.blueprints.asana.custom-field',
+			'---',
+			'',
+		].join('\n')
+		expect(json<ReferenceRegisterReport>()).toMatchObject({
+			id: 'asana.capabilities',
+			system: 'asana',
+			recorded: false,
+			route: 'pull-request',
+			compared: 1,
+			entry: text,
+		})
+
+		stdout.mockClear()
+		expect(await register('asana.capabilities', { ...args, yes: true })).toBe(0)
+		expect(json<ReferenceRegisterReport>()).toMatchObject({ recorded: true })
+		const put = ghHoisted.calls.find((args) => args.includes('PUT'))
+		expect(put).toContain('repos/dana/cyber-agentkit/contents/registry/capabilities/asana.md')
+		expect(put).toContain('branch=register-capabilities/asana')
+		const content = put?.find((arg) => arg.startsWith('content='))?.slice('content='.length) ?? ''
+		expect(Buffer.from(content, 'base64').toString('utf8')).toBe(text)
+		const pr = ghHoisted.calls.find(([first]) => first === 'pr') ?? []
+		expect(pr).toEqual(expect.arrayContaining(['docs(registry): register the asana capability reference']))
+		expect(pr[pr.indexOf('--body') + 1]).toContain('compared it against 1 registered system. It found no near matches.')
+	})
+
+	it('files an issue titled for the capability reference', async () => {
+		signedIn()
+		expect(await register('asana.capabilities', { as: 'issue' })).toBe(0)
+		const issue = ghHoisted.calls.find(([first]) => first === 'issue') ?? []
+		expect(issue).toEqual(expect.arrayContaining(['Register the asana capability reference']))
+		expect(issue[issue.indexOf('--body') + 1]).toContain('````md\n---\nsystem: asana\n')
+	})
+
+	it('reads a prepared system entry from --file, and fails one whose blueprint is for another system', async () => {
+		const dir = tempDir()
+		const good = write(dir, 'asana.md', '---\nsystem: asana\nstatus: draft\n---\n')
+		expect(await register('asana.capabilities', { file: good })).toBe(0)
+		expect(json<ReferenceRegisterReport>().entry).toBe('---\nsystem: asana\nstatus: draft\n---\n')
+
+		stdout.mockClear()
+		const bad = write(dir, 'bad.md', '---\nsystem: asana\nblueprints: [project-tracker.blueprints.jira.epics]\n---\n')
+		expect(await register('asana.capabilities', { file: bad })).toBe(2)
+		expect(json()).toMatchObject({ code: 'entry-invalid' })
+	})
+
+	it('refuses a dotted system and the options of the other kind as usage errors, reading nothing', async () => {
+		expect(await register('asana.cloud.capabilities')).toBe(2)
+		expect(json()).toMatchObject({ code: 'id-invalid' })
+		stdout.mockClear()
+		expect(await register('asana.capabilities', { interface: 'https://example.com/x.md' })).toBe(2)
+		expect(json()).toMatchObject({ code: 'option-not-for-capabilities' })
+		stdout.mockClear()
+		expect(await register('release-notes-source', { blueprint: ['x.blueprints.a.b'] })).toBe(2)
+		expect(json()).toMatchObject({ code: 'option-not-for-interfaces' })
+		expect(fetchMock).not.toHaveBeenCalled()
+	})
+
+	it('says the capability registry cannot be read with no network', async () => {
+		fetchMock.mockImplementation(async () => {
+			throw new TypeError('fetch failed')
+		})
+		expect(await register('asana.capabilities')).toBe(1)
+		expect(json()).toMatchObject({ code: 'registry-unreachable' })
+		expect(json<{ error: string }>().error).toMatch(/^Cannot read the capability registry/)
+	})
+})
+
 describe('the registry stays out of reference use', () => {
-	it('load, list, and check never read the registry, and an unregistered interface raises nothing', async () => {
+	it('load, list, and check never read the registry, and an unregistered interface or system raises nothing', async () => {
 		const root = repo()
 		write(
 			root,
@@ -226,10 +335,16 @@ describe('the registry stays out of reference use', () => {
 			'---\ninterface:\n  cardinality: one\n  version: 1\n  sections: [Gate]\n---\n',
 		)
 		write(root, '.agents/references/acme-deploy-gate.md', '---\nimplements: acme-deploy-gate@1\n---\n\n## Gate\n\nok\n')
+		write(
+			root,
+			'.agents/references/gitlab.capabilities.md',
+			'---\ndescription: GitLab.\n---\n\n## System\n\nGitLab.\n\n## Detect\n\nThe remote.\n\n## Verified\n\n- 17: run.\n',
+		)
 		expect(await load(['acme-deploy-gate'], { root })).toBe(0)
+		expect(await load(['gitlab.capabilities'], { root })).toBe(0)
 		expect(await list({ root })).toBe(0)
 		stdout.mockClear()
-		expect(await check(['acme-deploy-gate'], { root })).toBe(0)
+		expect(await check(['acme-deploy-gate', 'gitlab.capabilities'], { root })).toBe(0)
 		expect(JSON.stringify(json())).not.toMatch(/regist/i)
 		expect(fetchMock).not.toHaveBeenCalled()
 		expect(ghHoisted.calls).toEqual([])

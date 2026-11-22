@@ -5,6 +5,7 @@ trigger:
   - { id: which-references-do-we-have, prompt: "Which references do we have about testing?", expect: fire }
   - { id: make-the-repos-commit-message, prompt: "Make the repo's commit.message reference say we write in the present tense.", expect: fire }
   - { id: why-does-the-style-reference, prompt: "Why does the style reference come from my user folder and not the repo one?", expect: fire }
+  - { id: is-a-system-already-registered, prompt: "Before I write a capability reference for Linear, is one already in the registry?", expect: fire }
   - { id: write-a-skill-that-drafts, prompt: "Write a skill that drafts release notes from merged pull requests.", expect: skip }
   - { id: add-a-rule-to-agents, prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
   - { id: my-release-notes-skill-doesnt, prompt: "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.", expect: skip }

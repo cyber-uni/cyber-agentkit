@@ -3,11 +3,19 @@ title: Interface registry
 description: Every registered reference interface, with a filter by tag, status, or text.
 ---
 
-import InterfaceList from '../../components/InterfaceList.astro'
+import RegistryList from '../../components/RegistryList.astro'
+import entries from '../../generated/interfaces.json'
 
 Reference interfaces that their authors chose to register. Registering is optional. See
 [Reference interfaces](/cyber-agentkit/concepts/reference-interfaces/) for what an interface is, and add an
 entry with `npx -y cyber-agentkit reference register <id>`. It looks the id up first, then opens a pull
-request that adds `registry/interfaces/<id>.md`, or an issue carrying it, once you confirm.
+request that adds `registry/interfaces/<id>.md`, or an issue carrying it, once you confirm. Systems and
+their capability references have their own [registry](/cyber-agentkit/capability-registry/).
 
-<InterfaceList />
+<RegistryList
+  entries={entries}
+  path="interfaces"
+  noun="interface"
+  plural="interfaces"
+  searchHint="Filter by id, description, tag, or plugin"
+/>
