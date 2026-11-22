@@ -8,7 +8,8 @@ each one work the same way across harnesses:
 - **Harness knowledge.** Detect which harness is running, and query what it holds: managed-policy
   locations, plugin storage, installed and enabled plugins, skill naming and directories, and how to
   run it headless.
-- **Plugin dependencies.** Check which plugins another plugin needs against what the harness has.
+- **Plugin dependencies.** Check which plugins another plugin needs against what the harness has,
+  from the library or with `cyber-agentkit dependency doctor`.
 - **Reference documents.** Resolve the named Markdown documents an agent reads on demand.
 - **Worktrees.** Lease git worktrees to concurrent agent sessions.
 - **Skill and instruction tooling.** Check, test, and examine agent skills, compare two wordings of
@@ -176,6 +177,7 @@ const check = await checkPluginDependencies('codex', { pluginRoot })
 //   supported: false,
 //   autoResolved: false,
 //   dependencies: [{ name: 'my-dep', marketplace: 'my-marketplace', state: 'missing' }],
+//   problems: [{ code: 'dependency-missing', dependency: 'my-dep@my-marketplace', message: '…' }],
 //   steps: ['…'],
 //   research: ['E-DEP-2', …],
 // }
@@ -183,8 +185,17 @@ const check = await checkPluginDependencies('codex', { pluginRoot })
 
 `state` is `enabled`, `installed` (no explicit setting), `disabled`, `missing`, or `unknown` (the
 harness keeps no readable install record). A dependency with no marketplace resolves only in the
-declaring plugin's own marketplace, as Claude Code does, and is `unknown` when that marketplace
-cannot be found.
+declaring plugin's own marketplace, as Claude Code does: `declaringMarketplace` when you pass it,
+else the marketplace `pluginRoot` is installed from. It is `unknown` when neither is known.
+`problems` lists each dependency that is not `enabled` or `installed`, and a manifest that cannot be
+parsed, each with a stable `code`: `dependency-missing`, `dependency-disabled`, `dependency-unknown`,
+or `manifest-unparsable`. Only a `missing`, `disabled`, or `unknown` dependency gets steps, and on
+every harness but Claude Code the first step says nothing is installed for you.
+
+`cyber-agentkit dependency doctor [--plugin <root>] [--harness <id>]` runs the same check from the
+command line, for the harness detected running unless `--harness` names one, and the `dependency`
+skill runs it as `/dependency doctor`. It exits 0 whenever it answers, with each problem as a status
+in the result, and 1 with `harness-not-detected` when no single harness is detected and none is given.
 
 `readPluginDependencies(pluginRoot)` reads the list from `extensions["io.github.cyber-uni.plugin-manager"]`
 (or the older `extensions["org.cyberuni.universal-plugin"]`) in the root `plugin.json`, then from
@@ -306,8 +317,8 @@ documents and their implementations.
 
 ## Commands
 
-The `cyber-agentkit` command runs the `reference`, `asset`, `prose-update`, `skill`, and
-`instruction` commands. The [CLI reference](https://cyber-uni.github.io/cyber-agentkit/packages/cyber-agentkit/cli/) documents each
+The `cyber-agentkit` command runs the `reference`, `asset`, `prose-update`, `skill`, `instruction`,
+`harness`, and `dependency` commands. The [CLI reference](https://cyber-uni.github.io/cyber-agentkit/packages/cyber-agentkit/cli/) documents each
 subcommand, its options, and its output formats:
 
 ```sh
@@ -332,8 +343,8 @@ same `path` for the `asset` commands.
 ## The agent plugin
 
 The package is also an agent plugin, `cyber-agentkit`, for Claude Code, Cursor, Codex, and GitHub
-Copilot CLI. It ships the `reference`, `asset`, `skill`, `skillify`, `instruction`, and
-`prose-update` skills. In Claude Code:
+Copilot CLI. It ships the `reference`, `asset`, `skill`, `skillify`, `instruction`,
+`prose-update`, and `dependency` skills. In Claude Code:
 
 ```text
 /plugin marketplace add cyber-uni/marketplace
