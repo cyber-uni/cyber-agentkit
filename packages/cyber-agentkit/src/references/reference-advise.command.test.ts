@@ -142,8 +142,24 @@ describe('reference uses', () => {
 		const found = await usesOf([folder], { root })
 		const files = [`${folder}/SKILL.md`]
 		expect(found.loads).toEqual([
-			{ name: 'bug-title', default: true, status: 'found', answeredBy: ['default'], defaultAnswers: true, files },
-			{ name: 'triage', default: false, status: 'missing', answeredBy: [], defaultAnswers: false, files },
+			{
+				name: 'bug-title',
+				default: true,
+				status: 'found',
+				answeredBy: ['default'],
+				defaultAnswers: true,
+				files,
+				source: 'detected',
+			},
+			{
+				name: 'triage',
+				default: false,
+				status: 'missing',
+				answeredBy: [],
+				defaultAnswers: false,
+				files,
+				source: 'detected',
+			},
 		])
 		expect(found.gaps).toEqual(['triage'])
 	})
@@ -176,6 +192,96 @@ describe('reference uses', () => {
 		const file = write(root, 'agents/filer.md', 'Load `bug-title` with the `reference` skill of `cyber-agentkit`.\n')
 		const found = await usesOf([file], { root })
 		expect(found.loads).toMatchObject([{ name: 'bug-title', default: true, defaultAnswers: true }])
+	})
+
+	it('reads the list a skill declares under `metadata.references`, and only that list', async () => {
+		const root = repo()
+		write(root, 'skills/triage/references/triage.rules.default.md', '## Rules\n\nmine\n')
+		write(root, '.agents/references/bug-title.md', '## Title\n\nmine\n')
+		const folder = join(root, 'skills/triage')
+		write(
+			root,
+			'skills/triage/SKILL.md',
+			[
+				'---',
+				'name: triage',
+				'description: Triages a bug.',
+				'metadata:',
+				'  references: triage.rules triage.labels',
+				'  reference-interfaces: project-tracker',
+				'---',
+				'',
+				'Read `triage.rules` and `triage.labels` first. `bug-title` is mentioned but not loaded.',
+				'',
+			].join('\n'),
+		)
+		const found = await usesOf([folder], { root })
+		expect(found.loads?.map(({ name, source, files }) => ({ name, source, files }))).toEqual([
+			{ name: 'triage.rules', source: 'declared', files: [`${folder}/SKILL.md`] },
+			{ name: 'triage.labels', source: 'declared', files: [`${folder}/SKILL.md`] },
+		])
+		expect(found.interfaces).toEqual(['project-tracker'])
+		expect(found.gaps).toEqual(['triage.labels'])
+	})
+
+	it('counts a backticked name that resolves here as a load when the skill declares none, in any language', async () => {
+		const root = repo()
+		write(root, '.agents/references/release-notes.tone.md', '## Tone\n\nplain\n')
+		const folder = join(root, 'skills/notes')
+		write(root, 'skills/notes/references/release-notes.sections.default.md', '## Sections\n\nall\n')
+		write(
+			root,
+			'skills/notes/SKILL.md',
+			[
+				'---',
+				'name: notes',
+				'description: リリースノートを書く。',
+				'---',
+				'',
+				'`reference` スキルで `release-notes.tone` を読み込み、その口調で書く。',
+				'次に `release-notes.sections` と `gh release create` を使う。',
+				'',
+			].join('\n'),
+		)
+		const found = await usesOf([folder], { root })
+		expect(found.loads?.map(({ name, source }) => ({ name, source }))).toEqual([
+			{ name: 'release-notes.tone', source: 'detected' },
+			{ name: 'release-notes.sections', source: 'detected' },
+		])
+	})
+
+	it('reads names listed in bullets under a lead-in when they resolve, the form a declared list replaces', async () => {
+		const root = repo()
+		write(root, '.agents/references/project-tracker.levels.md', '## Levels\n\nthree\n')
+		const file = write(
+			root,
+			'skills/issue/SKILL.md',
+			[
+				'---',
+				'name: issue',
+				'description: Files an issue.',
+				'---',
+				'',
+				'Load these with the `reference` skill of `cyber-agentkit`:',
+				'',
+				'- `project-tracker.levels`: how deep a plan goes.',
+				'',
+			].join('\n'),
+		)
+		const found = await usesOf([file], { root })
+		expect(found.loads?.map(({ name }) => name)).toEqual(['project-tracker.levels'])
+	})
+
+	it('reads no load from a fenced example', async () => {
+		const root = repo()
+		write(root, '.agents/references/bug-title.md', '## Title\n\nmine\n')
+		const file = write(
+			root,
+			'AGENTS.md',
+			['```md', 'Load `bug-title` with the `reference` skill of `cyber-agentkit`.', '```', ''].join('\n'),
+		)
+		const found = await usesOf([file], { root })
+		expect(found.loads).toBeUndefined()
 	})
 
 	it('reports no leads: those are what `advise` gives', async () => {

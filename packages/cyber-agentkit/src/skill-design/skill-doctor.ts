@@ -6,7 +6,7 @@ import { checkReferences, type ReferenceCheckEntry } from '../references/referen
 import { referenceImplementations } from '../references/reference-implementations.js'
 import { interfaceSuffix } from '../references/reference-interface.js'
 import type { ReferenceLayers } from '../references/reference-layers.js'
-import { loadsIn } from '../references/reference-uses.js'
+import { consumerLoads, knownBy } from '../references/reference-loads.js'
 import { resolveReference } from '../references/resolve-reference.js'
 import { withDefault } from '../references/skill-defaults.js'
 import type { FoundSkill } from '../skills/skill-folder.js'
@@ -218,22 +218,22 @@ function runtimeFiles(folder: string, display: (path: string) => string): { file
 }
 
 /**
- * The names and interfaces the skill loads when it runs, as `reference uses` reads load lines, outside fenced
- * examples, and the notes on the files it reads.
+ * The names and interfaces the skill loads when it runs: the lists its `SKILL.md` declares under `metadata`, else
+ * what `reference uses` reads from the files it reads, outside fenced examples. Also the notes on those files.
  */
 function skillLoads(
 	folder: string,
 	display: (path: string) => string,
+	resolves: (name: string) => boolean,
 ): { names: string[]; interfaces: string[]; notes: string[] } {
-	const names = new Set<string>()
-	const interfaces = new Set<string>()
 	const { files, notes } = runtimeFiles(folder, display)
-	for (const file of files) {
-		const loaded = loadsIn(readFileSync(file, 'utf8').replace(fence, ''))
-		for (const name of loaded.names) names.add(name)
-		for (const id of loaded.interfaces) interfaces.add(id)
-	}
-	return { names: [...names], interfaces: [...interfaces], notes }
+	const entry = join(folder, 'SKILL.md')
+	const loads = consumerLoads(
+		isFile(entry) ? entry : undefined,
+		files.map((file) => readFileSync(file, 'utf8')),
+		knownBy(resolves),
+	)
+	return { names: loads.names, interfaces: loads.interfaces, notes }
 }
 
 type CodexMetadataResult = { warnings: DoctorProblem[]; notes: string[] }
@@ -312,7 +312,7 @@ function doctorOne(
 	harness: HarnessId | 'unknown' | undefined,
 ): SkillDoctorEntry {
 	const loadLayers = withDefault(layers, skill.folder)
-	const uses = skillLoads(skill.folder, display)
+	const uses = skillLoads(skill.folder, display, (name) => resolveReference(name, loadLayers).status === 'found')
 	const own: CodexMetadataResult =
 		harness === 'codex'
 			? codexMetadataProblems(skill.folder)

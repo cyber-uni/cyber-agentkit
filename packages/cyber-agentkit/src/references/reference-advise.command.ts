@@ -84,7 +84,7 @@ export function usesCommand(layersFor: LayersFor, path = defaultReferencePath): 
 	return command({
 		name: 'uses',
 		description:
-			'List the references the given files or folders load with the `reference` skill: each name, the files that load it, whether a bundled default ships beside it (references/<name>.default.md), and which tiers answer it here; the interfaces whose implementations they load; and `gaps`, the names with no bundled default. Writes nothing.',
+			'List the references the given files or folders load with the `reference` skill, as a skill declares them under `metadata.references` and `metadata.reference-interfaces`, else each backticked name that resolves here and each load line: each name, the files that name it, whether it was `declared` or `detected`, whether a bundled default ships beside it (references/<name>.default.md), and which tiers answer it here; the interfaces whose implementations they load; and `gaps`, the names with no bundled default. Writes nothing.',
 		arguments: [pathsArgument],
 		options: { root: rootOption },
 		examples: [{ command: `${path} uses skills/file-bug`, description: 'List the references a skill folder loads' }],
