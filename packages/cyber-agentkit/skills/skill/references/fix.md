@@ -33,7 +33,8 @@ that still fails, and never add one to make `test` pass.
 
 ### Core aspect fixes
 
-The Fix for Shape and Trigger, the core aspects `SKILL.md` writes out. "Draft" names that aspect's Draft in `SKILL.md`.
+The Fix for Shape and Trigger, the core aspects `SKILL.md` writes out. "Draft" names that aspect's Draft: Shape's in
+`SKILL.md`, and Trigger's in [trigger-draft.md](trigger-draft.md).
 
 **Shape.** Move the text or the step as Draft says, and update the links. For SHP-1, offer the ways to trim in
 [SHP-1: ways to trim](#shp-1-ways-to-trim). For SHP-5, propose the reference and the interface the skill should depend
