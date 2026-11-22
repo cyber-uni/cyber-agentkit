@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-10-04 (R9). Versions checked: Claude Code 2.1.283 (2.1.289 for R9), cursor-agent
+2026-11-21 (R10, R11; earlier rows 2026-10-04, R9). Versions checked: Claude Code 2.1.283 (2.1.289 for R9), cursor-agent
 2026.07.01-41b2de7 (2026.09.28-64d2043 for R9), codex-cli 0.153.4 (source at openai/codex b8d5e3f,
 rust-v0.153.4 for R7, and 0.159.3 with source at 4ad985e for R9), GitHub Copilot CLI 1.0.83 (1.0.88
 for R7, 1.0.90 for R9).
@@ -326,6 +326,36 @@ fallbacks `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN`, which reach a run a
 
 `claude plugin eval` is a runner of its own for Claude Code: it isolates each run itself and
 reads only a plugin's eval suite (E-CC-H8, E-CC-H9).
+
+## R10. Skill metadata a harness reads by a fixed path
+
+Most of what a skill loads is harness-neutral: `SKILL.md` and the files it links. Codex also reads one
+file of its own, found by path rather than by link.
+
+| Harness | File | Fields used | When it is wrong | Evidence |
+| --- | --- | --- | --- | --- |
+| Codex | `agents/openai.yaml` beside `SKILL.md` | `interface` (display name, short description, icons, brand color, default prompt), `dependencies.tools` (MCP servers and other tools), `policy.allow_implicit_invocation` | The file is ignored whole when it is not valid YAML, and an icon is ignored unless it sits under the skill's `assets/`; `SKILL.md` still loads | E-CODEX-K1–K4 |
+
+No other harness is verified to read a file under a skill's `agents/` folder. This settles the
+third-party claim the plugin-dependency research logged at low confidence (`plugin-dependency-prior-art`
+E-PA-5): the file and its `dependencies.tools` field are in Codex's own source and docs.
+
+## R11. Harnesses installed on this machine
+
+R1 detects only the harness running the process. A harness that is installed but not running leaves no
+environment signal. Its command does: each harness with a verified headless mode (R9) runs as a named
+executable (`claude`, `codex`, `copilot`, `cursor-agent`, `gemini`, `qwen`, per E-CC-H1, E-CODEX-H1,
+E-COPILOT-H1, E-CUR-H1, E-GEM-H1, E-QWEN-H1). An executable of that name on `PATH` is the signal this
+package accepts for "installed".
+
+Limits:
+
+- A harness with no verified command is never reported installed this way: Copilot in VS Code, the
+  Cursor IDE without `cursor-agent`, and the harnesses R9 marks `unknown`.
+- A harness's config folder (`~/.claude`, `~/.codex`) is not accepted. Other tools write into some of
+  them (Cursor reads `.claude/skills` and `.codex/skills`, R6), so the folder alone does not prove the
+  harness is there.
+- Another program of the same name on `PATH` would read as the harness. The check does not run it.
 
 ## Drift watch
 

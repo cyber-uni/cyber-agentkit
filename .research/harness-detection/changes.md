@@ -292,3 +292,11 @@ skills, plugins, and login live, and `skill test` builds each run's environment 
 - Re-checked E-OC-I1. OpenCode's rules page now redirects to a new instructions page. The page names the same four
   files under "Scope" and "CLAUDE.md fallback", so the claim stands. It adds that OpenCode loads every `AGENTS.md` from
   the workspace up to the project root, and nested ones below the workspace as the agent reads them.
+
+## 2026-11-21 (Codex skill metadata, installed harnesses)
+
+- Added E-CODEX-K1 to K4 and R10: Codex reads `agents/openai.yaml` beside a skill's `SKILL.md` (its
+  `interface`, `dependencies.tools`, and `policy` keys), read from openai/codex at `1476a08` and the Codex
+  skills docs. `skill doctor` reads the file when it checks Codex.
+- Added R11: a harness counts as installed when its verified headless executable (R9) is on `PATH`.
+  `skill doctor --all-harnesses` checks those harnesses beside the running one.
