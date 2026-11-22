@@ -1,6 +1,6 @@
 ---
 title: Capability references and blueprints
-description: A capability reference says what one system can do; a blueprint says one way to fulfill a skill's interface on that system, building on it. Capability references and blueprints are built; the doctor is planned.
+description: A capability reference says what one system can do; a blueprint says one way to fulfill a skill's interface on that system, building on it. Capability references, blueprints, and the doctor are built; the registry is planned.
 ---
 
 :::note[Partly built]
@@ -8,9 +8,10 @@ This design is accepted ([cyber-agentkit#366](https://github.com/cyber-uni/cyber
 marked here as it ships.
 
 - **Built:** capability references and the `**Partial.**` mark
-  ([cyber-agentkit#376](https://github.com/cyber-uni/cyber-agentkit/issues/376)), and blueprints
-  ([cyber-agentkit#377](https://github.com/cyber-uni/cyber-agentkit/issues/377)).
-- **Planned:** the doctor and the registry of capability references.
+  ([cyber-agentkit#376](https://github.com/cyber-uni/cyber-agentkit/issues/376)), blueprints
+  ([cyber-agentkit#377](https://github.com/cyber-uni/cyber-agentkit/issues/377)), and the doctor
+  ([cyber-agentkit#378](https://github.com/cyber-uni/cyber-agentkit/issues/378)).
+- **Planned:** the registry of capability references.
 :::
 
 A skill that works with an outside system, such as an issue tracker, needs to know two things it should not carry
@@ -152,21 +153,43 @@ warning and does not fail on it.
 A blueprint whose capability reference is missing still loads, with a warning. Loading reads files only: it runs no
 command and compares no version.
 
+## Examine the system: the doctor
+
+`reference check` reads a capability reference as written. The doctor examines the system it describes, as it runs
+on this machine:
+
+```text
+/reference doctor gitlab.capabilities
+```
+
+It is a mode of the `reference` skill. The agent shows each command the reference's Detect names, then runs the ones
+that only read, such as `glab --version`. Those commands are the reference author's, so a command that would change
+something is listed as not run. The report gives:
+
+- the capability reference, and the tier and plugin that answered it, saying so when a local patch applies;
+- the version and tier found, or that the system was not detected or a needed tool is missing, in which case no
+  feature is compared;
+- each feature that disagrees: what was found is outside its `Since:` and `Until:` lines while the section is not
+  marked `**Unsupported.**`, or inside them while it is marked `**Unsupported.**` or `**Partial.**`;
+- the Verified entry that covers what was found, or that none does, so the reference is unverified for it.
+
+The doctor changes no file. Its report leaves out local paths, hosts, and tokens, so it can be sent to the author as
+is. A name that is not a capability reference is an error, and nothing runs.
+
+Authors run the doctor against their own system before they update Verified.
+
 ## When a step fails
 
-:::note[Planned]
-The doctor is not built yet ([cyber-agentkit#378](https://github.com/cyber-uni/cyber-agentkit/issues/378)).
-:::
+Nothing compares versions while a skill runs. When a step fails while following a blueprint, the `reference` skill's
+load procedure has the agent name the blueprint and its capability reference, and offer to:
 
-Nothing compares versions while a skill runs. When a step fails while following a blueprint, the agent names the
-blueprint and the capability reference, and offers to:
+1. run the doctor on that capability reference;
+2. report to the author, with the doctor's report as the body, at the repository the plugin's manifest names, or
+   without a link when it names none;
+3. patch the capability reference for this repository in the meantime, marking what this system lacks
+   `**Unsupported.**`, so every blueprint that needs it warns when loaded here.
 
-1. run `/reference doctor <system>.capabilities`, which runs Detect, reports the version and tier it found, and lists
-   each feature that disagrees with it, changing nothing;
-2. send that report to the plugin's author;
-3. patch the capability reference for this repository in the meantime.
-
-Authors run the same doctor against their own system before they update Verified.
+It makes none of these without the user's yes.
 
 See [reference file naming](/cyber-agentkit/concepts/reference-file-naming/) for every file form, and the
 [design record](https://github.com/cyber-uni/cyber-agentkit/blob/main/packages/cyber-agentkit/.agents/spec/design/decisions/0008-capability-references-and-blueprints.md)
