@@ -1,0 +1,8 @@
+outcome:
+  # The work names a change to the skill's Intent, which only the author decides: the run stops and asks.
+  - id: enhance-intent
+    prompt: >-
+      Implement issue #64: with /skill, enhance the skill in .agents/skills/release-notes so it writes the notes from
+      git tags instead of merged pull requests, then report what you did.
+    files: ../files/samples
+    criteria: [C15, C16]

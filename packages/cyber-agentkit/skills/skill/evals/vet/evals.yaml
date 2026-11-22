@@ -1,0 +1,8 @@
+outcome:
+  - id: vet-public
+    prompt: >-
+      Vet the find-skills skill in github.com/vercel-labs/skills before I install it. Don't install it. End your reply
+      with a line "Verdict:" then blocked or not blocked.
+    files: ../files/samples
+    network: [github.com, api.github.com, codeload.github.com, skills.sh]
+    criteria: [C10]

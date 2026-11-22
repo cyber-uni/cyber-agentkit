@@ -1,0 +1,8 @@
+outcome:
+  # Only `skill report` writes the gap line and the trigger rows this way, so a README that has them came from the command.
+  - id: report-readme
+    prompt: >-
+      Add the eval results of the skill in .agents/skills/release-notes to the end of its README, so readers see how
+      it tested.
+    files: ../files/samples
+    criteria: [C20]

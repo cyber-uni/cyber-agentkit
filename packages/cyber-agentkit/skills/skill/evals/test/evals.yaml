@@ -1,0 +1,44 @@
+outcome:
+  # files/sandbox-report holds release-notes with no expected result, and test-report.json, what `skill test
+  # --format json` printed for it when a sandbox failure broke one of two-prs' runs with the skill (#248). The sandbox
+  # fault cannot be caused on demand, so the case acts on that saved report, and the same result saved for `skill
+  # accept`, instead of running the test. Both write the fault's "Can't" as "Can\u0027t", so a run that reads them is
+  # not itself taken for a sandbox failure.
+  - id: test-sandbox-failures
+    prompt: >-
+      With /skill, report the test of .agents/skills/release-notes: I already ran it and saved what it printed to
+      test-report.json, so don't run it again. Tell me what to do next.
+    files: files/sandbox-report
+    criteria: [C19]
+  # files/test-sandbox-unavailable holds release-notes and test-error.txt, what `skill test` printed on a machine whose
+  # script sandbox cannot start (#302). That cannot be caused on demand, so the case acts on the saved output.
+  - id: test-sandbox-unavailable
+    prompt: With /skill, test .agents/skills/release-notes. I already ran it once
+      and saved what it printed to test-error.txt, so don't run it again. What
+      should I do?
+    files: files/test-sandbox-unavailable
+    criteria: [C23]
+  # files/test-no-sandbox holds release-notes and test-report.json, a result of the folder-only sandbox: `sandbox: none`
+  # and two `wroteOutside` paths (#302). The same result is saved as latest.json. A run without the skill reports them
+  # too (3 of 3 in the first test of #302), so the case is a guard: it keeps the skill from losing what a run does anyway.
+  - id: test-no-sandbox
+    prompt: "With /skill, report the test of .agents/skills/release-notes: I already
+      ran it and saved what it printed to test-report.json, so don't run it again.
+      How did it go?"
+    files: files/test-no-sandbox
+    guard: true
+    criteria: [C24]
+  # `skill migrate` shows its plan and writes only with --write (R184). The baseline passes too: it loads the plugin
+  # without this skill, and the CLI's own help names migrate and --write, so the case is a guard (3 of 3 both ways).
+  - id: test-migrate-plan
+    prompt: Move the evals of the skill in .agents/skills/release-notes into scopes,
+      so a test runs only what changed. Show me what would change before you write
+      anything.
+    files: ../files/samples
+    guard: true
+    criteria: [C31]
+    checks:
+      C31:
+        # The plan names the ID `skill migrate` makes from the first trigger case's prompt, and nothing is written.
+        - regex: "write-the-release-notes"
+        - script: test -z "$(git status --porcelain --untracked-files=all)"

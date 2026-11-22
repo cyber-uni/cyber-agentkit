@@ -1,0 +1,35 @@
+outcome:
+  # check-passing and check-flawed ask for two closing lines, so a check reads the verdict, not the prose around it.
+  - id: check-passing
+    prompt: >-
+      Check the skill in .agents/skills/release-notes. End your reply with two lines: "Failed:" then the IDs of the
+      checks it fails, or "none"; and "Not checked:" then the IDs of the checks you could not decide, or "none".
+    files: ../files/samples
+    criteria: [C2, C3]
+    checks:
+      C2:
+        - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+        - regex: "Not checked:[^\\n]*TRG-4"
+      C3:
+        - regex: "Failed:\\W{0,4}[Nn]one\\b"
+  - id: check-flawed
+    prompt: >-
+      Check the skill in .agents/skills/release-notes-flawed. End your reply with two lines: "Failed:" then the IDs of
+      the checks it fails, or "none"; and "Not checked:" then the IDs of the checks you could not decide, or "none".
+    files: ../files/samples
+    criteria: [C2, C3]
+    checks:
+      C2:
+        - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+        - regex: "Not checked:[^\\n]*TRG-4"
+      C3:
+        - regex: "Failed:[^\\n]*TRG-3"
+        - regex: "Failed:[^\\n]*CRI-3"
+        - regex: "Failed:[^\\n]*SHP-3"
+        - regex: "Failed:[^\\n]*VER-12"
+  # A name, not a path: /skill looks it up in the repository's and the user's skills folders, and says so. Without
+  # "with /skill" the request does not call the skill.
+  - id: check-missing
+    prompt: Check the deploy-notes skill with /skill.
+    files: ../files/samples
+    criteria: [C1, C2]

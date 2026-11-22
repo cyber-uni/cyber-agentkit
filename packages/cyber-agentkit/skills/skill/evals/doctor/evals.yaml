@@ -1,0 +1,9 @@
+outcome:
+  # doctor reads the references a skill loads as this repository resolves them (#340). It passed 3 of 3 with the skill
+  # and 3 of 3 without, since reading the override shows its repeated heading, so the case is a guard.
+  - id: doctor-override
+    prompt: Our triage skill in .agents/skills/triage misbehaves in this repository.
+      Do its references work here, as this repository resolves them? Don't change
+      anything.
+    files: files/doctor-override
+    criteria: [C28]

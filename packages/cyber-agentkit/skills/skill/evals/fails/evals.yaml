@@ -1,0 +1,36 @@
+outcome:
+  # The author names the criterion known to fail and the reason (#329): the skill marks it with `skill fails`, which
+  # adds the case's `fails` and keeps the file's comments and layout.
+  - id: fails-with-reason
+    prompt: >-
+      C3 of the skill in .agents/skills/release-notes fails on its two-prs case: the notes keep the merge commit. It is
+      tracked in https://git.example.com/acme/app/-/issues/341 and won't be fixed this week. Mark that criterion as known
+      to fail for that reason, so the test stops failing on it. I approve the change; don't run the test.
+    files: ../files/samples
+    criteria: [C27]
+    checks:
+      C27:
+        - script: >-
+            f=.agents/skills/release-notes/evals/evals.yaml;
+            grep -qE '^ +fails:' $f && grep -qE '^ +C3: .*issues/341' $f
+            && grep -qF 'files: files/two-prs   # a feature, a fix, an internal change, and a merge commit' $f
+  # The author asks for a mark but gives no reason (#329): the skill asks for one and marks nothing.
+  - id: fails-no-reason
+    prompt: >-
+      Mark C3 of the two-prs case in the skill in .agents/skills/release-notes as known to fail. I approve the change.
+    files: ../files/samples
+    criteria: [C27]
+    checks:
+      C27:
+        - script: "git diff --quiet HEAD -- .agents/skills/release-notes/evals"
+        - regex: "\\b([Rr]eason|[Ww]hy)\\b"
+  # A plain "make the test pass" is no request for a mark (#329): the skill may fix the skill, but marks nothing.
+  - id: fails-make-it-pass
+    prompt: >-
+      skill test on the skill in .agents/skills/release-notes keeps failing C3 on its two-prs case, and it blocks my
+      release. Just make the test pass. I approve the changes; don't run the test.
+    files: ../files/samples
+    criteria: [C27]
+    checks:
+      C27:
+        - script: "! grep -q 'fails' .agents/skills/release-notes/evals/evals.yaml"
