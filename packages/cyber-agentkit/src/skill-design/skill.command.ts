@@ -25,6 +25,7 @@ import {
 import { type FailOn, failOnPolicies, failsPolicy, type SkillCheckReport } from './check-skill.js'
 import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckReport } from './check-skills.js'
 import { addCase, addTriggerCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
+import { type MigrationPlan, type MigrationWrite, planMigration, writeMigration } from './eval-migration.js'
 import { type EvalReport, readEvalReport, reportMarkdown, skillCriteria } from './eval-report.js'
 import { carryEntries, finishedCases, readEvalSet, sandboxFailedCases } from './expected-result.js'
 import { builtScriptsHash, inputHashes, runResolver } from './input-hashes.js'
@@ -1514,6 +1515,141 @@ function carryCommand({ plugin }: SkillCommandOptions): cli.Command {
 	})
 }
 
+/** The text of a migration's plan, and of what it wrote when it wrote it (R184). */
+function migrationText(plan: MigrationPlan, written: MigrationWrite | undefined): string {
+	if (plan.nothing) return `${plan.skill}: the evals are already in scopes; nothing to migrate\n`
+	const lines: string[] = [`${written ? 'migrated' : 'plan to migrate'} ${plan.skill}'s evals into scopes`]
+	if (plan.triggerIds.length) {
+		lines.push('trigger cases given an ID from their prompt (change one with --id <from>=<id>):')
+		for (const item of plan.triggerIds)
+			lines.push(`  ${item.from} → ${item.id}${item.named ? ' (yours)' : ''}: ${JSON.stringify(item.prompt)}`)
+	}
+	const scopes = [...new Set(plan.moves.map((move) => move.scope))]
+	for (const scope of scopes)
+		lines.push(
+			`into evals/${scope}/: ${plan.moves
+				.filter((move) => move.scope === scope)
+				.map((move) => move.case)
+				.join(', ')}`,
+		)
+	if (plan.stay.length) lines.push(`stay at the root, naming no instructions file: ${plan.stay.join(', ')}`)
+	for (const path of plan.paths)
+		lines.push(
+			path.moved
+				? `  ${path.case}'s ${path.key} evals/${path.from} moves into its folder`
+				: `  ${path.case}'s ${path.key} evals/${path.from} stays, named as ${path.to}, since other cases name it`,
+		)
+	if (plan.expected) {
+		lines.push(`expected result (recorded ${plan.expected.from}), per scope:`)
+		for (const scope of plan.expected.scopes) {
+			const parts = [
+				...(scope.carried.length ? [`${scope.carried.length} carried by migration`] : []),
+				...(scope.behind.length ? [`already behind, left stale: ${scope.behind.join(', ')}`] : []),
+				...(scope.noEntry.length ? [`no entry, stale: ${scope.noEntry.join(', ')}`] : []),
+			]
+			lines.push(`  ${scope.scope} → ${scope.file}: ${parts.join('; ') || 'no case'}`)
+		}
+		if (plan.expected.dropped.length)
+			lines.push(`  old entries matching no case, not carried: ${plan.expected.dropped.join(', ')}`)
+	} else lines.push('no expected result to split')
+	if (!written) lines.push('nothing written; run again with --write to apply it')
+	else {
+		lines.push(`wrote ${[...written.evals, ...written.expected].join(', ')}`)
+		if (written.moved.length) lines.push(`moved ${written.moved.join(', ')}`)
+		if (written.kept) lines.push(`kept the old expected result as ${written.kept}`)
+		if (written.rewritten.length)
+			lines.push(
+				`rewrote ${written.rewritten.join(', ')} whole, since an edit could not be placed in its own text; review its formatting`,
+			)
+	}
+	return `${lines.join('\n')}\n`
+}
+
+function migrateCommand({ plugin }: SkillCommandOptions): cli.Command {
+	return command({
+		name: 'migrate',
+		description:
+			"Move a skill's evals from one list into scopes, without a run. Reports a plan and writes it only with --write: each trigger case with no `id` gets one made from its prompt, which --id changes; each outcome case of evals/evals.yaml whose ID names an instructions file (`<name>` or `<name>-...` for `references/<name>.md`) moves into evals/<name>/evals.yaml with the files folder and setup script only it names, and the cases that name none stay at the root; and the expected result splits into one per scope, each case's known-failure marks with it. An old trigger entry is matched by its prompt and an old outcome entry by its ID; each is carried to the new inputs, marked carried by migration with the date it was recorded, and a case whose old entry no longer matches gets none, so the next `skill test` runs it. Runs nothing.",
+		arguments: [
+			{ name: 'folder', description: 'The skill folder, holding its SKILL.md and evals/.', type: t.string() },
+		],
+		options: {
+			write: {
+				description: 'Write the plan: the eval files, the moved files, and the expected result per scope.',
+				type: t.boolean().optional(),
+			},
+			id: {
+				description:
+					'Give a trigger case the ID of your choosing instead of one made from its prompt, as <from>=<id> with its positional ID, such as trigger-3=fire-on-changelog; repeat it for more.',
+				type: t.array(t.string()).optional(),
+			},
+		},
+		examples: [
+			{ command: 'cyber-agentkit skill migrate .agents/skills/release-notes', description: 'Show the plan' },
+			{
+				command: 'cyber-agentkit skill migrate .agents/skills/release-notes --id trigger-2=fire-changelog --write',
+				description: 'Name one trigger case, and write the plan',
+			},
+		],
+		async run(
+			this: { format: Format },
+			args: { folder: string; write?: boolean | undefined; id?: string[] | undefined },
+		) {
+			const skill = readSkill(args.folder)
+			if (!skill) {
+				process.stderr.write(`error: skill-missing: no SKILL.md in ${args.folder}\n`)
+				throw CliError.reported(exitCodes.error)
+			}
+			const ids: Record<string, string> = {}
+			for (const pair of args.id ?? []) {
+				const at = pair.indexOf('=')
+				if (at < 1 || at === pair.length - 1) {
+					process.stderr.write(
+						`error: bad-case-id: --id takes <from>=<id>, such as trigger-3=fire-on-changelog, not ${JSON.stringify(pair)}\n`,
+					)
+					throw CliError.reported(exitCodes.usage)
+				}
+				ids[pair.slice(0, at)] = pair.slice(at + 1)
+			}
+			const criteria = (criteriaItems(skill)?.ids ?? []).filter((id): id is string => id !== undefined)
+			const layers = await referenceLayers({
+				cwd: process.cwd(),
+				home: homedir(),
+				platform: process.platform,
+				env: process.env,
+				plugin,
+			})
+			const resolve = runResolver(layers, skill.folder)
+			const before = inputHashes(skill, criteria, { resolve })
+			const plan = planMigration(skill, criteria, { ids, before })
+			if ('problem' in plan) {
+				process.stderr.write(`error: ${plan.code}: ${plan.problem}\n`)
+				throw CliError.reported(plan.code === 'bad-case-id' ? exitCodes.usage : exitCodes.error)
+			}
+			let written: MigrationWrite | undefined
+			if (args.write && !plan.nothing) {
+				const done = writeMigration(
+					skill,
+					criteria,
+					plan,
+					() => {
+						const now = readSkill(skill.folder)
+						return now ? inputHashes(now, criteria, { resolve }) : undefined
+					},
+					new Date().toISOString(),
+					before,
+				)
+				if ('problem' in done) {
+					process.stderr.write(`error: ${done.code}: ${done.problem}\n`)
+					throw CliError.reported(exitCodes.error)
+				}
+				written = done
+			}
+			return result({ ...plan, written: written ?? null }, { render: { text: () => migrationText(plan, written) } })
+		},
+	})
+}
+
 function reportCommand(_options: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'report',
@@ -2258,7 +2394,7 @@ export function createSkillCommand(options: SkillCommandOptions = {}): cli.Comma
 	return command({
 		name: 'skill',
 		description:
-			"Work on agent skills as /skill does: find a skill's folder from its name, examine whether a skill's references work here, check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept the cases of a test result as their expected entries, carry entries forward past a change that alters no behavior, attest a criterion or case that passed in real use, mark a case known to fail, report its accepted results for docs, or vet a third-party skill before installing it.",
+			"Work on agent skills as /skill does: find a skill's folder from its name, examine whether a skill's references work here, check a skill folder without running it, test it by running its evals, add or remove one of its eval cases, accept the cases of a test result as their expected entries, carry entries forward past a change that alters no behavior, migrate its evals into scopes, attest a criterion or case that passed in real use, mark a case known to fail, report its accepted results for docs, or vet a third-party skill before installing it.",
 		commands: [
 			whereCommand(options),
 			doctorCommand(options),
@@ -2267,6 +2403,7 @@ export function createSkillCommand(options: SkillCommandOptions = {}): cli.Comma
 			caseCommand(options),
 			acceptCommand(options),
 			carryCommand(options),
+			migrateCommand(options),
 			attestCommand(options),
 			failsCommand(options),
 			reportCommand(options),

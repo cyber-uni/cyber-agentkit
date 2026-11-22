@@ -8,7 +8,14 @@ import { parse } from 'yaml'
 import type { PluginEvalRun } from './plugin-eval-backend.js'
 import type { PluginList } from './plugin-load.js'
 import { createSkillCommand } from './skill.command.js'
-import { goodEvals, goodSkill, scopedSkill, shippedSandbox } from './skill-design.fixtures.js'
+import {
+	goodEvals,
+	goodSkill,
+	makeSkill,
+	scopedSkill,
+	scopedSkillFiles,
+	shippedSandbox,
+} from './skill-design.fixtures.js'
 import { acceptResult, keptAcceptedResults, type PromptfooRun, readExpected } from './skill-test.js'
 import type { TestResult } from './test-result.js'
 
@@ -2042,6 +2049,91 @@ describe('skill carry (R183)', () => {
 		expect(await carry(skill.folder, '--scope', 'nope', '--reason', 'x')).toBe(2)
 		expect(errors()).toContain('error: unknown-scope:')
 		expect(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')).toBe(before)
+	})
+})
+
+describe('skill migrate (R184)', () => {
+	const gitRepo = () => {
+		const root = repo()
+		mkdirSync(join(root, '.git'))
+		return root
+	}
+	const ran = (seen: { config?: Record<string, unknown> }) =>
+		((seen.config?.['tests'] ?? []) as { description: string }[]).map((item) => item.description)
+	/** The scoped fixture with every case in one list, as a skill was before it migrated. */
+	const singleList = () =>
+		makeSkill({
+			...Object.fromEntries(Object.entries(scopedSkillFiles).filter(([path]) => !path.startsWith('evals/'))),
+			'evals/files/write-two/prs.json': '[]',
+			'evals/evals.yaml': `trigger:
+  - { prompt: write release notes, expect: fire }
+  - { prompt: audit the release notes, expect: fire }
+  - { prompt: write a commit message, expect: skip }
+outcome:
+  - { id: overview, prompt: what can you do, criteria: [C1] }
+  - { id: write-two, prompt: write the notes, criteria: [C1, C2], files: files/write-two }
+  - { id: audit-one, prompt: audit the notes, criteria: [C3] }
+rubrics:
+  C1:
+    - contains: "## Release notes"
+  C2:
+    - not-regex: "Merge (pull request|branch)"
+  C3:
+    - contains: "line"
+`,
+		})
+	async function migrate(folder: string, ...extra: string[]) {
+		const app = cli({ name: 'cyber-agentkit', version: '0.0.0', description: 'x', format: 'json' }).command(
+			createSkillCommand({ ...offline, runPromptfoo: fakeRun({}) }),
+		)
+		return app
+			.parse<number | undefined>(['node', 'cyber-agentkit', 'skill', 'migrate', folder, '--format', 'json', ...extra])
+			.then((code) => (typeof code === 'number' ? code : 0))
+	}
+
+	it('shows a plan and writes nothing, then writes it, and the next test runs no case', async () => {
+		const skill = singleList()
+		const root = gitRepo()
+		expect(await test(skill.folder, fakeRun({}), root)).toBe(0)
+		const evals = readFileSync(join(skill.folder, 'evals', 'evals.yaml'), 'utf8')
+		stdout.mockClear()
+		expect(await migrate(skill.folder)).toBe(0)
+		const shown = JSON.parse(printed())
+		expect(shown.triggerIds.map((item: { id: string }) => item.id)).toEqual([
+			'write-release-notes',
+			'audit-the-release-notes',
+			'write-a-commit-message',
+		])
+		expect(shown.moves.map((move: { case: string }) => move.case)).toEqual(['write-two', 'audit-one'])
+		expect(shown.written).toBeNull()
+		expect(readFileSync(join(skill.folder, 'evals', 'evals.yaml'), 'utf8')).toBe(evals)
+
+		stdout.mockClear()
+		expect(await migrate(skill.folder, '--id', 'trigger-3=skip-commit', '--write')).toBe(0)
+		expect(JSON.parse(printed()).written.expected).toEqual([
+			'evals/expected.json',
+			'evals/audit/expected.json',
+			'evals/write/expected.json',
+		])
+		const rootEntries = JSON.parse(readFileSync(join(skill.folder, 'evals', 'expected.json'), 'utf8')).entries
+		expect(Object.keys(rootEntries)).toEqual([
+			'write-release-notes',
+			'audit-the-release-notes',
+			'skip-commit',
+			'overview',
+		])
+		expect(rootEntries['skip-commit'].carried.reason).toBe('carried by migration')
+
+		stdout.mockClear()
+		const next: { config?: Record<string, unknown> } = {}
+		expect(await test(skill.folder, fakeRun(next), root)).toBe(0)
+		expect(ran(next)).toEqual([])
+		expect(JSON.parse(printed())).toMatchObject({ ran: 0 })
+	})
+
+	it('refuses an --id that is not <from>=<id>', async () => {
+		const skill = singleList()
+		expect(await migrate(skill.folder, '--id', 'trigger-3')).toBe(2)
 	})
 })
 
