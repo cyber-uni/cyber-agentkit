@@ -62,6 +62,7 @@ export default defineConfig({
 						{ label: 'Reference interfaces', slug: 'concepts/reference-interfaces' },
 						{ label: 'Reference file naming', slug: 'concepts/reference-file-naming' },
 						{ label: 'Verbs and skill names', slug: 'concepts/verbs' },
+						{ label: 'Cross-referencing documents', slug: 'concepts/cross-referencing-documents' },
 					],
 				},
 			],
