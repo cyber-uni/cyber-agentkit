@@ -1,5 +1,13 @@
 # cyber-agentkit
 
+## 2.12.0
+
+### Minor Changes
+
+- c785047: `reference advise <paths...>` and `reference uses <paths...>` split what `reference audit` did, and work on any text an agent reads: a skill folder, an `AGENTS.md`, an agent definition, or a command file. `advise` reports what the text hard-codes that could move into references; it now reads every line, front matter included. `uses` lists the references the text loads, the files that load each, whether a bundled default ships beside it, and which tier answers it. `reference defaults` takes a folder and reports it as `folder`, and no `reference` command looks a skill up by name any more: `skill where <name>` finds a skill's folder. `reference audit` is deprecated: it takes paths, runs both commands, prints a notice naming them, and is removed in the next minor release. The library exports `adviseReferences`, `referenceUses`, `loadsIn`, `leadsIn`, and `findSkill`.
+- 3e9c564: `skill check` reads a router skill's per-command criteria: CRI-1, CRI-2, VER-3, and the other checks that map rubric IDs to criteria now read the `## Done when` of each `references/` file `SKILL.md` links, as well as `SKILL.md`'s own. A duplicate `C<n>` across files fails CRI-2 and names both files. `skill attest` and `skill report` read the same criteria.
+- f08ed93: `skill doctor [skills...]` examines whether each skill's references work as installed and configured here. It reads the load lines of what the skill actually loads, outside fenced examples: its `SKILL.md` and every file it links or names, and every file those link, wherever each sits. A file read from outside `references/` and `assets/` is passed on as a note pointing to `skill check`, never a failure; a harness's own file under `agents/` is not read until research verifies which harness reads it. It checks each name as `reference check` composes it through the tiers with the skill's own default joined, and, for an interface whose implementations the skill loads, checks the interface and each implementation. Per reference it reports the tiers that answer it, the file on top, and each failure or warning with what to do, such as `reference customize` or `reference migrate`. It changes nothing, and exits 1 only when a reference fails. Given no skill, it examines every skill the detected harnesses load here. `ReferenceLayers.skills.loaded` lists those skills, whether or not they hold a default.
+
 ## 2.11.1
 
 ### Patch Changes
