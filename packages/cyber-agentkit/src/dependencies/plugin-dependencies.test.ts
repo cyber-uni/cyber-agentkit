@@ -110,17 +110,16 @@ describe('readPluginDependencies', () => {
 })
 
 describe('checkPluginDependencies on Claude Code', () => {
-	it('classifies each dependency and returns steps for the missing and disabled', async () => {
-		await claudeState(['on@m', 'off@m', 'bare@other'], { 'on@m': true, 'off@m': false })
+	it('classifies each dependency', async () => {
+		await claudeState(['on@m', 'off@m', 'set@m'], { 'on@m': true, 'off@m': false })
 
 		const check = await checkPluginDependencies('claude-code', {
 			...environment(),
 			dependencies: [
 				{ name: 'on', marketplace: 'm' },
 				{ name: 'off', marketplace: 'm' },
-				{ name: 'bare' },
+				{ name: 'set', marketplace: 'm' },
 				{ name: 'gone', marketplace: 'x' },
-				{ name: 'nomarket' },
 			],
 		})
 
@@ -129,17 +128,66 @@ describe('checkPluginDependencies on Claude Code', () => {
 		expect(check.dependencies.map((d) => [d.name, d.state, d.id])).toEqual([
 			['on', 'enabled', 'on@m'],
 			['off', 'disabled', 'off@m'],
-			['bare', 'installed', 'bare@other'],
+			['set', 'installed', 'set@m'],
 			['gone', 'missing', undefined],
-			['nomarket', 'missing', undefined],
 		])
-		expect(check.steps).toEqual([
-			'Enable off@m: set it to true in enabledPlugins.',
-			'Install gone@x: claude plugin install gone@x',
-			"If gone@x is not in the declaring plugin's marketplace, that marketplace's root must list x in allowCrossMarketplaceDependenciesOn, or you must already have it enabled.",
-			'Install nomarket: claude plugin install nomarket',
-			'Run /reload-plugins.',
-		])
+	})
+
+	it('reports a requested version without letting it change the state', async () => {
+		await claudeState(['a@m'], { 'a@m': true })
+		const check = await checkPluginDependencies('claude-code', {
+			...environment(),
+			dependencies: [{ name: 'a', marketplace: 'm', version: '9.0.0' }],
+		})
+		expect(check.dependencies).toEqual([{ name: 'a', marketplace: 'm', version: '9.0.0', state: 'enabled', id: 'a@m' }])
+	})
+
+	it('resolves a bare name in the declaring marketplace passed in', async () => {
+		await claudeState(['a@m'], { 'a@m': true })
+		const check = await checkPluginDependencies('claude-code', {
+			...environment(),
+			declaringMarketplace: 'm',
+			dependencies: [{ name: 'a' }],
+		})
+		expect(check.dependencies[0]).toMatchObject({ state: 'enabled', id: 'a@m' })
+	})
+
+	it('never satisfies a bare name with a same-named install from another marketplace', async () => {
+		await claudeState(['a@other'], { 'a@other': true })
+		const check = await checkPluginDependencies('claude-code', {
+			...environment(),
+			declaringMarketplace: 'm',
+			dependencies: [{ name: 'a' }],
+		})
+		expect(check.dependencies[0]?.state).toBe('missing')
+	})
+
+	it('resolves a bare name in the marketplace the plugin root is installed from', async () => {
+		await claudeState(['p@m', 'a@m', 'a@other'], { 'p@m': true, 'a@m': true, 'a@other': false })
+		await put(join(home, 'cache', 'p@m', '.claude-plugin/plugin.json'), JSON.stringify({ dependencies: ['a'] }))
+		const check = await checkPluginDependencies('claude-code', {
+			...environment(),
+			pluginRoot: join(home, 'cache', 'p@m'),
+		})
+		expect(check.dependencies).toEqual([{ name: 'a', state: 'enabled', id: 'a@m' }])
+	})
+
+	it('lets a passed declaring marketplace win over the one the plugin root is installed from', async () => {
+		await claudeState(['p@forge', 'a@acme'], { 'a@acme': true })
+		await put(join(home, 'cache', 'p@forge', '.claude-plugin/plugin.json'), JSON.stringify({ dependencies: ['a'] }))
+		const check = await checkPluginDependencies('claude-code', {
+			...environment(),
+			pluginRoot: join(home, 'cache', 'p@forge'),
+			declaringMarketplace: 'acme',
+		})
+		expect(check.dependencies[0]?.state).toBe('enabled')
+	})
+
+	it('reports a bare name as unknown when the declaring marketplace is not known', async () => {
+		await claudeState(['a@m'], { 'a@m': true })
+		await put(join(root, 'dev/.claude-plugin/plugin.json'), JSON.stringify({ dependencies: ['a'] }))
+		const check = await checkPluginDependencies('claude-code', { ...environment(), pluginRoot: join(root, 'dev') })
+		expect(check.dependencies).toEqual([{ name: 'a', state: 'unknown' }])
 	})
 
 	it('matches a marketplace-qualified dependency only in that marketplace', async () => {

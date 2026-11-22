@@ -1,4 +1,5 @@
-import { join } from 'node:path'
+import { realpath } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 
 import type { HarnessEnvironment } from '../harness/harness-environment.js'
 import type { HarnessId } from '../harness/harness-id.js'
@@ -108,9 +109,12 @@ export interface CheckPluginDependenciesOptions extends HarnessEnvironment {
 	readonly pluginRoot?: string
 	/** Dependencies already read; used instead of `pluginRoot`. */
 	readonly dependencies?: readonly PluginDependency[]
+	/**
+	 * The marketplace the declaring plugin comes from, where a bare name resolves (E-DEP-1). Defaults
+	 * to the marketplace `pluginRoot` is installed from; with neither, a bare name is `unknown`.
+	 */
+	readonly declaringMarketplace?: string
 }
-
-const rank: Record<DependencyState, number> = { enabled: 3, installed: 2, disabled: 1, missing: 0, unknown: 0 }
 
 /**
  * Check which declared dependencies the harness has installed and enabled, and return the steps
@@ -127,23 +131,19 @@ export async function checkPluginDependencies(
 			: { dependencies: [], error: undefined }
 	const [installed, enabled] = await Promise.all([installedPlugins(harness, options), enabledPlugins(harness, options)])
 	const enablement = new Map(enabled.plugins.map((plugin) => [plugin.id, plugin.enabled]))
+	const declaringMarketplace =
+		options.declaringMarketplace ?? (await installedFrom(options.pluginRoot, installed.plugins))
 
 	const dependencies = read.dependencies.map((dependency): CheckedDependency => {
 		if (!installed.supported) return { ...dependency, state: 'unknown' }
-		const ids = installed.plugins
-			.map((plugin) => plugin.id)
-			.filter((id) =>
-				dependency.marketplace
-					? id === `${dependency.name}@${dependency.marketplace}`
-					: id.split('@')[0] === dependency.name,
-			)
-		let best: CheckedDependency = { ...dependency, state: 'missing' }
-		for (const id of new Set(ids)) {
-			const flag = enablement.get(id)
-			const state: DependencyState = flag === true ? 'enabled' : flag === false ? 'disabled' : 'installed'
-			if (rank[state] > rank[best.state]) best = { ...dependency, state, id }
-		}
-		return best
+		// E-DEP-1: a bare name resolves in the declaring plugin's marketplace, never in another one.
+		const marketplace = dependency.marketplace ?? declaringMarketplace
+		if (marketplace === undefined) return { ...dependency, state: 'unknown' }
+		const id = `${dependency.name}@${marketplace}`
+		if (!installed.plugins.some((plugin) => plugin.id === id)) return { ...dependency, state: 'missing' }
+		const flag = enablement.get(id)
+		const state: DependencyState = flag === true ? 'enabled' : flag === false ? 'disabled' : 'installed'
+		return { ...dependency, state, id }
 	})
 
 	const supported = supportsPluginDependencies(harness)
@@ -156,6 +156,22 @@ export async function checkPluginDependencies(
 		...(read.error && { error: read.error }),
 		research: ['E-DEP-1', 'E-DEP-2', 'E-DEP-3', 'E-DEP-4', 'E-DEP-5', 'E-DEP-6', 'E-DEP-7', 'E-CC-X1'],
 	}
+}
+
+/** The marketplace of the install whose folder is `pluginRoot`, when exactly one marketplace has it there. */
+async function installedFrom(
+	pluginRoot: string | undefined,
+	plugins: readonly { readonly id: string; readonly path: string }[],
+): Promise<string | undefined> {
+	if (pluginRoot === undefined) return undefined
+	const real = (path: string) => realpath(path).catch(() => resolve(path))
+	const root = await real(pluginRoot)
+	const marketplaces = new Set<string>()
+	for (const plugin of plugins) {
+		const at = plugin.id.indexOf('@')
+		if (at > 0 && (await real(plugin.path)) === root) marketplaces.add(plugin.id.slice(at + 1))
+	}
+	return marketplaces.size === 1 ? [...marketplaces][0] : undefined
 }
 
 const label = (dependency: PluginDependency) =>
