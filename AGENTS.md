@@ -43,7 +43,8 @@ When loading any skill, also check `.agents/skills/<name>/SKILL.md` for project-
 
 `cyber-agentkit` is an agent-harness-agnostic toolkit. It provides the fundamental features agent tools
 need and makes each one work the same way across harnesses (Claude Code, Cursor, Codex, GitHub Copilot
-CLI, and more). Today that is detecting which harness is running and querying what it holds, checking
+CLI, and more). Nothing in it favors one harness: a choice that depends on the harness, such as a
+model, a provider, or a command, follows the harness in use, never a fixed one. Today that is detecting which harness is running and querying what it holds, checking
 the plugins another plugin depends on, resolving named reference documents layered across the managed,
 project, user, and plugin tiers, and leasing git worktrees to concurrent sessions. It depends on no
 other agent-layer package; ordinary npm libraries are fine. It exists so `universal-plugin`,

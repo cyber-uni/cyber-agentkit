@@ -389,7 +389,7 @@ export function fixedLine(item: KnownFailure, folder: string | undefined): strin
 /** The text report; `folder` is where the result was saved, so the replies file is named in full. */
 function testText(result: TestResult, folder?: string): string {
 	const lines = [
-		`${result.skill}: ${result.runs} runs per case, threshold ${result.threshold}, baseline ${result.baseline}${result.model ? `, model ${result.model === harnessDefault ? "the harness's default" : result.model}` : ''}`,
+		`${result.skill}: ${result.runs} runs per case, threshold ${result.threshold}, baseline ${result.baseline}${result.model ? `, model ${result.model === harnessDefault ? "the harness's default" : result.model}` : ''}${result.judge ? `, judge ${result.judge === harnessDefault ? "the harness's default" : result.judge}` : ''}`,
 	]
 	// Each case on a model of its own says so, so its result is not read as the run's model's (R161).
 	for (const item of result.cases) if (item.model) lines.push(`model ${item.case}: ${item.model}`)
@@ -526,8 +526,13 @@ function testCommand({
 				type: t.string().optional(),
 			},
 			judge: {
-				description: 'The model that decides `judge` rubrics. Without it, those criteria are not tested.',
+				description:
+					"The model that decides `judge` rubrics, on the harness the runs drive: a tier (`small`, `mid`, `top`) or a model ID. Defaults to the harness's mid-tier model, or its own default when its tiers are not known.",
 				type: t.string().optional(),
+			},
+			'no-judge': {
+				description: 'Run without a judge: the criteria whose checks are all `judge` are reported as not tested.',
+				type: t.boolean().optional(),
 			},
 			baseline: {
 				description: 'Another version of the skill to compare with, instead of a run without the skill.',
@@ -554,7 +559,7 @@ function testCommand({
 			},
 			resume: {
 				description:
-					'Run only the runs the last result left when the usage limit stopped it, with the options that run had, and merge them into it. Refused when the last result is not incomplete, or when the skill or its eval cases changed since; takes no --case, --model, --judge, --baseline, --harness, or --backend.',
+					'Run only the runs the last result left when the usage limit stopped it, with the options that run had, and merge them into it. Refused when the last result is not incomplete, or when the skill or its eval cases changed since; takes no --case, --model, --judge, --no-judge, --baseline, --harness, or --backend.',
 				type: t.boolean().optional(),
 			},
 			accept: {
@@ -613,6 +618,7 @@ function testCommand({
 				backend?: string | undefined
 				model?: string
 				judge?: string
+				'no-judge'?: boolean | undefined
 				baseline?: string
 				plugin?: string[] | undefined
 				root?: string | undefined
@@ -640,7 +646,7 @@ function testCommand({
 			let resume: { rows: Row[]; latest: TestResult; incomplete: Incomplete } | undefined
 			if (args.resume) {
 				const given = (
-					['case', 'model', 'judge', 'baseline', 'harness', 'backend', 'sandbox', 'estimate'] as const
+					['case', 'model', 'judge', 'no-judge', 'baseline', 'harness', 'backend', 'sandbox', 'estimate'] as const
 				).filter((key) => args[key] !== undefined)
 				if (given.length) {
 					process.stderr.write(
@@ -679,6 +685,7 @@ function testCommand({
 				args.case = incomplete.options.cases
 				args.model = incomplete.options.model
 				args.judge = incomplete.options.judge
+				args['no-judge'] = incomplete.options.noJudge
 				args.baseline = incomplete.options.baseline
 				args['trust-scripts'] = incomplete.options.trustScripts
 				args.sandbox = incomplete.options.sandbox
@@ -720,12 +727,35 @@ function testCommand({
 				)
 				throw CliError.reported(exitCodes.usage)
 			}
-			const planned = planTest(skill, { judge: args.judge, cases: args.case, threads })
+			// The judge runs on the harness the runs drive, and with none named takes its mid tier, as the runs do (#357).
+			if (args.judge !== undefined && args['no-judge']) {
+				process.stderr.write('error: judge-conflict: --judge and --no-judge cannot be used together\n')
+				throw CliError.reported(exitCodes.usage)
+			}
+			let judge: string | undefined
+			if (!args['no-judge']) {
+				const resolved = resolveModel(driver, args.judge)
+				if ('problem' in resolved) {
+					process.stderr.write(`error: unknown-tier: judge: ${resolved.problem}\n`)
+					throw CliError.reported(exitCodes.usage)
+				}
+				judge = resolved.model ?? harnessDefault
+			}
+			const planned = planTest(skill, {
+				judge,
+				...(args['no-judge'] ? { noJudge: 'it needs a judge, and the test ran with --no-judge' } : {}),
+				cases: args.case,
+				threads,
+			})
 			if ('problem' in planned) {
 				process.stderr.write(`error: ${planned.code}: ${planned.problem}\n`)
 				throw CliError.reported(planned.code === 'unknown-case' ? exitCodes.usage : exitCodes.error)
 			}
 			for (const warning of planned.warnings) process.stderr.write(`warning: ${warning}\n`)
+			if (planned.plan.judge === harnessDefault)
+				process.stderr.write(
+					`warning: harness-default-judge: ${harness.id} has no known mid-tier model, so the judge uses its default; name one with --judge\n`,
+				)
 			const modelled = resolvePlanModels(planned.plan, harness, args.model)
 			if ('problem' in modelled) {
 				process.stderr.write(`error: unknown-tier: ${modelled.problem}\n`)
@@ -813,7 +843,7 @@ function testCommand({
 				skillName: name,
 				baselineFolder: args.baseline === undefined ? undefined : resolve(args.baseline),
 				model: modelled.model,
-				judge: args.judge,
+				judge,
 				verification: `${verification.name} from ${verification.implementation}`,
 				at: new Date().toISOString(),
 			}
@@ -857,6 +887,7 @@ function testCommand({
 				...(args.case?.length ? { cases: args.case } : {}),
 				...(args.model !== undefined ? { model: args.model } : {}),
 				...(args.judge !== undefined ? { judge: args.judge } : {}),
+				...(args['no-judge'] ? { noJudge: true as const } : {}),
 				...(args.baseline !== undefined ? { baseline: args.baseline } : {}),
 				...(args['trust-scripts'] ? { trustScripts: true } : {}),
 				...(args.sandbox !== undefined ? { sandbox: args.sandbox } : {}),

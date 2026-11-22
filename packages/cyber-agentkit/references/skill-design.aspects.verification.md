@@ -45,10 +45,10 @@ instructions make the model do: whether it triggers, what it does, and what it r
    `evals.yaml` key stays `rubrics`. Prefer a deterministic check: when the criterion names something in the files, the
    git state, or a reply line the prompt can require, a `script` or `regex` decides it. Use `judge` only when no
    deterministic check decides the criterion, and say so to the author.
-   A criterion whose checks are all `judge` is not tested unless the run names a judge, so a reply that lists parts or
-   asks a question is a `regex` or `contains` check that accepts the ways of saying it, not a `judge`. When a `judge`
-   cannot be avoided, name the criterion to the author and ask which model should judge (a tier or a model ID); the
-   test then runs with `--judge <model>`. Never leave the choice unasked, and never write a judge model into a case.
+   A `judge` costs a model call per run and grades less steadily than a deterministic check, so a reply that lists
+   parts or asks a question is a `regex` or `contains` check that accepts the ways of saying it, not a `judge`. When a
+   `judge` cannot be avoided, name the criterion to the author; the test grades it with the harness's mid-tier model
+   unless the author names another with `--judge <model>`. Never write a judge model into a case.
    A check tests what the outcome left behind: a file changed or left unchanged (a `script` on `git status`), a
    report or section present, the options a stop listed, or a skill called (`.skill-test/skill-calls.jsonl`). It
    never tests one exact phrasing or a punctuation mark. Where a check must read the reply's wording, it accepts the
@@ -156,13 +156,17 @@ check.
 ## Run
 
 Run `test <skill folder>` with the `/skill` command, as its Run the command says. It runs promptfoo at a pinned version
-through `npx`, so the first run downloads it. Add `--judge <model>` only when the author named a judge, `--baseline
+through `npx`, so the first run downloads it. `judge` checks are graded on the harness the runs drive, by its mid-tier model (`sonnet` on Claude Code); a harness
+whose tiers are not known, such as Codex, judges on its own default, and the test warns. The result names the judge in
+`judge`. Add `--judge <model>` (a tier or a model ID) only when the author named a judge,
+`--no-judge` only when the author asks to run without one, which reports the criteria whose checks are all `judge` as
+not tested, `--baseline
 <folder>` to compare with another version instead of a run without the skill, and `--model <model>` to choose the model
 each run uses: a tier (`small`, `mid`, `top`) or a model ID. Without `--model`, each run uses the harness's mid-tier
 model (`sonnet` on Claude Code), not its most capable one; a harness whose tiers are not known, such as Codex, runs on
 its own default, and the test warns. A case's own `model`, a tier or an ID, wins over `--model` for that case: set it
 on a case known to need a stronger model, or one a cheaper model does well. A tier the harness does not map is an
-error before any run. `--judge` alone sets the judge's model. A skill tested only on a mid-tier model may behave
+error before any run. `--model` does not change the judge; only `--judge` does. A skill tested only on a mid-tier model may behave
 differently on the model its users run. It saves the result, prints it, and exits 1 when a case or a criterion fails. Each run's result stays local (the
 results folder ignores itself). Each save keeps `latest.json` and the 5 most recent past results of the skill, and deletes
 older ones. The reply of every run, passed or failed, goes in a file beside the result that its `replies` field names. It also deletes the results of any other skill whose recorded skill folder no longer exists, and leaves a

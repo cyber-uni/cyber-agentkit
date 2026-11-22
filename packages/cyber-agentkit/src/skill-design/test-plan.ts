@@ -46,6 +46,8 @@ export type TestPlan = {
 	 * harness, or `default` when the harness picks it. A plan not resolved leaves it out.
 	 */
 	model?: string
+	/** The model that grades `judge` checks (#357), left out when no case that runs has one or there is no judge. */
+	judge?: string
 	runs: number
 	threshold: number
 	/** Seconds one run may take. */
@@ -77,10 +79,13 @@ export function planTest(
 	skill: SkillFiles,
 	{
 		judge,
+		noJudge,
 		cases: only,
 		threads = availableParallelism(),
 	}: {
 		judge?: string | undefined
+		/** Why a criterion whose checks need a judge is not tested when there is none, over the default reason. */
+		noJudge?: string | undefined
 		/** Run only the cases with these IDs (R102). */
 		cases?: string[] | undefined
 		/** The machine's hardware threads; tests set it. */
@@ -119,6 +124,7 @@ export function planTest(
 		folder: join(skill.folder, 'evals'),
 		file: 'evals/evals.yaml',
 		judge,
+		noJudge,
 		cases: only,
 		threads,
 	})
@@ -137,6 +143,7 @@ export function planEvals(
 		folder,
 		file,
 		judge,
+		noJudge = 'its rubric needs a judge, and none was named',
 		cases: only,
 		threads = availableParallelism(),
 	}: {
@@ -151,6 +158,8 @@ export function planEvals(
 		/** The cases file, as messages name it. */
 		file: string
 		judge?: string | undefined
+		/** Why a criterion whose checks need a judge is not tested when there is none. */
+		noJudge?: string | undefined
 		cases?: string[] | undefined
 		threads?: number | undefined
 	},
@@ -168,7 +177,7 @@ export function planEvals(
 		const covered = !!rubrics[id] || (testing.length > 0 && testing.every((item) => item.checks?.[id]))
 		if (!covered) notTested.push({ id, reason: noRubric })
 		else if (!judge && lists.some((list) => list.some((check) => 'judge' in check)))
-			notTested.push({ id, reason: 'its rubric needs a judge, and none was named' })
+			notTested.push({ id, reason: noJudge })
 	}
 	const untested = new Set(notTested.map(({ id }) => id))
 
@@ -238,6 +247,8 @@ export function planEvals(
 			threshold: evals.threshold ?? defaultThreshold,
 			timeout: evals.timeout ?? defaultTimeout,
 			concurrency,
+			// The judge is named only when a case it grades runs, so a result names the judge it used (#357).
+			...(judge && chosen.some((item) => Object.keys(item.judged).length) ? { judge } : {}),
 			...(only?.length ? { only: [...chosen.map((item) => item.id), ...skipped.map((item) => item.case)] } : {}),
 			cases: chosen,
 			criteria,

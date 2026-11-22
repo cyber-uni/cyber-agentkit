@@ -136,6 +136,8 @@ export type ResumeOptions = {
 	cases?: string[]
 	model?: string
 	judge?: string
+	/** Set when the test ran with `--no-judge` (#357); a resume runs without a judge again. */
+	noJudge?: true
 	baseline?: string
 	trustScripts?: true
 	/** The sandbox template given with `--sandbox` (#302); a resume runs with it again. */
@@ -163,6 +165,11 @@ export type TestResult = {
 	 * the harness picked it. Results saved before it was recorded lack it, and their model is unknown.
 	 */
 	model?: string
+	/**
+	 * The model that graded the `judge` checks (#357). Left out when none ran: the test ran with `--no-judge`, no case
+	 * that ran has one, or the result was saved before it was recorded.
+	 */
+	judge?: string
 	runs: number
 	threshold: number
 	baseline: string
@@ -590,6 +597,7 @@ export function readPromptfooOutput(
 		at: meta.at,
 		verification: meta.verification,
 		...(plan.model ? { model: plan.model } : {}),
+		...(plan.judge ? { judge: plan.judge } : {}),
 		runs: plan.runs,
 		threshold: plan.threshold,
 		baseline: meta.baseline,
