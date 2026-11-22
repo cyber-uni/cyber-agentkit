@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-11-21 (R10, R11; earlier rows 2026-10-04, R9). Versions checked: Claude Code 2.1.283 (2.1.289 for R9), cursor-agent
+2026-11-22 (R11 IDE-only harnesses; R10, R11 on 2026-11-21; earlier rows 2026-10-04, R9). Versions checked: Claude Code 2.1.283 (2.1.289 for R9), cursor-agent
 2026.07.01-41b2de7 (2026.09.28-64d2043 for R9), codex-cli 0.153.4 (source at openai/codex b8d5e3f,
 rust-v0.153.4 for R7, and 0.159.3 with source at 4ad985e for R9), GitHub Copilot CLI 1.0.83 (1.0.88
 for R7, 1.0.90 for R9).
@@ -356,6 +356,24 @@ Limits:
   them (Cursor reads `.claude/skills` and `.codex/skills`, R6), so the folder alone does not prove the
   harness is there.
 - Another program of the same name on `PATH` would read as the harness. The check does not run it.
+
+### IDE-only harnesses (checked 2026-11-22)
+
+The Cursor IDE without its CLI, and Copilot in VS Code, have no headless command. Every candidate signal
+for them was checked against vendor sources and rejected, so neither is reported installed:
+
+| Harness | Candidate | Why rejected | Evidence |
+| --- | --- | --- | --- |
+| Cursor IDE | `cursor` command on `PATH` | Installed only by a Command Palette action, and no current Cursor docs page names it; the name is generic | E-CUR-N1 |
+| Cursor IDE | App install folder, user-data folder (`~/.config/Cursor` and the like) | No Cursor docs page names them | E-CUR-N2 |
+| Copilot in VS Code | `code` command on `PATH` | Shows VS Code, not Copilot set up: sign-in is not on disk, `chat.disableAIFeatures` turns it off, older VS Code has no built-in Copilot, and Cursor offers a `code` command too | E-VSC-N1–N4, E-CUR-N1 |
+| Copilot in VS Code | `github.copilot-chat-*` under `~/.vscode/extensions` | The built-in copy does not sit there, and a leftover folder proves only a past install | E-VSC-N1, E-VSC-N5 |
+
+`code` on `PATH`, paired with a check that `chat.disableAIFeatures` is not `true`, is the closest to a
+signal. It would still read "VS Code is installed" as "Copilot is set up", so it is not accepted.
+
+Cursor's CLI page now calls the command `agent`; its installer still links `cursor-agent` beside it, so
+the R11 check still finds Cursor (E-CUR-N3).
 
 ## Drift watch
 

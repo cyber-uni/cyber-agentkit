@@ -24,6 +24,20 @@ describe('installedHarnesses', () => {
 		expect(found[0]?.research).toContain('E-CODEX-H1')
 	})
 
+	it.each([
+		['claude', 'claude-code'],
+		['codex', 'codex'],
+		['copilot', 'copilot-cli'],
+		['cursor-agent', 'cursor'],
+		['gemini', 'gemini-cli'],
+		['qwen', 'qwen-code'],
+	])('reports %s on PATH as %s', (executable, harness) => {
+		const dir = bin(executable)
+		expect(installedHarnesses({ env: { PATH: dir }, platform: 'linux' })).toEqual([
+			expect.objectContaining({ harness, executable, evidence: [join(dir, executable)] }),
+		])
+	})
+
 	it('skips a file that is not executable, and a folder of the same name', () => {
 		const dir = bin()
 		writeFileSync(join(dir, 'codex'), '')
@@ -35,6 +49,24 @@ describe('installedHarnesses', () => {
 		const dir = bin('codex.CMD')
 		const found = installedHarnesses({ env: { Path: dir, PATHEXT: '.EXE;.CMD' }, platform: 'win32' })
 		expect(found.map(({ harness }) => harness)).toEqual(['codex'])
+	})
+
+	it('reports no IDE-only harness from a rejected signal: the `cursor` or `code` command (E-CUR-N1, E-VSC-N2)', () => {
+		const dir = bin('cursor', 'code', 'agent')
+		expect(installedHarnesses({ env: { PATH: dir }, platform: 'linux' })).toEqual([])
+	})
+
+	it('reports the Cursor CLI by `cursor-agent`, the name its installer still links (E-CUR-N3)', () => {
+		const dir = bin('cursor-agent')
+		expect(installedHarnesses({ env: { PATH: dir }, platform: 'linux' })).toEqual([
+			{
+				harness: 'cursor',
+				executable: 'cursor-agent',
+				path: join(dir, 'cursor-agent'),
+				evidence: [join(dir, 'cursor-agent')],
+				research: expect.arrayContaining(['E-CUR-H1']),
+			},
+		])
 	})
 
 	it('reports nothing with no PATH', () => {

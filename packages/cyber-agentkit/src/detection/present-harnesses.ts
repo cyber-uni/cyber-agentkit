@@ -39,8 +39,11 @@ function isExecutable(path: string, platform: Platform): boolean {
 
 /**
  * The harnesses installed on this machine: those whose verified headless executable (R9) is on `PATH`
- * (`.research/harness-detection/conclusion.md`, R11). A harness with no verified command, such as Copilot
- * in VS Code or the Cursor IDE without `cursor-agent`, is never reported. The executable is not run.
+ * (`.research/harness-detection/conclusion.md`, R11). The executable is not run.
+ *
+ * A harness with no verified command is never reported. That includes the Cursor IDE without `cursor-agent`
+ * and Copilot in VS Code: every other signal for them, such as a `cursor` or `code` command or an app,
+ * user-data, or extension folder, was checked and rejected (E-CUR-N1, E-CUR-N2, E-VSC-N1–N5).
  */
 export function installedHarnesses({
 	env = process.env,
