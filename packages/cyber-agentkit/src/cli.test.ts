@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -133,5 +133,29 @@ describe('bare invocation', () => {
 		expect(out).toContain('bin: cyber-agentkit')
 		expect(out).toContain('harness:')
 		expect(out).toContain('commands[5]: reference,asset,prose-update,skill,instruction')
+	})
+
+	it('reports the running harness and every installed one, each with its evidence, in one call', async () => {
+		const bin = tempRoot()
+		for (const name of ['claude', 'codex']) {
+			writeFileSync(join(bin, name), '#!/bin/sh\n')
+			chmodSync(join(bin, name), 0o755)
+		}
+		vi.stubEnv('PATH', bin)
+		vi.stubEnv('CODEX_THREAD_ID', 't')
+		for (const name of ['CLAUDECODE', 'CLAUDE_CODE_CHILD_SESSION', 'CLAUDE_CODE_SESSION_ID', 'CLAUDE_CODE_ENTRYPOINT'])
+			vi.stubEnv(name, undefined)
+		try {
+			expect(await run(['node', 'cyber-agentkit', '--format', 'json'])).toBe(0)
+		} finally {
+			vi.unstubAllEnvs()
+		}
+		const out = JSON.parse(stdout.mock.calls.map(([chunk]) => String(chunk)).join(''))
+		expect(out.harness).toBe('codex')
+		expect(out.running).toEqual({ harness: 'codex', evidence: ['CODEX_THREAD_ID'] })
+		expect(out.installed).toEqual([
+			{ harness: 'claude-code', evidence: [join(bin, 'claude')] },
+			{ harness: 'codex', evidence: [join(bin, 'codex')] },
+		])
 	})
 })

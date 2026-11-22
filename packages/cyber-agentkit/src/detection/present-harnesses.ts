@@ -15,6 +15,8 @@ export interface InstalledHarness {
 	readonly executable: string
 	/** Where it was found on `PATH`. */
 	readonly path: string
+	/** What showed the harness is installed: the paths found. */
+	readonly evidence: readonly string[]
 	/** The claim IDs in `.research/harness-detection/evidence.md` that back the executable's name. */
 	readonly research: readonly string[]
 }
@@ -56,7 +58,7 @@ export function installedHarnesses({
 		const path = dirs
 			.flatMap((dir) => extensions.map((ext) => join(dir, `${executable}${ext}`)))
 			.find((candidate) => isExecutable(candidate, platform))
-		if (path) found.push({ harness, executable, path, research })
+		if (path) found.push({ harness, executable, path, evidence: [path], research })
 	}
 	return found
 }
