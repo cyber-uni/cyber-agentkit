@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "reference",
-	"at": "2026-11-22T15:48:11.507Z",
+	"at": "2026-11-22T16:02:11.419Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -10,16 +10,9 @@
 	"cost": 4.2599,
 	"totalRuns": 66,
 	"durationMs": 151218,
-	"criteria": [
-		"C1",
-		"C2",
-		"C3",
-		"C4",
-		"C5",
-		"C6"
-	],
+	"criteria": ["C1", "C2", "C3", "C4", "C5", "C6"],
 	"reported": {
-		"scripts": "sha256:0070acff7472c39a82e7ee695d995c356b9943e420eadaa4d65ef98a3dabb22f",
+		"scripts": "sha256:f5bd99104b4f1f61e98759c832365ea8ba50db5d54d46c943f0a8de1bf6a4d90",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -68,10 +61,10 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T15:27:14.304Z",
+			"at": "2026-11-22T15:59:36.838Z",
 			"hashes": {
-				"case": "sha256:b44ab11cc056955a2f57e9efd570008dd9945fc91ca94d7f8810b298a5507173",
-				"scope": "sha256:5e009a54dac45d9b611e1398f9529ecff98306ab5280e83601dbc09ac9ca04bb"
+				"case": "sha256:bb3c26905339fe5af5fa38ef98eb8f9d90c555994cce158aadd0da35f7d2d98b",
+				"scope": "sha256:0ac65f550bb03c77833ec7c7c94ac783528a00daeeb0e827bc679778f335f0a5"
 			}
 		},
 		"create-capability-reference": {
@@ -85,7 +78,7 @@
 					"passed": 3,
 					"ran": 3,
 					"baseline": {
-						"passed": 1,
+						"passed": 3,
 						"ran": 3
 					}
 				},
@@ -100,16 +93,16 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T15:27:14.304Z",
+			"at": "2026-11-22T15:59:36.838Z",
 			"hashes": {
-				"case": "sha256:11674a17f071f1a22e0621d3418ab1f33f9af9d5c7ff31a43b234485cd594cee",
-				"scope": "sha256:5e009a54dac45d9b611e1398f9529ecff98306ab5280e83601dbc09ac9ca04bb"
+				"case": "sha256:0c03fc176cd441d679ee68162937cd1b764860e3641977cb38ae0432d577046d",
+				"scope": "sha256:0ac65f550bb03c77833ec7c7c94ac783528a00daeeb0e827bc679778f335f0a5"
 			}
 		},
 		"create-blueprint": {
 			"scope": "create",
 			"status": "pass",
-			"passed": 2,
+			"passed": 3,
 			"ran": 3,
 			"criteria": {
 				"C1": {
@@ -123,7 +116,7 @@
 				},
 				"C5": {
 					"status": "pass",
-					"passed": 2,
+					"passed": 3,
 					"ran": 3,
 					"baseline": {
 						"passed": 0,
@@ -132,14 +125,10 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T15:48:11.507Z",
+			"at": "2026-11-22T16:02:11.419Z",
 			"hashes": {
 				"case": "sha256:0c01e40e78592c11a31b70ec45e44220766638a0c095df99f776dcaebb73c854",
 				"scope": "sha256:0ac65f550bb03c77833ec7c7c94ac783528a00daeeb0e827bc679778f335f0a5"
-			},
-			"carried": {
-				"reason": "carried by migration",
-				"at": "2026-11-22T15:59:19.456Z"
 			}
 		}
 	},
