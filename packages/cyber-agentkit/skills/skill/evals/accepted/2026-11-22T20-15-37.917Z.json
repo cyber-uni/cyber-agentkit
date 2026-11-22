@@ -1,0 +1,498 @@
+{
+	"version": 2,
+	"skill": "skill",
+	"at": "2026-11-22T20:15:37.917Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"model": "sonnet",
+	"cost": 14.0674,
+	"totalRuns": 174,
+	"durationMs": 473074,
+	"criteria": [
+		"C1",
+		"C2",
+		"C3",
+		"C4",
+		"C5",
+		"C6",
+		"C7",
+		"C8",
+		"C9",
+		"C10",
+		"C11",
+		"C12",
+		"C13",
+		"C14",
+		"C15",
+		"C16",
+		"C17",
+		"C18",
+		"C19",
+		"C20",
+		"C21",
+		"C23",
+		"C24",
+		"C25",
+		"C26",
+		"C27",
+		"C28",
+		"C29",
+		"C30",
+		"C31"
+	],
+	"reported": {
+		"scripts": "sha256:f0a4106bcdb63dbbf62607f88ee013dbfad7bdfdb116db8a24d85c19dfd71ccc",
+		"harness": "claude-code",
+		"verification": "skill-design.aspects.verification from cyber-agentkit"
+	},
+	"entries": {
+		"fire-check": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Is my release-notes skill any good? Check it.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:9bfafc506aaa6cbb0834017c4b97bb3e9887d7f517df78c094d98ff4abdc087b",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-create": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Write a skill that drafts release notes from merged pull requests.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:4c2734a25cf64e39fa75c7d6e4266e907241c1a1f5f7c0f7fc622f208bcaa805",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-fix-trigger": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:d2d0095ff5966c3760a16a0eacc4bb9a7326898d099acf5bc1e6c6975f5d53c3",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-test": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Run the evals for the release-notes skill.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:93eb11889d74350a5e82dcdae426cece31030eb31efc734ea90276d6020d0b4e",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-customize": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Which implementation does each skill-design aspect use? I may switch some.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:ba0e3a9e0e9f984cd5c1c4919a1946d2cff3f3df4a21008662deafe54831f2dc",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-vet": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Is the skill in github.com/acme/skills safe to install? Vet it first.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:18673757d9d2d5dbb6167771c7155e0d801cda52f4451236f168375e84dc063b",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-doctor-overrides": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Our issue skill breaks partway through in this repo. Do its references still work with our overrides?",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:5a6677e9a8f46f849eb4428a36291f6d2eb8124924b2ce84c527cae3bd87c2bd",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-issue-edits-description": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Implement issue #42: the description in .agents/skills/release-notes/SKILL.md should also fire on 'changelog'. Open a PR when done.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:36012edfdae239ce015a87b782b87c9aaa7564c410945006f64fa3541974980c",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-issue-adds-reference": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Work on issue #57: add a references/labels.md to the release-notes skill folder that lists how to group notes by label, and link it from its steps.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:cd896ff0209f62a887360f8831806e909f6ca04833d1c07729dc23ae9a09d44d",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-report": {
+			"scope": "trigger",
+			"status": "fail",
+			"passed": 0,
+			"ran": 3,
+			"prompt": "Publish the eval results of the release-notes skill on its docs page.",
+			"expect": "fire",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:df6ee64b494ec4e0958eee813907585f0f4c5c01c6a6d5be99148951dce4803b",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"skip-skillify": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Turn what we just did into a skill.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:d7d9cb4d40f6e05966f3c0b68aaca46f9b4bdb05488f832cdddd4ee71e9b4242",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"skip-load-reference": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Load our style reference and tell me what it says about tone.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:fc85c046e98fea5760eeb746d2637f94cec6fbee806afb97dac7361c4a48a515",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"skip-agents-md-rule": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Add a rule to AGENTS.md that this repo uses pnpm.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:b6414b7b4941768ff99d25b75a2a1b261d7084055cd2fe63ef3ab807182f116d",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"skip-review-diff": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Review my diff before I push.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:e311b1bba4a8177de4e3b8dda8cfaf49663fcf47865acbc82b82c54675928f0c",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"skip-install-plugin": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Install the release-notes plugin from our marketplace.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:6fa909966ebadac03394335829e2612ec0121cb6a6d56f5787f0c850c6eb8672",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"skip-fix-parser-bug": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Fix the bug in src/skill/parse.ts where front matter with a CRLF line ending is not read from a SKILL.md.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:86685a65d0006819a2b641073ab1adfba0a047193be05e09db741f89e7d4182f",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"skip-unit-test": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Add a unit test for the function that lists the skills a plugin ships.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:af3da5c3eaff45f7893ce2dbbaea5bf4437ec8fccfe2c30bb350c6567e7d8c6e",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-create-in-npm-plugin": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Add an /axi skill to the agent plugin in our cli-kit npm package that teaches agents writing a CLI to follow our version of AXI.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:5f002eac810e23ccbf17e6cc066ef1daf6a46aef30f2d34331c943115ba76e4e",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-add-to-plugin": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Add a skill to this plugin.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:fb678fadef401fd1da5291babe6bf1863b6cadefe1c8d0e20418b4e05a3c2526",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-teach-library": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Teach agents to use our date library: write a skill for it that ships with the npm package.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:5c7ecf9580b0512ca954276600d282a0e927980e9af9f9691b9a166587795158",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-add-skill": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Add a release-notes skill.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:dd2457362dca10b95ab5b7fbeed238a05e969910e9dfc6fe5d58a0fd772af46e",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"skip-teach-me-library": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Teach me how to use our date library's parse function.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:3250675bcf81da7e85e7a9bfde55d55492cc7fbd9908d24c317aa2a3369d0c3f",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"skip-add-hooks-component": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Add a hooks component to this plugin's plugin.json.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:48372f72e86ab71295370c4fbaef26f97d113f2a854474589003fdbef469c4d0",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"fire-doctor-all-harnesses": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Do the references our triage skill loads work in Codex too, not only here? Check it for every harness installed on this machine.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:32.944Z",
+			"hashes": {
+				"case": "sha256:e1eb0af2d52f95d41666c8ef02d8e0e69004defbb84c35599d51db594a4ac424",
+				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+			}
+		},
+		"work-adds-skill": {
+			"scope": "root",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"criteria": {
+				"C12": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
+				}
+			},
+			"model": "sonnet",
+			"at": "2026-11-22T20:03:28.161Z",
+			"hashes": {
+				"case": "sha256:dd91028b68b76ac3259bd342a5163b265ce8756348ce322ab817fa41a430d642",
+				"scope": "sha256:5b480cfe02378225d3179712f1b98d487ce32f6708d9a5cf254eeeebb4354bcc"
+			}
+		},
+		"case-with-history": {
+			"scope": "root",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"criteria": {
+				"C21": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
+				}
+			},
+			"guard": true,
+			"baseline": {
+				"passed": 3,
+				"ran": 3
+			},
+			"model": "sonnet",
+			"at": "2026-11-22T20:03:28.161Z",
+			"hashes": {
+				"case": "sha256:fbc6770639f3d428a1dece497f330d9b89d23be7459fb6f53904a4ca320a2011",
+				"scope": "sha256:5b480cfe02378225d3179712f1b98d487ce32f6708d9a5cf254eeeebb4354bcc"
+			}
+		}
+	},
+	"inputs": {
+		"sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9": {
+			"description": "sha256:4f37fe8386707df1582249aef8339403374378a2c682c3efe94f3c07a77019be",
+			"description of asset": "sha256:10f8334e9b33528b24e12378edbcec4768483ba1c028d294c250488ab8fc6374",
+			"description of dependency": "sha256:aff6912a6546accf666e497aa540c84b2c17c7388e528af8576ff43dfe6fcd80",
+			"description of instruction": "sha256:fc877c92ef91713c2af2e46f055b84b141975e467b5a49e43e12276cfa3547d6",
+			"description of prose-update": "sha256:93d883259c1b333cce7f066f5909fe5a91941268f8fc0d5a85f09a2ce73f4682",
+			"description of reference": "sha256:f7ce520ca050b3612d52b62d1c13a5534ebc3c4c1c24a4c52060d2cc11050043",
+			"description of skillify": "sha256:93fa80f46bd34a259ca59f6712216974b4fe34ce8086215dd942f8466325652f",
+			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
+		},
+		"sha256:5b480cfe02378225d3179712f1b98d487ce32f6708d9a5cf254eeeebb4354bcc": {
+			"SKILL.md front matter": "sha256:7376c32d6016002356e6dd89b61a0b9a53975d243fbf9d0ec90ab9549384011a",
+			"SKILL.md body": "sha256:db08748a60cbd5d502a31d0e9299de6ec2eb81b4e398aa6194aee9eb8ab56767",
+			"references/attest.md": "sha256:c747ad8c4423fc305582aca0da12734d7768c60c1bfccc69e042a65cbe16a818",
+			"references/check.md": "sha256:eba7855416e1eb5eb6f5b24336f2271e6c2b92fe5885f1e99ddc5a7bdcca88b0",
+			"references/create.md": "sha256:0479d60dfbc255a537796beb1eb9efc39dfc6973a815731571d5e97127e49ade",
+			"references/customize.md": "sha256:3b71a479ed2fa2ddc49c13121383599eb21cf09b628e4d45e62b57fe72d5ab6b",
+			"references/doctor.md": "sha256:a0db3550fbbb138867faf840ffb39a0e84a8021ecc15bba25478795d25c28fe8",
+			"references/enhance.md": "sha256:bd7812de9f316f5ac6e13f259e5890ce30e67ce3c15573241612a7710fccaa95",
+			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",
+			"references/fix.md": "sha256:e77e95595d151ae0cf19c6df856ed4c13b8c0509d16f76770c664ee1ef19b990",
+			"references/help.md": "sha256:2f427206ec64284887517c59920b8ebfe62bf891ec1de67d907c60a274afc4a9",
+			"references/report.md": "sha256:4b3e71c4a823389409f847949ae49cd52a217e7bc15e949cce7c3c47e7d5f7c6",
+			"references/test.md": "sha256:0df605ad6006731db210b829802dedce77095728eb57381b40d6dc7ce508b53b",
+			"references/trigger-draft.md": "sha256:b7bc2ffea458d00443388b7a3fcbd2d2a4b09ab9469f9fa88c831652169d5176",
+			"references/update.md": "sha256:24ed763788a61400a547c0f83df6af40726789af6cf4e29a60e622fce4711cc6",
+			"references/vet.md": "sha256:237687aef38933c1cd535b8a1a4344f140a84524cc98755820c0cf58c524e3f4",
+			"reference skill-design.aspects.criteria": "sha256:bcc12ff7e10da695b4d55190214bd8f90c530f73b30fa974dc8f0ad706ab3c96",
+			"reference skill-design.aspects.verification": "sha256:33178909fd8194169ac6c99f5331828d9fd0a21f254984ad3d6e35838c47d789",
+			"reference skill-design.autonomy": "sha256:147d24306d61ac2cdeead7092db2d43e4472348f7d53993a5fe2a6aa5cd52c4e",
+			"reference skill-design.vet.trusted-sources": "sha256:81125aa090d3cdb791317048ffce58e82ddd508c1712b67baf19551c109242ea",
+			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
+		}
+	}
+}

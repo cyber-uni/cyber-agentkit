@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-22T16:10:42.670Z",
+	"at": "2026-11-22T20:24:06.203Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:cf5c8116ae77ef9dd101c34e6f381967f99155cb38a30f42bd2b99d403724c1e",
+		"scripts": "sha256:f0a4106bcdb63dbbf62607f88ee013dbfad7bdfdb116db8a24d85c19dfd71ccc",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -64,18 +64,20 @@
 					}
 				},
 				"C16": {
-					"status": "pass"
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:08:07.924Z",
 			"hashes": {
 				"case": "sha256:64c674cbd7377baa66d0dcf24a491780626da351846e26845cb3662b1a786f5e",
 				"scope": "sha256:10da4477d92e0deb8ec996ab53f3c99d58b6848569c2e6a06d9363bb09df5f1a"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:03.700Z"
 			}
 		}
 	},

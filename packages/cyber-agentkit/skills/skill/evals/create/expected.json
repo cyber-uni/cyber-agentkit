@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-22T16:10:42.670Z",
+	"at": "2026-11-22T20:24:06.203Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:cf5c8116ae77ef9dd101c34e6f381967f99155cb38a30f42bd2b99d403724c1e",
+		"scripts": "sha256:f0a4106bcdb63dbbf62607f88ee013dbfad7bdfdb116db8a24d85c19dfd71ccc",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -65,14 +65,10 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:15:37.917Z",
 			"hashes": {
 				"case": "sha256:6fbd577546d0cabb26338aa83e614aec528acc8fef1ee89eb6eea2b47de917dc",
 				"scope": "sha256:76bcd9a2036b8729de194acb5308ea349f7233ad2e95a20e8fe79c64dbf8fb8b"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:01.135Z"
 			}
 		},
 		"create-ask": {
@@ -91,18 +87,20 @@
 					}
 				},
 				"C13": {
-					"status": "pass"
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:15:37.917Z",
 			"hashes": {
 				"case": "sha256:e9c686ecc7d93e5d2a519bc6f2ccd2e549b6d1d96188752db7a974732848619e",
 				"scope": "sha256:76bcd9a2036b8729de194acb5308ea349f7233ad2e95a20e8fe79c64dbf8fb8b"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:01.135Z"
 			}
 		},
 		"create-described": {
@@ -121,29 +119,31 @@
 					}
 				},
 				"C16": {
-					"status": "pass"
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:15:37.917Z",
 			"hashes": {
 				"case": "sha256:1b87235ebfbd9bfe2601b0d5019a9ce147e8923cdbb81c9db28906050fa1658c",
 				"scope": "sha256:76bcd9a2036b8729de194acb5308ea349f7233ad2e95a20e8fe79c64dbf8fb8b"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:01.135Z"
 			}
 		},
 		"create-covered": {
 			"scope": "create",
 			"status": "pass",
-			"passed": 3,
+			"passed": 2,
 			"ran": 3,
 			"criteria": {
 				"C17": {
 					"status": "pass",
-					"passed": 3,
+					"passed": 2,
 					"ran": 3,
 					"baseline": {
 						"passed": 0,
@@ -152,47 +152,51 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:15:37.917Z",
 			"hashes": {
 				"case": "sha256:37b65b7a631b51ebc2e531878a5d5b590ea850b6fd37c61b39b075abc98c90c8",
 				"scope": "sha256:76bcd9a2036b8729de194acb5308ea349f7233ad2e95a20e8fe79c64dbf8fb8b"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:01.135Z"
 			}
 		},
 		"create-over-budget": {
 			"scope": "create",
 			"status": "pass",
-			"passed": 3,
-			"ran": 3,
+			"passed": 2,
+			"ran": 2,
 			"criteria": {
 				"C13": {
-					"status": "pass"
+					"status": "pass",
+					"passed": 2,
+					"ran": 2,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
 				},
 				"C14": {
 					"status": "pass",
-					"passed": 3,
-					"ran": 3,
+					"passed": 2,
+					"ran": 2,
 					"baseline": {
 						"passed": 0,
 						"ran": 3
 					}
 				},
 				"C16": {
-					"status": "pass"
+					"status": "pass",
+					"passed": 2,
+					"ran": 2,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:15:37.917Z",
 			"hashes": {
 				"case": "sha256:4b54c3339068f21f6d30e902e50ac76322d04ce919f18b24f040a6bd8f9316a4",
 				"scope": "sha256:76bcd9a2036b8729de194acb5308ea349f7233ad2e95a20e8fe79c64dbf8fb8b"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:01.135Z"
 			}
 		},
 		"create-parts": {
