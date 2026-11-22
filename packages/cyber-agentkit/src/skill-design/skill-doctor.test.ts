@@ -119,7 +119,7 @@ describe('doctorSkills', () => {
 		const found = skill(
 			root,
 			'wiring',
-			'Copy this line:\n\n```text\nLoad `<name>` with the `reference` skill of `cyber-agentkit`.\n```\n\nSee [steps](references/steps.md).',
+			'Copy this line:\n\n```text\nLoad `<name>` with the `reference` skill of `cyber-agentkit`.\nSee [it](README.md).\n```\n\nSee [steps](references/steps.md).',
 		)
 		write(found.folder, 'README.md', 'Load `readme.only` with the `reference` skill of `cyber-agentkit`.\n')
 		write(
@@ -130,6 +130,36 @@ describe('doctorSkills', () => {
 		write(found.folder, 'references/steps.md', 'Load `steps.real` with the `reference` skill of `cyber-agentkit`.\n')
 		const report = doctorSkills([found], await layersOf(root))
 		expect(report.skills[0]?.references.map(({ name }) => name)).toEqual(['steps.real'])
+		expect(report.skills[0]?.notes).toBeUndefined()
+	})
+
+	it('follows every file the skill links or names, wherever it sits, and points to check for one outside references/', async () => {
+		const root = repo()
+		write(root, 'shared/rules.md', 'Load `shared.rules` with the `reference` skill of `cyber-agentkit`.\n')
+		const found = skill(
+			root,
+			'linker',
+			'Read [the steps](docs/steps.md) and [the rules](../../shared/rules.md), not `README.md`.',
+		)
+		write(found.folder, 'docs/steps.md', 'Then see [more](../references/more.md#top).\n')
+		write(found.folder, 'references/more.md', 'Load `more.real` with the `reference` skill of `cyber-agentkit`.\n')
+		write(found.folder, 'references/unlinked.md', 'Load `never.read` with the `reference` skill of `cyber-agentkit`.\n')
+		const [entry] = doctorSkills([found], await layersOf(root)).skills
+		expect(entry?.references.map(({ name }) => name).sort()).toEqual(['more.real', 'shared.rules'])
+		expect(entry?.status).toBe('failed')
+		expect(entry?.notes).toEqual([
+			expect.stringMatching(/^docs\/steps\.md is read .*outside references\/ and assets\/; `skill check`/),
+			expect.stringMatching(/shared\/rules\.md is read .*outside references\/ and assets\//),
+		])
+	})
+
+	it("does not follow a harness's own file under agents/, whose harness is not verified", async () => {
+		const root = repo()
+		const found = skill(root, 'codexy', 'See [its Codex file](agents/openai.yaml).')
+		write(found.folder, 'agents/openai.yaml', 'interface:\n  display_name: Codexy\n')
+		const [entry] = doctorSkills([found], await layersOf(root)).skills
+		expect(entry).toMatchObject({ status: 'passed', references: [] })
+		expect(entry?.notes).toEqual([expect.stringMatching(/^agents\/openai\.yaml is for one harness/)])
 	})
 
 	it('passes a skill that loads no reference', async () => {

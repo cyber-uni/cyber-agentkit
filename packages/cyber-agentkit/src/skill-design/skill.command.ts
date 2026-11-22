@@ -1740,6 +1740,7 @@ function doctorText(report: SkillDoctorReport): string {
 			for (const { code, message, action } of reference.warnings ?? [])
 				lines.push(`    warning ${code}: ${message}`, `      ${action}`)
 		}
+		for (const note of skill.notes ?? []) lines.push(`  note: ${note}`)
 	}
 	const failed = report.skills.filter(({ status }) => status === 'failed').length
 	const warned = report.skills.filter(({ status }) => status === 'warned').length

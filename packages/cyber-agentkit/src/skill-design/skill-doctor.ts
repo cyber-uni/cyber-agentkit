@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync, statSync } from 'node:fs'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { checkReferences, type ReferenceCheckEntry } from '../references/reference-check.js'
 import { referenceImplementations } from '../references/reference-implementations.js'
 import { interfaceSuffix } from '../references/reference-interface.js'
@@ -41,6 +41,8 @@ export type SkillDoctorEntry = {
 	references: DoctorReference[]
 	/** The interfaces whose implementations the skill loads. */
 	interfaces?: string[]
+	/** Pointers, never failures: a file read from outside `references/`, or one not examined, and why. */
+	notes?: string[]
 }
 
 export type SkillDoctorReport = {
@@ -130,40 +132,98 @@ function interfaceNames(id: string, layers: ReferenceLayers): { name: string; ex
 /** A fenced code block: an example of a load line, not a load. */
 const fence = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[ \t]*$/gm
 
-/**
- * The files an agent reads when it runs the skill: its `SKILL.md` and the text under its `references/`, never a
- * bundled default copy. Its `README.md` is for the people who keep it and its `evals/` are test fixtures, so a load
- * line either one shows is not a load.
- */
-function runtimeFiles(folder: string): string[] {
-	const files = [join(folder, 'SKILL.md')]
-	const walk = (dir: string) => {
-		if (!existsSync(dir)) return
-		for (const entry of readdirSync(dir).sort()) {
-			const path = join(dir, entry)
-			if (statSync(path).isDirectory()) walk(path)
-			else if (/\.(md|mdx|txt)$/i.test(entry) && !/\.default\.[a-z]+$/i.test(entry)) files.push(path)
-		}
+const textFile = /\.(md|mdx|txt|ya?ml|json|toml)$/i
+/** A bundled default copy, which is a reference itself and not text that loads one. */
+const defaultCopy = /\.default\.[a-z]+$/i
+/** A Markdown link's target. */
+const linkTarget = /\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g
+/** A backticked path under a folder a skill keeps its files in, which a skill names as plain text (SHP-2). */
+const pathToken = /`((?:\.\/)?(?:references|scripts|assets)\/[^`\s]+\.[A-Za-z0-9]+)`/g
+
+function isFile(path: string): boolean {
+	try {
+		return statSync(path).isFile()
+	} catch {
+		return false
 	}
-	walk(join(folder, 'references'))
-	return files.filter((file) => existsSync(file))
 }
 
-/** The names and interfaces the skill loads when it runs, as `reference uses` reads load lines, outside fenced examples. */
-function skillLoads(folder: string): { names: string[]; interfaces: string[] } {
+/** The files a text links or names as a path, resolved from its own folder, else from the skill's. */
+function linkedFiles(text: string, from: string, folder: string): string[] {
+	const found: string[] = []
+	const targets = [...text.matchAll(linkTarget)].map((match) => match[1] as string)
+	const named = [...text.matchAll(pathToken)].map((match) => match[1] as string)
+	for (const raw of [...targets, ...named]) {
+		const target = raw.split('#')[0] as string
+		if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target) || isAbsolute(target) || target.startsWith('~')) continue
+		const path = [resolve(dirname(from), target), resolve(folder, target)].find(isFile)
+		if (path && textFile.test(path) && !defaultCopy.test(path)) found.push(path)
+	}
+	return found
+}
+
+/** Whether `path` is `folder` or inside it. */
+function inside(folder: string, path: string): boolean {
+	const rel = relative(folder, path)
+	return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
+}
+
+/**
+ * The files an agent reads when it runs the skill: its `SKILL.md`, then every file it links or names, and every file
+ * those link, wherever each sits: a Markdown link to any file, and a plain-text path under `references/`,
+ * `scripts/`, or `assets/`. A file in the skill's `agents/` folder is for one harness, and no harness's file
+ * there is verified yet, so none is followed. Each followed file outside `references/` and `assets/` is passed on as a pointer to
+ * `skill check`, which owns where a skill's files belong.
+ */
+function runtimeFiles(folder: string, display: (path: string) => string): { files: string[]; notes: string[] } {
+	const entry = join(folder, 'SKILL.md')
+	const files: string[] = []
+	const notes: string[] = []
+	const seen = new Set<string>()
+	const queue = isFile(entry) ? [entry] : []
+	while (queue.length) {
+		const file = queue.shift() as string
+		if (seen.has(file)) continue
+		seen.add(file)
+		if (file !== entry && inside(join(folder, 'agents'), file)) {
+			notes.push(
+				`${relative(folder, file)} is for one harness, and which harness reads it is not verified, so its loads are not examined`,
+			)
+			continue
+		}
+		files.push(file)
+		if (file !== entry && !['references', 'assets'].some((kept) => inside(join(folder, kept), file)))
+			notes.push(
+				`${inside(folder, file) ? relative(folder, file) : display(file)} is read when the skill runs but sits outside references/ and assets/; \`skill check\` reports where a skill's files belong`,
+			)
+		if (/\.(md|mdx)$/i.test(file))
+			queue.push(...linkedFiles(readFileSync(file, 'utf8').replace(fence, ''), file, folder))
+	}
+	return { files, notes }
+}
+
+/**
+ * The names and interfaces the skill loads when it runs, as `reference uses` reads load lines, outside fenced
+ * examples, and the notes on the files it reads.
+ */
+function skillLoads(
+	folder: string,
+	display: (path: string) => string,
+): { names: string[]; interfaces: string[]; notes: string[] } {
 	const names = new Set<string>()
 	const interfaces = new Set<string>()
-	for (const file of runtimeFiles(folder)) {
+	const { files, notes } = runtimeFiles(folder, display)
+	for (const file of files) {
 		const loaded = loadsIn(readFileSync(file, 'utf8').replace(fence, ''))
 		for (const name of loaded.names) names.add(name)
 		for (const id of loaded.interfaces) interfaces.add(id)
 	}
-	return { names: [...names], interfaces: [...interfaces] }
+	return { names: [...names], interfaces: [...interfaces], notes }
 }
 
 function doctorOne(skill: FoundSkill, layers: ReferenceLayers, display: (path: string) => string): SkillDoctorEntry {
 	const loadLayers = withDefault(layers, skill.folder)
-	const uses = skillLoads(skill.folder)
+	const uses = skillLoads(skill.folder, display)
 	const wanted: { name: string; implements?: string; excluded?: string[] }[] = uses.names.map((name) => ({ name }))
 	for (const id of uses.interfaces)
 		for (const entry of interfaceNames(id, loadLayers)) {
@@ -206,6 +266,7 @@ function doctorOne(skill: FoundSkill, layers: ReferenceLayers, display: (path: s
 		status: statusOf(references.map((reference) => referenceStatus(reference))),
 		references,
 		...(uses.interfaces.length ? { interfaces: uses.interfaces } : {}),
+		...(uses.notes.length ? { notes: uses.notes } : {}),
 	}
 }
 
