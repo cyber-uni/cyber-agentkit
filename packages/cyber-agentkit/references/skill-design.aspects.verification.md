@@ -166,7 +166,7 @@ each run uses: a tier (`small`, `mid`, `top`) or a model ID. Without `--model`, 
 model (`sonnet` on Claude Code), not its most capable one; a harness whose tiers are not known, such as Codex, runs on
 its own default, and the test warns. A case's own `model`, a tier or an ID, wins over `--model` for that case: set it
 on a case known to need a stronger model, or one a cheaper model does well. A tier the harness does not map is an
-error before any run. `--judge` alone sets the judge's model. A skill tested only on a mid-tier model may behave
+error before any run. `--model` does not change the judge; only `--judge` does. A skill tested only on a mid-tier model may behave
 differently on the model its users run. It saves the result, prints it, and exits 1 when a case or a criterion fails. Each run's result stays local (the
 results folder ignores itself). Each save keeps `latest.json` and the 5 most recent past results of the skill, and deletes
 older ones. The reply of every run, passed or failed, goes in a file beside the result that its `replies` field names. It also deletes the results of any other skill whose recorded skill folder no longer exists, and leaves a
