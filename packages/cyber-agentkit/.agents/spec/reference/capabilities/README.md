@@ -6,7 +6,7 @@ spec-type: behavioral
 
 Part of [reference](../README.md). Its What, key terms, actors, adapters, names, and output contract apply here;
 IDs are shared across the parent and its children. The design is
-[decision 0007](../../design/decisions/0007-capability-references-and-blueprints.md); the research is
+[decision 0008](../../design/decisions/0008-capability-references-and-blueprints.md); the research is
 `.research/capability-references`.
 
 A skill that works with an outside system, such as an issue tracker, needs two things it should not carry itself:
@@ -168,8 +168,8 @@ None.
 
 ## References
 
-- Decisions: [0007](../../design/decisions/0007-capability-references-and-blueprints.md); issue #366.
+- Decisions: [0008](../../design/decisions/0008-capability-references-and-blueprints.md); issue #366.
 - Research: `.research/capability-references`.
 - Interfaces, cardinality, `check`, and `implementations`: [interfaces](../interfaces/README.md).
 - The first consumer: repobuddy's tracker skills, whose `project-tracker.capabilities` interface this design renames
-  to a blueprint interface (0007).
+  to a blueprint interface (0008).

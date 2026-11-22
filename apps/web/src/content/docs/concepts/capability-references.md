@@ -122,5 +122,5 @@ blueprint and the capability reference, and offers to:
 Authors run the same doctor against their own system before they update Verified.
 
 See [reference file naming](/cyber-agentkit/concepts/reference-file-naming/) for every file form, and the
-[design record](https://github.com/cyber-uni/cyber-agentkit/blob/main/packages/cyber-agentkit/.agents/spec/design/decisions/0007-capability-references-and-blueprints.md)
+[design record](https://github.com/cyber-uni/cyber-agentkit/blob/main/packages/cyber-agentkit/.agents/spec/design/decisions/0008-capability-references-and-blueprints.md)
 for why it is shaped this way.

@@ -298,4 +298,4 @@ None.
 - Consumers surveyed: universal-plugin ADR 0017, cyberplace `skill-design`, repobuddy `project-tracker`, cynapse ADR
   0008, cyberfleet ADR 0024.
 - Why rationale is linked, not inlined: `.research/design-spec-criteria`.
-- Capability references and blueprints: issue #366, decision 0007, `.research/capability-references`.
+- Capability references and blueprints: issue #366, decision 0008, `.research/capability-references`.

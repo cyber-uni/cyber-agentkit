@@ -1,4 +1,4 @@
-# 0007 — What a system can do and how to use it are two references: a capability reference and blueprints
+# 0008 — What a system can do and how to use it are two references: a capability reference and blueprints
 
 **Status:** accepted (2026-11-22). Settles issue #366 with the Council, questions Q1 to Q15. The design lives in the
 [capabilities spec](../../reference/capabilities/README.md) (K40 to K44, UC29 to UC33); the research is
