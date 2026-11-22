@@ -1,14 +1,16 @@
 // Generates the skill and CLI pages of every package under `packages/` from the package's own
 // sources (`plugin.json`, `skills/*/SKILL.md`, each skill's saved `evals/expected.json` through `skill report`, and the built CLI's `--help --format json`), so the
 // pages cannot drift from what the package ships. Editorial text that no source holds (example
-// prompts, expected results, CLI examples) lives in `docs-data/<package>.json`.
+// prompts, expected results, CLI examples) lives in `docs-data/<package>.json`. Each skill's
+// Customization section comes from the library behind `reference uses`, run in an empty project.
 //
 // Output goes to `src/content/docs/packages/<package>/{skills,cli}/`, which is gitignored.
 import { execFileSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { customization, customizationSection } from './skill-customization-lib.mjs'
 
 const web = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const repo = resolve(web, '../..')
@@ -59,7 +61,7 @@ const unlinkAnchors = (text) => text.replace(/\[([^\]]+)\]\(#[^)]*\)/g, '$1')
 let reportBin
 function reportCli() {
 	if (reportBin) return reportBin
-	ensureBuilt('cyber-agentkit', ['dist/cli.js'])
+	ensureBuilt('cyber-agentkit', ['dist/cli.js', 'dist/index.js'])
 	const source = join(repo, 'packages', 'cyber-agentkit')
 	const scratch = mkdtempSync(join(tmpdir(), 'docs-report-'))
 	process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
@@ -86,7 +88,29 @@ function evalsSection(skillDir) {
 	)
 }
 
-function skillPage(pkg, dir, skill, data) {
+/** The `cyber-agentkit` library, imported from the same snapshot, and an empty project and home to run it in. */
+let customizeContext
+async function customizeLib() {
+	if (customizeContext) return customizeContext
+	const lib = await import(pathToFileURL(join(dirname(dirname(reportCli())), 'dist', 'index.js')).href)
+	const scratch = mkdtempSync(join(tmpdir(), 'docs-customize-'))
+	process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
+	const root = join(scratch, 'project')
+	const home = join(scratch, 'home')
+	mkdirSync(join(root, '.git'), { recursive: true })
+	mkdirSync(home)
+	customizeContext = { lib, root, home }
+	return customizeContext
+}
+
+/** A skill's Customization section: what each reference it loads controls, with only its own plugin installed. */
+async function customizationLines(pkg, pluginName, skillDir) {
+	const { lib, root, home } = await customizeLib()
+	const plugin = { name: pluginName, root: join(repo, 'packages', pkg) }
+	return customizationSection(await customization(lib, { skillDir, plugin, root, home }))
+}
+
+async function skillPage(pkg, dir, skill, data) {
 	const skillDir = join(repo, 'packages', pkg, 'skills', skill)
 	const { meta, body } = frontmatter(readFileSync(join(skillDir, 'SKILL.md'), 'utf8'))
 	const readmePath = join(skillDir, 'README.md')
@@ -114,6 +138,7 @@ function skillPage(pkg, dir, skill, data) {
 	if (invocations) {
 		out.push('## How to type it in each harness', '', invocations[1], '')
 	}
+	out.push(...(await customizationLines(pkg, dir.pluginName, skillDir)))
 	out.push(evalsSection(skillDir))
 	out.push('## Source', '', `[\`packages/${pkg}/skills/${skill}\`](${repoUrl}/packages/${pkg}/skills/${skill})`, '')
 	write(join(docs, pkg, 'skills', `${skill}.md`), out.join('\n'))
@@ -362,10 +387,9 @@ for (const pkg of readdirSync(join(repo, 'packages'))) {
 		const skills = readdirSync(skillsRoot, { withFileTypes: true }).filter(
 			(e) => e.isDirectory() && existsSync(join(skillsRoot, e.name, 'SKILL.md')),
 		)
-		skillsIndex(
-			pkg,
-			skills.map((e) => skillPage(pkg, { pluginName: plugin.name }, e.name, data)),
-		)
+		const rows = []
+		for (const e of skills) rows.push(await skillPage(pkg, { pluginName: plugin.name }, e.name, data))
+		skillsIndex(pkg, rows)
 	}
 
 	const bins = existsSync(join(repo, 'packages', pkg, 'bin')) ? readdirSync(join(repo, 'packages', pkg, 'bin')) : []
