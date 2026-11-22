@@ -199,7 +199,9 @@ Results saved before these fields were added lack them.
 
 ### Accept a result
 
-The expected result, `<skill folder>/evals/expected.json`, holds one entry per case, keyed by its ID, under `entries`.
+The expected result is kept per scope: `<skill folder>/evals/<name>/expected.json` for the cases of an eval folder,
+and `<skill folder>/evals/expected.json` for the trigger and root cases, which also holds the attested passes. Each
+holds one entry per case, keyed by its ID, under `entries`.
 Each entry records the case's `status`, `passed`, and `ran`, for an outcome case each criterion it tests under
 `criteria`, the `model`, when it was recorded (`at`), and `hashes` of the case's own definition and of its scope's
 inputs. `scope` is `trigger` for a trigger case, the eval folder's name for a case in `evals/<name>/`, and `root` for
@@ -207,7 +209,8 @@ another outcome case. `inputs` keeps each recorded scope's inputs by name, so a 
 computed from the entries of the cases that test it; when they were recorded at different times, it carries
 `recorded`, the oldest. The file never carries `folder`, `replies`, or `evalId`, since it is committed and those name
 this machine's files. A file in the older form, one saved result with no `entries`, is still read as it is, and the
-next write turns it into entries.
+next write turns it into entries. A single `evals/expected.json` holding every scope's entries is read too, and the next
+write splits it per scope.
 
 A case with no entry whose runs pass gets its entry without an accept: the report's `expectedWritten` is
 `{ "by": "pass", "cases": [...] }`, and you tell the author which were saved. A case with an entry keeps it until the
@@ -238,10 +241,20 @@ for named cases. Each entry carried takes the hashes as they are now and `carrie
 and `at` stay. Carry only on the author's request, with their reason. A later `test` lists each carried entry it
 compared with under `comparedCarried`; say it was carried forward, never a pass from a run.
 
-When an accept replaces or drops an entry, the expected result it changes moves to
-`<skill folder>/evals/accepted/<its at>.json` first, unless it is the same run, and the 3 newest stay there. Commit
-them with `expected.json`: together they are the history `moved` compares across. A skill with only `expected.json`
+When an accept replaces or drops an entry, the file of the scope it changes moves to that scope's
+`accepted/<its at>.json` beside it first (`evals/accepted/` for the trigger and root cases), unless it is the same run,
+and the 3 newest stay there. Commit them with the expected results: together they are the history `moved` compares across. A skill with only `expected.json`
 needs no step: it is the newest entry, and the history grows from the next accept.
+
+### Migrate to scopes
+
+When the author asks to move a skill's evals into scopes, or to stop a single-list skill's `test` from running every
+case, run `skill migrate <folder>` without `--write` first, and show the author its plan: the ID each trigger case gets
+(`triggerIds`), the cases each eval folder takes (`moves`) and those that stay at the root (`stay`), and, per scope,
+the entries carried, those already behind, and the cases with no entry (`expected`). Offer to change an ID with
+`--id <from>=<id>`. Write it with `--write` only on the author's request. A carried entry reads `carried by migration`
+with the date it was recorded: say so, never that it passed in a run. The next `test` runs only the cases with no entry
+or already behind. `"nothing": true` means the evals are already in scopes.
 
 ### A known failure
 
