@@ -9,6 +9,12 @@
   (Agent Plugins 1.0.0, section 8). For plugin management it is `io.github.cyber-uni.plugin-manager`.
 - **reference** — a document an agent reads by name: Markdown, or a JSON, YAML, TOML, or text file. Its tiers are in
   [reference](reference/README.md).
+- **capability reference** — a reference that says what one system can do, named `<system>.capabilities`. A system
+  is anything a skill operates through commands or an API, remote or on the machine, except a harness. See
+  [capabilities](reference/capabilities/README.md).
+- **blueprint** — a reference that describes one whole way to fulfill a consumer's interface on one system, building
+  on that system's capability reference. A system can have several. See
+  [capabilities](reference/capabilities/README.md).
 - **declaring marketplace** — the marketplace the declaring plugin was installed from. A dependency with no marketplace
   resolves only there, as in Claude Code.
 - **AXI** — Agent Experience Interface, a convention for CLIs that agents call: structured output on stdout, exit 0 for
@@ -25,9 +31,9 @@ site's Verbs and skill names page is generated from it.
 ### Verbs that examine and change nothing
 
 - **check** — static analysis at development time. A script reads files and gives a pass or fail. `reference check`
-  composes each name as `load` does, so for a reference, checking it and examining it here are the same thing, and
-  `reference` has no `doctor`. A reference's variants, such as its GitHub and GitLab defaults, are covered by test
-  cases, not by another verb.
+  composes each name as `load` does, so for a reference, checking it and examining it here are the same thing. What
+  `reference doctor` examines is not a reference but the system a capability reference describes, at run time. A
+  reference's variants, such as its GitHub and GitLab defaults, are covered by test cases, not by another verb.
 - **lint** — run a linter: rules on style and suspicious patterns in source code, such as Biome or ESLint. It is one
   kind of check, narrower than `check`, which confirms an artifact meets its contract: a skill against its aspects, a
   reference against its interface, a manifest against its schema. A linter's own fix mode writes; a run named `lint`
@@ -39,8 +45,8 @@ site's Verbs and skill names page is generated from it.
 - **test** — run tests with a test runner. Evals are one kind of test: `skill test` runs a skill's evals.
 - **doctor** — a read-only examination of a setup as it is installed and configured here. It reports what is wrong
   and what the user can do, and changes nothing. A repair goes to the command or skill that owns it. The verb is
-  general, not tied to references: Claude Code's `/doctor`, `doctor-buddy-agent-harness`, and `skill doctor` all fit
-  it.
+  general, not tied to references: Claude Code's `/doctor`, `doctor-buddy-agent-harness`, `skill doctor`, and
+  `reference doctor` all fit it.
 - **advise** — suggestions for an author to judge, never a pass or fail, such as `reference advise`.
 - **audit** — reserved for security. A sweep that is not about security takes another verb.
 - **compare** — put results side by side.
