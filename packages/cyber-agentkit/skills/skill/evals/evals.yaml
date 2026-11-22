@@ -12,7 +12,8 @@ trigger:
   - { prompt: "Implement issue #42: the description in .agents/skills/release-notes/SKILL.md should also fire on 'changelog'. Open a PR when done.", expect: fire }
   - { prompt: "Work on issue #57: add a references/labels.md to the release-notes skill folder that lists how to group notes by label, and link it from its steps.", expect: fire }
   - { prompt: "Publish the eval results of the release-notes skill on its docs page.", expect: fire }
-  - { prompt: "Turn what we just did into a skill.", expect: skip }
+  # No "Turn what we just did into a skill.": the description claims creating skills, and only skillify being
+  # loaded kept it out (VER-6).
   - { prompt: "Load our style reference and tell me what it says about tone.", expect: skip }
   - { prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
   - { prompt: "Review my diff before I push.", expect: skip }
