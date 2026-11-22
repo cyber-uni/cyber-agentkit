@@ -265,3 +265,4 @@ Before reporting done, check each against the result, and report any that fails.
 - **C28.** `doctor` changed no file, and named each reference that failed or warned with the file on top and the action it printed.
 - **C29.** `create` gave each part that runs on its own an instructions file and an eval folder, and each case an `id`.
 - **C30.** `update` tested only the stale cases, and its report named each scope that ran with why.
+- **C31.** `migrate` showed its plan and wrote nothing unasked.

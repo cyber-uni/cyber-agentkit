@@ -127,6 +127,18 @@ named for no instructions file, one that holds more than `outcome`, and two case
 fails the first as SHP-21 and the others as VER-1. `skill case` and `skill fails` edit the eval file that lists the
 case.
 
+`skill migrate <folder>` moves a skill's evals from one list into scopes without a run. It prints a plan and writes it
+only with `--write`. Each trigger case with no `id` gets one made from its prompt; `--id <from>=<id>`, such as
+`--id trigger-3=fire-changelog`, picks another. Each outcome case of `evals/evals.yaml` whose ID is `<name>` or starts
+with `<name>-` for an instructions file `references/<name>.md` moves into `evals/<name>/evals.yaml`, with its comments
+and any files folder or setup script only it names; a path other cases also name stays, and the case names it from its
+new folder. The cases that name no instructions file stay at the root. The expected result splits into one per scope,
+with each case's known-failure marks. An old trigger entry is matched by its prompt and an old outcome entry by its ID;
+each matched entry is carried to the new inputs, marked `carried by migration`, keeping the date it was recorded. A case
+whose old entry no longer matches gets none, and an entry already behind its inputs stays stale, so the next `test`
+runs only those. The old expected result is kept in `evals/accepted/`. A skill not migrated keeps working as one root
+scope.
+
 A case's `setup` names a script, relative to the folder of the eval file that lists it, that each run runs in its folder, in both arms and on both
 backends, after the case's files are committed and before the model starts, so the model starts from the state it
 makes. The script is not copied into the run's folder. When it exits non-zero, the run is reported as not run, with the
@@ -194,8 +206,11 @@ error before any run. `--model` does not change the judge; only `--judge` does. 
 differently on the model its users run. It saves the result, prints it, and exits 1 when a case or a criterion fails. Each run's result stays local (the
 results folder ignores itself). Each save keeps `latest.json` and the 5 most recent past results of the skill, and deletes
 older ones. The reply of every run, passed or failed, goes in a file beside the result that its `replies` field names. It also deletes the results of any other skill whose recorded skill folder no longer exists, and leaves a
-result with no recorded folder alone. The skill's expected result, `evals/expected.json`, which `changed`
-compares with in later runs, holds one entry per case, keyed by its ID: its result per criterion, the model, when it
+result with no recorded folder alone. The skill's expected result, which `changed` compares with in later runs, is
+kept per scope: `evals/<name>/expected.json` holds the entries of an eval folder's cases, and `evals/expected.json`
+those of the trigger and root cases, with the settings of the last write and the attested passes. A single
+`evals/expected.json` for every case is still read, and the next write splits it. It holds one entry per case, keyed by
+its ID: its result per criterion, the model, when it
 was recorded, and the hashes of its definition and its scope's inputs. A case with no entry whose runs pass gets one;
 add `--accept` to write the entry of every case the run finished, or run `skill accept <folder>` to do the same with
 the last saved result without running. Either leaves every other entry as it was, so a run of some cases updates
@@ -211,8 +226,8 @@ counts as the content a run resolves; whitespace and line wrapping are no change
 harness, or the Verification implementation selects no case and is reported. `--all` runs every case.
 `skill carry <folder> --scope <scope> --reason "<why>"`, with `trigger`, `root`, or an eval folder's name, or `--case <id>`, carries entries forward to the
 current inputs without a run, for a change that alters no behavior; a carried entry is shown as carried, never as a
-pass from a run. Each accept that replaces or drops an entry moves the expected result it changes to
-`evals/accepted/`, keeping the 3 newest, and the report's `moved` names the cases whose pass rate changed across them
+pass from a run. Each accept that replaces or drops an entry moves the file of the scope it changes to that scope's
+`accepted/` folder beside it, keeping the 3 newest, and the report's `moved` names the cases whose pass rate changed across them
 and this run. `expected.json` is
 optional, and the checks do not require it. Each run makes model calls:
 say so before the first run in a session.

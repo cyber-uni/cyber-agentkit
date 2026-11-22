@@ -14,8 +14,10 @@ import { tmpdir } from 'node:os'
 import { basename, join, relative } from 'node:path'
 import { stringify } from 'yaml'
 import { readAttestations } from './attestation.js'
+import { evalFolderNames, rootScope, triggerScope } from './eval-suite.js'
 import {
 	type EvalSet,
+	type ExpectedEntry,
 	type ExpectedFile,
 	expectedView,
 	finishedCases,
@@ -135,7 +137,7 @@ export function testFingerprint(plan: TestPlan, skillFolder: string): string {
 			.sort()
 	for (const path of walk(skillFolder)) {
 		const name = relative(skillFolder, path).split('\\').join('/')
-		if (name === 'evals/expected.json' || name.startsWith('evals/accepted/')) continue
+		if (/^evals\/([^/]+\/)?(expected\.json$|accepted\/)/.test(name)) continue
 		hash.update(`\0${name}\0`)
 		hash.update(readFileSync(path))
 	}
@@ -316,57 +318,121 @@ export function resultsFolder(base: string, skill: string): string {
 	return join(base, '.agents', 'skill-design', 'results', skill)
 }
 
-/** The skill's expected result, written by an author's `--accept`, or by the first run that passes when there is none (R80). */
+/**
+ * The skill's expected result, written by an author's `--accept`, or by the first run that passes when there is none
+ * (R80): `evals/expected.json`, which holds the entries of the trigger and root scopes, the settings of the last write,
+ * and the attested passes. Each eval folder's scope keeps its own beside its cases (`scopeExpectedPath`, R181).
+ */
 export function expectedPath(skillFolder: string): string {
 	return join(skillFolder, 'evals', 'expected.json')
 }
 
 /**
- * The skill's `evals/expected.json` laid out as a saved result (`expectedView`): the per-case form with each criterion
- * computed from its entries (R182), or a version 1 file as it is. A file that holds only attested passes (#323), or
- * that cannot be read, holds none.
+ * Where one scope's expected result lives (R181): `evals/<scope>/expected.json` for the scope of an instructions file,
+ * `evals/expected.json` for the trigger and root scopes.
  */
-export function readExpected(skillFolder: string): TestResult | undefined {
-	return readResult(expectedPath(skillFolder))
+export function scopeExpectedPath(skillFolder: string, scope: string): string {
+	return scope === triggerScope || scope === rootScope
+		? expectedPath(skillFolder)
+		: join(skillFolder, 'evals', scope, 'expected.json')
 }
 
-/**
- * The skill's expected result in the per-case form, for a write to merge into: a version 1 file is read as entries
- * (`fromLegacy`), with `evalSet` telling which criteria each case tests. Undefined when there is no run result in it.
- */
-export function readExpectedFile(skillFolder: string, evalSet: EvalSet | undefined): ExpectedFile | undefined {
-	let value: unknown
+/** Each eval folder of the skill that holds an expected result of its own, by scope name. */
+function scopeExpectedFiles(skillFolder: string): { scope: string; path: string }[] {
+	return evalFolderNames(skillFolder).flatMap((scope) => {
+		const path = scopeExpectedPath(skillFolder, scope)
+		return existsSync(path) ? [{ scope, path }] : []
+	})
+}
+
+function readJson(path: string): unknown {
 	try {
-		value = JSON.parse(readFileSync(expectedPath(skillFolder), 'utf8'))
+		return JSON.parse(readFileSync(path, 'utf8'))
 	} catch {
 		return undefined
 	}
-	if (isExpectedFile(value)) return value
-	const old = expectedView(value)
-	return old ? fromLegacy(old, evalSet) : undefined
 }
 
-/** Where the skill's past accepted results live, each as `<its at>.json`, beside the expected result. */
-export function acceptedFolder(skillFolder: string): string {
-	return join(skillFolder, 'evals', 'accepted')
+/**
+ * The skill's expected result laid out as a saved result (`expectedView`): the per-case form with each criterion
+ * computed from its entries (R182), or a version 1 file as it is. With eval folders that keep their own, it is every
+ * scope's entries as one. A file that holds only attested passes (#323), or that cannot be read, holds none.
+ */
+export function readExpected(skillFolder: string): TestResult | undefined {
+	if (!scopeExpectedFiles(skillFolder).length) return readResult(expectedPath(skillFolder))
+	const file = readExpectedFile(skillFolder, undefined)
+	return file ? expectedView(file) : undefined
 }
 
-/** How many past accepted results a skill keeps in `evals/accepted/` beside `evals/expected.json`, the newest. */
+/**
+ * The skill's expected result in the per-case form, for a write to merge into: `evals/expected.json` with the entries
+ * of each eval folder's own (R181), in `evalSet`'s order when given. A version 1 file is read as entries (`fromLegacy`),
+ * with `evalSet` telling which criteria each case tests; it is the single-file form, whose entries all live at the root.
+ * Undefined when no file holds a run result.
+ */
+export function readExpectedFile(skillFolder: string, evalSet: EvalSet | undefined): ExpectedFile | undefined {
+	const value = readJson(expectedPath(skillFolder))
+	let root: ExpectedFile | undefined
+	if (isExpectedFile(value)) root = value
+	else {
+		const old = expectedView(value)
+		root = old ? fromLegacy(old, evalSet) : undefined
+	}
+	const parts = scopeExpectedFiles(skillFolder).flatMap(({ path }) => {
+		const part = readJson(path)
+		return isExpectedFile(part) ? [part] : []
+	})
+	if (!parts.length) return root
+	const base = root ?? (parts[0] as ExpectedFile)
+	const entries: Record<string, ExpectedEntry> = { ...(root?.entries ?? {}) }
+	let inputs: Record<string, Record<string, string>> = { ...(root?.inputs ?? {}) }
+	for (const part of parts) {
+		Object.assign(entries, part.entries)
+		inputs = { ...inputs, ...(part.inputs ?? {}) }
+	}
+	const ordered = evalSet
+		? Object.fromEntries([
+				...evalSet.cases.flatMap((c) => (entries[c.id] ? [[c.id, entries[c.id] as ExpectedEntry]] : [])),
+				...Object.entries(entries).filter(([id]) => !evalSet.cases.some((c) => c.id === id)),
+			])
+		: entries
+	const { inputs: _inputs, ...rest } = base
+	return { ...rest, entries: ordered, ...(Object.keys(inputs).length ? { inputs } : {}) }
+}
+
+/**
+ * Where a scope's past accepted results live, each as `<its at>.json`, beside its expected result: `evals/accepted/`
+ * for the trigger and root scopes, `evals/<scope>/accepted/` for an eval folder's.
+ */
+export function acceptedFolder(skillFolder: string, scope: string = rootScope): string {
+	return join(scopeExpectedPath(skillFolder, scope), '..', 'accepted')
+}
+
+/** How many past accepted results each scope keeps in its `accepted/` folder beside its expected result, the newest. */
 export const keptAcceptedResults = 3
 
-/** The skill's kept accepted results, oldest first, the expected result last; a file that cannot be read is skipped. */
+/**
+ * The skill's kept accepted results, every scope's, oldest first, with the expected result last; a file that cannot be
+ * read is skipped. A past result of one eval folder holds that scope's cases only, which is all a case's trend reads.
+ */
 export function acceptedHistory(skillFolder: string): TestResult[] {
-	const folder = acceptedFolder(skillFolder)
-	const past = existsSync(folder)
-		? readdirSync(folder)
-				.filter((name) => name.endsWith('.json'))
-				.sort()
-				.map((name) => join(folder, name))
-		: []
-	return [...past, expectedPath(skillFolder)].flatMap((path) => {
-		const read = readResult(path)
-		return read ? [read] : []
-	})
+	const scopes = [rootScope, ...evalFolderNames(skillFolder)]
+	const past = scopes
+		.flatMap((scope) => {
+			const folder = acceptedFolder(skillFolder, scope)
+			return existsSync(folder)
+				? readdirSync(folder)
+						.filter((name) => name.endsWith('.json'))
+						.map((name) => ({ name, path: join(folder, name) }))
+				: []
+		})
+		.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+		.flatMap(({ path }) => {
+			const read = readResult(path)
+			return read ? [read] : []
+		})
+	const expected = readExpected(skillFolder)
+	return expected ? [...past, expected] : past
 }
 
 function readResult(path: string): TestResult | undefined {
@@ -478,9 +544,10 @@ function removeVanished(resultsRoot: string, current: string): void {
 /**
  * Writes the entries of `cases` from a saved result into the skill's expected result (R181), leaving every other entry
  * as it was and dropping the entry of a case `evalSet` no longer holds. Each entry keeps what a run decided, never its
- * replies or an absolute path, since the file is committed. When the write replaces or drops an entry, the expected
- * result it changes moves to `evals/accepted/<its at>.json` first, unless it is the same run, and only the newest
- * `keptAcceptedResults` stay there. A write of no case changes nothing.
+ * replies or an absolute path, since the file is committed. Each scope's entries go to its own file
+ * (`writeExpectedFile`). When the write replaces or drops an entry a file holds, that file moves to its scope's
+ * `accepted/<its at>.json` first, unless it is the same run, and only the newest `keptAcceptedResults` stay there. A
+ * write of no case changes nothing.
  */
 export function acceptResult(
 	result: TestResult,
@@ -494,32 +561,71 @@ export function acceptResult(
 	if (!merged.written.length && !merged.dropped.length) return { path, written: [], dropped: [] }
 	// The passes the author attested (#323) outlive the expected result they were recorded beside.
 	const attested = readAttestations(skillFolder)
-	mkdirSync(join(skillFolder, 'evals'), { recursive: true })
-	if (previous && (merged.replaced || merged.dropped.length) && previous.at !== result.at && existsSync(path)) {
-		mkdirSync(acceptedFolder(skillFolder), { recursive: true })
-		renameSync(path, join(acceptedFolder(skillFolder), `${stem(previous.at)}.json`))
+	const changed = new Set([...merged.written.filter((id) => previous?.entries[id]), ...merged.dropped])
+	for (const stored of storedExpected(skillFolder)) {
+		if (stored.at === result.at || !stored.ids.some((id) => changed.has(id))) continue
+		const folder = acceptedFolder(skillFolder, stored.scope)
+		mkdirSync(folder, { recursive: true })
+		renameSync(stored.path, join(folder, `${stem(stored.at)}.json`))
+		pruneAccepted(folder)
 	}
 	writeExpectedFile(skillFolder, merged.file, attested)
-	pruneAccepted(skillFolder)
 	return { path, written: merged.written, dropped: merged.dropped }
 }
 
-/** Writes the per-case expected result as it is, with the passes the author attested (#323), those in the file now by default. */
+/** Each expected result file the skill holds now, with its scope, when it was written, and the cases it has entries of. */
+function storedExpected(skillFolder: string): { scope: string; path: string; at: string; ids: string[] }[] {
+	return [{ scope: rootScope, path: expectedPath(skillFolder) }, ...scopeExpectedFiles(skillFolder)].flatMap(
+		({ scope, path }) => {
+			const value = readJson(path)
+			if (isExpectedFile(value)) return [{ scope, path, at: value.at, ids: Object.keys(value.entries) }]
+			const old = expectedView(value)
+			return old ? [{ scope, path, at: old.at, ids: old.cases.map((item) => item.case) }] : []
+		},
+	)
+}
+
+/**
+ * Writes the per-case expected result as it is, one file per scope (R181): the entries of each eval folder's scope to
+ * `evals/<scope>/expected.json`, and the trigger and root entries, with the passes the author attested (#323), those in
+ * the file now by default, to `evals/expected.json`. An entry of a scope with no eval folder stays at the root. An eval
+ * folder left with no entry has its file removed. Answers each file it wrote, the root's first.
+ */
 export function writeExpectedFile(
 	skillFolder: string,
 	file: ExpectedFile,
 	attested = readAttestations(skillFolder),
-): string {
-	const path = expectedPath(skillFolder)
-	const { attested: _attested, ...rest } = file
-	mkdirSync(join(skillFolder, 'evals'), { recursive: true })
-	writeFileSync(path, `${JSON.stringify(attested.length ? { ...rest, attested } : rest, null, '\t')}\n`)
-	return path
+): string[] {
+	const { attested: _attested, entries, inputs, ...rest } = file
+	const folders = new Set(evalFolderNames(skillFolder))
+	const byScope = new Map<string, Record<string, ExpectedEntry>>([[rootScope, {}]])
+	for (const scope of folders) byScope.set(scope, {})
+	for (const [id, entry] of Object.entries(entries)) {
+		const scope = folders.has(entry.scope) ? entry.scope : rootScope
+		;(byScope.get(scope) as Record<string, ExpectedEntry>)[id] = entry
+	}
+	const written: string[] = []
+	for (const [scope, own] of byScope) {
+		const path = scopeExpectedPath(skillFolder, scope)
+		if (scope !== rootScope && !Object.keys(own).length) {
+			rmSync(path, { force: true })
+			continue
+		}
+		const used = new Set(Object.values(own).flatMap((entry) => (entry.hashes ? [entry.hashes.scope] : [])))
+		const kept = Object.fromEntries(Object.entries(inputs ?? {}).filter(([hash]) => used.has(hash)))
+		const part = { ...rest, entries: own, ...(Object.keys(kept).length ? { inputs: kept } : {}) }
+		mkdirSync(join(path, '..'), { recursive: true })
+		writeFileSync(
+			path,
+			`${JSON.stringify(scope === rootScope && attested.length ? { ...part, attested } : part, null, '\t')}\n`,
+		)
+		written.push(path)
+	}
+	return written
 }
 
-/** Deletes all but the newest `keptAcceptedResults` past accepted results; the expected result is never one of them. */
-function pruneAccepted(skillFolder: string): void {
-	const folder = acceptedFolder(skillFolder)
+/** Deletes all but the newest `keptAcceptedResults` past accepted results of one scope; its expected result is never one. */
+function pruneAccepted(folder: string): void {
 	if (!existsSync(folder)) return
 	const past = readdirSync(folder)
 		.filter((name) => name.endsWith('.json'))
