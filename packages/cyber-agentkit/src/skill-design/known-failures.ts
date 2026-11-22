@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs'
 import { isMap, isScalar, type Pair, type parseDocument, type YAMLMap } from 'yaml'
 import { inPlace, lineStart, nextLine, readEvals } from './eval-case.js'
-import { type EvalsFile, evalsProblems, knownFailureMarks } from './verification-checks.js'
+import { type EvalsFile, evalsProblems, knownFailureMarks, triggerCaseId } from './verification-checks.js'
 
 /**
  * `skill fails`: marks a trigger case, or one criterion of an outcome case, as known to fail, with the reason, as
@@ -9,7 +9,7 @@ import { type EvalsFile, evalsProblems, knownFailureMarks } from './verification
  * beside the case. Each edit changes only the text of the mark, so every comment and the layout of the rest stay.
  */
 
-/** A mark of a known failure: a trigger case's (`trigger-<n>`) has no criterion. */
+/** A mark of a known failure: a trigger case's (its `id`, or `trigger-<n>`) has no criterion. */
 export type KnownFailureMark = { case: string; criterion?: string; reason: string }
 
 /** Why `skill fails` changed nothing. */
@@ -49,33 +49,29 @@ export function listKnownFailures(skillFolder: string): { evals: string; marks: 
 	return { evals: evals.file, marks }
 }
 
-/** The entry a target names: `trigger-<n>` a trigger case, anything else an outcome case's `id`. */
+/** The entry a target names, by case ID (R175): a trigger case's own `id` or `trigger-<n>`, or an outcome case's `id`. */
 function locate(
 	doc: Doc,
 	target: Target,
 ): { kind: 'trigger' | 'outcome'; index: number; node: YAMLMap; value: Record<string, unknown> } | MarkProblem {
 	const value = (doc.toJS() ?? {}) as EvalsFile
-	const trigger = /^trigger-(\d+)$/.exec(target.case)
-	if (trigger) {
-		const index = Number(trigger[1]) - 1
+	const index = (value.trigger ?? []).findIndex((item, at) => triggerCaseId(item, at) === target.case)
+	if (index >= 0) {
 		const node = (doc.get('trigger', true) as { items?: unknown[] } | undefined)?.items?.[index]
-		if (!value.trigger?.[index] || !isMap(node))
-			return {
-				code: 'unknown-case',
-				problem: `evals/evals.yaml has no trigger case ${target.case}; it has ${value.trigger?.length ?? 0}`,
-			}
+		if (!isMap(node))
+			return { code: 'unknown-case', problem: `evals/evals.yaml: trigger case ${target.case} is not a mapping` }
 		if (target.criterion !== undefined)
 			return {
 				code: 'bad-criterion',
 				problem: `${target.case} is a trigger case, which tests no criterion; mark it without one`,
 			}
-		return { kind: 'trigger', index, node, value: value.trigger[index] as Record<string, unknown> }
+		return { kind: 'trigger', index, node, value: value.trigger?.[index] as Record<string, unknown> }
 	}
-	const index = (value.outcome ?? []).findIndex((item) => item.id === target.case)
-	const node = (doc.get('outcome', true) as { items?: unknown[] } | undefined)?.items?.[index]
-	if (index < 0 || !isMap(node)) {
+	const outcomeIndex = (value.outcome ?? []).findIndex((item) => item.id === target.case)
+	const node = (doc.get('outcome', true) as { items?: unknown[] } | undefined)?.items?.[outcomeIndex]
+	if (outcomeIndex < 0 || !isMap(node)) {
 		const ids = [
-			...(value.trigger ?? []).map((_, at) => `trigger-${at + 1}`),
+			...(value.trigger ?? []).map((item, at) => triggerCaseId(item, at)),
 			...(value.outcome ?? []).map((item) => item.id),
 		]
 		return {
@@ -83,7 +79,12 @@ function locate(
 			problem: `evals/evals.yaml has no case ${target.case}; its cases are ${ids.join(', ') || 'none'}`,
 		}
 	}
-	return { kind: 'outcome', index, node, value: value.outcome?.[index] as Record<string, unknown> }
+	return {
+		kind: 'outcome',
+		index: outcomeIndex,
+		node,
+		value: value.outcome?.[outcomeIndex] as Record<string, unknown>,
+	}
 }
 
 const pairOf = (map: YAMLMap, key: string) =>

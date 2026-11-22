@@ -25,12 +25,12 @@ export type EvalsFile = {
 	timeout?: number
 	/** Runs at once, never above the bound `skill test` sets from the hardware threads; optional. */
 	concurrency?: number
-	/** A trigger case; `model`, a tier (`small`, `mid`, `top`) or a model ID, wins over the test's model (R161). */
 	/**
-	 * A trigger case; `model`, a tier (`small`, `mid`, `top`) or a model ID, wins over the test's model (R161). `fails`
-	 * marks it known to fail, with the reason (#329).
+	 * A trigger case; `id` names it (R175), `trigger-<n>` from its place when it has none. `model`, a tier (`small`,
+	 * `mid`, `top`) or a model ID, wins over the test's model (R161). `fails` marks it known to fail, with the reason
+	 * (#329).
 	 */
-	trigger?: { prompt: string; expect: 'fire' | 'skip'; model?: string; fails?: string }[]
+	trigger?: { id?: string; prompt: string; expect: 'fire' | 'skip'; model?: string; fails?: string }[]
 	outcome?: {
 		id: string
 		prompt: string
@@ -56,6 +56,14 @@ export type EvalsFile = {
 }
 
 const file = 'evals/evals.yaml'
+
+/** A case ID names its files folder and setup script, so it is one plain path segment. */
+export const caseIdPattern = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+/** The ID a trigger case with no `id` of its own takes from its place; no case may claim this form as its own. */
+export const positionalTriggerId = /^trigger-\d+$/
+/** A trigger case's ID (R175): its own `id`, or `trigger-<n>` from its place in the list. */
+export const triggerCaseId = (item: { id?: unknown }, index: number): string =>
+	typeof item.id === 'string' ? item.id : `trigger-${index + 1}`
 const isFile = (path: string) => existsSync(path) && statSync(path).isFile()
 /** A tier or a model ID: one word, no space, so it cannot carry a second flag. */
 const isModel = (value: unknown) => typeof value === 'string' && /^[A-Za-z0-9][\w.:/@[\]-]*$/.test(value)
@@ -142,6 +150,17 @@ export function evalsProblems(value: unknown): string[] {
 					problems.push(`trigger case ${index + 1} needs a \`prompt\` and \`expect: fire\` or \`skip\``)
 				else if (item['model'] !== undefined && !isModel(item['model']))
 					problems.push(`trigger case ${index + 1}: \`model\` is not a tier or a model ID`)
+				if (isRecord(item) && item['id'] !== undefined) {
+					const id = item['id']
+					if (typeof id !== 'string' || !caseIdPattern.test(id) || id.includes('..'))
+						problems.push(
+							`trigger case ${index + 1}: \`id\` ${JSON.stringify(id)} is not a case ID: use letters, digits, '.', '_', and '-', starting with a letter or digit`,
+						)
+					else if (positionalTriggerId.test(id))
+						problems.push(
+							`trigger case ${index + 1}: \`id\` ${id} takes the form a trigger case with no \`id\` is given from its place; pick another`,
+						)
+				}
 			})
 	}
 	const outcome = value['outcome']
@@ -189,6 +208,20 @@ export function evalsProblems(value: unknown): string[] {
 		if (!isRecord(rubrics)) problems.push('`rubrics` is not a mapping of criterion IDs')
 		else for (const [id, list] of Object.entries(rubrics)) problems.push(...checkListProblems(list, `rubric ${id}`))
 	}
+	// Every case's ID is unique in the skill (R175), a trigger case's own or positional one included.
+	const ids = [
+		...(Array.isArray(trigger) ? trigger.map((item, index) => triggerCaseId(isRecord(item) ? item : {}, index)) : []),
+		...(Array.isArray(outcome)
+			? outcome.flatMap((item) => (isRecord(item) && typeof item['id'] === 'string' ? [item['id']] : []))
+			: []),
+	]
+	const twice = [...new Set(ids.filter((id, at) => ids.indexOf(id) !== at))]
+	if (twice.length)
+		problems.push(
+			twice.length === 1
+				? `case ID ${twice[0]} names more than one case; give each case its own`
+				: `case IDs ${twice.join(', ')} each name more than one case; give each case its own`,
+		)
 	problems.push(...failsProblems(value))
 	return problems
 }
@@ -281,11 +314,11 @@ export function gitWriteLines(script: string): string[] {
 	})
 }
 
-/** Every known-failure mark (#329) of an `evals/evals.yaml` value: a trigger case's as `trigger-<n>`, with no criterion. */
+/** Every known-failure mark (#329) of an `evals/evals.yaml` value: a trigger case's by its ID (R175), with no criterion. */
 export function knownFailureMarks(evals: EvalsFile): { case: string; criterion?: string; reason: string }[] {
 	return [
 		...(evals.trigger ?? []).flatMap((item, index) =>
-			typeof item.fails === 'string' ? [{ case: `trigger-${index + 1}`, reason: item.fails }] : [],
+			typeof item.fails === 'string' ? [{ case: triggerCaseId(item, index), reason: item.fails }] : [],
 		),
 		...(evals.outcome ?? []).flatMap((item) =>
 			Object.entries(item.fails ?? {}).map(([criterion, reason]) => ({ case: item.id, criterion, reason })),
@@ -293,9 +326,21 @@ export function knownFailureMarks(evals: EvalsFile): { case: string; criterion?:
 	]
 }
 
-/** VER-1 to VER-5, VER-9, VER-11 to VER-13, VER-15, and VER-16, the default Verification aspect's script checks. */
+/** VER-1 to VER-5, VER-9, VER-11 to VER-13, and VER-15 to VER-17, the default Verification aspect's script checks. */
 export function checkVerification(skill: SkillFiles): CheckOutcome[] {
-	const later = ['VER-2', 'VER-3', 'VER-4', 'VER-5', 'VER-9', 'VER-11', 'VER-12', 'VER-13', 'VER-15', 'VER-16']
+	const later = [
+		'VER-2',
+		'VER-3',
+		'VER-4',
+		'VER-5',
+		'VER-9',
+		'VER-11',
+		'VER-12',
+		'VER-13',
+		'VER-15',
+		'VER-16',
+		'VER-17',
+	]
 	const blocked = (message: string): CheckOutcome[] => [
 		{ id: 'VER-1', status: 'fail', message, file },
 		...later.map((id): CheckOutcome => ({ id, status: 'not-checked', message: 'VER-1 failed' })),
@@ -506,6 +551,21 @@ export function checkVerification(skill: SkillFiles): CheckOutcome[] {
 					file,
 				}
 			: { id: 'VER-16', status: 'pass' },
+	)
+
+	// A trigger case with no `id` is named by its place, so adding or moving one renames the ones after it (R186).
+	const unnamed = (evals.trigger ?? []).flatMap((item, index) =>
+		item.id === undefined ? [`trigger-${index + 1}`] : [],
+	)
+	outcomes.push(
+		unnamed.length
+			? {
+					id: 'VER-17',
+					status: 'fail',
+					message: `${unnamed.length === 1 ? '1 trigger case has' : `${unnamed.length} trigger cases have`} no \`id\` and ${unnamed.length === 1 ? 'is' : 'are'} named by place: ${unnamed.join(', ')}`,
+					file,
+				}
+			: { id: 'VER-17', status: 'pass' },
 	)
 	return outcomes
 }

@@ -101,6 +101,19 @@ rubrics:
     - not-regex: "Merge (pull request|branch)"
 `
 
+/**
+ * `goodEvals` with an `id` on each trigger case (`fire-1`, ..., `skip-1`, ...), so a skill that holds it passes every
+ * script check, VER-17 included. `goodEvals` keeps the positional form, which still works and only warns (R185).
+ */
+export const namedEvals = (() => {
+	const count = { fire: 0, skip: 0 }
+	return goodEvals.replace(
+		/- \{ prompt: (.*), expect: (fire|skip) \}/g,
+		(_, prompt: string, expect: 'fire' | 'skip') =>
+			`- { id: ${expect}-${++count[expect]}, prompt: ${prompt}, expect: ${expect} }`,
+	)
+})()
+
 /** Writes a skill folder named after the `name` it holds, in a `skills` root, with the given files, and reads it. */
 export function makeSkill(files: Record<string, string>, folderName = 'release-notes'): SkillFiles {
 	const folder = join(mkdtempSync(join(tmpdir(), 'skill-design-')), 'skills', folderName)
@@ -120,6 +133,10 @@ export function goodSkill(extra: Record<string, string> = {}): SkillFiles {
 		...extra,
 	})
 }
+
+/** `goodSkill` holding `namedEvals`: a skill that meets every script check. */
+export const namedSkill = (extra: Record<string, string> = {}): SkillFiles =>
+	goodSkill({ 'evals/evals.yaml': namedEvals, ...extra })
 
 export const byId = <T extends { id: string }>(outcomes: T[]): Record<string, T> =>
 	Object.fromEntries(outcomes.map((outcome) => [outcome.id, outcome]))

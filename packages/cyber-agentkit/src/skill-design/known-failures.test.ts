@@ -167,6 +167,24 @@ describe('markKnownFailure and clearKnownFailure (#329)', () => {
 		expect(evalsOf(folder)).toBe(before)
 	})
 
+	it('marks a trigger case by its own `id`, and the mark stays on it when the cases are reordered (R175)', () => {
+		const folder = goodSkill({
+			'evals/evals.yaml': `trigger:
+  - { id: notes, prompt: write release notes, expect: fire }
+  - { id: changelog, prompt: draft the changelog, expect: fire }
+`,
+		}).folder
+		markKnownFailure(folder, { case: 'changelog' }, 'misses changelog', [])
+		expect(parse(evalsOf(folder)).trigger[1]).toMatchObject({ id: 'changelog', fails: 'misses changelog' })
+		expect(markKnownFailure(folder, { case: 'trigger-2' }, 'x', [])).toMatchObject({ code: 'unknown-case' })
+		const [first, second] = evalsOf(folder).split('\n').slice(1, 3)
+		writeFileSync(join(folder, 'evals', 'evals.yaml'), `trigger:\n${second}\n${first}\n`)
+		expect(listKnownFailures(folder)).toMatchObject({ marks: [{ case: 'changelog', reason: 'misses changelog' }] })
+		expect(clearKnownFailure(folder, { case: 'changelog' })).toMatchObject({
+			cleared: [{ case: 'changelog', reason: 'misses changelog' }],
+		})
+	})
+
 	it('edits a flow case in place, and clears every mark of a case when no criterion is named', () => {
 		const { folder } = skillWith()
 		const before = evalsOf(folder)

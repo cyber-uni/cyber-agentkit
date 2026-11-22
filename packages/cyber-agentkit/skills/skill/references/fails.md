@@ -14,8 +14,8 @@ Mark only when the author asks to and gives the reason: a sentence or a link, su
 missing, ask for it and write nothing. Never add a mark on your own judgment, to make `test` pass or exit 0, or to clear
 `check`; a request to make a failing test pass is a request to fix the skill, not to mark it.
 
-The target is an outcome case's ID and the criterion known to fail, such as `mixed-round C3`, or `trigger-<n>` for the
-nth trigger case, with no criterion. An outcome case marks only a criterion it tests.
+The target is an outcome case's ID and the criterion known to fail, such as `mixed-round C3`, or a trigger case's ID,
+with no criterion: its `id`, or `trigger-<n>` for the nth trigger case when it has none. An outcome case marks only a criterion it tests.
 
 ## 3. Run it
 

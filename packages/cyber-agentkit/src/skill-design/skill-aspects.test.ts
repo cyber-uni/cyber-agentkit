@@ -8,7 +8,7 @@ import { builtInAspects } from './built-in-aspects.js'
 import { runCheckScript } from './run-check-script.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
 import type { AspectCheck } from './skill-check-types.js'
-import { goodSkill } from './skill-design.fixtures.js'
+import { namedSkill } from './skill-design.fixtures.js'
 
 const packageRoot = fileURLToPath(new URL('../..', import.meta.url))
 const skillMd = readFileSync(new URL('../../skills/skill/SKILL.md', import.meta.url), 'utf8')
@@ -59,7 +59,7 @@ describe('the shipped aspects', () => {
 
 	it('each with a script check name a check script that decides every script check it lists, and no other', async () => {
 		const layers = await packageLayers()
-		const skill = goodSkill()
+		const skill = namedSkill()
 		for (const name of aspectNames(layers)) {
 			const aspect = loadAspect(name, layers, (path) => path)
 			expect(aspect.problem).toBeUndefined()
