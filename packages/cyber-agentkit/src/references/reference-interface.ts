@@ -28,7 +28,16 @@ export type ReferenceInterface = {
 export type ImplementsEntry = { id: string; version: number }
 
 /** The checks `check` runs, each named in kebab-case (UC6). */
-export type InterfaceCheck = 'interface-found' | 'version' | 'name' | 'order' | 'required' | 'interface' | 'compose'
+export type InterfaceCheck =
+	| 'interface-found'
+	| 'version'
+	| 'name'
+	| 'order'
+	| 'required'
+	| 'interface'
+	| 'compose'
+	| 'capability'
+	| 'support-level'
 
 export type InterfaceCheckFailure = {
 	check: InterfaceCheck
@@ -184,20 +193,72 @@ export function fitsName(iface: Pick<ReferenceInterface, 'id' | 'cardinality'>, 
 	return name.startsWith(`${iface.id}.`) && name.length > iface.id.length + 1 && !name.endsWith(interfaceSuffix)
 }
 
-export type DocumentSection = { title: string; unsupported: boolean }
+/** A section's support level (K42): its first line opens `**Partial.**` or `**Unsupported.**`; none when supported. */
+export type SupportLevel = 'partial' | 'unsupported'
 
-/** Every top-level heading outside a code fence, in order, and whether its first line is `**Unsupported.**`. */
+export type DocumentSection = {
+	title: string
+	/** Its support level, read from the marker its first line opens with. */
+	level?: SupportLevel
+	unsupported: boolean
+	partial: boolean
+	/** The marker has no sentence after it in its paragraph, which fails `support-level` (R138). */
+	bare: boolean
+}
+
+const markers: readonly [SupportLevel, string][] = [
+	['partial', '**Partial.**'],
+	['unsupported', '**Unsupported.**'],
+]
+
+/** The support level of a section's text, and whether its marker stands with no sentence after it. */
+function supportLevel(text: readonly string[]): { level?: SupportLevel; bare: boolean } {
+	const start = text.findIndex((line) => line.trim())
+	if (start === -1) return { bare: false }
+	const first = (text[start] as string).trim()
+	const marker = markers.find(([, mark]) => first.startsWith(mark))
+	if (!marker) return { bare: false }
+	const [level, mark] = marker
+	// The sentence may wrap: the rest of the marker's paragraph is read.
+	const paragraph = [first.slice(mark.length)]
+	for (const line of text.slice(start + 1)) {
+		if (!line.trim()) break
+		paragraph.push(line)
+	}
+	return { level, bare: !paragraph.join(' ').trim() }
+}
+
+/**
+ * Every top-level heading outside a code fence, in order, with its support level: whether its first
+ * line is `**Partial.**` or `**Unsupported.**`, and whether that marker has no sentence after it.
+ */
 export function documentSections(content: string): DocumentSection[] {
 	const found: DocumentSection[] = []
 	const visit = (section: Section) => {
 		if (section.depth === 0) {
-			const first = section.text.find((line) => line.trim())
-			found.push({ title: section.title, unsupported: first?.trim().startsWith('**Unsupported.**') ?? false })
+			const { level, bare } = supportLevel(section.text)
+			found.push({
+				title: section.title,
+				...(level ? { level } : {}),
+				unsupported: level === 'unsupported',
+				partial: level === 'partial',
+				bare,
+			})
 		}
 		for (const child of section.children) visit(child)
 	}
 	for (const section of parseSections(content, () => {}).children) visit(section)
 	return found
+}
+
+/** The `support-level` failures for a document's sections: each marker with no sentence after it (R138). */
+export function supportLevelProblems(sections: readonly DocumentSection[]): string[] {
+	return sections
+		.filter(({ bare }) => bare)
+		.map(
+			({ title, level }) =>
+				`section ${title} is marked ${level === 'partial' ? '**Partial.**' : '**Unsupported.**'} with no sentence saying what is missing or why`,
+		)
 }
 
 export type ImplementationFacts = {
@@ -215,11 +276,12 @@ export type ImplementationFacts = {
  * Checks one composed implementation against its interface. A section the interface does not list
  * may sit anywhere; `order` compares only the listed ones. A required section left out or marked
  * `**Unsupported.**` fails `required` (R64); an optional one is listed in `unsupported` (R34), in order.
+ * A listed section marked `**Partial.**` is present, required or not, and is listed in `partial` (R142).
  */
 export function checkImplementation(
 	iface: ReferenceInterface,
 	{ name, version, content, accept = iface.versions, declaredId = iface.id }: ImplementationFacts,
-): { failures: InterfaceCheckFailure[]; unsupported: string[] } {
+): { failures: InterfaceCheckFailure[]; unsupported: string[]; partial: string[] } {
 	const failures: InterfaceCheckFailure[] = []
 	const fail = (check: InterfaceCheck, message: string) => failures.push({ check, interface: iface.id, message })
 	if (!accept.includes(version)) fail('version', `unknown version ${version}`)
@@ -233,6 +295,9 @@ export function checkImplementation(
 		return !present || present.unsupported
 	})
 	const unsupported = absent.filter(({ required }) => !required).map(({ heading }) => heading)
+	const partial = iface.sections
+		.filter(({ heading }) => sections.some((each) => each.partial && sectionKey(each.title) === sectionKey(heading)))
+		.map(({ heading }) => heading)
 	let last = -1
 	let lastTitle = ''
 	const seen = new Set<string>()
@@ -255,5 +320,5 @@ export function checkImplementation(
 			`required ${missing.length === 1 ? 'section' : 'sections'} ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} left out or marked **Unsupported.**`,
 		)
 	}
-	return { failures, unsupported }
+	return { failures, unsupported, partial }
 }

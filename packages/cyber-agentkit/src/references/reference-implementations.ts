@@ -16,6 +16,8 @@ export type ReferenceImplementation = {
 	description: string
 	/** The optional listed sections it marks `**Unsupported.**` or leaves out, in the interface's order. */
 	unsupported: string[]
+	/** The listed sections it marks `**Partial.**`, required ones included, in the interface's order (R142). */
+	partial: string[]
 	name: string
 	/** `plugin`, or the `repo` or `user` tier of a bare-name implementation. */
 	tier: ReferenceTier
@@ -221,6 +223,7 @@ function interfaceImplementations(
 			pin,
 			description: firstLine(resolved.metadata?.['description']),
 			unsupported: checked.unsupported,
+			partial: checked.partial,
 			name,
 			tier,
 			version: declared.version,

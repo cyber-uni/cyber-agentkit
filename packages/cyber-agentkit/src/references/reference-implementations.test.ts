@@ -53,6 +53,7 @@ describe('referenceImplementations', () => {
 				pin: 'repobuddy/project-tracker.capabilities.github',
 				description: 'What the GitHub tracker can do for issue, epic, and initiative skills.',
 				unsupported: ['Retype'],
+				partial: [],
 				name: 'project-tracker.capabilities.github',
 				tier: 'plugin',
 				version: 1,

@@ -21,6 +21,7 @@ export type ReferenceImplementationsReport = {
 		pin: string
 		description?: string
 		unsupported?: string[]
+		partial?: string[]
 		name?: string
 		tier?: string
 		version?: number
@@ -54,11 +55,11 @@ export type ReferenceFamilyImplementationsReport = {
 }
 
 function rowsOf(found: ReferenceImplementations, trace: boolean | undefined) {
-	return found.implementations.map(({ pin, description, unsupported, name, tier, version }) =>
+	return found.implementations.map(({ pin, description, unsupported, partial, name, tier, version }) =>
 		compact(
 			trace
-				? { pin, description, unsupported, name, tier, version }
-				: { pin, ...(tier === 'plugin' ? {} : { tier }), description, unsupported },
+				? { pin, description, unsupported, partial, name, tier, version }
+				: { pin, ...(tier === 'plugin' ? {} : { tier }), description, unsupported, partial },
 		),
 	)
 }
@@ -85,7 +86,7 @@ export function implementationsCommand(layersFor: LayersFor, path = defaultRefer
 	return command({
 		name: 'implementations',
 		description:
-			'List the implementations of an interface a consumer can load, each with its pin, description, and unsupported sections.',
+			'List the implementations of an interface a consumer can load, each with its pin, description, and unsupported and partial sections.',
 		arguments: [
 			{
 				name: 'id',
