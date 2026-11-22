@@ -12,6 +12,8 @@ outcome:
         - regex: "Not checked:[^\\n]*TRG-4"
       C3:
         - regex: "Failed:\\W{0,4}[Nn]one\\b"
+    fails:
+      C3: "The passing sample skill (files/samples release-notes) now fails VER-17 and VER-18, Verification checks added after it was written, so 'Failed: none' is no longer the right answer: 0/3 in the full run and 0/3 on a rerun, 2026-11-22. Follow-up: bring the sample current."
   - id: check-flawed
     prompt: >-
       Check the skill in .agents/skills/release-notes-flawed. End your reply with two lines: "Failed:" then the IDs of

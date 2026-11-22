@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-22T16:10:42.670Z",
+	"at": "2026-11-22T20:24:06.203Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,57 +43,83 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:cf5c8116ae77ef9dd101c34e6f381967f99155cb38a30f42bd2b99d403724c1e",
+		"scripts": "sha256:f0a4106bcdb63dbbf62607f88ee013dbfad7bdfdb116db8a24d85c19dfd71ccc",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
 	"entries": {
 		"check-passing": {
 			"scope": "check",
-			"status": "pass",
-			"passed": 3,
+			"status": "known-failure",
+			"passed": 0,
 			"ran": 3,
 			"criteria": {
 				"C2": {
-					"status": "pass"
+					"status": "pass",
+					"passed": 2,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
 				},
 				"C3": {
-					"status": "pass"
+					"status": "known-failure",
+					"passed": 1,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
 				}
 			},
+			"knownFailures": [
+				{
+					"case": "check-passing",
+					"criterion": "C3",
+					"reason": "The passing sample skill (files/samples release-notes) now fails VER-17 and VER-18, Verification checks added after it was written, so 'Failed: none' is no longer the right answer: 0/3 in the full run and 0/3 on a rerun, 2026-11-22. Follow-up: bring the sample current.",
+					"status": "known-failure",
+					"passed": 1,
+					"ran": 3
+				}
+			],
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:22:32.591Z",
 			"hashes": {
-				"case": "sha256:597b7cf00f9e98afe4ae0e2c71201ee44937759d73876353e51585efb3c220d0",
+				"case": "sha256:cfc3b90735e4d7d1a8e4f91a218a88dffdffe455ec6f7c6c3ea9ea4f11cf679c",
 				"scope": "sha256:67e2b721cf1babed3f3a0c852277a9fff2a50e3a63a6597d3d27105b5d4c1867"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:00.584Z"
 			}
 		},
 		"check-flawed": {
 			"scope": "check",
 			"status": "pass",
-			"passed": 3,
+			"passed": 2,
 			"ran": 3,
 			"criteria": {
 				"C2": {
-					"status": "pass"
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
 				},
 				"C3": {
-					"status": "pass"
+					"status": "pass",
+					"passed": 2,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:05:56.381Z",
 			"hashes": {
 				"case": "sha256:f6c35fc0cdcb838943eba7c618d046a935e636a6478c2bd695118a97eed51fc7",
 				"scope": "sha256:67e2b721cf1babed3f3a0c852277a9fff2a50e3a63a6597d3d27105b5d4c1867"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:00.584Z"
 			}
 		},
 		"check-missing": {
@@ -112,18 +138,20 @@
 					}
 				},
 				"C2": {
-					"status": "pass"
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:05:56.381Z",
 			"hashes": {
 				"case": "sha256:e844be76fa335f0d87c814f3c5942b87b1c843ec98ad18f8d8eb2c5c9f89acac",
 				"scope": "sha256:67e2b721cf1babed3f3a0c852277a9fff2a50e3a63a6597d3d27105b5d4c1867"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:00.584Z"
 			}
 		}
 	},

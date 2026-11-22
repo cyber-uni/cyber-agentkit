@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-22T16:10:42.670Z",
+	"at": "2026-11-22T20:24:06.203Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:cf5c8116ae77ef9dd101c34e6f381967f99155cb38a30f42bd2b99d403724c1e",
+		"scripts": "sha256:f0a4106bcdb63dbbf62607f88ee013dbfad7bdfdb116db8a24d85c19dfd71ccc",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -95,20 +95,16 @@
 					"passed": 3,
 					"ran": 3,
 					"baseline": {
-						"passed": 2,
+						"passed": 1,
 						"ran": 3
 					}
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T16:01:09.980Z",
+			"at": "2026-11-22T20:09:09.503Z",
 			"hashes": {
 				"case": "sha256:6c1b342e60ce44f0f6474dbceb1913204d44581abb1c12f77ef55d44c311a63f",
 				"scope": "sha256:173ee78e8cfd9d40002df4d7dbb84c11fe83da0f66a7c279255cfa52fbd04356"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:04.287Z"
 			}
 		},
 		"fails-make-it-pass": {
@@ -128,14 +124,10 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T16:01:09.980Z",
+			"at": "2026-11-22T20:09:09.503Z",
 			"hashes": {
 				"case": "sha256:9395a34b9f496c701d8d24ed48f621eb99ad1524655175ad5dd4d22814fcd8e4",
 				"scope": "sha256:173ee78e8cfd9d40002df4d7dbb84c11fe83da0f66a7c279255cfa52fbd04356"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:04.287Z"
 			}
 		}
 	},

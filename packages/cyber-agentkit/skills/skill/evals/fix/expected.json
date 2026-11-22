@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-22T16:10:42.670Z",
+	"at": "2026-11-22T20:24:06.203Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:cf5c8116ae77ef9dd101c34e6f381967f99155cb38a30f42bd2b99d403724c1e",
+		"scripts": "sha256:f0a4106bcdb63dbbf62607f88ee013dbfad7bdfdb116db8a24d85c19dfd71ccc",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -65,35 +65,14 @@
 				},
 				"C7": {
 					"status": "pass",
-					"passed": 2,
+					"passed": 3,
 					"ran": 3,
 					"baseline": {
 						"passed": 0,
 						"ran": 3
 					}
-				}
-			},
-			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
-			"hashes": {
-				"case": "sha256:03804c7c524e9f212ad1c99afb2bafe4e2f2df192d62cb571ab5a42e5da02896",
-				"scope": "sha256:b80c63e5bec7c0f16d5e0b43e60a27a4825fb01278bafd7d1c2347c7bcb7320c"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:04.854Z"
-			}
-		},
-		"fix-too-long": {
-			"scope": "fix",
-			"status": "pass",
-			"passed": 2,
-			"ran": 3,
-			"criteria": {
-				"C13": {
-					"status": "pass"
 				},
-				"C18": {
+				"C25": {
 					"status": "pass",
 					"passed": 3,
 					"ran": 3,
@@ -104,14 +83,42 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:24:06.203Z",
+			"hashes": {
+				"case": "sha256:03804c7c524e9f212ad1c99afb2bafe4e2f2df192d62cb571ab5a42e5da02896",
+				"scope": "sha256:b80c63e5bec7c0f16d5e0b43e60a27a4825fb01278bafd7d1c2347c7bcb7320c"
+			}
+		},
+		"fix-too-long": {
+			"scope": "fix",
+			"status": "pass",
+			"passed": 2,
+			"ran": 3,
+			"criteria": {
+				"C13": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
+				},
+				"C18": {
+					"status": "pass",
+					"passed": 2,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
+				}
+			},
+			"model": "sonnet",
+			"at": "2026-11-22T20:10:24.579Z",
 			"hashes": {
 				"case": "sha256:2565260b88a8ba1b45db6d44f3404094fc5f35072d1bec06adf09e51329db275",
 				"scope": "sha256:b80c63e5bec7c0f16d5e0b43e60a27a4825fb01278bafd7d1c2347c7bcb7320c"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:04.854Z"
 			}
 		}
 	},

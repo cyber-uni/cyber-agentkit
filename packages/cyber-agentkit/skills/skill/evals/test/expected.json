@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-22T16:10:42.670Z",
+	"at": "2026-11-22T20:24:06.203Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:cf5c8116ae77ef9dd101c34e6f381967f99155cb38a30f42bd2b99d403724c1e",
+		"scripts": "sha256:f0a4106bcdb63dbbf62607f88ee013dbfad7bdfdb116db8a24d85c19dfd71ccc",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -65,14 +65,10 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:12:14.526Z",
 			"hashes": {
 				"case": "sha256:52c0e89c6433de282ecd42620600cffb9b6f71b6eaadb2a47745d08bdb90e613",
 				"scope": "sha256:7bbef47b11ef261e9f600232fa3385dcd80593754ee401fc860e74df9531c0f5"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:06.516Z"
 			}
 		},
 		"test-sandbox-unavailable": {
@@ -92,7 +88,7 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T16:08:04.738Z",
+			"at": "2026-11-22T20:12:14.526Z",
 			"hashes": {
 				"case": "sha256:f09c0a7f19bc302548436e00473455b278bf3265fc7bfa2c30abd15c089c7d70",
 				"scope": "sha256:7bbef47b11ef261e9f600232fa3385dcd80593754ee401fc860e74df9531c0f5"
@@ -109,25 +105,21 @@
 					"passed": 3,
 					"ran": 3,
 					"baseline": {
-						"passed": 2,
+						"passed": 1,
 						"ran": 3
 					}
 				}
 			},
 			"guard": true,
 			"baseline": {
-				"passed": 2,
+				"passed": 1,
 				"ran": 3
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T16:01:09.980Z",
+			"at": "2026-11-22T20:12:14.526Z",
 			"hashes": {
 				"case": "sha256:68dbf593518bec0021c44098ff2ae9b1c6999fcdf288e2bb4f15f6e3305c5c79",
 				"scope": "sha256:7bbef47b11ef261e9f600232fa3385dcd80593754ee401fc860e74df9531c0f5"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:06.516Z"
 			}
 		},
 		"test-migrate-plan": {
@@ -152,14 +144,10 @@
 				"ran": 3
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T16:01:09.980Z",
+			"at": "2026-11-22T20:12:14.526Z",
 			"hashes": {
 				"case": "sha256:22b281ca46e37ce8cf0910766f1db777d0534488fde224d4475ad98c3074751b",
 				"scope": "sha256:7bbef47b11ef261e9f600232fa3385dcd80593754ee401fc860e74df9531c0f5"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:06.516Z"
 			}
 		}
 	},
