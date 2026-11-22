@@ -6,10 +6,7 @@
 	"runs": 3,
 	"threshold": 2,
 	"baseline": "without the skill",
-	"criteria": [
-		"C1",
-		"C2"
-	],
+	"criteria": ["C1", "C2"],
 	"entries": {
 		"fire-write": {
 			"scope": "trigger",

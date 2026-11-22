@@ -9,7 +9,6 @@ import { readSkill, type SkillFiles } from './skill-files.js'
 import { checkStaleCases } from './stale-checks.js'
 import { checkVerification } from './verification-checks.js'
 
-const criteria = ['C1', 'C2', 'C3']
 const byId = (outcomes: CheckOutcome[]) => Object.fromEntries(outcomes.map((outcome) => [outcome.id, outcome]))
 const write = (skill: { folder: string }, path: string, text: string) => {
 	mkdirSync(dirname(join(skill.folder, path)), { recursive: true })
