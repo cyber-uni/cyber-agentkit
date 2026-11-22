@@ -1,6 +1,6 @@
 ---
 title: Library API
-description: The functions cyber-agentkit exports to detect the running harness, query what it holds, and resolve reference documents.
+description: The functions cyber-agentkit exports to detect the running harness, query what it holds, resolve reference documents, and lease git worktrees.
 sidebar:
   order: 3
 ---
@@ -58,7 +58,44 @@ wordings, newest first, and `retire()` returns that text with an outgoing wordin
 [`prose-update` skill](/cyber-agentkit/packages/cyber-agentkit/skills/prose-update/) builds on them and resolves what
 the facts leave open.
 
+## Worktrees
+
+The `cyber-agentkit/worktrees` subpath leases git worktrees to concurrent agent sessions, so two
+sessions never share a checkout. It never fetches and never kills a process.
+
+```ts
+import { acquire, release } from 'cyber-agentkit/worktrees'
+
+const lease = await acquire({ holder: 'my-agent', branch: 'feat/x', max: 4 })
+// … work in lease.worktree …
+await release(lease)
+```
+
+| Function | Does |
+| --- | --- |
+| `acquire(options)` | Leases a worktree. It recycles an idle one it owns, else creates one at the next free slot below `max` |
+| `explain(options)` | Lists every worktree of the repository with the reason it cannot be reused, or none |
+| `release(lease)` | Gives the lease back. It does not recycle the worktree; the next `acquire` does, after a probe |
+| `claimLease()`, `holdsLease()` | Takes a lease on a worktree, and tells whether a lease is still held |
+| `pruneWorktrees(options)` | Removes the worktrees it owns that are unleased, idle, clean, and landed. A dry run unless `apply` is set |
+| `removeWorktree(options)` | Removes the one worktree you name, under the same checks. `force` waives some of them |
+| `seedWorktree(source, worktree, options)` | Copies the gitignored files a `.worktreeinclude` names into a new or recycled worktree |
+| `listWorktrees()`, `occupants()`, `classifyOwner()` | Lists the worktrees of a repository, the sessions working in each, and who owns each |
+
+A lease is git's own worktree lock, so `git worktree remove` refuses a leased worktree too.
+
+`acquire` and `explain` skip a worktree when it is the primary checkout, owned by another tool or person,
+leased, prunable, busy, dirty, or not landed on the reset target. The verdict names the reason. The
+checks fail closed: when git cannot say whether a worktree is clean or landed, it is left alone. When
+the process probe cannot read processes, `acquire` proceeds and marks the result `verified: false`,
+unless `strict` is set. `pruneWorktrees` and `removeWorktree` skip by default in that case, since
+removal cannot be undone.
+
+`acquire` throws `AcquireError` with a `code` of `pool-full`, `no-base`, or `contended`. Services left
+running in a worktree with no live session behind them come back as `lingering`, for the caller to
+reclaim.
+
 ## Full signatures
 
 The [package readme](https://github.com/cyber-uni/cyber-agentkit/tree/main/packages/cyber-agentkit#readme)
-documents each function with its options, return shape, and the research claim behind each answer.
+documents the harness and reference functions with their options, return shapes, and the research claim behind each answer.
