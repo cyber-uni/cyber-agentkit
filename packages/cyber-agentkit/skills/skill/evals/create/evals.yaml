@@ -63,3 +63,5 @@ outcome:
       C29:
         - script: for p in draft review publish; do ls .agents/skills/*/references/$p.md
             .agents/skills/*/evals/$p/evals.yaml >/dev/null 2>&1 || exit 1; done
+    fails:
+      C29: "A three-part create costs more than skill test's $0.50 per-run cost cap on the mid-tier model: 4 of 6 runs stopped at the cap across two runs in #372, with or without the nested test; every run that finished passed C29."
