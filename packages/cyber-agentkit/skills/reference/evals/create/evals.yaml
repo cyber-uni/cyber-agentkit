@@ -1,0 +1,31 @@
+outcome:
+  - id: create-approved
+    prompt: >-
+      Create a repo reference named deploy-checklist with one section, "## Steps", saying
+      "Run the tests before you tag." I approve writing it; don't ask again.
+    files: ../files/repo
+    criteria: [C1, C2, C3, C4]
+  - id: create-capability-reference
+    prompt: "Create a repo capability reference for our self-hosted GitLab,
+      gitlab.capabilities. We run the 17.x Free tier, detected when the origin
+      remote host is gitlab.internal. Epics are only partly there: we have no
+      group epics. I ran glab against it this week. I approve writing it; do not
+      ask again."
+    files: ../files/repo
+    criteria: [C1, C5]
+    checks:
+      C5:
+        - script: node "$SKILL_TEST_PLUGIN/skills/reference/scripts/reference.mjs" check
+            gitlab.capabilities && grep -q "^\*\*Partial\.\*\*"
+            .agents/references/gitlab.capabilities.md
+  - id: create-blueprint
+    prompt: "Create a repo blueprint, project-tracker.blueprints.gitlab.issues, for
+      our GitLab: Create opens an epic with glab epic create, and Link links
+      issues with glab issue link. I approve writing it; do not ask again."
+    files: files/create-blueprint   # a blueprint interface and gitlab.capabilities with an Epics feature
+    criteria: [C1, C5]
+    checks:
+      C5:
+        - script: node "$SKILL_TEST_PLUGIN/skills/reference/scripts/reference.mjs" check
+            project-tracker.blueprints.gitlab.issues && grep -q "^Needs:.*Epics"
+            .agents/references/project-tracker.blueprints.gitlab.issues.md

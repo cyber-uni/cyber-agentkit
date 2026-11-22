@@ -1,0 +1,8 @@
+outcome:
+  - id: load-style
+    prompt: What does our style reference say about tone?
+    files: ../files/repo
+    criteria: [C6]
+    checks:
+      C6:
+        - contains: Lead with the outcome

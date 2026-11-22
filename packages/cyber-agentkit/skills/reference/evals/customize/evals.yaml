@@ -1,0 +1,7 @@
+outcome:
+  - id: customize-skill-default
+    prompt: >-
+      Our release-notes skill loads the release-notes.tone reference. For everyone in this repo,
+      change it to the present tense ("Adds", "Fixes"). I approve writing it; don't ask again.
+    files: files/repo-with-skill-default   # a repo skill whose references/release-notes.tone.default.md is the only contribution
+    criteria: [C1, C2]
