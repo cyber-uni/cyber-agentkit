@@ -114,6 +114,32 @@ describe('doctorSkills', () => {
 		expect(reference?.failures?.[0]?.action).toContain('reference create triage.rules')
 	})
 
+	it('checks the names a skill declares under `metadata.references`, and no other name it mentions', async () => {
+		const root = repo()
+		const folder = join(root, 'skills', 'triage')
+		write(
+			folder,
+			'SKILL.md',
+			'---\nname: triage\ndescription: a skill\nmetadata:\n  references: triage.rules\n---\n\nRead `triage.rules`. `triage.other` is an example.\n',
+		)
+		write(folder, 'references/triage.other.default.md', '## Other\n\nx\n')
+		const report = doctorSkills([{ name: 'triage', folder }], await layersOf(root))
+		expect(report.skills[0]?.references.map(({ name, status }) => ({ name, status }))).toEqual([
+			{ name: 'triage.rules', status: 'missing' },
+		])
+	})
+
+	it('checks a backticked name that resolves when the skill declares none, in a skill not written in English', async () => {
+		const root = repo()
+		const found = skill(root, 'notas', 'Carga `notas.tono` con la skill `reference` y escribe en ese tono.', {
+			'notas.tono': '## Tono\n\nclaro\n',
+		})
+		const report = doctorSkills([found], await layersOf(root))
+		expect(report.skills[0]?.references.map(({ name, status }) => ({ name, status }))).toEqual([
+			{ name: 'notas.tono', status: 'passed' },
+		])
+	})
+
 	it('reads only what an agent reads when the skill runs: no fenced example, README, or eval fixture', async () => {
 		const root = repo()
 		const found = skill(

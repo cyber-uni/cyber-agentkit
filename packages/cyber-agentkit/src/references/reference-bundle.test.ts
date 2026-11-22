@@ -111,6 +111,30 @@ describe('bundleDefaults', () => {
 	})
 })
 
+describe('bundleDefaults: how a skill names its loads', () => {
+	const canonical = '## Title\n\n[Bug] <summary>\n'
+
+	it('bundles the names a skill declares under `metadata.references`', () => {
+		put(join(root, 'plugin.json'), '{"name":"demo","version":"1.0.0"}')
+		put(join(root, 'references', 'bug-title.md'), canonical)
+		const folder = join(root, 'skills', 'demo')
+		put(
+			join(folder, 'SKILL.md'),
+			'---\nname: demo\ndescription: d\nmetadata:\n  references: bug-title\n---\nWrite the title.\n',
+		)
+		expect(bundleDefaults({ folder, pluginRoot: root, write: false }).entries).toEqual([
+			{ name: 'bug-title', state: 'missing', file: 'references/bug-title.default.md' },
+		])
+	})
+
+	it('bundles a backticked name the plugin holds when the skill declares none, in any language', () => {
+		const folder = plugin('bug-title', canonical, '`bug-title` を読み込んでからタイトルを書く。\n')
+		expect(bundleDefaults({ folder, pluginRoot: root, write: false }).entries).toEqual([
+			{ name: 'bug-title', state: 'missing', file: 'references/bug-title.default.md' },
+		])
+	})
+})
+
 describe('bundleDefaults: an interface the skill loads', () => {
 	const iface = '## Steps\n\nRequired.\n'
 	const load = 'Load the implementations of the `recipe` interface with the `reference` skill of `cyber-agentkit`.\n'

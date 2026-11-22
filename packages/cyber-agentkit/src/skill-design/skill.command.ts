@@ -9,7 +9,9 @@ import { type PresentHarnessSource, presentHarnesses } from '../detection/presen
 import { type HarnessId, harnessIds } from '../harness/harness-id.js'
 import { type InstalledPlugin, installedPlugins } from '../plugins/installed-plugins.js'
 import { findRoot, type ReferencePlugin, referenceLayers } from '../references/reference-layers.js'
+import { knownBy } from '../references/reference-loads.js'
 import { resolveReference } from '../references/resolve-reference.js'
+import { withDefault } from '../references/skill-defaults.js'
 import { findSkill } from '../skills/find-skill.js'
 import {
 	type Attestation,
@@ -227,15 +229,19 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 			const aspects = aspectNames(layers).map((name) => loadAspect(name, layers, display))
 			for (const aspect of aspects)
 				for (const warning of aspect.warnings) process.stderr.write(`warning: ${aspect.aspect}: ${warning}\n`)
+			const knownIn = (folder: string) => {
+				const skillLayers = withDefault(layers, folder)
+				return knownBy((name) => resolveReference(name, skillLayers).status === 'found')
+			}
 			if (skill) {
-				const report = checkSkill(skill, aspects, runCheckScript)
+				const report = checkSkill(skill, aspects, runCheckScript, knownIn(skill.folder))
 				const answer = result(report, { render: { text: textReport } })
 				if (failsPolicy(report, failOn)) answerThenFail(answer, this.format)
 				return answer
 			}
 			const reports = found.flatMap(({ folder }) => {
 				const files = readSkill(folder)
-				return files ? [{ folder, report: checkSkill(files, aspects, runCheckScript) }] : []
+				return files ? [{ folder, report: checkSkill(files, aspects, runCheckScript, knownIn(folder)) }] : []
 			})
 			const combined = combineReports(root, dirs, reports)
 			const answer = result(combined, { render: { text: repositoryText } })

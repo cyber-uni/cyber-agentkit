@@ -110,6 +110,16 @@ Load `<name>` and `<name>` with the `reference` skill of `cyber-agentkit`.
 Load the implementations of the `<id>` interface with the `reference` skill of `cyber-agentkit`.
 ```
 
+Declare the same names in the skill's `SKILL.md` front matter, under the Agent Skills `metadata` map, so `uses`, `skill doctor`, and `reference defaults` find them whatever language the skill is written in:
+
+```yaml
+metadata:
+  references: <name> <name>
+  reference-interfaces: <id>
+```
+
+Each value is one string of names separated by spaces, since the spec makes every `metadata` value a string. A skill that loads only references sets only `references`. Once a skill declares either key, the lists are the whole of what it loads; `skill check` (SHP-20) fails on a load the lists leave out and on a declared name the text never mentions in backticks. A skill that declares neither is read for its loads instead: each backticked name that resolves here, and each English load line.
+
 A skill written for one harness may add that harness's typed form after the skill's name; the README lists each one. The skill may ship its own default of a name at `references/<name>.default.md` in its folder. Load adds it below every other contribution, and reads it on its own only when the command cannot run. A copy at `references/<name>.md` is not read as a default.
 
 An author keeps a skill's copies in step with its plugin with `reference defaults <folder>`, given the skill's folder, run from the repository. It writes each missing or stale copy, copied from the plugin's `references/<name>.md` with `default` taken out of `extends`. With `--check` it writes nothing and fails on a copy that is missing, stale, misnamed, or no longer named by the skill. An interface the skill loads is copied as `references/<id>.interface.default.md`, the same rule applied to `<id>.interface`; a copy held as `references/<id>.interface.md` is misnamed. The documentation's reference file naming page gives the rule for every file form.

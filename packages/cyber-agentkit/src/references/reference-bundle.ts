@@ -4,7 +4,7 @@ import { pluginManifestName } from '../plugins/plugin-manifest.js'
 import { consumerPaths } from './reference-consumer-files.js'
 import { frontmatterPattern } from './reference-document.js'
 import { ReferenceFailure } from './reference-error.js'
-import { loadsIn } from './reference-uses.js'
+import { consumerLoads, knownBy, skillEntry } from './reference-loads.js'
 
 /**
  * A folder that loads references, such as a skill, ships a copy of each plugin reference it loads, at
@@ -44,17 +44,20 @@ export type BundleReport = {
 }
 
 /**
- * The reference names the text in a folder loads with the `reference` skill, bundled default copies
- * left out. An interface it loads is named `<id>.interface`, the name its document is held under.
+ * The reference names the text in a folder loads, bundled default copies left out: the lists its `SKILL.md`
+ * declares under `metadata`, else what `reference uses` reads from its text, where a name is known when the
+ * plugin holds it at `references/<name>.md` or the folder ships its default. An interface it loads is named
+ * `<id>.interface`, the name its document is held under.
  */
-export function loadedNames(folder: string): string[] {
-	const names = new Set<string>()
-	for (const file of consumerPaths([folder], folder).flatMap((consumer) => consumer.files)) {
-		const { names: found, interfaces } = loadsIn(readFileSync(file.absolute, 'utf8'))
-		for (const name of found) names.add(name)
-		for (const id of interfaces) names.add(`${id}.interface`)
-	}
-	return [...names].sort()
+export function loadedNames(folder: string, pluginRoot?: string): string[] {
+	const held = (name: string) =>
+		existsSync(join(folder, 'references', `${name}.default.md`)) ||
+		(pluginRoot !== undefined && existsSync(join(pluginRoot, 'references', `${name}.md`)))
+	const texts = consumerPaths([folder], folder)
+		.flatMap((consumer) => consumer.files)
+		.map((file) => readFileSync(file.absolute, 'utf8'))
+	const { names: found, interfaces } = consumerLoads(skillEntry(folder), texts, knownBy(held))
+	return [...new Set([...found, ...interfaces.map((id) => `${id}.interface`)])].sort()
 }
 
 /**
@@ -105,7 +108,7 @@ export type BundleOptions = {
 /** Compares, and with `write` brings up to date, each copy the folder's loaded names need. */
 export function bundleDefaults({ folder, pluginRoot, write }: BundleOptions): BundleReport {
 	const refs = join(folder, 'references')
-	const loaded = loadedNames(folder)
+	const loaded = loadedNames(folder, pluginRoot)
 	const entries: BundleEntry[] = []
 	for (const name of loaded) {
 		const copy = `references/${name}.default.md`

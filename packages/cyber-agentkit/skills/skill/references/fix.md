@@ -43,7 +43,9 @@ or names it. For SHP-12, write the body as steps or sections. For SHP-13, make t
 and point the step at that. For SHP-14, add the flag. For SHP-15 and SHP-16, delete the text. For SHP-17, keep as the
 default the option most runs need, and name the condition under which the step does otherwise. For SHP-18, move the
 prose to stderr or behind `--verbose`. For SHP-19, make the step load the reference through the `reference` skill, and
-keep the default only as the fallback; `fix` and `enhance` never replace a reference load with a direct read.
+keep the default only as the fallback; `fix` and `enhance` never replace a reference load with a direct read. For
+SHP-20, declare the loads in the front matter as the `reference` skill's Wire a skill says: add each name the check
+reports to the list, and take out a declared name the text no longer loads.
 
 **Trigger.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result. For TRG-5 and
 TRG-6, set the description to exactly `By name only` and move what it said to the body or `README.md`. For TRG-7, name

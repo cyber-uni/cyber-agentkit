@@ -109,6 +109,9 @@ A consumer names the interface in one line:
 Load the implementations of the `scaffold.recipe` interface with the `reference` skill of `cyber-agentkit`.
 ```
 
+and declares it under `metadata.reference-interfaces` in its front matter, as
+[declaring what a skill loads](/cyber-agentkit/concepts/reference-documents/#declaring-what-a-skill-loads) shows.
+
 The skill runs:
 
 ```sh

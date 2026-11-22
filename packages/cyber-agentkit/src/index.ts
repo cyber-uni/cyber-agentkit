@@ -186,6 +186,14 @@ export {
 	userReferencesDir,
 } from './references/reference-layers.js'
 export type { LegacyForm } from './references/reference-legacy.js'
+export type { KnownName, LoadSource, Loads } from './references/reference-loads.js'
+export {
+	declaredInterfacesKey,
+	declaredLoads,
+	declaredReferencesKey,
+	detectedLoads,
+	knownBy,
+} from './references/reference-loads.js'
 export type { MigrateOptions, MigrateResult, MigrationRow, MigrationTier } from './references/reference-migrate.js'
 export { migrateReferences } from './references/reference-migrate.js'
 export type { FamilyName, ReferenceName } from './references/reference-name.js'
