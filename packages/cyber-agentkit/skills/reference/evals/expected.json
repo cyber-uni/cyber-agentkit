@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "reference",
-	"at": "2026-11-22T20:14:45.818Z",
+	"at": "2026-11-23T00:55:21.346Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -10,9 +10,19 @@
 	"cost": 5.9537,
 	"totalRuns": 87,
 	"durationMs": 196154,
-	"criteria": ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"],
+	"criteria": [
+		"C1",
+		"C2",
+		"C3",
+		"C4",
+		"C5",
+		"C6",
+		"C7",
+		"C8",
+		"C9"
+	],
 	"reported": {
-		"scripts": "sha256:b44e5487831b4ca3c8425b2a66acf2118b87f29e4039a0eaef86cf1792f12ece",
+		"scripts": "sha256:7bb5f34b7152aeb4aed6e7f0b2d281b4c167da2feb8c0b986fb98dd74cd917e3",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -184,10 +194,22 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:34.665Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.2168,
+					"max": 0.0743
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.2001,
+					"max": 0.0822
+				}
+			},
+			"at": "2026-11-23T00:52:40.969Z",
 			"hashes": {
 				"case": "sha256:f70abc9d84602d5437af31fdfe96d066edd812b33522ebd00990075be053ae76",
-				"scope": "sha256:ec6e8cc6fe6a3c1f0afe10a1cd3befc16fa4150f490ae19135e7e917a78db823"
+				"scope": "sha256:ffe0301125ed4f440b39164885738435478365354d9245df5047569343c987f6"
 			}
 		},
 		"implement-interface": {
@@ -216,10 +238,22 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:34.665Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.3328,
+					"max": 0.1128
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.1995,
+					"max": 0.0807
+				}
+			},
+			"at": "2026-11-23T00:52:40.969Z",
 			"hashes": {
 				"case": "sha256:6133fedced4da519baa57fdac072590ddfb86b276afd980f7e53ce65ecbeb398",
-				"scope": "sha256:ec6e8cc6fe6a3c1f0afe10a1cd3befc16fa4150f490ae19135e7e917a78db823"
+				"scope": "sha256:ffe0301125ed4f440b39164885738435478365354d9245df5047569343c987f6"
 			}
 		}
 	},
@@ -234,13 +268,13 @@
 			"description of skillify": "sha256:93fa80f46bd34a259ca59f6712216974b4fe34ce8086215dd942f8466325652f",
 			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
 		},
-		"sha256:ec6e8cc6fe6a3c1f0afe10a1cd3befc16fa4150f490ae19135e7e917a78db823": {
+		"sha256:ffe0301125ed4f440b39164885738435478365354d9245df5047569343c987f6": {
 			"SKILL.md front matter": "sha256:d3b11faaac2e8cc34ac703ba9b7989a580a4cf88433f1d31d4312f05bbe3ee3d",
-			"SKILL.md body": "sha256:14b97ccc6de845c05d67c3f884b5e24bf3dfbf7d9b41ad1005bad095f333250e",
+			"SKILL.md body": "sha256:8c9a6f4463b8607edd3a435e91069ebd1d6f5fcf82d6600f7ce5ba37e836e430",
 			"references/create.md": "sha256:7d9cd63a80feb2a9de8bd520b93de4b9d7699f2a7cca3c9c347cd79c0521381e",
 			"references/customize.md": "sha256:2f212c118a44036cc4662c89b8d6cbfecf6127a99e8cfe553e9c3ea2fd3e219c",
-			"references/doctor.md": "sha256:73b8fdbd3f1bd6b97583f7f199ede083e7a326357fc6e1de81d908fde952df46",
-			"references/load.md": "sha256:bc9dc4ef0005bd1ec13435f4a3e157c5564fd0f6a14bdaa77937491f48273ae1",
+			"references/doctor.md": "sha256:9d5f32f3b2989fc13b2412d3cd156f231aea2839d5369ce3ef3b944c808fc21a",
+			"references/load.md": "sha256:9c16b297b988e6c92598f70e76531737c8d71b8bd5ea954bdd049b4b393e0a3d",
 			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
 		}
 	}
