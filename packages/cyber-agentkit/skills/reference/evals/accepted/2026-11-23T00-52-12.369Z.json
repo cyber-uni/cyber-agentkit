@@ -1,0 +1,247 @@
+{
+	"version": 2,
+	"skill": "reference",
+	"at": "2026-11-23T00:52:12.369Z",
+	"verification": "skill-design.aspects.verification from cyber-agentkit",
+	"runs": 3,
+	"threshold": 2,
+	"baseline": "without the skill",
+	"model": "sonnet",
+	"cost": 5.9537,
+	"totalRuns": 87,
+	"durationMs": 196154,
+	"criteria": ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"],
+	"reported": {
+		"scripts": "sha256:7bb5f34b7152aeb4aed6e7f0b2d281b4c167da2feb8c0b986fb98dd74cd917e3",
+		"harness": "claude-code",
+		"verification": "skill-design.aspects.verification from cyber-agentkit"
+	},
+	"entries": {
+		"load-our-style-reference-and": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Load our style reference and tell me what it says about tone.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:34.665Z",
+			"hashes": {
+				"case": "sha256:1ad9c58762238e86ecda620b6f0232f577b7d5a793eb0b220bfe668b188d2023",
+				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
+			}
+		},
+		"which-references-do-we-have": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Which references do we have about testing?",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:34.665Z",
+			"hashes": {
+				"case": "sha256:ac7694d38036b2908451c379d71e3e599378879b8414a8f2cf2445c52c8d569e",
+				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
+			}
+		},
+		"make-the-repos-commit-message": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Make the repo's commit.message reference say we write in the present tense.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:34.665Z",
+			"hashes": {
+				"case": "sha256:396da90c295571795b180bdb983a9b6911df7f81c5d7b0f636c52a7938273ac0",
+				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
+			}
+		},
+		"why-does-the-style-reference": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Why does the style reference come from my user folder and not the repo one?",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:34.665Z",
+			"hashes": {
+				"case": "sha256:d3ebcfd9f2cade149ca4330f2aea5e12051b0f17a0f315686dbc7268ac0b856b",
+				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
+			}
+		},
+		"is-a-system-already-registered": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Before I write a capability reference for Linear, is one already in the registry?",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T20:14:45.818Z",
+			"hashes": {
+				"case": "sha256:bd614bb390dd5da6943074c3eb2a5559491e3832d77c35162f7a205978d0a9e2",
+				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
+			}
+		},
+		"write-a-skill-that-drafts": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Write a skill that drafts release notes from merged pull requests.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:34.665Z",
+			"hashes": {
+				"case": "sha256:b69664a9344c81bc262c9c6f8e0c0a266138801ec455d31cfde8e38cac79f6af",
+				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
+			}
+		},
+		"add-a-rule-to-agents": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Add a rule to AGENTS.md that this repo uses pnpm.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:34.665Z",
+			"hashes": {
+				"case": "sha256:8b38170dcb5c965e7143e468d0b55c391de6260d77779f61a0bbad3504688350",
+				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
+			}
+		},
+		"my-release-notes-skill-doesnt": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:34.665Z",
+			"hashes": {
+				"case": "sha256:a3dd3a4d583ec8c011169fa55bbebf0fe862d100bae68ceee271b5bb2b9c69d9",
+				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
+			}
+		},
+		"add-a-references-section-at": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Add a References section at the end of docs/design.md linking the two papers we cite.",
+			"expect": "skip",
+			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:34.665Z",
+			"hashes": {
+				"case": "sha256:36d4eff6b43f6123b653895da3b66be5021fab4d28893dad67916177a5edd833",
+				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
+			}
+		},
+		"doctor-gitlab-fire": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"prompt": "Does our self-hosted GitLab still match what gitlab.capabilities says? Run the doctor on it.",
+			"expect": "fire",
+			"fired": 3,
+			"model": "sonnet",
+			"at": "2026-11-22T16:15:27.115Z",
+			"hashes": {
+				"case": "sha256:dd94b713c31e1fb17b7ad90d35ab2ba8390a3463d3e0491e66f76ca12af965d1",
+				"scope": "sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3"
+			}
+		},
+		"find-none": {
+			"scope": "root",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"criteria": {
+				"C6": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
+				}
+			},
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:34.665Z",
+			"hashes": {
+				"case": "sha256:f70abc9d84602d5437af31fdfe96d066edd812b33522ebd00990075be053ae76",
+				"scope": "sha256:ec6e8cc6fe6a3c1f0afe10a1cd3befc16fa4150f490ae19135e7e917a78db823"
+			}
+		},
+		"implement-interface": {
+			"scope": "root",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"criteria": {
+				"C1": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 3,
+						"ran": 3
+					}
+				},
+				"C5": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
+				}
+			},
+			"model": "sonnet",
+			"at": "2026-11-22T20:01:34.665Z",
+			"hashes": {
+				"case": "sha256:6133fedced4da519baa57fdac072590ddfb86b276afd980f7e53ce65ecbeb398",
+				"scope": "sha256:ec6e8cc6fe6a3c1f0afe10a1cd3befc16fa4150f490ae19135e7e917a78db823"
+			}
+		}
+	},
+	"inputs": {
+		"sha256:1cd8d8093e5335f6d26769296b1e0149b7969cd1f3bc0e6f4392521b98e017e3": {
+			"description": "sha256:f2c967df4b151f7a5a120861283b08c4f18a5ca07cbf77224de7a27860c11faa",
+			"description of asset": "sha256:10f8334e9b33528b24e12378edbcec4768483ba1c028d294c250488ab8fc6374",
+			"description of dependency": "sha256:aff6912a6546accf666e497aa540c84b2c17c7388e528af8576ff43dfe6fcd80",
+			"description of instruction": "sha256:fc877c92ef91713c2af2e46f055b84b141975e467b5a49e43e12276cfa3547d6",
+			"description of prose-update": "sha256:93d883259c1b333cce7f066f5909fe5a91941268f8fc0d5a85f09a2ce73f4682",
+			"description of skill": "sha256:4f37fe8386707df1582249aef8339403374378a2c682c3efe94f3c07a77019be",
+			"description of skillify": "sha256:93fa80f46bd34a259ca59f6712216974b4fe34ce8086215dd942f8466325652f",
+			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
+		},
+		"sha256:ec6e8cc6fe6a3c1f0afe10a1cd3befc16fa4150f490ae19135e7e917a78db823": {
+			"SKILL.md front matter": "sha256:d3b11faaac2e8cc34ac703ba9b7989a580a4cf88433f1d31d4312f05bbe3ee3d",
+			"SKILL.md body": "sha256:14b97ccc6de845c05d67c3f884b5e24bf3dfbf7d9b41ad1005bad095f333250e",
+			"references/create.md": "sha256:7d9cd63a80feb2a9de8bd520b93de4b9d7699f2a7cca3c9c347cd79c0521381e",
+			"references/customize.md": "sha256:2f212c118a44036cc4662c89b8d6cbfecf6127a99e8cfe553e9c3ea2fd3e219c",
+			"references/doctor.md": "sha256:73b8fdbd3f1bd6b97583f7f199ede083e7a326357fc6e1de81d908fde952df46",
+			"references/load.md": "sha256:bc9dc4ef0005bd1ec13435f4a3e157c5564fd0f6a14bdaa77937491f48273ae1",
+			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
+		}
+	}
+}
