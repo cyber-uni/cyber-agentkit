@@ -1,134 +1,177 @@
 {
-	"version": 1,
+	"version": 2,
 	"skill": "release-notes",
-	"at": "2026-11-11T07:03:17.915Z",
+	"at": "2026-11-23T01:39:56.184Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
 	"baseline": "without the skill",
-	"trigger": [
-		{
-			"case": "trigger-1",
+	"model": "sonnet",
+	"cost": 0.9763,
+	"totalRuns": 24,
+	"durationMs": 35943,
+	"criteria": [
+		"C1",
+		"C2",
+		"C3",
+		"C4"
+	],
+	"reported": {
+		"scripts": "sha256:2ffd3c6dc25d4cae6effbcfe67add9ea5425704890489c8f940bc0bc694827fa",
+		"harness": "claude-code",
+		"verification": "skill-design.aspects.verification from cyber-agentkit"
+	},
+	"entries": {
+		"fire-release-notes": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
 			"prompt": "Write the release notes for this release.",
 			"expect": "fire",
 			"fired": 3,
-			"ran": 3,
-			"status": "pass"
+			"model": "sonnet",
+			"at": "2026-11-23T01:39:56.184Z",
+			"hashes": {
+				"case": "sha256:14ebee4eb838051eca86c0cc5a449387a4a4930696122b8b0dbdd37a97620ab9",
+				"scope": "sha256:f8218b3bc5ba3f021c886a1e173dd8c7e9d7f9c960853275caaaf6a00ca72e23"
+			}
 		},
-		{
-			"case": "trigger-2",
+		"fire-changelog": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
 			"prompt": "Draft the changelog for 2.0 from the merged PRs.",
 			"expect": "fire",
 			"fired": 3,
-			"ran": 3,
-			"status": "pass"
+			"model": "sonnet",
+			"at": "2026-11-23T01:39:56.184Z",
+			"hashes": {
+				"case": "sha256:c0e483ff9a72586bc56b70da57a36c28666cd6ad5d1b89041c5e0ad6cf695369",
+				"scope": "sha256:f8218b3bc5ba3f021c886a1e173dd8c7e9d7f9c960853275caaaf6a00ca72e23"
+			}
 		},
-		{
-			"case": "trigger-3",
+		"fire-what-shipped": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
 			"prompt": "What shipped this release? Put it in the release notes.",
 			"expect": "fire",
 			"fired": 3,
-			"ran": 3,
-			"status": "pass"
+			"model": "sonnet",
+			"at": "2026-11-23T01:39:56.184Z",
+			"hashes": {
+				"case": "sha256:b0eb3bf4bd4da6bcc9162624c6e50d2b66a67dd093748c8cc06a2ae012124929",
+				"scope": "sha256:f8218b3bc5ba3f021c886a1e173dd8c7e9d7f9c960853275caaaf6a00ca72e23"
+			}
 		},
-		{
-			"case": "trigger-4",
+		"skip-summarize-pr": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
 			"prompt": "Summarize pull request 14 for a reviewer.",
 			"expect": "skip",
 			"fired": 0,
-			"ran": 3,
-			"status": "pass"
+			"model": "sonnet",
+			"at": "2026-11-23T01:39:56.184Z",
+			"hashes": {
+				"case": "sha256:780b1de1e1220366963bb99dba0feb7f71e4691b0cb08121d55dd9728a6b85bc",
+				"scope": "sha256:f8218b3bc5ba3f021c886a1e173dd8c7e9d7f9c960853275caaaf6a00ca72e23"
+			}
 		},
-		{
-			"case": "trigger-5",
+		"skip-commit-message": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
 			"prompt": "Write a commit message for my staged changes.",
 			"expect": "skip",
 			"fired": 0,
-			"ran": 3,
-			"status": "pass"
+			"model": "sonnet",
+			"at": "2026-11-23T01:39:56.184Z",
+			"hashes": {
+				"case": "sha256:6871f3abbe869a5f3836063d57457756b4f7f6cdc3827940eb35039bee05047c",
+				"scope": "sha256:f8218b3bc5ba3f021c886a1e173dd8c7e9d7f9c960853275caaaf6a00ca72e23"
+			}
 		},
-		{
-			"case": "trigger-6",
+		"skip-review-diff": {
+			"scope": "trigger",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
 			"prompt": "Review my diff before I push.",
 			"expect": "skip",
 			"fired": 0,
+			"model": "sonnet",
+			"at": "2026-11-23T01:39:56.184Z",
+			"hashes": {
+				"case": "sha256:e311b1bba4a8177de4e3b8dda8cfaf49663fcf47865acbc82b82c54675928f0c",
+				"scope": "sha256:f8218b3bc5ba3f021c886a1e173dd8c7e9d7f9c960853275caaaf6a00ca72e23"
+			}
+		},
+		"two-prs": {
+			"scope": "root",
+			"status": "pass",
+			"passed": 3,
 			"ran": 3,
-			"status": "pass"
+			"criteria": {
+				"C1": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
+				},
+				"C2": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
+				},
+				"C3": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 2,
+						"ran": 3
+					}
+				},
+				"C4": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
+				}
+			},
+			"model": "sonnet",
+			"at": "2026-11-23T01:39:56.184Z",
+			"hashes": {
+				"case": "sha256:553efbdf871c815323bba3290e597ba632b80b7d876e03c8687a45e035ddb7aa",
+				"scope": "sha256:140444b7876c64c46f471bdc20479f1c9e8f230707099895c9d3387557e20684"
+			}
 		}
-	],
-	"criteria": [
-		{
-			"id": "C1",
-			"status": "pass",
-			"passed": 3,
-			"ran": 3,
-			"baseline": {
-				"passed": 0,
-				"ran": 3
-			}
+	},
+	"inputs": {
+		"sha256:f8218b3bc5ba3f021c886a1e173dd8c7e9d7f9c960853275caaaf6a00ca72e23": {
+			"description": "sha256:023a25237f0dbf221be67ff6faa8e726ceefd39f4cec3a6fe16333465052f70d",
+			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
 		},
-		{
-			"id": "C2",
-			"status": "pass",
-			"passed": 3,
-			"ran": 3,
-			"baseline": {
-				"passed": 0,
-				"ran": 3
-			}
-		},
-		{
-			"id": "C3",
-			"status": "pass",
-			"passed": 3,
-			"ran": 3,
-			"baseline": {
-				"passed": 3,
-				"ran": 3
-			}
-		},
-		{
-			"id": "C4",
-			"status": "pass",
-			"passed": 3,
-			"ran": 3,
-			"baseline": {
-				"passed": 1,
-				"ran": 3
-			}
+		"sha256:140444b7876c64c46f471bdc20479f1c9e8f230707099895c9d3387557e20684": {
+			"SKILL.md front matter": "sha256:203edf6b6c35e29ea271612f0ca4f64e63691303f3f39cb4b80d7add8693e812",
+			"SKILL.md body": "sha256:9a29e93a81f2412712f16ba3bb7cb0979abbb86397c22e436c99832f7a67a302",
+			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
 		}
-	],
-	"cases": [
-		{
-			"case": "trigger-1",
-			"status": "pass"
-		},
-		{
-			"case": "trigger-2",
-			"status": "pass"
-		},
-		{
-			"case": "trigger-3",
-			"status": "pass"
-		},
-		{
-			"case": "trigger-4",
-			"status": "pass"
-		},
-		{
-			"case": "trigger-5",
-			"status": "pass"
-		},
-		{
-			"case": "trigger-6",
-			"status": "pass"
-		},
-		{
-			"case": "two-prs",
-			"status": "pass"
-		}
-	],
-	"notRun": [],
-	"cost": 1.2986,
-	"noPrevious": true
+	}
 }
