@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { InstalledPlugin } from '../plugins/installed-plugins.js'
-import { checkPluginsLoad, type PluginList, resolveDependencyPlugins } from './plugin-load.js'
+import { checkPluginsLoad, dependencySkillFolders, type PluginList, resolveDependencyPlugins } from './plugin-load.js'
 
 /** A plugin folder whose Claude Code manifest has this name and declares these dependencies. */
 function plugin(name: string, dependencies?: unknown[]): string {
@@ -143,5 +143,30 @@ describe('checkPluginsLoad', () => {
 		expect(await checkPluginsLoad([kit], listing({ problem: 'spawn claude ENOENT' }))).toEqual({
 			warning: 'could not check that the plugins load (claude plugin list: spawn claude ENOENT)',
 		})
+	})
+})
+
+describe('dependencySkillFolders', () => {
+	const withSkill = (root: string, name: string) => {
+		mkdirSync(join(root, 'skills', name), { recursive: true })
+		writeFileSync(join(root, 'skills', name, 'SKILL.md'), `---\nname: ${name}\ndescription: ${name}.\n---\n`)
+		return join(root, 'skills', name)
+	}
+
+	it("lists the skills of each plugin the skill's plugin depends on, the dependencies' own included", async () => {
+		const base = plugin('base')
+		const baseSkill = withSkill(base, 'lint')
+		const agentkit = plugin('cyber-agentkit', ['base'])
+		const agentkitSkill = withSkill(agentkit, 'skill')
+		const kit = plugin('kit', ['cyber-agentkit'])
+		const own = withSkill(kit, 'release')
+		const installed = [install('cyber-agentkit@m', agentkit, 'user'), install('base@m', base, 'user')]
+		expect(await dependencySkillFolders(own, { installed })).toEqual([agentkitSkill, baseSkill])
+	})
+
+	it('lists none for a skill outside a plugin, or when a dependency is not installed', async () => {
+		const kit = plugin('kit', ['missing'])
+		expect(await dependencySkillFolders(withSkill(kit, 'release'), {})).toEqual([])
+		expect(await dependencySkillFolders(join(mkdtempSync(join(tmpdir(), 'loose-')), 'x'), {})).toEqual([])
 	})
 })
