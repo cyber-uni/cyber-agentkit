@@ -10,17 +10,7 @@
 	"cost": 5.9537,
 	"totalRuns": 87,
 	"durationMs": 196154,
-	"criteria": [
-		"C1",
-		"C2",
-		"C3",
-		"C4",
-		"C5",
-		"C6",
-		"C7",
-		"C8",
-		"C9"
-	],
+	"criteria": ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"],
 	"reported": {
 		"scripts": "sha256:7bb5f34b7152aeb4aed6e7f0b2d281b4c167da2feb8c0b986fb98dd74cd917e3",
 		"harness": "claude-code",
