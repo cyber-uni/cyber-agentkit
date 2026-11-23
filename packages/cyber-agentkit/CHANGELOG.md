@@ -1,5 +1,170 @@
 # cyber-agentkit
 
+## 2.13.0
+
+### Minor Changes
+
+- b39a777: Recognize blueprints. An interface whose id ends in `.blueprints` is a blueprint interface, and `reference check`
+  fails it, with the new `blueprint` check, unless its cardinality is `many`. A blueprint, named
+  `<id>.<system>.<solution>`, builds on its capability reference, `<system>.capabilities`: `check` fails one whose
+  capability reference cannot be found, one whose `Needs:` line names a feature that reference has no section for, and
+  one whose name has no solution. `reference implementations` leaves a failing blueprint out with the reason, and lists
+  each other one with its `system`, its `capability` reference, and that reference's `verified` entries.
+  
+  Loading a blueprint warns, with the new `feature-unsupported` code, naming the section and the feature, for each
+  needed feature the capability reference, as resolved here, marks `**Unsupported.**`; `check` reports the warning and
+  does not fail on it. A blueprint whose capability reference is missing still loads, with a warning. Loading runs no
+  command and compares no version.
+- 6dada14: Recognize capability references. A reference named `<system>.capabilities`, such as `asana.capabilities`, is a
+  capability reference: `reference check` reports its kind as `capability` and fails it, with the new `capability`
+  check, when its first three `##` sections are not System, Detect, and Verified in that order, or when it declares
+  `implements`. It never judges what a section says. `reference create <system>.capabilities` with no `--template`
+  stubs the three sections, each saying what it holds.
+  
+  Add the `**Partial.**` support level beside `**Unsupported.**`. On an interface implementation, a required section
+  marked partial counts as present, and `check --trace` and `reference implementations` list each listed section marked
+  partial under `partial`, beside `unsupported`. The new `support-level` check fails a `**Partial.**` or
+  `**Unsupported.**` mark with no sentence after it, in any reference.
+  
+  An interface whose id ends `.capabilities`, such as repobuddy's `project-tracker.capabilities`, now passes `check` with
+  a `reference-renamed` warning that names its rename to `<name>.blueprints`.
+  
+  The `reference` skill's Create mode stubs a capability reference and suggests keeping it thin, and its Create,
+  Customize, and Load modes cover the partial mark.
+- 164424d: Add a capability registry beside the interface registry. Each entry is one system, `registry/capabilities/<system>.md`,
+  listing the plugins that ship its capability reference and the blueprints built on it.
+  `reference register <system>.capabilities` looks the system up and opens a pull request or an issue adding it, with
+  `--plugin` and `--blueprint`. Registering stays optional, and loading never reads the registry. The library exports
+  `parseCapabilityEntry`, `readCapabilityRegistry`, `lookupCapability`, and their companions.
+- cc5677b: `cyber-agentkit` with no command now reports the harness running here and every harness installed on this machine in one call: `running` (`{ harness, evidence }`, the environment variables that showed it) and `installed` (`[{ harness, evidence }]`, the paths that showed each one), also as `--format json`. `harness` and `candidates` stay as they were. `installedHarnesses()` entries gain `evidence`.
+- e00603c: Declare the harnesses you use, for harnesses detection cannot find, such as the Cursor IDE and Copilot in VS Code.
+  `cyber-agentkit harness add <id>...` writes the repo declaration (`.agents/references/harnesses.yaml`), or the user
+  one with `--scope user`; `harness remove` and `harness list` go with it. The repo and user declarations combine. An
+  ID that is not one of `harnessIds` is refused, and the error names the valid IDs.
+  
+  `presentHarnesses({ all: true })` adds every declared harness with source `declared`, and each entry gains `sources`,
+  so a harness both detected and declared is listed once with both. `declaredHarnesses()` reads the declarations.
+  `cyber-agentkit` with no command reports `declared`, and `skill doctor --all-harnesses` checks each declared harness
+  and marks every report `detected: <source>` or `declared`.
+- d98aabd: A skill declares the references it loads in its `SKILL.md` front matter, under the Agent Skills `metadata` map:
+  `metadata.references` for reference names and `metadata.reference-interfaces` for interfaces, each one string of
+  names separated by spaces. `reference uses`, `skill doctor`, and `reference defaults` read these lists, so they find a
+  skill's loads whatever language it is written in. A skill that declares neither is read instead: each backticked name
+  that resolves to a known reference counts as a load, and the English load line still does while skills migrate.
+  `reference uses` reports each load's `source` (`declared` or `detected`). The new `skill check` script check SHP-20
+  flags a load the lists leave out, a declared name the text never mentions, and names listed in bullets under a
+  "Load these with the `reference` skill" lead-in. The library exports `declaredLoads`, `detectedLoads`, and `knownBy`.
+- 6b80897: `skill test` grades `judge` checks on the harness the runs drive, with its mid-tier model, when no `--judge` is
+  named, so an unattended run no longer reports those criteria as not tested. Claude Code judges with `sonnet` through
+  the Agent SDK; Codex judges through its own CLI on its default model, since its tiers are not known, and the test
+  warns `harness-default-judge`. `--judge` still names another judge, and now takes a tier (`small`, `mid`, `top`) as
+  well as a model ID. `--no-judge` runs without a judge and reports those criteria as not tested. The result records
+  the judge as `judge` (`default` when the harness picked it), and the text report and `skill report` name it.
+- 13b61d8: Examine whether a plugin's dependencies are ready. `cyber-agentkit dependency doctor [--plugin <root>] [--harness <id>]`
+  reports each declared dependency's state on the running harness, every problem with its own code
+  (`dependency-missing`, `dependency-disabled`, `dependency-unknown`, `manifest-unparsable`), and the steps to run. It
+  exits 0 whenever it answers, 1 with `harness-not-detected` when no single harness is detected and none is given, and
+  2 when called wrongly. It changes nothing. The new `dependency` skill runs it as `/dependency doctor`.
+  
+  `checkPluginDependencies()` returns `problems`, each with its code, and takes `declaringMarketplace`. A dependency
+  named without a marketplace now matches only in the declaring plugin's marketplace: the one passed in, else the one
+  the plugin root is installed from, else it is `unknown`. A same-named plugin from another marketplace no longer
+  satisfies it. Only a missing, disabled, or unknown dependency gets steps, in a fixed order: on Claude Code a bare name
+  installs as `<name>@<declaring marketplace>` and the reload step comes only after an install or enable step; on every
+  other harness the first step says nothing is installed for you, and there is no reload step. A manifest that cannot
+  be parsed is reported even when a later source lists the dependencies.
+- 1d9eb25: Cover the descriptions of dependency plugins' skills in a skill's trigger scope. When a skill's plugin declares
+  `dependencies`, `skill test`, `skill carry`, `skill migrate`, and the stale-case check now hash the description of every
+  skill in those plugins, and the ones they need in turn, beside the skill's own. A dependency that rewords a description
+  makes the trigger cases stale, so they run again and show whether the right skill still loads.
+- 1eec306: `skill doctor` now checks the harness running now, and says so and reads only the harness-neutral files when none is detected. `--all-harnesses` checks every harness detected on this machine, with one report per harness. When Codex is checked, doctor reads the skill's `agents/openai.yaml` and warns where Codex would ignore the file or an icon. The JSON report is now `{ status, running, harnesses: [{ harness, source, status, skills }] }`.
+  
+  New library functions: `installedHarnesses()` finds the harnesses whose verified command is on `PATH`, and `presentHarnesses()` returns the running harness, or with `all: true` every harness detected here. `referenceLayers()` takes a `harnesses` option in place of the detected ones.
+- f5e465c: `skill test` with no `--case` now runs only the stale cases: a case with no expected entry, or whose own definition,
+  or an input of its scope, changed since its entry was recorded. `--all` runs every case. The estimate and the test
+  budget count only the runs selected, and the report names, for each scope, the input that changed.
+  
+  A skill's evals can be grouped in scopes. An eval folder `evals/<name>/evals.yaml` beside the instructions file
+  `references/<name>.md` holds that part's outcome cases, with paths relative to the folder; trigger cases, shared
+  settings, and rubrics stay in `evals/evals.yaml`. A scope's inputs are derived from the files the skill has: its
+  instructions file and everything that file links or names, in turn; its eval folder; and the sections of `SKILL.md`
+  every part reads, where a router table row belongs to the scope of the file it links. The trigger scope's inputs are
+  the description and the descriptions of the plugin's other skills. A named reference counts by the content a run
+  resolves. Whitespace and line wrapping are not changes, and a change to the built scripts, the harness, or the
+  Verification implementation is reported without selecting a case. `skill carry --scope` takes any scope. An expected
+  entry recorded before this release has other hashes, so the first test after it runs every case once.
+- a089aa0: A skill whose evals are grouped in scopes keeps each scope's expected result in its eval folder:
+  `evals/<name>/expected.json` holds the entries of that part's cases, and `evals/expected.json` holds the trigger and
+  root entries, the settings of the last write, and the attested passes. Each scope keeps its own past accepted results
+  in its `accepted/` folder, and an accept moves only the file of a scope whose entry it replaces. `skill test`,
+  `skill accept`, `skill carry`, and `skill report` read every scope's file as one. The single-file form, one
+  `evals/expected.json` for every case, is still read, and is split on the next write.
+- 2577140: The `skill` skill's flows apply eval scopes.
+  
+  - `skill check` fails an eval folder named for no instructions file (SHP-21), reads every eval folder's cases for the
+    Verification checks, warns on each stale case with its scope and the input that changed or that it has no entry
+    (VER-18), and lists each expected entry carried forward without a run (VER-19).
+  - `skill case add --scope <part>` adds an outcome case to that part's eval folder; `skill case remove` and
+    `skill fails` find a case in whichever eval file lists it.
+  - `create` gives each part that runs on its own an instructions file and an eval folder, and every case an ID.
+    `update` puts a new case in the scope it changes, proposes moving shared text that concerns only some parts, tests
+    only the stale cases, and reports which scopes ran and why. `enhance` reviews how a skill is split, and `fix` tests
+    the failing cases and the cases its repair made stale.
+- 9461a93: Researched installed signals for the Cursor IDE and Copilot in VS Code, which have no headless command. Every candidate (a `cursor` or `code` command, app, user-data, and extension folders) was checked against vendor sources and rejected, so `installedHarnesses()` still reports neither. The harness detection page now states what `running`, `environment`, and `installed` mean and which harnesses cannot be found installed.
+- 361841c: `skill migrate <folder>` moves a skill's evals from one list into scopes without a run. It reports a plan and writes
+  it only with `--write`. Each trigger case with no `id` gets one made from its prompt, which `--id <from>=<id>`
+  changes. Each outcome case of `evals/evals.yaml` whose ID names an instructions file (`<name>` or `<name>-...` for
+  `references/<name>.md`) moves into `evals/<name>/evals.yaml`, with its comments and the files folder and setup script
+  only it names. The cases that name none stay at the root. The expected result splits into one per scope, with each
+  case's known-failure marks. An old trigger entry is matched by its prompt and an old outcome entry by its ID. Each one
+  matched is carried to the new inputs and marked `carried by migration`, keeping the date it was recorded. A case whose
+  old entry no longer matches gets none, and an entry that was already behind its inputs stays stale, so the next
+  `skill test` runs only those. The old expected result is kept in `evals/accepted/`. A skill not migrated keeps working
+  as one root scope.
+- eda75e0: `skill test` holds each run to a cost cap based on its case's own recorded cost, twice its dearest run and never below $0.50, and a case can set its own `costCap` in the eval set. A run stopped at the cap says so and records the cost it reached. `skill test --estimate` now sums each case's recorded cost, and a test counts as within its budget only when both its cost and its run count fit.
+- 176ccce: `skill test` keeps a skill's expected result as one entry per case, keyed by its ID, in `evals/expected.json`. Each
+  entry records the case's result per criterion, the model, when it was recorded, and the hashes of its own definition and
+  its scope's inputs. An accept, `skill accept` or `skill test --accept`, now takes a run of some cases (`--case`) or one
+  the usage limit stopped, and writes only the entries of the cases that run finished; every other entry stays as it was,
+  and a case the evals no longer hold loses its entry. A case with no entry whose runs pass gets one without an accept. A
+  criterion's expected result is computed from the entries of the cases that test it, and `skill report` gives the oldest
+  date when they differ. The new `skill carry` carries entries forward to the current inputs with a reason, without a run;
+  a carried entry is shown as carried, never as a pass from a run. A version 1 `expected.json` is still read as it is, and
+  is written in the new form on the next accept.
+  
+  In the `skill test` JSON report, `savedAsExpected: true` is replaced by `expectedWritten`, which names the cases written
+  and whether by an accept or by a first pass; `notSavedAsExpected` lists each case left without an entry with why, and
+  `expectedHeld` lists the cases held back for sandbox failures.
+- 43e83bc: Add the `reference` skill's Doctor mode, `/reference doctor <system>.capabilities`. It runs the capability
+  reference's Detect, showing each command first and running only those that read, and reports the version and tier
+  found, each feature whose `Since:` or `Until:` line or support mark disagrees with it, and the Verified entry that
+  covers it, or that none does. It changes no file, its report is written to be sent to the author as is, and a name
+  that is not a capability reference is an error before anything runs.
+  
+  The load procedure now tells a consuming skill what to do when a step fails while following a blueprint: name the
+  blueprint and its capability reference, and offer the doctor, a report to the author at the plugin's repository, and,
+  as a stopgap, a patch of the capability reference for this repository.
+- 946c012: A trigger case in a skill's `evals/evals.yaml` can now carry an `id`, as an outcome case does. The expected result, the history, `skill test --case`, `skill fails`, and the list of changed cases all name it by that ID, so adding or moving a trigger case no longer renames the ones after it. A trigger case with no `id` keeps its positional `trigger-<n>` and still works; the new VER-17 check warns on it. Every case ID must be unique in the skill, and no `id` may take the `trigger-<n>` form. `skill case add --expect fire|skip` adds a trigger case with its ID.
+
+### Patch Changes
+
+- 055320b: Bring the passing sample skill of the `skill` skill's evals up to date with the trigger-id and stale-case checks, so its `check-passing` case passes again.
+- 444ff40: The `reference` skill's Doctor mode now says a Verified entry covers only the version or tier it names. A found
+  version that no entry names is reported as unverified, with the entries that do exist, even when an older version is
+  verified, so `2.30: run` no longer reads as covering 2.53.
+- ec84e3a: `skill fix` now rewrites a vague `## Done when` criterion into a checkable one instead of leaving it for the author, and drops the files the body already names from a description that explains how the skill works. This makes the `fix-flawed` result stable.
+- e4472aa: Make an edit to one command's instructions stale only the cases that read it. A skill's root eval scope no longer
+  reads the router rows of `SKILL.md`, nor the instructions files they link, so `skill test` re-runs the root cases only
+  when the shared text of `SKILL.md` or a file the shared text reaches changes.
+- 0942cae: Declare the `skill` skill's aspects as reference interfaces, including research and security, so `reference uses` reports them and its docs page lists them with their implementations.
+- 3bad5ae: The `skill` skill's own evals are grouped in scopes, one eval folder per instructions file, and its trigger cases
+  have IDs. Its expected result is current: the cases it lacked an entry for have one from a run.
+- 6175d79: `/skill` now takes a trigger near miss only when the skill's own description rules it out. A near miss that is rejected only when another skill is installed to take it cannot be tested, since a test loads a fixed set of skills; VER-6 checks for it, and its fix drops such a case or asks the author whether to mark it known to fail.
+- fcf36cb: When `skill test` stops with `error: sandbox:`, the `skill` skill now ends its reply by asking which way to go, with
+  lettered options, after offering the folder-only sandbox.
+- 902745c: `reference uses` no longer reports a word in a dependency skill's README as a reference name. It reads only each skill's own instruction files, so the result is the same with or without dependencies installed.
+- 68d6d08: `/skill` and its VER-6 check now count a skill from the same plugin as installed: a trigger near miss that such a skill takes is valid, since it is always installed beside the skill and the test loads it. Only a near miss taken by a skill from outside the plugin is ruled out.
+
 ## 2.12.0
 
 ### Minor Changes
