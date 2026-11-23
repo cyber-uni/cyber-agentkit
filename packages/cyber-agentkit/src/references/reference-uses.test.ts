@@ -82,6 +82,21 @@ describe('consumerPaths and withoutFences: what a skill reads', () => {
 		expect(consumer?.files.map((file) => file.path.slice(dir.length + 1))).toEqual(['SKILL.md'])
 	})
 
+	it('skips the README and evals of each skill below a plugin folder, a dependency’s included', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'uses-plugin-'))
+		for (const skill of ['skills/own', 'dependencies/universal-plugin/skills/dep']) {
+			mkdirSync(join(dir, skill, 'evals'), { recursive: true })
+			writeFileSync(join(dir, skill, 'SKILL.md'), '# s\n')
+			writeFileSync(join(dir, skill, 'README.md'), 'needs `universal-plugin`\n')
+			writeFileSync(join(dir, skill, 'evals', 'case.md'), 'Load `x.y` with the `reference` skill.\n')
+		}
+		const [consumer] = consumerPaths([dir], '/')
+		expect(consumer?.files.map((file) => file.path.slice(dir.length + 1))).toEqual([
+			'dependencies/universal-plugin/skills/dep/SKILL.md',
+			'skills/own/SKILL.md',
+		])
+	})
+
 	it('ignores an example span', () => {
 		expect(
 			loadsIn(
