@@ -29,12 +29,13 @@ const textFile = /\.(md|mdx|txt|yaml|yml|json|toml)$/i
 const defaultCopy = /\.default\.[a-z]+$/i
 
 function walk(dir: string, top: string, input: string): ConsumerFile[] {
-	const isSkill = existsSync(join(top, 'SKILL.md'))
+	// Each skill folder below `top` is judged on its own: a plugin folder holds skills, and so do its dependencies.
+	const isSkill = existsSync(join(dir, 'SKILL.md'))
 	const out: ConsumerFile[] = []
 	for (const entry of readdirSync(dir).sort()) {
 		if (entry === 'node_modules' || entry === '.git') continue
 		// A skill's eval fixtures are test data, and its root README is for people: neither is text the agent reads.
-		if (isSkill && (entry === 'evals' || (dir === top && entry === 'README.md'))) continue
+		if (isSkill && (entry === 'evals' || entry === 'README.md')) continue
 		const absolute = join(dir, entry)
 		if (statSync(absolute).isDirectory()) out.push(...walk(absolute, top, input))
 		else if (textFile.test(entry) && !defaultCopy.test(entry)) {
