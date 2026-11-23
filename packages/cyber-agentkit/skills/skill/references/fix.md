@@ -4,7 +4,7 @@ Repair what `check` or `test` found, and nothing else.
 
 ## 1. Settle the autonomy level
 
-Settle it as `SKILL.md`'s Autonomy says, before anything else. Write the `Autonomy:` line now, and again as the first
+Settle it as [test](test.md) says, before anything else. Write the `Autonomy:` line now, and again as the first
 line of the reply that ends the run, even when an earlier message stated it; a run that stops before any repair, or
 finds nothing to repair, still opens with it.
 
@@ -12,7 +12,7 @@ finds nothing to repair, still opens with it.
 
 Use the latest `check` or `test` result in this session, or the saved `test` result (the last one `test` saved, not the expected result). With neither, run [check](check.md),
 and decide each `read` check it lists as not checked, by its ID, as its step 3 says, before the first repair: the
-failures are every `script` and `read` check that failed. Run [test](test.md) only when the author asks, within the test budget as `SKILL.md`'s Autonomy says. With no failures, say there is nothing to fix and change nothing.
+failures are every `script` and `read` check that failed. Run [test](test.md) only when the author asks, within the test budget as [test](test.md) says. With no failures, say there is nothing to fix and change nothing.
 
 A criterion or trigger case marked known to fail ([fails](fails.md)) is a failure to repair when the author names it
 as the target. Once `test` reports it `fixed?`, offer to clear the mark, and clear it only on yes; never clear one
@@ -78,7 +78,7 @@ At `ask`, offer each one, lettered, with its estimate, and apply only what the a
 
 Run [check](check.md) again in full. Then pick the cases to test: the cases that failed, and the cases the repair
 made stale, which `skill test <skill folder> --estimate --format json` lists in `selected.stale`. Name each with
-`--case`, not every case. Estimate that run against the test budget as `SKILL.md`'s Autonomy says, and write the
+`--case`, not every case. Estimate that run against the test budget as [test](test.md) says, and write the
 `Test budget:` line. Within the budget, run [test](test.md) without asking, so the report holds the latest result.
 Over it, stop as Stops says, keeping every repair. For a skill from an installed plugin, offer to file an issue with the plugin's source,
 and file none unless the author accepts.

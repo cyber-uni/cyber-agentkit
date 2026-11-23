@@ -8,7 +8,7 @@ its `references/`, `scripts/`, `assets/`, or `evals/`, or a reference the skill 
 ## 1. Start
 
 1. Find the skill as [check](check.md) does.
-2. Settle the autonomy level as `SKILL.md`'s Autonomy says. Write the `Autonomy:` line now, and again as the first line
+2. Settle the autonomy level as [test](test.md) says. Write the `Autonomy:` line now, and again as the first line
    of the reply that ends the run, even when the run stops before any change.
 3. If the skill came from an installed plugin, say before the first edit that a plugin update will overwrite it.
 4. When the change asks for a different job from the skill's Intent, change nothing and stop as `SKILL.md`'s Autonomy
@@ -20,7 +20,7 @@ its `references/`, `scripts/`, `assets/`, or `evals/`, or a reference the skill 
 2. When the change adds or alters a behavior, add a trigger or outcome case for it with `skill case add`, with an
    `id`, and a criterion under `## Done when` with a rubric when the result changes. Put an outcome case in the scope
    of the part it changes: `--scope <part>` for a part with an eval folder (`evals/<part>/`), the root scope
-   otherwise. Removing or weakening a criterion is the author's decision: stop as `SKILL.md`'s Autonomy says.
+   otherwise. Removing or weakening a criterion is the author's decision: stop as [test](test.md) says.
 3. When an edit lands in a section of `SKILL.md` every part reads, but concerns only some parts, propose moving that
    text into those parts' instructions files, so a later change to it re-runs only their cases. At `ask`, propose it
    and stop for the answer. At `apply-safe`, make the move only when `check` and `test` pass after it with no
@@ -35,7 +35,7 @@ its `references/`, `scripts/`, `assets/`, or `evals/`, or a reference the skill 
 
 1. Run [check](check.md). Follow [fix](fix.md) for each failure it finds, at the same level, and stop when `check` still
    fails.
-2. Estimate `test` against the test budget as `SKILL.md`'s Autonomy says, and write the `Test budget:` line. Within the
+2. Estimate `test` against the test budget as [test](test.md) says, and write the `Test budget:` line. Within the
    budget, run [test](test.md) without asking. Over it, stop as Stops says, and keep the change. Name no case and
    pass no `--all`: `test` then runs only the cases the change made stale, unless the author asked for every case.
 3. Follow [fix](fix.md) for each failure `test` finds. A criterion worse than before is reported, not hidden.
