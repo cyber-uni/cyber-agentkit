@@ -48,7 +48,7 @@ describe('SHP-22: a shared section makes one edit re-run every scope (#417)', ()
 				.replace('description:', 'metadata:\n  references: guide.rules\ndescription:')
 				.replace(
 					'## Done when',
-					'Load `guide.rules` with the `reference` skill and follow its Budget.\n\n## Done when',
+					'Load `guide.rules` with the `reference` skill and follow its "Budget" section.\n\n## Done when',
 				),
 			'references/write.md': '# Write\n\nRespect the Budget.\n',
 		})
@@ -57,6 +57,21 @@ describe('SHP-22: a shared section makes one edit re-run every scope (#417)', ()
 		expect(found.map((item) => [item.what, item.users])).toEqual([
 			['the "Budget" section of the `guide.rules` reference', ['write']],
 		])
+	})
+})
+
+describe('SHP-22 names only sections the shared text points at', () => {
+	it('ignores a heading that is a plain word of the prose', () => {
+		const files = scopedSkillFiles['SKILL.md'] as string
+		const skill = scopedSkill({
+			'SKILL.md': files
+				.replace('description:', 'metadata:\n  references: guide.rules\ndescription:')
+				.replace(
+					'## Done when',
+					'Load `guide.rules` with the `reference` skill, and keep the budget low.\n\n## Done when',
+				),
+		})
+		expect(sharedInputs(skill, () => '# Rules\n\n## Budget\n\nSpend little.\n')).toEqual([])
 	})
 })
 

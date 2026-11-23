@@ -74,13 +74,29 @@ export function sharedInputs(skill: SkillFiles, resolve?: (name: string) => stri
 			if (content === undefined) continue
 			const { sections } = splitSections(content)
 			for (const section of sections)
-				if (names(shared, section.heading))
+				if (namesOnPurpose(shared, section.heading))
 					record(`the "${section.heading}" section of the \`${name}\` reference`, (part) =>
 						names(part.text, section.heading),
 					)
 		}
 	}
 	return found
+}
+
+/**
+ * Whether the shared text names a section on purpose: it says "section" beside the heading, as in `the Budget section`,
+ * `section "Budget"`, or "## Budget". A heading that is only a word of the prose or a backticked command, such as
+ * "Fix" or `fix`, does not count, so the warning stays to the sections an author pointed at. The scope hashes still
+ * treat the looser match as shared; this narrows the warning only, and hides no dependency.
+ */
+function namesOnPurpose(text: string, heading: string): boolean {
+	const escaped = heading.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+	const quote = '[`"\u201c*_]?'
+	const unquote = '[`"\u201d*_]?'
+	return new RegExp(
+		`\\b${quote}${escaped}${unquote}\\s+section\\b|\\bsection\\s+${quote}${escaped}\\b|^\\s*#{2,}\\s+${escaped}\\s*$`,
+		'im',
+	).test(text)
 }
 
 const list = (items: string[]) => (items.length ? items.join(', ') : 'no part')
