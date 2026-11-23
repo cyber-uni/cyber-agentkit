@@ -1,26 +1,35 @@
 runs: 3
 threshold: 2
 trigger:
-  - { prompt: "The owner edited the Testing section our tool wrote, and we have a new wording. Recommend updated prose that keeps their sentences.", expect: fire }
-  - { prompt: "Here's the wording we offer now, what's in their AGENTS.md, and the wordings we retired. What should the section say now?", expect: fire }
-  - { prompt: "Merge our new section wording into the copy the user changed, without losing their edits.", expect: fire }
-  - { prompt: "Retire the old Testing wording into the history file; we ship a new one today.", expect: fire }
-  - { prompt: "Proofread the Testing section of AGENTS.md and fix the grammar.", expect: skip }
-  - { prompt: "Resolve the merge conflict in AGENTS.md from the rebase.", expect: skip }
-  - { prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
+  - {
+      prompt: 'The owner edited the Testing section our tool wrote, and we have a new wording. Recommend updated prose that keeps their sentences.',
+      expect: fire,
+    }
+  - {
+      prompt: "Here's the wording we offer now, what's in their AGENTS.md, and the wordings we retired. What should the section say now?",
+      expect: fire,
+    }
+  - {
+      prompt: 'Merge our new section wording into the copy the user changed, without losing their edits.',
+      expect: fire,
+    }
+  - { prompt: 'Retire the old Testing wording into the history file; we ship a new one today.', expect: fire }
+  - { prompt: 'Proofread the Testing section of AGENTS.md and fix the grammar.', expect: skip }
+  - { prompt: 'Resolve the merge conflict in AGENTS.md from the rebase.', expect: skip }
+  - { prompt: 'Add a rule to AGENTS.md that this repo uses pnpm.', expect: skip }
   - { prompt: "Make the repo's style reference say we write in the present tense.", expect: skip }
 outcome:
   - id: update
     prompt: >-
       We offer a new wording of the Testing section in offered.md. found.md is what the owner's file holds now, and
       history.md holds the wordings we retired. Recommend the updated prose.
-    files: files/update   # the owner reworded one sentence; the offered wording appends one
+    files: files/update # the owner reworded one sentence; the offered wording appends one
     criteria: [C1, C3, C4, C5, C6, C7]
   - id: conflict
     prompt: >-
       We offer a new wording of the Testing section in offered.md. found.md is what the owner's file holds now, and
       history.md holds the wordings we retired. Recommend the updated prose.
-    files: files/conflict   # the owner and the offered wording each rewrote the first sentence
+    files: files/conflict # the owner and the offered wording each rewrote the first sentence
     criteria: [C1, C4, C6, C7]
     checks:
       C4:
@@ -38,21 +47,21 @@ outcome:
     prompt: >-
       Use the prose-update skill. We ship a new Testing wording today, so retire the one in current.md into history.md, dated 2026-11-13, with
       the reason "ship a new wording". I approve saving history.md; don't ask again.
-    files: files/retire   # history.md holds one older entry
+    files: files/retire # history.md holds one older entry
     criteria: [C1, C8]
     checks:
       C1:
-        - script: "test -z \"$(git status --porcelain --untracked-files=all | grep -v ' history.md$')\""
+        - script: 'test -z "$(git status --porcelain --untracked-files=all | grep -v '' history.md$'')"'
 rubrics:
   C1:
-    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+    - script: 'test -z "$(git status --porcelain --untracked-files=all)"'
   C2:
-    - regex: "[Hh]istor(y|ic)|[Rr]etired"
-    - not-contains: "Keep each test focused on one behavior. Fix a flaky test"
+    - regex: '[Hh]istor(y|ic)|[Rr]etired'
+    - not-contains: 'Keep each test focused on one behavior. Fix a flaky test'
   C3:
-    - contains: "Keep each test focused on one behavior. Fix a flaky test before you add a new one."
+    - contains: 'Keep each test focused on one behavior. Fix a flaky test before you add a new one.'
   C4:
-    - contains: "Keep each test focused on one behavior."
+    - contains: 'Keep each test focused on one behavior.'
   C5:
     - judge: >-
         Pass when every sentence of the recommended prose comes from found.md or offered.md, or is marked decided

@@ -10,8 +10,8 @@ trigger:
 outcome:
   - id: two-prs
     prompt: Write the release notes.
-    files: files/two-prs   # a feature, a fix, an internal change, and a merge commit
-    setup: setup/two-prs.sh   # writes .git/hooks and repository git config (VER-12)
+    files: files/two-prs # a feature, a fix, an internal change, and a merge commit
+    setup: setup/two-prs.sh # writes .git/hooks and repository git config (VER-12)
 rubrics:
   C5:
     - judge: Pass when the notes are clear.
@@ -22,4 +22,4 @@ rubrics:
   C3:
     - script: "! grep -qE 'Merge (pull request|branch)|#15|#16' RELEASE_NOTES.md"
   C4:
-    - script: "awk '/^### Features/{s=\"f\"} /^### Fixes/{s=\"x\"} /#12/{a=s} /#14/{b=s} END{exit !(a==\"f\" && b==\"x\")}' RELEASE_NOTES.md"
+    - script: 'awk ''/^### Features/{s="f"} /^### Fixes/{s="x"} /#12/{a=s} /#14/{b=s} END{exit !(a=="f" && b=="x")}'' RELEASE_NOTES.md'

@@ -7,6 +7,6 @@ trigger:
   - { id: skip-readme, prompt: update the README, expect: skip }
 rubrics:
   C1:
-    - file-contains: { path: RELEASE_NOTES.md, text: "## Release notes" }
+    - file-contains: { path: RELEASE_NOTES.md, text: '## Release notes' }
   C2:
     - regex: "line \\d+"

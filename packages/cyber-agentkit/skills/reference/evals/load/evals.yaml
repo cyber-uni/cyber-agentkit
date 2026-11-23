@@ -8,12 +8,12 @@ outcome:
         - contains: Lead with the outcome
   - id: load-blueprint-step-fails
     prompt: Follow our epic skill, .agents/skills/epic/SKILL.md, to create an epic titled "Q3 launch".
-    files: files/load-blueprint-step-fails   # an epic skill loading a GitLab blueprint whose glab step fails: glab is not installed
+    files: files/load-blueprint-step-fails # an epic skill loading a GitLab blueprint whose glab step fails: glab is not installed
     criteria: [C9]
     checks:
       C9:
         - script: test -z "$(git status --porcelain --untracked-files=all)"
         - contains: gitlab.capabilities
-        - regex: "doctor"
-        - regex: "[Rr]eport"
-        - regex: "[Pp]atch|[Cc]ustomi[sz]e"
+        - regex: 'doctor'
+        - regex: '[Rr]eport'
+        - regex: '[Pp]atch|[Cc]ustomi[sz]e'

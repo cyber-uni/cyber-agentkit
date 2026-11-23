@@ -10,7 +10,7 @@ outcome:
     criteria: [C26]
     checks:
       C26:
-        - script: "git diff --quiet HEAD -- .agents/skills/release-notes/evals && test -z \"$(git status --porcelain --untracked-files=all .agents/skills/release-notes/evals)\""
+        - script: 'git diff --quiet HEAD -- .agents/skills/release-notes/evals && test -z "$(git status --porcelain --untracked-files=all .agents/skills/release-notes/evals)"'
         - regex: "(attest|live pass)[\\s\\S]{0,400}\\b([Ll]ink|URL|url)\\b|\\b([Ll]ink|URL|url)\\b[\\s\\S]{0,400}(attest|live pass)"
   # The author names the criterion and the link (#323): the skill records it with `skill attest`, which writes the
   # `attested` entry with the link and a fingerprint; a hand-written entry has no fingerprint of the skill's files.

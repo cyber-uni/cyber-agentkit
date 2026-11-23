@@ -36,10 +36,10 @@ outcome:
     checks:
       C17:
         - regex: "release-notes\\b"
-        - regex: "[Aa]dopt|[Rr]euse|[Uu]se the existing"
+        - regex: '[Aa]dopt|[Rr]euse|[Uu]se the existing'
         # A stop asks a question or lists lettered options, as C14 and C15 test it.
         - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
-        - script: "test ! -e .agents/skills/pr-release-notes/SKILL.md"
+        - script: 'test ! -e .agents/skills/pr-release-notes/SKILL.md'
   # files/low-budget sets a budget of $0.01 or 1 run, so the test of the new skill is over it: the run keeps the skill,
   # starts no test run, and ends by asking.
   - id: create-over-budget
