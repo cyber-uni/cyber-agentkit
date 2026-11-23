@@ -113,3 +113,19 @@ export function selectionLines(selection: Selection): string[] {
 	for (const item of selection.notSelecting ?? []) lines.push(`not selecting: ${item}; no case is stale for it`)
 	return lines
 }
+
+/**
+ * The hint `skill test --estimate` adds when one input stales every scope (#417): an edit to a shared input re-runs the
+ * whole suite, which is what SHP-22 warns of before the edit. `scopes` is every scope that has cases. A hint only: it
+ * names the input and never changes what is selected.
+ */
+export function sharedInputHint(selection: Selection, scopes: string[]): string | undefined {
+	if (selection.scopes.length < 2 || !scopes.every((scope) => selection.scopes.some((item) => item.scope === scope)))
+		return undefined
+	const [first, ...rest] = selection.scopes
+	const every = (first?.inputsChanged ?? []).filter((name) => rest.every((item) => item.inputsChanged?.includes(name)))
+	if (!every.length) return undefined
+	const shown = every.slice(0, 3).map((name) => `\`${name}\``)
+	const more = every.length > shown.length ? ` and ${every.length - shown.length} more` : ''
+	return `${shown.join(', ')}${more} changed in every scope, so the change re-runs all ${selection.stale.length} stale cases; when only some parts use an input, move it into the parts that use it (SHP-22 of \`skill check\` warns of it before an edit)`
+}

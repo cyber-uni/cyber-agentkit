@@ -126,6 +126,8 @@ program does the same way every time, such as parsing or validating a file.
   lists leave out.
 - **SHP-21** [script] Each eval folder, a folder under `evals/` holding an `evals.yaml`, is named for an instructions
   file: `evals/<name>/` holds the cases of `references/<name>.md`.
+- **SHP-22** [script, warning] The shared sections of `SKILL.md` link no file, and name no reference section, that the
+  parts' own instructions use in fewer than all of the parts: an edit to it would re-run every eval scope.
 
 ### Trigger
 

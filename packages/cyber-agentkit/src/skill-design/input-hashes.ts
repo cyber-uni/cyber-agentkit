@@ -119,14 +119,14 @@ export function splitBody(body: string): { shared: string; rows: Record<string, 
 }
 
 /** What a set of texts reaches in the skill: the files, by path relative to the skill, and the named references. */
-type Reach = { files: string[]; names: string[] }
+export type Reach = { files: string[]; names: string[] }
 
 /**
  * Every file the texts link or name as a plain path, and every file those reach in turn, and every named reference any
  * of them loads (R178). A file outside the skill folder, under `evals/`, or a built script is not followed; a name
  * counts when a load line names it or it is backticked and the skill declares it.
  */
-function reachOf(skill: SkillFiles, texts: { text: string; from: string }[], declared: Set<string>): Reach {
+export function reachOf(skill: SkillFiles, texts: { text: string; from: string }[], declared: Set<string>): Reach {
 	const files = new Set<string>()
 	const names = new Set<string>()
 	const known = new Set(skill.files)
@@ -177,7 +177,7 @@ export function splitSections(content: string): { preamble: string; sections: { 
 }
 
 /** Whether the text names a heading, as a whole phrase and whatever the case. A heading with no word in it counts as named. */
-function names(text: string, heading: string): boolean {
+export function names(text: string, heading: string): boolean {
 	const phrase = normalized(heading).toLowerCase()
 	if (!/[\p{L}\p{N}]/u.test(phrase)) return true
 	const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

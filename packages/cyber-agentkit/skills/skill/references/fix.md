@@ -49,7 +49,9 @@ default the option most runs need, and name the condition under which the step d
 prose to stderr or behind `--verbose`. For SHP-19, make the step load the reference through the `reference` skill, and
 keep the default only as the fallback; `fix` and `enhance` never replace a reference load with a direct read. For
 SHP-20, declare the loads in the front matter as the `reference` skill's Wire a skill says: add each name the check
-reports to the list, and take out a declared name the text no longer loads.
+reports to the list, and take out a declared name the text no longer loads. For SHP-22, move the link, or the text that
+names the reference section, out of the shared sections into the parts that use it, and keep it in each part that does;
+leave it shared when every part truly needs it, and say so. Never drop a use to clear the warning.
 
 **Trigger.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result. For TRG-3, leave out
 what the body already says of how the skill works, such as the files it reads and writes. For TRG-5 and

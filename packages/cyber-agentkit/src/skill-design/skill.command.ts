@@ -27,6 +27,7 @@ import { combineReports, defaultSkillDirs, findSkills, type RepositoryCheckRepor
 import { addCase, addTriggerCase, type CaseChange, type CaseCheck, removeCase } from './eval-case.js'
 import { type MigrationPlan, type MigrationWrite, planMigration, writeMigration } from './eval-migration.js'
 import { type EvalReport, readEvalReport, reportMarkdown, skillCriteria } from './eval-report.js'
+import { triggerScope } from './eval-suite.js'
 import { carryEntries, finishedCases, readEvalSet, recordedCosts, sandboxFailedCases } from './expected-result.js'
 import { builtScriptsHash, inputHashes, runResolver } from './input-hashes.js'
 import {
@@ -72,7 +73,7 @@ import {
 	skillTestHarnesses,
 } from './skill-test-harness.js'
 import { type SkillVetReport, vetSkill } from './skill-vet.js'
-import { type Selection, selectionLines, selectStale } from './stale-cases.js'
+import { type Selection, selectionLines, selectStale, sharedInputHint } from './stale-cases.js'
 import { defaultTestBudget, estimateTest, estimateText, parseTestBudget } from './test-estimate.js'
 import { planScripts, planTest, withoutScripts } from './test-plan.js'
 import { planLine } from './test-progress.js'
@@ -248,14 +249,27 @@ function checkCommand({ plugin }: SkillCommandOptions): cli.Command {
 				return knownBy((name) => resolveReference(name, skillLayers).status === 'found')
 			}
 			if (skill) {
-				const report = checkSkill(skill, aspects, runCheckScript, knownIn(skill.folder))
+				const report = checkSkill(
+					skill,
+					aspects,
+					runCheckScript,
+					knownIn(skill.folder),
+					runResolver(layers, skill.folder),
+				)
 				const answer = result(report, { render: { text: textReport } })
 				if (failsPolicy(report, failOn)) answerThenFail(answer, this.format)
 				return answer
 			}
 			const reports = found.flatMap(({ folder }) => {
 				const files = readSkill(folder)
-				return files ? [{ folder, report: checkSkill(files, aspects, runCheckScript, knownIn(folder)) }] : []
+				return files
+					? [
+							{
+								folder,
+								report: checkSkill(files, aspects, runCheckScript, knownIn(folder), runResolver(layers, folder)),
+							},
+						]
+					: []
 			})
 			const combined = combineReports(root, dirs, reports)
 			const answer = result(combined, { render: { text: repositoryText } })
@@ -906,7 +920,20 @@ function testCommand({
 					flagged ? 'flags' : configured ? 'reference' : 'default',
 					recordedCosts(readExpectedFile(skill.folder, readEvalSet(skill.folder, planned.plan.criteria))),
 				)
-				const answered = selection ? { ...estimate, selected: selection } : estimate
+				const hint = selection
+					? sharedInputHint(selection, [
+							...new Set(
+								readEvalSet(skill.folder, planned.plan.criteria)
+									?.cases.map((item) => item.scope)
+									.filter((scope) => scope !== triggerScope),
+							),
+						])
+					: undefined
+				const answered = {
+					...estimate,
+					...(selection ? { selected: selection } : {}),
+					...(hint ? { hint } : {}),
+				}
 				return result(answered, {
 					render: {
 						text: () =>
@@ -916,7 +943,7 @@ function testCommand({
 											.map((line) => `${line}\n`)
 											.join('')
 									: ''
-							}${estimateText(estimate)}`,
+							}${hint ? `hint: ${hint}\n` : ''}${estimateText(estimate)}`,
 					},
 				})
 			}

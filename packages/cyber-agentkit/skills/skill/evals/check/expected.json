@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-23T03:49:00.360Z",
+	"at": "2026-11-23T05:04:24.357Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:b5a68d96de6f445cb644c0de210c2596aee8376b98bb42eb54c9e17329d6a33e",
+		"scripts": "sha256:05790aa7ad0449b132b3f85511555fe2b3c0ef387a976e8f69f445a6a34939bd",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -77,23 +77,19 @@
 			"cost": {
 				"skill": {
 					"runs": 3,
-					"total": 0.4261,
-					"max": 0.1511
+					"total": 0.526,
+					"max": 0.1869
 				},
 				"baseline": {
 					"runs": 3,
-					"total": 0.2198,
-					"max": 0.0787
+					"total": 0.2899,
+					"max": 0.1012
 				}
 			},
-			"at": "2026-11-23T03:31:14.985Z",
+			"at": "2026-11-23T05:04:24.357Z",
 			"hashes": {
 				"case": "sha256:ed50e2d05c596c67f4fa23f9d0fe68e6ae35b6d6a7278460d0917963a65f1f92",
-				"scope": "sha256:c2508ec23f140e768ec177c36738501463e91d2db23a7a4b97aa93db92549574"
-			},
-			"carried": {
-				"reason": "hashing a sectioned reference per section and moving the test budget steps into test.md change no behavior",
-				"at": "2026-11-23T04:40:34.947Z"
+				"scope": "sha256:af079f3a2f2efdea76a2226dcf9e9ec3ce1a616a2a6b417ea5f196d3dd88a8bc"
 			}
 		},
 		"check-flawed": {
@@ -125,23 +121,19 @@
 			"cost": {
 				"skill": {
 					"runs": 3,
-					"total": 0.404,
-					"max": 0.1398
+					"total": 0.418,
+					"max": 0.1624
 				},
 				"baseline": {
 					"runs": 3,
-					"total": 0.1654,
-					"max": 0.0554
+					"total": 0.1616,
+					"max": 0.0568
 				}
 			},
-			"at": "2026-11-23T03:31:14.985Z",
+			"at": "2026-11-23T05:04:24.357Z",
 			"hashes": {
 				"case": "sha256:eaa3018ee07146062b83093b270277c336a67dac573ea0f04af594102da2ca60",
-				"scope": "sha256:c2508ec23f140e768ec177c36738501463e91d2db23a7a4b97aa93db92549574"
-			},
-			"carried": {
-				"reason": "hashing a sectioned reference per section and moving the test budget steps into test.md change no behavior",
-				"at": "2026-11-23T04:40:34.947Z"
+				"scope": "sha256:af079f3a2f2efdea76a2226dcf9e9ec3ce1a616a2a6b417ea5f196d3dd88a8bc"
 			}
 		},
 		"check-missing": {
@@ -173,33 +165,29 @@
 			"cost": {
 				"skill": {
 					"runs": 3,
-					"total": 0.2617,
-					"max": 0.089
+					"total": 0.2674,
+					"max": 0.09
 				},
 				"baseline": {
 					"runs": 3,
-					"total": 0.1284,
-					"max": 0.0445
+					"total": 0.1264,
+					"max": 0.0433
 				}
 			},
-			"at": "2026-11-23T03:31:14.985Z",
+			"at": "2026-11-23T05:04:24.357Z",
 			"hashes": {
 				"case": "sha256:babe2af08c954d22f4a7e9ade11030969adac38ff11c8e8340f921cc568040f0",
-				"scope": "sha256:c2508ec23f140e768ec177c36738501463e91d2db23a7a4b97aa93db92549574"
-			},
-			"carried": {
-				"reason": "hashing a sectioned reference per section and moving the test budget steps into test.md change no behavior",
-				"at": "2026-11-23T04:40:34.947Z"
+				"scope": "sha256:af079f3a2f2efdea76a2226dcf9e9ec3ce1a616a2a6b417ea5f196d3dd88a8bc"
 			}
 		}
 	},
 	"inputs": {
-		"sha256:c2508ec23f140e768ec177c36738501463e91d2db23a7a4b97aa93db92549574": {
+		"sha256:af079f3a2f2efdea76a2226dcf9e9ec3ce1a616a2a6b417ea5f196d3dd88a8bc": {
 			"SKILL.md front matter": "sha256:891934a69015918962c22f806bbe3fc1d896c901f0093fd988bc83204678f94e",
-			"SKILL.md shared sections": "sha256:f6db93795a2963933aa8d3597ae76c2693c9943a6289711abfd7ea506597c89b",
+			"SKILL.md shared sections": "sha256:8eb6834dd83948cb2b863a4cad3dfab8deb954912a6d2682d57d499bfb1a0f47",
 			"SKILL.md router row for references/check.md": "sha256:ab3f2f6a57ed6d42aa36bf8dbfde1b63effa044caa09ddeb2afe3dbc4396540c",
 			"references/attest.md": "sha256:c747ad8c4423fc305582aca0da12734d7768c60c1bfccc69e042a65cbe16a818",
-			"references/check.md": "sha256:eba7855416e1eb5eb6f5b24336f2271e6c2b92fe5885f1e99ddc5a7bdcca88b0",
+			"references/check.md": "sha256:e95b3091657409102c5263ce108c6ea762ec71f49b2811418c76c5510aa8f387",
 			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",
 			"references/trigger-draft.md": "sha256:b7bc2ffea458d00443388b7a3fcbd2d2a4b09ab9469f9fa88c831652169d5176",
 			"reference skill-design.aspects.criteria": "sha256:8af03c26608955d94b1fc5fc3a14faca0ac44b918b03927e9245820a1f2f12a1",
