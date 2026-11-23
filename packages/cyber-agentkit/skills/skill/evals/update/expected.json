@@ -80,11 +80,11 @@
 			"at": "2026-11-23T03:45:05.878Z",
 			"hashes": {
 				"case": "sha256:1510b274497abe4bc0df4ecfcd00c776063c501c3ff866369a46ef14a8a6b5c6",
-				"scope": "sha256:22f8c83f4e36dfc34771d9d0a930d96a31909a0ef72e57d6970fcbf8b0a973ac"
+				"scope": "sha256:2a41436b435c95a506d79875982ffd34038dddf7800c52d899cca37cedfa6efb"
 			},
 			"carried": {
-				"reason": "hashing a sectioned reference per section and moving the test budget steps into test.md change no behavior",
-				"at": "2026-11-23T04:40:42.984Z"
+				"reason": "default value only; the create cases set their own budget, and the samples' estimates stay under $5",
+				"at": "2026-11-23T04:41:38.614Z"
 			}
 		},
 		"update-scoped": {
@@ -119,16 +119,16 @@
 			"at": "2026-11-23T03:45:05.878Z",
 			"hashes": {
 				"case": "sha256:a7b6925de8e02764cefa0c11530901295570f6dee4f2b3a1a61925751e8a6769",
-				"scope": "sha256:22f8c83f4e36dfc34771d9d0a930d96a31909a0ef72e57d6970fcbf8b0a973ac"
+				"scope": "sha256:2a41436b435c95a506d79875982ffd34038dddf7800c52d899cca37cedfa6efb"
 			},
 			"carried": {
-				"reason": "hashing a sectioned reference per section and moving the test budget steps into test.md change no behavior",
-				"at": "2026-11-23T04:40:42.984Z"
+				"reason": "default value only; the create cases set their own budget, and the samples' estimates stay under $5",
+				"at": "2026-11-23T04:41:38.614Z"
 			}
 		}
 	},
 	"inputs": {
-		"sha256:22f8c83f4e36dfc34771d9d0a930d96a31909a0ef72e57d6970fcbf8b0a973ac": {
+		"sha256:2a41436b435c95a506d79875982ffd34038dddf7800c52d899cca37cedfa6efb": {
 			"SKILL.md front matter": "sha256:891934a69015918962c22f806bbe3fc1d896c901f0093fd988bc83204678f94e",
 			"SKILL.md shared sections": "sha256:f6db93795a2963933aa8d3597ae76c2693c9943a6289711abfd7ea506597c89b",
 			"SKILL.md router row for references/update.md": "sha256:29ff5465c5a8f5b643a10300fb7d7a70599bc0579887a2a76cfe30a58ae8d0df",
@@ -157,7 +157,7 @@
 			"reference skill-design.autonomy ## fix": "sha256:d278fee7a1834604bd4ee40bd0d3a60eb54a179f8ad912c1dc970f473b2d9848",
 			"reference skill-design.autonomy ## update": "sha256:5d7e311d4d13b33489cbd13afce90fc5ffd496752c1dcbe9990ae1f13601204b",
 			"reference skill-design.autonomy ## enhance": "sha256:f189d5dd833e0f4ad9d02ff6323f17e527505588407832fd6751dd12efd1096c",
-			"reference skill-design.autonomy ## test budget": "sha256:a78ca394b084bf89537d0564081d0aac802e1c2ffad177ccf93c2a2c5830fc4c",
+			"reference skill-design.autonomy ## test budget": "sha256:56633ed606fae526d73c11b3569eb6d90b90b53012f668104f60c2868f084788",
 			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
 		}
 	}
