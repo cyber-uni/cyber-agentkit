@@ -38,7 +38,7 @@ stops. `create`, `fix`, and `enhance` each start by stating their autonomy level
 `apply-safe` (apply what `check` and `test` show is safe), or `apply` (apply everything and report it). The author's
 request or a `skill-design.autonomy` customization sets it; by default `create` applies, `fix` applies what is safe,
 and `enhance` asks, and work that adds or edits a skill, such as implementing an issue, applies. The same reference
-holds a test budget, `$10 or 60 runs` by default: `skill test --estimate` reads it, prices a test from its last saved result
+holds a test budget, `$5 or 60 runs` by default: `skill test --estimate` reads it, prices a test from its last saved result
 (or $0.18 a run with none), and prints the `Test budget:` line; a test within the budget runs without asking. A test over the budget, or a decision
 that is the author's alone, such as changing a skill's Intent, stops the run: the work so far is kept and reported,
 and the reply ends with the question and its options.

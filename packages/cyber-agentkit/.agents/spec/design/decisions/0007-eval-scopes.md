@@ -15,7 +15,7 @@ answered.
 A skill's evals were one list with one stored expected result. Any change meant a full run to refresh it, and a run of
 some cases could not become the expected result. Trigger cases were named by their place in the list, so adding one
 renamed every case after it. The `skill` skill's expected result was 11 cases behind, and the only fix was a full run
-of 234 runs, about $18, over the default budget of $10 or 60 runs.
+of 234 runs, about $18, over the default budget of $5 or 60 runs.
 
 ## Decisions
 

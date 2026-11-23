@@ -18,17 +18,17 @@ describe('estimateTest (#214)', () => {
 		expect(estimate).toMatchObject({ runs: 60, estimate: 12, basis: 'last-result', within: false })
 		expect(estimate.last).toEqual({ runs: 30, cost: 6, durationMs: 600_000 })
 		expect(estimateText(estimate)).toBe(
-			'skill test: 60 runs, about $12.00 (from the last result); budget $10 or 60 runs: over; last time 30 runs took about 10 min\n' +
-				'Test budget: over (60 runs, $12.00; budget $10 or 60 runs; no budget configured, default used)\n',
+			'skill test: 60 runs, about $12.00 (from the last result); budget $5 or 60 runs: over; last time 30 runs took about 10 min\n' +
+				'Test budget: over (60 runs, $12.00; budget $5 or 60 runs; no budget configured, default used)\n',
 		)
 	})
 
 	it('uses the default per-run cost with no saved result, and runs within the default budget', () => {
-		// 5 outcome cases × 2 × 3 + 4 triggers × 3 = 42 runs at $0.18
-		const estimate = estimateTest('s', plan(5, 4), undefined, 'claude-code')
-		expect(estimate).toMatchObject({ runs: 42, estimate: 7.56, basis: 'per-run-default', within: true })
+		// 2 outcome cases × 2 × 3 + 4 triggers × 3 = 24 runs at $0.18
+		const estimate = estimateTest('s', plan(2, 4), undefined, 'claude-code')
+		expect(estimate).toMatchObject({ runs: 24, estimate: 4.32, basis: 'per-run-default', within: true })
 		expect(estimate).not.toHaveProperty('last')
-		expect(estimate.budget).toEqual({ cost: 10, runs: 60, from: 'default' })
+		expect(estimate.budget).toEqual({ cost: 5, runs: 60, from: 'default' })
 	})
 
 	it('uses the default per-run cost when the saved result lacks its cost or run count', () => {
@@ -43,8 +43,8 @@ describe('estimateTest (#214)', () => {
 		const within = estimateTest('s', plan(10, 0), undefined, 'codex')
 		expect(within).toMatchObject({ runs: 60, estimate: null, basis: 'none', within: true })
 		expect(estimateText(within)).toBe(
-			'skill test: 60 runs, no cost known; budget $10 or 60 runs: within\n' +
-				'Test budget: within (60 runs, no cost known; budget $10 or 60 runs; no budget configured, default used)\n',
+			'skill test: 60 runs, no cost known; budget $5 or 60 runs: within\n' +
+				'Test budget: within (60 runs, no cost known; budget $5 or 60 runs; no budget configured, default used)\n',
 		)
 		expect(estimateTest('s', plan(10, 1), undefined, 'codex').within).toBe(false)
 	})
@@ -55,11 +55,11 @@ describe('estimateTest (#214)', () => {
 	})
 
 	it('writes the Test budget line a skill reports as printed, saying only when no budget was configured (#238)', () => {
-		const over = estimateTest('s', plan(5, 4), undefined, 'claude-code', { cost: 0.01, runs: 1 }, 'reference')
-		expect(over.line).toBe('Test budget: over (42 runs, $7.56; budget $0.01 or 1 runs)')
+		const over = estimateTest('s', plan(2, 4), undefined, 'claude-code', { cost: 0.01, runs: 1 }, 'reference')
+		expect(over.line).toBe('Test budget: over (24 runs, $4.32; budget $0.01 or 1 runs)')
 		expect(over.budget).toEqual({ cost: 0.01, runs: 1, from: 'reference' })
-		expect(estimateTest('s', plan(5, 4), undefined, 'claude-code').line).toBe(
-			'Test budget: within (42 runs, $7.56; budget $10 or 60 runs; no budget configured, default used)',
+		expect(estimateTest('s', plan(2, 4), undefined, 'claude-code').line).toBe(
+			'Test budget: within (24 runs, $4.32; budget $5 or 60 runs; no budget configured, default used)',
 		)
 	})
 })
@@ -132,7 +132,7 @@ describe('parseTestBudget (#238)', () => {
 
 	it('keeps the shipped default for a half it does not set', () => {
 		expect(parseTestBudget('## test budget\n\n$2\n')).toEqual({ cost: 2, runs: 60 })
-		expect(parseTestBudget('## test budget\n\n5 runs\n')).toEqual({ cost: 10, runs: 5 })
+		expect(parseTestBudget('## test budget\n\n5 runs\n')).toEqual({ cost: 5, runs: 5 })
 	})
 
 	it('is no budget without the heading, or with nothing under it, and reads no other section', () => {
