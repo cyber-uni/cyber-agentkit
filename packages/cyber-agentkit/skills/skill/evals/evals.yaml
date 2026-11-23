@@ -11,7 +11,7 @@ trigger:
   # The work itself changes a skill, though the request does not ask about skills (#205).
   - { id: fire-issue-edits-description, prompt: "Implement issue #42: the description in .agents/skills/release-notes/SKILL.md should also fire on 'changelog'. Open a PR when done.", expect: fire }
   - { id: fire-issue-adds-reference, prompt: "Work on issue #57: add a references/labels.md to the release-notes skill folder that lists how to group notes by label, and link it from its steps.", expect: fire }
-  - { id: fire-report, prompt: "Publish the eval results of the release-notes skill on its docs page.", expect: fire, fails: "The description does not cover publishing eval results on a docs page: 0/3 fired in the full run and 0/3 on a rerun, 2026-11-22. Follow-up: widen the description's report phrasing." }
+  - { id: fire-report, prompt: "Publish the eval results of the release-notes skill on its docs page.", expect: fire }
   - { id: skip-skillify, prompt: "Turn what we just did into a skill.", expect: skip }
   - { id: skip-load-reference, prompt: "Load our style reference and tell me what it says about tone.", expect: skip }
   - { id: skip-agents-md-rule, prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
