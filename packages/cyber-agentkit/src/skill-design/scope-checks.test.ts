@@ -117,8 +117,7 @@ describe('VER-18 and VER-19: stale and carried cases (R186)', () => {
 			id: 'VER-18',
 			status: 'fail',
 			file: 'evals/expected.json',
-			message:
-				'2 cases are stale, and `skill test` runs them: scope root, 1 case (changed: references/style.md); scope write, 1 case (changed: references/style.md)',
+			message: '1 case is stale, and `skill test` runs it: scope write, 1 case (changed: references/style.md)',
 		})
 	})
 

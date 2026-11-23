@@ -141,19 +141,19 @@ describe('scope inputs (R178, R179)', () => {
 		])
 		expect(Object.keys(out.inputs?.['audit'] ?? {})).not.toContain('references/style.md')
 		expect(Object.keys(out.inputs?.['trigger'] ?? {})).toEqual(['description', 'evals/evals.yaml settings'])
-		expect(Object.keys(out.inputs?.['root'] ?? {})).toEqual(
-			expect.arrayContaining(['SKILL.md body', 'references/write.md', 'references/style.md', 'references/audit.md']),
-		)
+		expect(Object.keys(out.inputs?.['root'] ?? {})).toContain('SKILL.md body')
+		for (const path of ['references/write.md', 'references/style.md', 'references/audit.md'])
+			expect(Object.keys(out.inputs?.['root'] ?? {})).not.toContain(path)
 	})
 
-	it('changes only the scopes that reach an edited file, the root reaching every one', () => {
+	it('changes only the scopes that reach an edited file, the root reaching none of the instructions files', () => {
 		const skill = scopedSkill()
 		const before = hashes(skill)
 		edit(skill, 'references/style.md', (text) => `${text}Use the active voice.\n`)
-		expect(changedScopes(before, hashes(skill))).toEqual(['root', 'write'])
+		expect(changedScopes(before, hashes(skill))).toEqual(['write'])
 		const style = hashes(skill)
 		edit(skill, 'references/audit.md', (text) => `${text}2. Name each line.\n`)
-		expect(changedScopes(style, hashes(skill))).toEqual(['root', 'audit'])
+		expect(changedScopes(style, hashes(skill))).toEqual(['audit'])
 	})
 
 	it("changes every instructions file's scope for a shared section, and one scope for its router row", () => {
@@ -163,7 +163,7 @@ describe('scope inputs (R178, R179)', () => {
 		expect(changedScopes(before, hashes(skill))).toEqual(['root', 'audit', 'write'])
 		const shared = hashes(skill)
 		edit(skill, 'SKILL.md', (text) => text.replace('| `audit` |', '| `audit [notes]` |'))
-		expect(changedScopes(shared, hashes(skill))).toEqual(['root', 'audit'])
+		expect(changedScopes(shared, hashes(skill))).toEqual(['audit'])
 	})
 
 	it('changes the trigger scope for the description, and for the description of another skill a run loads', () => {
@@ -191,7 +191,7 @@ describe('scope inputs (R178, R179)', () => {
 		expect(before.inputs?.['write']).not.toHaveProperty('reference release.levels')
 		expect(changedScopes(before, hashes(skill, { resolve }))).toEqual([])
 		content = 'level two'
-		expect(changedScopes(before, hashes(skill, { resolve }))).toEqual(['root', 'audit'])
+		expect(changedScopes(before, hashes(skill, { resolve }))).toEqual(['audit'])
 	})
 
 	it('reads whitespace and line wrapping as no change, and keeps built scripts out of every scope (R179)', () => {
@@ -202,7 +202,7 @@ describe('scope inputs (R178, R179)', () => {
 		const scripts = builtScriptsHash(readSkill(skill.folder) as SkillFiles)
 		write(skill, 'scripts/run.mjs', 'console.log(2)\n')
 		edit(skill, 'references/write.md', (text) => `${text}Run \`scripts/run.mjs\`.\n`)
-		expect(changedScopes(before, hashes(skill))).toEqual(['root', 'write'])
+		expect(changedScopes(before, hashes(skill))).toEqual(['write'])
 		expect(Object.keys(hashes(skill).inputs?.['write'] ?? {})).not.toContain('scripts/run.mjs')
 		expect(builtScriptsHash(readSkill(skill.folder) as SkillFiles)).not.toBe(scripts)
 	})
@@ -233,12 +233,9 @@ describe('stale cases (K12, R177)', () => {
 		const evalSet = readEvalSet(skill.folder, criteria)
 		if (!evalSet) throw new Error('no eval set')
 		const selection = selectStale(evalSet, hashes(skill), file)
-		expect(selection.stale).toEqual(['overview', 'write-two'])
-		expect(selection.scopes).toEqual([
-			{ scope: 'root', cases: ['overview'], inputsChanged: ['references/style.md'] },
-			{ scope: 'write', cases: ['write-two'], inputsChanged: ['references/style.md'] },
-		])
-		expect(selection.current).toBe(4)
+		expect(selection.stale).toEqual(['write-two'])
+		expect(selection.scopes).toEqual([{ scope: 'write', cases: ['write-two'], inputsChanged: ['references/style.md'] }])
+		expect(selection.current).toBe(5)
 	})
 
 	it('selects a new case, a case whose own definition changed, and an entry with no hashes', () => {
