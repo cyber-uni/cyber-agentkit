@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-23T02:34:32.670Z",
+	"at": "2026-11-23T03:49:00.360Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:1cf706ba76ec97d5fac04b2dddf60827c57ae0d4f2694c5494ae6d4478d5166b",
+		"scripts": "sha256:b5a68d96de6f445cb644c0de210c2596aee8376b98bb42eb54c9e17329d6a33e",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -51,12 +51,12 @@
 		"update-reports": {
 			"scope": "update",
 			"status": "pass",
-			"passed": 3,
+			"passed": 2,
 			"ran": 3,
 			"criteria": {
 				"C25": {
 					"status": "pass",
-					"passed": 3,
+					"passed": 2,
 					"ran": 3,
 					"baseline": {
 						"passed": 0,
@@ -65,10 +65,22 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T20:13:39.034Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.3915,
+					"max": 0.1459
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.1839,
+					"max": 0.063
+				}
+			},
+			"at": "2026-11-23T03:45:05.878Z",
 			"hashes": {
-				"case": "sha256:b9c5121b295f1086b9f54a7dcec84b9ddf6c1568f1075edfbdaa1f5442d93c42",
-				"scope": "sha256:21a1007eec3f792323f34a16e2c67acb2faeb9442a9d5c1681ec9e30a4badb05"
+				"case": "sha256:1510b274497abe4bc0df4ecfcd00c776063c501c3ff866369a46ef14a8a6b5c6",
+				"scope": "sha256:a4f5699d7863732b0a2badce404ba68480d5d71d1b82698a0a427ba5563fd335"
 			}
 		},
 		"update-scoped": {
@@ -82,30 +94,42 @@
 					"passed": 3,
 					"ran": 3,
 					"baseline": {
-						"passed": 3,
+						"passed": 2,
 						"ran": 3
 					}
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T20:13:39.034Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.4887,
+					"max": 0.173
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.1982,
+					"max": 0.0728
+				}
+			},
+			"at": "2026-11-23T03:45:05.878Z",
 			"hashes": {
-				"case": "sha256:4aeca45db4a76cb1ab2cac6c4ae87ef84e1d71b43342b8b872bbbbe54bfa35db",
-				"scope": "sha256:21a1007eec3f792323f34a16e2c67acb2faeb9442a9d5c1681ec9e30a4badb05"
+				"case": "sha256:a7b6925de8e02764cefa0c11530901295570f6dee4f2b3a1a61925751e8a6769",
+				"scope": "sha256:a4f5699d7863732b0a2badce404ba68480d5d71d1b82698a0a427ba5563fd335"
 			}
 		}
 	},
 	"inputs": {
-		"sha256:21a1007eec3f792323f34a16e2c67acb2faeb9442a9d5c1681ec9e30a4badb05": {
-			"SKILL.md front matter": "sha256:7376c32d6016002356e6dd89b61a0b9a53975d243fbf9d0ec90ab9549384011a",
-			"SKILL.md shared sections": "sha256:1920006459e583f9a02c1b713e1f98fc7648332c5964ec6077ede501b4e13b15",
+		"sha256:a4f5699d7863732b0a2badce404ba68480d5d71d1b82698a0a427ba5563fd335": {
+			"SKILL.md front matter": "sha256:891934a69015918962c22f806bbe3fc1d896c901f0093fd988bc83204678f94e",
+			"SKILL.md shared sections": "sha256:755f7c7a1c52d0fb190cca1120e543c44b8755ea754685010710a2683d10e1a0",
 			"SKILL.md router row for references/update.md": "sha256:29ff5465c5a8f5b643a10300fb7d7a70599bc0579887a2a76cfe30a58ae8d0df",
 			"references/attest.md": "sha256:c747ad8c4423fc305582aca0da12734d7768c60c1bfccc69e042a65cbe16a818",
 			"references/check.md": "sha256:eba7855416e1eb5eb6f5b24336f2271e6c2b92fe5885f1e99ddc5a7bdcca88b0",
 			"references/create.md": "sha256:0479d60dfbc255a537796beb1eb9efc39dfc6973a815731571d5e97127e49ade",
 			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",
-			"references/fix.md": "sha256:e77e95595d151ae0cf19c6df856ed4c13b8c0509d16f76770c664ee1ef19b990",
-			"references/test.md": "sha256:0df605ad6006731db210b829802dedce77095728eb57381b40d6dc7ce508b53b",
+			"references/fix.md": "sha256:a8622e62a5f030bfa30a8a4bc103fc18969df2b5ab63500ff6bebffd81578c5c",
+			"references/test.md": "sha256:3347f55e943b0b32b16c95fe3356d7fdb1e09a45190efa10fad30e2c57146472",
 			"references/trigger-draft.md": "sha256:b7bc2ffea458d00443388b7a3fcbd2d2a4b09ab9469f9fa88c831652169d5176",
 			"references/update.md": "sha256:24ed763788a61400a547c0f83df6af40726789af6cf4e29a60e622fce4711cc6",
 			"reference skill-design.aspects.criteria": "sha256:bcc12ff7e10da695b4d55190214bd8f90c530f73b30fa974dc8f0ad706ab3c96",

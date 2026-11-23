@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-22T20:22:32.591Z",
+	"at": "2026-11-23T03:34:43.200Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,36 +43,54 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:f0a4106bcdb63dbbf62607f88ee013dbfad7bdfdb116db8a24d85c19dfd71ccc",
+		"scripts": "sha256:b5a68d96de6f445cb644c0de210c2596aee8376b98bb42eb54c9e17329d6a33e",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
 	"entries": {
-		"fix-flawed": {
-			"scope": "fix",
+		"fails-with-reason": {
+			"scope": "fails",
 			"status": "pass",
 			"passed": 3,
 			"ran": 3,
 			"criteria": {
-				"C6": {
+				"C27": {
 					"status": "pass",
 					"passed": 3,
 					"ran": 3,
 					"baseline": {
-						"passed": 0,
-						"ran": 3
+						"passed": 2,
+						"ran": 2
 					}
-				},
-				"C7": {
-					"status": "pass",
-					"passed": 3,
-					"ran": 3,
-					"baseline": {
-						"passed": 0,
-						"ran": 3
-					}
-				},
-				"C25": {
+				}
+			},
+			"sandboxFailures": [
+				{
+					"case": "fails-with-reason",
+					"arm": "baseline",
+					"run": 3,
+					"fault": "bwrap-read-only-mount",
+					"text": "bwrap: Can't create file at …: Read-only file system"
+				}
+			],
+			"model": "sonnet",
+			"at": "2026-11-22T16:01:09.980Z",
+			"hashes": {
+				"case": "sha256:5b133dc51461180e3f56948645c7c3e0e681fe201ae522e13b2986732c59b48c",
+				"scope": "sha256:173ee78e8cfd9d40002df4d7dbb84c11fe83da0f66a7c279255cfa52fbd04356"
+			},
+			"carried": {
+				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
+				"at": "2026-11-22T16:13:04.287Z"
+			}
+		},
+		"fails-no-reason": {
+			"scope": "fails",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"criteria": {
+				"C27": {
 					"status": "pass",
 					"passed": 3,
 					"ran": 3,
@@ -82,61 +100,42 @@
 					}
 				}
 			},
-			"knownFailures": [
-				{
-					"case": "fix-flawed",
-					"criterion": "C6",
-					"reason": "Flaky: a fresh check after fix passed 1/3 in the full run and 2/3 on a rerun, 2026-11-22; the failing run's script check on the fixed SKILL.md did not hold. Follow-up: find which part of the C6 script check the fix misses.",
-					"status": "fixed",
-					"passed": 3,
-					"ran": 3
-				}
-			],
 			"model": "sonnet",
-			"at": "2026-11-22T20:22:32.591Z",
+			"at": "2026-11-22T20:09:09.503Z",
 			"hashes": {
-				"case": "sha256:87f26b865d6ba4f395f45eef357c1cb079ae05c1882ca454fd533da333f9e2e2",
-				"scope": "sha256:b80c63e5bec7c0f16d5e0b43e60a27a4825fb01278bafd7d1c2347c7bcb7320c"
+				"case": "sha256:6c1b342e60ce44f0f6474dbceb1913204d44581abb1c12f77ef55d44c311a63f",
+				"scope": "sha256:173ee78e8cfd9d40002df4d7dbb84c11fe83da0f66a7c279255cfa52fbd04356"
 			}
 		},
-		"fix-too-long": {
-			"scope": "fix",
+		"fails-make-it-pass": {
+			"scope": "fails",
 			"status": "pass",
-			"passed": 2,
+			"passed": 3,
 			"ran": 3,
 			"criteria": {
-				"C13": {
+				"C27": {
 					"status": "pass",
 					"passed": 3,
 					"ran": 3,
 					"baseline": {
-						"passed": 0,
-						"ran": 3
-					}
-				},
-				"C18": {
-					"status": "pass",
-					"passed": 2,
-					"ran": 3,
-					"baseline": {
-						"passed": 0,
+						"passed": 3,
 						"ran": 3
 					}
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T20:10:24.579Z",
+			"at": "2026-11-22T20:09:09.503Z",
 			"hashes": {
-				"case": "sha256:2565260b88a8ba1b45db6d44f3404094fc5f35072d1bec06adf09e51329db275",
-				"scope": "sha256:b80c63e5bec7c0f16d5e0b43e60a27a4825fb01278bafd7d1c2347c7bcb7320c"
+				"case": "sha256:9395a34b9f496c701d8d24ed48f621eb99ad1524655175ad5dd4d22814fcd8e4",
+				"scope": "sha256:173ee78e8cfd9d40002df4d7dbb84c11fe83da0f66a7c279255cfa52fbd04356"
 			}
 		}
 	},
 	"inputs": {
-		"sha256:b80c63e5bec7c0f16d5e0b43e60a27a4825fb01278bafd7d1c2347c7bcb7320c": {
+		"sha256:173ee78e8cfd9d40002df4d7dbb84c11fe83da0f66a7c279255cfa52fbd04356": {
 			"SKILL.md front matter": "sha256:7376c32d6016002356e6dd89b61a0b9a53975d243fbf9d0ec90ab9549384011a",
 			"SKILL.md shared sections": "sha256:1920006459e583f9a02c1b713e1f98fc7648332c5964ec6077ede501b4e13b15",
-			"SKILL.md router row for references/fix.md": "sha256:2e6b6e9b7bd1b5de5c08addca123bb6eba40515ac7b7b4804957964bcc256579",
+			"SKILL.md router row for references/fails.md": "sha256:94921e61999f37e4438b4573aa4b1efa205cc36bb565f921c51e20a9a3cb95df",
 			"references/attest.md": "sha256:c747ad8c4423fc305582aca0da12734d7768c60c1bfccc69e042a65cbe16a818",
 			"references/check.md": "sha256:eba7855416e1eb5eb6f5b24336f2271e6c2b92fe5885f1e99ddc5a7bdcca88b0",
 			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",

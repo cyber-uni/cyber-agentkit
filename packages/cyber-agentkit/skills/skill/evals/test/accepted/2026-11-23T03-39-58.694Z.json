@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-22T20:04:54.774Z",
+	"at": "2026-11-23T03:39:58.694Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,66 +43,64 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:f0a4106bcdb63dbbf62607f88ee013dbfad7bdfdb116db8a24d85c19dfd71ccc",
+		"scripts": "sha256:b5a68d96de6f445cb644c0de210c2596aee8376b98bb42eb54c9e17329d6a33e",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
 	"entries": {
-		"check-passing": {
-			"scope": "check",
+		"test-sandbox-failures": {
+			"scope": "test",
 			"status": "pass",
 			"passed": 3,
 			"ran": 3,
 			"criteria": {
-				"C2": {
-					"status": "pass"
-				},
-				"C3": {
-					"status": "pass"
+				"C19": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:12:14.526Z",
 			"hashes": {
-				"case": "sha256:597b7cf00f9e98afe4ae0e2c71201ee44937759d73876353e51585efb3c220d0",
-				"scope": "sha256:67e2b721cf1babed3f3a0c852277a9fff2a50e3a63a6597d3d27105b5d4c1867"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:00.584Z"
+				"case": "sha256:52c0e89c6433de282ecd42620600cffb9b6f71b6eaadb2a47745d08bdb90e613",
+				"scope": "sha256:7bbef47b11ef261e9f600232fa3385dcd80593754ee401fc860e74df9531c0f5"
 			}
 		},
-		"check-flawed": {
-			"scope": "check",
+		"test-sandbox-unavailable": {
+			"scope": "test",
 			"status": "pass",
 			"passed": 3,
 			"ran": 3,
 			"criteria": {
-				"C2": {
-					"status": "pass"
-				},
-				"C3": {
-					"status": "pass"
+				"C23": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 0,
+						"ran": 3
+					}
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:12:14.526Z",
 			"hashes": {
-				"case": "sha256:f6c35fc0cdcb838943eba7c618d046a935e636a6478c2bd695118a97eed51fc7",
-				"scope": "sha256:67e2b721cf1babed3f3a0c852277a9fff2a50e3a63a6597d3d27105b5d4c1867"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:00.584Z"
+				"case": "sha256:f09c0a7f19bc302548436e00473455b278bf3265fc7bfa2c30abd15c089c7d70",
+				"scope": "sha256:7bbef47b11ef261e9f600232fa3385dcd80593754ee401fc860e74df9531c0f5"
 			}
 		},
-		"check-missing": {
-			"scope": "check",
+		"test-no-sandbox": {
+			"scope": "test",
 			"status": "pass",
 			"passed": 3,
 			"ran": 3,
 			"criteria": {
-				"C1": {
+				"C24": {
 					"status": "pass",
 					"passed": 3,
 					"ran": 3,
@@ -110,28 +108,54 @@
 						"passed": 1,
 						"ran": 3
 					}
-				},
-				"C2": {
-					"status": "pass"
 				}
 			},
-			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
-			"hashes": {
-				"case": "sha256:e844be76fa335f0d87c814f3c5942b87b1c843ec98ad18f8d8eb2c5c9f89acac",
-				"scope": "sha256:67e2b721cf1babed3f3a0c852277a9fff2a50e3a63a6597d3d27105b5d4c1867"
+			"guard": true,
+			"baseline": {
+				"passed": 1,
+				"ran": 3
 			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:13:00.584Z"
+			"model": "sonnet",
+			"at": "2026-11-22T20:12:14.526Z",
+			"hashes": {
+				"case": "sha256:68dbf593518bec0021c44098ff2ae9b1c6999fcdf288e2bb4f15f6e3305c5c79",
+				"scope": "sha256:7bbef47b11ef261e9f600232fa3385dcd80593754ee401fc860e74df9531c0f5"
+			}
+		},
+		"test-migrate-plan": {
+			"scope": "test",
+			"status": "pass",
+			"passed": 3,
+			"ran": 3,
+			"criteria": {
+				"C31": {
+					"status": "pass",
+					"passed": 3,
+					"ran": 3,
+					"baseline": {
+						"passed": 2,
+						"ran": 3
+					}
+				}
+			},
+			"guard": true,
+			"baseline": {
+				"passed": 2,
+				"ran": 3
+			},
+			"model": "sonnet",
+			"at": "2026-11-22T20:12:14.526Z",
+			"hashes": {
+				"case": "sha256:22b281ca46e37ce8cf0910766f1db777d0534488fde224d4475ad98c3074751b",
+				"scope": "sha256:7bbef47b11ef261e9f600232fa3385dcd80593754ee401fc860e74df9531c0f5"
 			}
 		}
 	},
 	"inputs": {
-		"sha256:67e2b721cf1babed3f3a0c852277a9fff2a50e3a63a6597d3d27105b5d4c1867": {
+		"sha256:7bbef47b11ef261e9f600232fa3385dcd80593754ee401fc860e74df9531c0f5": {
 			"SKILL.md front matter": "sha256:7376c32d6016002356e6dd89b61a0b9a53975d243fbf9d0ec90ab9549384011a",
 			"SKILL.md shared sections": "sha256:1920006459e583f9a02c1b713e1f98fc7648332c5964ec6077ede501b4e13b15",
-			"SKILL.md router row for references/check.md": "sha256:ab3f2f6a57ed6d42aa36bf8dbfde1b63effa044caa09ddeb2afe3dbc4396540c",
+			"SKILL.md router row for references/test.md": "sha256:0d27f2fe137d581c78af199bc42c9b08ee00546ff723ffb903b32ee943c0d1fa",
 			"references/attest.md": "sha256:c747ad8c4423fc305582aca0da12734d7768c60c1bfccc69e042a65cbe16a818",
 			"references/check.md": "sha256:eba7855416e1eb5eb6f5b24336f2271e6c2b92fe5885f1e99ddc5a7bdcca88b0",
 			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",

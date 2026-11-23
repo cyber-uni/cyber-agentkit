@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-23T02:34:32.670Z",
+	"at": "2026-11-23T03:49:00.360Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:1cf706ba76ec97d5fac04b2dddf60827c57ae0d4f2694c5494ae6d4478d5166b",
+		"scripts": "sha256:b5a68d96de6f445cb644c0de210c2596aee8376b98bb42eb54c9e17329d6a33e",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -575,18 +575,18 @@
 			"cost": {
 				"skill": {
 					"runs": 3,
-					"total": 0.6458,
-					"max": 0.2451
+					"total": 0.6323,
+					"max": 0.3028
 				},
 				"baseline": {
 					"runs": 3,
-					"total": 0.3071,
-					"max": 0.1098
+					"total": 0.3302,
+					"max": 0.1356
 				}
 			},
-			"at": "2026-11-23T02:34:32.670Z",
+			"at": "2026-11-23T03:31:14.985Z",
 			"hashes": {
-				"case": "sha256:94ac1c4e12ec791cb1ce6ffaef386960b9e8808e73262dfebebbb7f130472f0e",
+				"case": "sha256:872ed628117963e7c8a121b218bfa867ceb3577cc208d32d443e473330647adb",
 				"scope": "sha256:5fc3f784f78b65789283c92322198b140be1faa02e5f6e3771e505f3f08aaeba"
 			}
 		},
@@ -601,32 +601,32 @@
 					"passed": 3,
 					"ran": 3,
 					"baseline": {
-						"passed": 3,
+						"passed": 1,
 						"ran": 3
 					}
 				}
 			},
 			"guard": true,
 			"baseline": {
-				"passed": 3,
+				"passed": 1,
 				"ran": 3
 			},
 			"model": "sonnet",
 			"cost": {
 				"skill": {
 					"runs": 3,
-					"total": 0.4401,
-					"max": 0.1569
+					"total": 0.5478,
+					"max": 0.2442
 				},
 				"baseline": {
 					"runs": 3,
-					"total": 0.4236,
-					"max": 0.1554
+					"total": 0.3474,
+					"max": 0.1416
 				}
 			},
-			"at": "2026-11-23T02:34:32.670Z",
+			"at": "2026-11-23T03:31:14.985Z",
 			"hashes": {
-				"case": "sha256:5784bce7159b76502928f4bab74c3ee5ec6ad88f9157b185a51835b7a6bc0681",
+				"case": "sha256:2ab97d4ab834e932d5d4c067cb8651fb86eb0f9ee358a93cc7fd6fa041c8c22f",
 				"scope": "sha256:5fc3f784f78b65789283c92322198b140be1faa02e5f6e3771e505f3f08aaeba"
 			}
 		}
