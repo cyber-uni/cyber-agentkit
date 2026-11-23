@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-23T02:34:32.670Z",
+	"at": "2026-11-23T03:49:00.360Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:1cf706ba76ec97d5fac04b2dddf60827c57ae0d4f2694c5494ae6d4478d5166b",
+		"scripts": "sha256:b5a68d96de6f445cb644c0de210c2596aee8376b98bb42eb54c9e17329d6a33e",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -68,16 +68,28 @@
 					"passed": 3,
 					"ran": 3,
 					"baseline": {
-						"passed": 2,
+						"passed": 3,
 						"ran": 3
 					}
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-23T01:40:44.024Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.4261,
+					"max": 0.1511
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.2198,
+					"max": 0.0787
+				}
+			},
+			"at": "2026-11-23T03:31:14.985Z",
 			"hashes": {
-				"case": "sha256:dee5122a16e762a01dc164070cd9f0ab3bfe986ec8d4166a1432011e41562391",
-				"scope": "sha256:c90b44b6f784412127dc9a2c60bf4cc625dc977f2f495c2b863d538ba70993cb"
+				"case": "sha256:ed50e2d05c596c67f4fa23f9d0fe68e6ae35b6d6a7278460d0917963a65f1f92",
+				"scope": "sha256:472a4a2f5c41348530a32d3f3b6ab8b168688e64d41de7f110f440e967b89a80"
 			}
 		},
 		"check-flawed": {
@@ -106,10 +118,22 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T20:05:56.381Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.404,
+					"max": 0.1398
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.1654,
+					"max": 0.0554
+				}
+			},
+			"at": "2026-11-23T03:31:14.985Z",
 			"hashes": {
-				"case": "sha256:f6c35fc0cdcb838943eba7c618d046a935e636a6478c2bd695118a97eed51fc7",
-				"scope": "sha256:67e2b721cf1babed3f3a0c852277a9fff2a50e3a63a6597d3d27105b5d4c1867"
+				"case": "sha256:eaa3018ee07146062b83093b270277c336a67dac573ea0f04af594102da2ca60",
+				"scope": "sha256:472a4a2f5c41348530a32d3f3b6ab8b168688e64d41de7f110f440e967b89a80"
 			}
 		},
 		"check-missing": {
@@ -123,7 +147,7 @@
 					"passed": 3,
 					"ran": 3,
 					"baseline": {
-						"passed": 1,
+						"passed": 0,
 						"ran": 3
 					}
 				},
@@ -138,38 +162,35 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T20:05:56.381Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.2617,
+					"max": 0.089
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.1284,
+					"max": 0.0445
+				}
+			},
+			"at": "2026-11-23T03:31:14.985Z",
 			"hashes": {
-				"case": "sha256:e844be76fa335f0d87c814f3c5942b87b1c843ec98ad18f8d8eb2c5c9f89acac",
-				"scope": "sha256:67e2b721cf1babed3f3a0c852277a9fff2a50e3a63a6597d3d27105b5d4c1867"
+				"case": "sha256:babe2af08c954d22f4a7e9ade11030969adac38ff11c8e8340f921cc568040f0",
+				"scope": "sha256:472a4a2f5c41348530a32d3f3b6ab8b168688e64d41de7f110f440e967b89a80"
 			}
 		}
 	},
 	"inputs": {
-		"sha256:c90b44b6f784412127dc9a2c60bf4cc625dc977f2f495c2b863d538ba70993cb": {
-			"SKILL.md front matter": "sha256:7376c32d6016002356e6dd89b61a0b9a53975d243fbf9d0ec90ab9549384011a",
-			"SKILL.md shared sections": "sha256:1920006459e583f9a02c1b713e1f98fc7648332c5964ec6077ede501b4e13b15",
+		"sha256:472a4a2f5c41348530a32d3f3b6ab8b168688e64d41de7f110f440e967b89a80": {
+			"SKILL.md front matter": "sha256:891934a69015918962c22f806bbe3fc1d896c901f0093fd988bc83204678f94e",
+			"SKILL.md shared sections": "sha256:755f7c7a1c52d0fb190cca1120e543c44b8755ea754685010710a2683d10e1a0",
 			"SKILL.md router row for references/check.md": "sha256:ab3f2f6a57ed6d42aa36bf8dbfde1b63effa044caa09ddeb2afe3dbc4396540c",
 			"references/attest.md": "sha256:c747ad8c4423fc305582aca0da12734d7768c60c1bfccc69e042a65cbe16a818",
 			"references/check.md": "sha256:eba7855416e1eb5eb6f5b24336f2271e6c2b92fe5885f1e99ddc5a7bdcca88b0",
 			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",
-			"references/fix.md": "sha256:e77e95595d151ae0cf19c6df856ed4c13b8c0509d16f76770c664ee1ef19b990",
+			"references/fix.md": "sha256:a8622e62a5f030bfa30a8a4bc103fc18969df2b5ab63500ff6bebffd81578c5c",
 			"references/test.md": "sha256:3347f55e943b0b32b16c95fe3356d7fdb1e09a45190efa10fad30e2c57146472",
-			"references/trigger-draft.md": "sha256:b7bc2ffea458d00443388b7a3fcbd2d2a4b09ab9469f9fa88c831652169d5176",
-			"reference skill-design.aspects.criteria": "sha256:bcc12ff7e10da695b4d55190214bd8f90c530f73b30fa974dc8f0ad706ab3c96",
-			"reference skill-design.aspects.verification": "sha256:33178909fd8194169ac6c99f5331828d9fd0a21f254984ad3d6e35838c47d789",
-			"reference skill-design.autonomy": "sha256:147d24306d61ac2cdeead7092db2d43e4472348f7d53993a5fe2a6aa5cd52c4e",
-			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
-		},
-		"sha256:67e2b721cf1babed3f3a0c852277a9fff2a50e3a63a6597d3d27105b5d4c1867": {
-			"SKILL.md front matter": "sha256:7376c32d6016002356e6dd89b61a0b9a53975d243fbf9d0ec90ab9549384011a",
-			"SKILL.md shared sections": "sha256:1920006459e583f9a02c1b713e1f98fc7648332c5964ec6077ede501b4e13b15",
-			"SKILL.md router row for references/check.md": "sha256:ab3f2f6a57ed6d42aa36bf8dbfde1b63effa044caa09ddeb2afe3dbc4396540c",
-			"references/attest.md": "sha256:c747ad8c4423fc305582aca0da12734d7768c60c1bfccc69e042a65cbe16a818",
-			"references/check.md": "sha256:eba7855416e1eb5eb6f5b24336f2271e6c2b92fe5885f1e99ddc5a7bdcca88b0",
-			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",
-			"references/fix.md": "sha256:e77e95595d151ae0cf19c6df856ed4c13b8c0509d16f76770c664ee1ef19b990",
-			"references/test.md": "sha256:0df605ad6006731db210b829802dedce77095728eb57381b40d6dc7ce508b53b",
 			"references/trigger-draft.md": "sha256:b7bc2ffea458d00443388b7a3fcbd2d2a4b09ab9469f9fa88c831652169d5176",
 			"reference skill-design.aspects.criteria": "sha256:bcc12ff7e10da695b4d55190214bd8f90c530f73b30fa974dc8f0ad706ab3c96",
 			"reference skill-design.aspects.verification": "sha256:33178909fd8194169ac6c99f5331828d9fd0a21f254984ad3d6e35838c47d789",

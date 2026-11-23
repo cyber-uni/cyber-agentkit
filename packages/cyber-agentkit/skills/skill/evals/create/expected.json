@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-23T02:34:32.670Z",
+	"at": "2026-11-23T03:49:00.360Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:1cf706ba76ec97d5fac04b2dddf60827c57ae0d4f2694c5494ae6d4478d5166b",
+		"scripts": "sha256:b5a68d96de6f445cb644c0de210c2596aee8376b98bb42eb54c9e17329d6a33e",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -65,10 +65,22 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T20:15:37.917Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.341,
+					"max": 0.1372
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.1642,
+					"max": 0.055
+				}
+			},
+			"at": "2026-11-23T03:34:43.200Z",
 			"hashes": {
-				"case": "sha256:6fbd577546d0cabb26338aa83e614aec528acc8fef1ee89eb6eea2b47de917dc",
-				"scope": "sha256:76bcd9a2036b8729de194acb5308ea349f7233ad2e95a20e8fe79c64dbf8fb8b"
+				"case": "sha256:3944e2803a0c57780586f9a61fb237f4b4f5b2c8ad1abc9006b015262dc7e439",
+				"scope": "sha256:6214d9ed93d853c97cfff60fd695e1c75c953ad57fbb082dfce7328377614343"
 			}
 		},
 		"create-ask": {
@@ -97,10 +109,22 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T20:15:37.917Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.3337,
+					"max": 0.126
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.2692,
+					"max": 0.108
+				}
+			},
+			"at": "2026-11-23T03:34:43.200Z",
 			"hashes": {
-				"case": "sha256:e9c686ecc7d93e5d2a519bc6f2ccd2e549b6d1d96188752db7a974732848619e",
-				"scope": "sha256:76bcd9a2036b8729de194acb5308ea349f7233ad2e95a20e8fe79c64dbf8fb8b"
+				"case": "sha256:333a3b4af42c0c7dc6764d96ae07513e9699e18e3bc5179dc2e2e1cbb55a3d72",
+				"scope": "sha256:6214d9ed93d853c97cfff60fd695e1c75c953ad57fbb082dfce7328377614343"
 			}
 		},
 		"create-described": {
@@ -129,21 +153,33 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T20:15:37.917Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 1.0539,
+					"max": 0.3633
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.1997,
+					"max": 0.068
+				}
+			},
+			"at": "2026-11-23T03:34:43.200Z",
 			"hashes": {
 				"case": "sha256:1b87235ebfbd9bfe2601b0d5019a9ce147e8923cdbb81c9db28906050fa1658c",
-				"scope": "sha256:76bcd9a2036b8729de194acb5308ea349f7233ad2e95a20e8fe79c64dbf8fb8b"
+				"scope": "sha256:6214d9ed93d853c97cfff60fd695e1c75c953ad57fbb082dfce7328377614343"
 			}
 		},
 		"create-covered": {
 			"scope": "create",
 			"status": "pass",
-			"passed": 2,
+			"passed": 3,
 			"ran": 3,
 			"criteria": {
 				"C17": {
 					"status": "pass",
-					"passed": 2,
+					"passed": 3,
 					"ran": 3,
 					"baseline": {
 						"passed": 0,
@@ -152,22 +188,34 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T20:15:37.917Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.3248,
+					"max": 0.115
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.2072,
+					"max": 0.0707
+				}
+			},
+			"at": "2026-11-23T03:34:43.200Z",
 			"hashes": {
-				"case": "sha256:37b65b7a631b51ebc2e531878a5d5b590ea850b6fd37c61b39b075abc98c90c8",
-				"scope": "sha256:76bcd9a2036b8729de194acb5308ea349f7233ad2e95a20e8fe79c64dbf8fb8b"
+				"case": "sha256:953ffb065d3281709484ddafa0cde53dcb4b6b1d49c4867cb70d0ee39cdf069e",
+				"scope": "sha256:6214d9ed93d853c97cfff60fd695e1c75c953ad57fbb082dfce7328377614343"
 			}
 		},
 		"create-over-budget": {
 			"scope": "create",
 			"status": "pass",
-			"passed": 2,
-			"ran": 2,
+			"passed": 3,
+			"ran": 3,
 			"criteria": {
 				"C13": {
 					"status": "pass",
-					"passed": 2,
-					"ran": 2,
+					"passed": 3,
+					"ran": 3,
 					"baseline": {
 						"passed": 0,
 						"ran": 3
@@ -175,8 +223,8 @@
 				},
 				"C14": {
 					"status": "pass",
-					"passed": 2,
-					"ran": 2,
+					"passed": 3,
+					"ran": 3,
 					"baseline": {
 						"passed": 0,
 						"ran": 3
@@ -184,8 +232,8 @@
 				},
 				"C16": {
 					"status": "pass",
-					"passed": 2,
-					"ran": 2,
+					"passed": 3,
+					"ran": 3,
 					"baseline": {
 						"passed": 3,
 						"ran": 3
@@ -193,10 +241,22 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-22T20:15:37.917Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.8224,
+					"max": 0.3871
+				},
+				"baseline": {
+					"runs": 3,
+					"total": 0.1895,
+					"max": 0.0702
+				}
+			},
+			"at": "2026-11-23T03:34:43.200Z",
 			"hashes": {
 				"case": "sha256:4b54c3339068f21f6d30e902e50ac76322d04ce919f18b24f040a6bd8f9316a4",
-				"scope": "sha256:76bcd9a2036b8729de194acb5308ea349f7233ad2e95a20e8fe79c64dbf8fb8b"
+				"scope": "sha256:6214d9ed93d853c97cfff60fd695e1c75c953ad57fbb082dfce7328377614343"
 			}
 		},
 		"create-parts": {
@@ -215,66 +275,36 @@
 					}
 				}
 			},
-			"knownFailures": [
-				{
-					"case": "create-parts",
-					"criterion": "C29",
-					"reason": "A three-part create costs more than skill test's $0.50 per-run cost cap on the mid-tier model: 4 of 6 runs stopped at the cap across two runs in #372, with or without the nested test; every run that finished passed C29.",
-					"status": "fixed",
-					"passed": 2,
-					"ran": 2
-				}
-			],
 			"model": "sonnet",
 			"cost": {
 				"skill": {
 					"runs": 2,
-					"total": 0.9868,
-					"max": 0.5309
+					"total": 0.9192,
+					"max": 0.4596
 				},
 				"baseline": {
 					"runs": 3,
-					"total": 0.2647,
-					"max": 0.0954
+					"total": 0.2431,
+					"max": 0.0906
 				}
 			},
-			"at": "2026-11-22T21:24:25.356Z",
+			"at": "2026-11-23T03:34:43.200Z",
 			"hashes": {
 				"case": "sha256:df00b9a6a5e6f5ec4c5078a003aeaa3ee0a7e72d699f71df6cbb7e745bfe9594",
-				"scope": "sha256:94050b0fb033c6205fa911b84746ede4f957a7b62afd416ca0d6d2633e949212"
-			},
-			"carried": {
-				"reason": "cleared the known-failure mark and set the case's cost cap; the run it records passed with the mark in place and judged it fixed",
-				"at": "2026-11-22T21:27:11.537Z"
+				"scope": "sha256:6214d9ed93d853c97cfff60fd695e1c75c953ad57fbb082dfce7328377614343"
 			}
 		}
 	},
 	"inputs": {
-		"sha256:76bcd9a2036b8729de194acb5308ea349f7233ad2e95a20e8fe79c64dbf8fb8b": {
-			"SKILL.md front matter": "sha256:7376c32d6016002356e6dd89b61a0b9a53975d243fbf9d0ec90ab9549384011a",
-			"SKILL.md shared sections": "sha256:1920006459e583f9a02c1b713e1f98fc7648332c5964ec6077ede501b4e13b15",
+		"sha256:6214d9ed93d853c97cfff60fd695e1c75c953ad57fbb082dfce7328377614343": {
+			"SKILL.md front matter": "sha256:891934a69015918962c22f806bbe3fc1d896c901f0093fd988bc83204678f94e",
+			"SKILL.md shared sections": "sha256:755f7c7a1c52d0fb190cca1120e543c44b8755ea754685010710a2683d10e1a0",
 			"SKILL.md router row for references/create.md": "sha256:c89b5766416fc4d1be7fd3bb304c1eeb987c42738b6484928913a185fa7f5a61",
 			"references/attest.md": "sha256:c747ad8c4423fc305582aca0da12734d7768c60c1bfccc69e042a65cbe16a818",
 			"references/check.md": "sha256:eba7855416e1eb5eb6f5b24336f2271e6c2b92fe5885f1e99ddc5a7bdcca88b0",
 			"references/create.md": "sha256:0479d60dfbc255a537796beb1eb9efc39dfc6973a815731571d5e97127e49ade",
 			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",
-			"references/fix.md": "sha256:e77e95595d151ae0cf19c6df856ed4c13b8c0509d16f76770c664ee1ef19b990",
-			"references/test.md": "sha256:0df605ad6006731db210b829802dedce77095728eb57381b40d6dc7ce508b53b",
-			"references/trigger-draft.md": "sha256:b7bc2ffea458d00443388b7a3fcbd2d2a4b09ab9469f9fa88c831652169d5176",
-			"reference skill-design.aspects.criteria": "sha256:bcc12ff7e10da695b4d55190214bd8f90c530f73b30fa974dc8f0ad706ab3c96",
-			"reference skill-design.aspects.verification": "sha256:33178909fd8194169ac6c99f5331828d9fd0a21f254984ad3d6e35838c47d789",
-			"reference skill-design.autonomy": "sha256:147d24306d61ac2cdeead7092db2d43e4472348f7d53993a5fe2a6aa5cd52c4e",
-			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
-		},
-		"sha256:94050b0fb033c6205fa911b84746ede4f957a7b62afd416ca0d6d2633e949212": {
-			"SKILL.md front matter": "sha256:7376c32d6016002356e6dd89b61a0b9a53975d243fbf9d0ec90ab9549384011a",
-			"SKILL.md shared sections": "sha256:1920006459e583f9a02c1b713e1f98fc7648332c5964ec6077ede501b4e13b15",
-			"SKILL.md router row for references/create.md": "sha256:c89b5766416fc4d1be7fd3bb304c1eeb987c42738b6484928913a185fa7f5a61",
-			"references/attest.md": "sha256:c747ad8c4423fc305582aca0da12734d7768c60c1bfccc69e042a65cbe16a818",
-			"references/check.md": "sha256:eba7855416e1eb5eb6f5b24336f2271e6c2b92fe5885f1e99ddc5a7bdcca88b0",
-			"references/create.md": "sha256:0479d60dfbc255a537796beb1eb9efc39dfc6973a815731571d5e97127e49ade",
-			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",
-			"references/fix.md": "sha256:e77e95595d151ae0cf19c6df856ed4c13b8c0509d16f76770c664ee1ef19b990",
+			"references/fix.md": "sha256:a8622e62a5f030bfa30a8a4bc103fc18969df2b5ab63500ff6bebffd81578c5c",
 			"references/test.md": "sha256:3347f55e943b0b32b16c95fe3356d7fdb1e09a45190efa10fad30e2c57146472",
 			"references/trigger-draft.md": "sha256:b7bc2ffea458d00443388b7a3fcbd2d2a4b09ab9469f9fa88c831652169d5176",
 			"reference skill-design.aspects.criteria": "sha256:bcc12ff7e10da695b4d55190214bd8f90c530f73b30fa974dc8f0ad706ab3c96",
