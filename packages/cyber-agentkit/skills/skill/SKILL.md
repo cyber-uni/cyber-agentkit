@@ -3,7 +3,8 @@ name: skill
 description: Create, check, test, fix, update, and enhance agent skills (a SKILL.md and its folder). Load it before adding, editing, or linking any file of a skill (its SKILL.md, or a file under its references/, scripts/, assets/, or evals/) or a reference a skill loads, during any work, such as implementing an issue or fixing a bug, even when the request never says "skill". Also customize, vet, or report on a skill, standalone or inside a plugin or npm package, as in "write a skill for X", "add a skill to this plugin", "teach agents to use our library", "is this skill any good", "do this skill's references work here", "run the skill's evals", "publish the skill's eval results on its docs page", "my skill doesn't trigger", "improve this skill", "is this skill from GitHub safe to install", "switch an aspect's implementation", and before handing skill writing to a subagent. Take it over aced:define-skill and aced:improve-skill.
 argument-hint: "<description> | help | create [description] | check [skill] | doctor [skills...] | test [skill] | fix [skill] | update [skill] [change] | enhance [skill] [prompt] | vet <source> | attest [skill] <criterion or case> <link> | fails [skill] [case] [criterion] | report [skill] | customize [aspect]"
 metadata:
-  references: skill-design.aspects.criteria skill-design.aspects.verification skill-design.autonomy skill-design.vet.trusted-sources
+  references: skill-design.autonomy skill-design.vet.trusted-sources
+  reference-interfaces: skill-design.aspects.criteria skill-design.aspects.verification skill-design.aspects.research skill-design.aspects.security
 ---
 
 # Skill
@@ -43,9 +44,11 @@ core aspects, in the order `create` walks them, are Intent, Criteria, Shape, Tri
 aspect is open: `check`, `fix`, and `enhance` use it, and of them `create` walks only Research.
 
 Intent, Shape, and Trigger are written below. Criteria, Verification, and every open aspect are references a team can
-swap. Load `skill-design.aspects.criteria` and `skill-design.aspects.verification` with the `reference` skill of
-`cyber-agentkit`. For the open aspects, use that skill's Find mode to list `skill-design.aspects.*`, and load each name
-it lists other than `criteria`, `verification`, and names ending `.interface`.
+swap. Load the implementations of the interfaces `skill-design.aspects.criteria` and `skill-design.aspects.verification`
+with the `reference` skill of `cyber-agentkit`. For the open aspects, the built-in ones are the interfaces
+`skill-design.aspects.research` and `skill-design.aspects.security`; use that skill's Find mode to list
+`skill-design.aspects.*` for any a team added, and load each name it lists other than `criteria`, `verification`, and
+names ending `.interface`.
 
 When a load reports a chosen implementation missing, tell the author which aspect fell back to its default.
 
