@@ -13,7 +13,7 @@ outcome:
         - script: >-
             f=.agents/skills/release-notes/evals/evals.yaml;
             grep -qE '^ +fails:' $f && grep -qE '^ +C3: .*issues/341' $f
-            && grep -qF 'files: files/two-prs   # a feature, a fix, an internal change, and a merge commit' $f
+            && grep -qF 'files: files/two-prs # a feature, a fix, an internal change, and a merge commit' $f
   # The author asks for a mark but gives no reason (#329): the skill asks for one and marks nothing.
   - id: fails-no-reason
     prompt: >-

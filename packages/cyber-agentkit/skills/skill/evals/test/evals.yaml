@@ -30,8 +30,9 @@ outcome:
     criteria: [C24]
   # `skill migrate` shows its plan and writes only with --write (R184). The baseline passes too: it loads the plugin
   # without this skill, and the CLI's own help names migrate and --write, so the case is a guard (3 of 3 both ways).
+  # It uses the flawed sample, whose trigger cases still have no `id`: the passing sample has them since #407.
   - id: test-migrate-plan
-    prompt: Move the evals of the skill in .agents/skills/release-notes into scopes,
+    prompt: Move the evals of the skill in .agents/skills/release-notes-flawed into scopes,
       so a test runs only what changed. Show me what would change before you write
       anything.
     files: ../files/samples
