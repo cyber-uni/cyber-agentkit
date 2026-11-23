@@ -42,7 +42,7 @@ import {
 	runPluginEvalTest,
 	type ScriptSandboxInstall,
 } from './plugin-eval-backend.js'
-import { listPlugins, type PluginList } from './plugin-load.js'
+import { dependencySkillFolders, listPlugins, type PluginList } from './plugin-load.js'
 import { runCheckScript } from './run-check-script.js'
 import { type TriedSetup, trySetup } from './setup-try.js'
 import { aspectNames, loadAspect } from './skill-aspects.js'
@@ -807,7 +807,16 @@ function testCommand({
 				throw CliError.reported(planned.code === 'unknown-case' ? exitCodes.usage : exitCodes.error)
 			}
 			// What the run's inputs hash to, recorded with it (R181), and what it depends on that selects nothing (R179).
-			const hashed = inputHashes(skill, planned.plan.criteria, { resolve: runResolver(layers, skill.folder) })
+			const hashed = inputHashes(skill, planned.plan.criteria, {
+				resolve: runResolver(layers, skill.folder),
+				otherSkills:
+					harness.id === 'claude-code'
+						? await dependencySkillFolders(skill.folder, {
+								folders: (args.plugin ?? []).map((folder) => resolve(folder)),
+								installed: await installed().catch(() => []),
+							})
+						: [],
+			})
 			const scriptsHash = builtScriptsHash(skill)
 			const inputs: InputHashes | undefined = hashed && {
 				...hashed,
@@ -1415,7 +1424,10 @@ function acceptCommand(_options: SkillCommandOptions): cli.Command {
 	})
 }
 
-function carryCommand({ plugin }: SkillCommandOptions): cli.Command {
+function carryCommand({
+	plugin,
+	installedPlugins: installed = async () => (await installedPlugins('claude-code')).plugins,
+}: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'carry',
 		description:
@@ -1475,7 +1487,8 @@ function carryCommand({ plugin }: SkillCommandOptions): cli.Command {
 				env: process.env,
 				plugin,
 			})
-			const inputs = inputHashes(skill, criteria, { resolve: runResolver(layers, skill.folder) })
+			const otherSkills = await dependencySkillFolders(skill.folder, { installed: await installed().catch(() => []) })
+			const inputs = inputHashes(skill, criteria, { resolve: runResolver(layers, skill.folder), otherSkills })
 			if (inputs && args.scope !== undefined && !(args.scope in inputs.scopes)) {
 				process.stderr.write(
 					`error: unknown-scope: no scope ${args.scope}; the scopes are ${Object.keys(inputs.scopes).join(', ')}\n`,
@@ -1568,7 +1581,10 @@ function migrationText(plan: MigrationPlan, written: MigrationWrite | undefined)
 	return `${lines.join('\n')}\n`
 }
 
-function migrateCommand({ plugin }: SkillCommandOptions): cli.Command {
+function migrateCommand({
+	plugin,
+	installedPlugins: installed = async () => (await installedPlugins('claude-code')).plugins,
+}: SkillCommandOptions): cli.Command {
 	return command({
 		name: 'migrate',
 		description:
@@ -1623,7 +1639,8 @@ function migrateCommand({ plugin }: SkillCommandOptions): cli.Command {
 				plugin,
 			})
 			const resolve = runResolver(layers, skill.folder)
-			const before = inputHashes(skill, criteria, { resolve })
+			const otherSkills = await dependencySkillFolders(skill.folder, { installed: await installed().catch(() => []) })
+			const before = inputHashes(skill, criteria, { resolve, otherSkills })
 			const plan = planMigration(skill, criteria, { ids, before })
 			if ('problem' in plan) {
 				process.stderr.write(`error: ${plan.code}: ${plan.problem}\n`)
@@ -1637,7 +1654,7 @@ function migrateCommand({ plugin }: SkillCommandOptions): cli.Command {
 					plan,
 					() => {
 						const now = readSkill(skill.folder)
-						return now ? inputHashes(now, criteria, { resolve }) : undefined
+						return now ? inputHashes(now, criteria, { resolve, otherSkills }) : undefined
 					},
 					new Date().toISOString(),
 					before,

@@ -22,7 +22,8 @@ import type { EvalsFile } from './verification-checks.js'
  *   belongs to the scope of the instructions file it links.
  * - The root scope: `SKILL.md`'s front matter but the description, its whole body, what the body reaches, and the files
  *   of `evals/` no case and no eval folder owns.
- * - The trigger scope: the description, and the descriptions of the other skills a run loads.
+ * - The trigger scope: the description, and the descriptions of the other skills a run loads, those of the skill's own
+ *   plugin and of the plugins it depends on (#411).
  * - Every scope: the settings `evals/evals.yaml` gives every case, such as `runs` and `threshold`.
  *
  * Built scripts are no input; they are hashed apart, to be reported (R179).

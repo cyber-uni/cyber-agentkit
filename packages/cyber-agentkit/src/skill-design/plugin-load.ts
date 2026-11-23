@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import { readPluginDependencies } from '../dependencies/plugin-dependencies.js'
 import type { InstalledPlugin } from '../plugins/installed-plugins.js'
 import { pluginManifestName } from '../plugins/plugin-manifest.js'
+import { findSkillPlugin, pluginSkills } from './skill-plugin.js'
 
 /** A plugin a run loads beside the plugin under test, because that plugin, or one it needs, declares it. */
 export type DependencyPlugin = { name: string; path: string }
@@ -65,6 +66,19 @@ export async function resolveDependencyPlugins(
 		}
 	}
 	return { plugins }
+}
+
+/**
+ * The skill folders of the plugins a skill's plugin depends on, and of the ones those need in turn: the other skills a
+ * run loads beside it, whose descriptions compete with the skill's (#411). None when the skill is in no plugin or a
+ * dependency cannot be found; a test stops on that itself.
+ */
+export async function dependencySkillFolders(skillFolder: string, sources: DependencySources): Promise<string[]> {
+	const found = findSkillPlugin(skillFolder)
+	if (!found) return []
+	const resolved = await resolveDependencyPlugins(found.root, found.name, sources)
+	if ('problem' in resolved) return []
+	return resolved.plugins.flatMap((dependency) => pluginSkills(dependency.path))
 }
 
 /** One plugin `claude plugin list --json` reports (E-CC-H10). */
