@@ -249,6 +249,26 @@ describe('scope inputs (R178, R179)', () => {
 		})
 	})
 
+	it('records no reference or file that only the shared SKILL.md sections reach (O10)', () => {
+		const skill = scopedSkill({
+			'references/audit.md': '# Audit\n\nApply the strict level.\n',
+			'references/write.md': '# Write\n\nApply the lenient level.\n',
+			'references/shared.md': '# Shared\n\nText.\n',
+		})
+		let content = 'one'
+		const options = { resolve: (name: string) => (name === 'release.levels' ? content : undefined) }
+		edit(
+			skill,
+			'SKILL.md',
+			(text) => `${text}\nLoad \`release.levels\` with the \`reference\` skill. See [shared](references/shared.md).\n`,
+		)
+		const before = hashes(skill, options)
+		content = 'two'
+		expect(changedScopes(before, hashes(skill, options))).toEqual(['root'])
+		write(skill, 'references/shared.md', '# Shared\n\nChanged.\n')
+		expect(changedScopes(before, hashes(skill, options))).toEqual(['root'])
+	})
+
 	it('reads whitespace and line wrapping as no change, and keeps built scripts out of every scope (R179)', () => {
 		const skill = scopedSkill({ 'scripts/run.mjs': 'console.log(1)\n' })
 		const before = hashes(skill)

@@ -17,7 +17,7 @@ import type { EvalsFile } from './verification-checks.js'
  * files the skill already has, never declared:
  *
  * - An instructions file's scope (`references/<name>.md` with an eval folder `evals/<name>/`): that file, every file it
- *   links or names and every named reference it loads, what each of those reaches in turn, its eval folder, and the
+ *   links or names and every named reference it loads (never what only the shared part of `SKILL.md` reaches, O10), what each of those reaches in turn, its eval folder, and the
  *   shared part of `SKILL.md`: its front matter but the description, and its body but the router table's rows. A row
  *   belongs to the scope of the instructions file it links.
  * - The root scope: `SKILL.md`'s front matter but the description, its body but the router table's rows, what that
@@ -331,7 +331,6 @@ function hashesOf(skill: SkillFiles, suite: EvalSuite, criteria: string[], optio
 		const reach = reachOf(
 			skill,
 			[
-				{ text: shared, from: '.' },
 				{ text: own.join('\n'), from: '.' },
 				{ text: `[${folder.name}](${instructions})`, from: '.' },
 			],
@@ -342,7 +341,7 @@ function hashesOf(skill: SkillFiles, suite: EvalSuite, criteria: string[], optio
 			'SKILL.md shared sections': hashText(shared),
 			...(own.length ? { [`SKILL.md router row for ${instructions}`]: hashText(own.join('\n')) } : {}),
 			...fileInputs(reach),
-			...named(reach, [shared, own.join('\n')]),
+			...named(reach, [own.join('\n')]),
 			...folderInputs(folder.folder, `evals/${folder.name}`, ownedPaths(all, folder.folder), () => false),
 			...settings,
 		}
