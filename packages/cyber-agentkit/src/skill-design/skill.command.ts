@@ -968,6 +968,7 @@ function testCommand({
 							...common,
 							harness,
 							sandbox,
+							rescueFolder: resultFolder,
 							costs: recordedCosts(readExpectedFile(skill.folder, readEvalSet(skill.folder, planned.plan.criteria))),
 							run,
 							listPlugins: list,
