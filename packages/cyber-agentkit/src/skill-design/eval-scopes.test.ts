@@ -194,6 +194,61 @@ describe('scope inputs (R178, R179)', () => {
 		expect(changedScopes(before, hashes(skill, { resolve }))).toEqual(['audit'])
 	})
 
+	describe('a named reference with `##` sections (#416)', () => {
+		const sectioned = (strict: string, lenient: string, preamble = 'Levels.') =>
+			`${preamble}\n\n## strict\n\n${strict}\n\n## lenient\n\n${lenient}\n\n## unused\n\nnobody names this\n`
+		const loading = () =>
+			scopedSkill({
+				'references/audit.md': '# Audit\n\nLoad `release.levels` with the `reference` skill. Apply the strict level.\n',
+				'references/write.md': '# Write\n\nLoad `release.levels` with the `reference` skill. Apply the lenient level.\n',
+			})
+		const resolver = (get: () => string) => ({
+			resolve: (name: string) => (name === 'release.levels' ? get() : undefined),
+		})
+
+		it('stales only the scopes whose instructions name the edited section', () => {
+			const skill = loading()
+			let content = sectioned('A', 'B')
+			const options = resolver(() => content)
+			const before = hashes(skill, options)
+			content = sectioned('A2', 'B')
+			expect(changedScopes(before, hashes(skill, options))).toEqual(['audit'])
+			content = sectioned('A', 'B2')
+			expect(changedScopes(before, hashes(skill, options))).toEqual(['write'])
+		})
+
+		it('stales every scope that loads it for a change before its first section', () => {
+			const skill = loading()
+			let content = sectioned('A', 'B')
+			const options = resolver(() => content)
+			const before = hashes(skill, options)
+			content = sectioned('A', 'B', 'Levels, changed.')
+			expect(changedScopes(before, hashes(skill, options))).toEqual(['audit', 'write'])
+		})
+
+		it('ignores a section no scope names, and stales for a renamed or removed named one', () => {
+			const skill = loading()
+			let content = sectioned('A', 'B')
+			const options = resolver(() => content)
+			const before = hashes(skill, options)
+			content = content.replace('nobody names this', 'still nobody')
+			expect(changedScopes(before, hashes(skill, options))).toEqual([])
+			content = content.replace('## strict', '## stern')
+			expect(changedScopes(before, hashes(skill, options))).toEqual(['audit'])
+		})
+
+		it('stales a scope that names none of its sections on any change, since it cannot tell what it uses', () => {
+			const skill = scopedSkill({
+				'references/audit.md': '# Audit\n\nLoad `release.levels` with the `reference` skill.\n',
+			})
+			let content = sectioned('A', 'B')
+			const options = resolver(() => content)
+			const before = hashes(skill, options)
+			content = content.replace('nobody names this', 'still nobody')
+			expect(changedScopes(before, hashes(skill, options))).toEqual(['audit'])
+		})
+	})
+
 	it('reads whitespace and line wrapping as no change, and keeps built scripts out of every scope (R179)', () => {
 		const skill = scopedSkill({ 'scripts/run.mjs': 'console.log(1)\n' })
 		const before = hashes(skill)
