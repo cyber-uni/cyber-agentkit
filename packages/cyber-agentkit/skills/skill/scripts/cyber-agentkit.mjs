@@ -1,5 +1,5 @@
 // Written by `universal-plugin plugin build` to forward to the cyber-agentkit CLI of cyber-agentkit. Edit plugin.json, not this file.
-globalThis.__SKILL_SCRIPT__ = {"package":"cyber-agentkit","bin":"cyber-agentkit","version":"2.13.0","entry":"skills/skill/scripts/cyber-agentkit.mjs","commands":{},"forward":"own"};
+globalThis.__SKILL_SCRIPT__ = {"package":"cyber-agentkit","bin":"cyber-agentkit","version":"2.14.0","entry":"skills/skill/scripts/cyber-agentkit.mjs","commands":{},"forward":"own"};
 import { spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
