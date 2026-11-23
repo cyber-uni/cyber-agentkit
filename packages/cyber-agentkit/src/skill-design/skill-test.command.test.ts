@@ -980,9 +980,9 @@ describe('skill test progress (UC6)', () => {
 				runs: 24,
 				estimate: 4.32,
 				basis: 'per-run-default',
-				budget: { cost: 10, runs: 60, from: 'default' },
+				budget: { cost: 5, runs: 60, from: 'default' },
 				within: true,
-				line: 'Test budget: within (24 runs, $4.32; budget $10 or 60 runs; no budget configured, default used)',
+				line: 'Test budget: within (24 runs, $4.32; budget $5 or 60 runs; no budget configured, default used)',
 			})
 			expect(existsSync(join(root, '.agents', 'skill-design', 'results'))).toBe(false)
 		})
