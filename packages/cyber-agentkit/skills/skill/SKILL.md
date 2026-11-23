@@ -54,9 +54,9 @@ When a load reports a chosen implementation missing, tell the author which aspec
 
 Each aspect lists its checks as `- **<ID>** [<how>] <statement>`; a warning check adds `, warning` after `<how>`.
 `script`: a script decides it from the files alone; `read`: you decide it by reading the skill; `run`: only running
-the skill decides it ([test](references/test.md)). A check marked
+the skill decides it (the `test` command). A check marked
 `warning` may wait; every other check is `critical`, and a failure of it must be fixed before a commit.
-The Fix for a failed check of Shape or Trigger is in [fix](references/fix.md#core-aspect-fixes).
+The Fix for a failed check of Shape or Trigger is in the `fix` command's Core aspect fixes.
 
 ### Intent
 
@@ -229,7 +229,7 @@ Before reporting done, check each against the result, and report any that fails.
 - **C9.** `customize` showed each aspect with the implementation in use, and changed no file the author had not picked.
 - **C10.** `vet` installed nothing, left no checkout behind, reported the install blocked on every critical failure and
   on every warning from a source no trusted entry covers, and showed no number but a skills.sh count as installs.
-- **C11.** `create` ran `check` on the skill it built, then estimated `test` as [test](references/test.md) says, stated the
+- **C11.** `create` ran `check` on the skill it built, then estimated `test` as the `test` command says, stated the
   estimate's `line`, and, within the budget, started `test` without asking.
 - **C12.** When other work added a skill, the skill was written in the same run without asking about each aspect,
   and `check` ran on it before the work was reported done.
