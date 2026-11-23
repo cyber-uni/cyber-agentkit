@@ -1,7 +1,7 @@
 {
 	"version": 2,
 	"skill": "skill",
-	"at": "2026-11-22T20:01:32.944Z",
+	"at": "2026-11-23T02:03:09.897Z",
 	"verification": "skill-design.aspects.verification from cyber-agentkit",
 	"runs": 3,
 	"threshold": 2,
@@ -43,7 +43,7 @@
 		"C31"
 	],
 	"reported": {
-		"scripts": "sha256:f0a4106bcdb63dbbf62607f88ee013dbfad7bdfdb116db8a24d85c19dfd71ccc",
+		"scripts": "sha256:b6658aca8aec64e1c9c8f3c4ae6722e125387c47dc7eb283d9a77912ab7be4d0",
 		"harness": "claude-code",
 		"verification": "skill-design.aspects.verification from cyber-agentkit"
 	},
@@ -57,10 +57,17 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1109,
+					"max": 0.0371
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:9bfafc506aaa6cbb0834017c4b97bb3e9887d7f517df78c094d98ff4abdc087b",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-create": {
@@ -72,10 +79,17 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1112,
+					"max": 0.0374
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:4c2734a25cf64e39fa75c7d6e4266e907241c1a1f5f7c0f7fc622f208bcaa805",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-fix-trigger": {
@@ -87,10 +101,17 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1113,
+					"max": 0.0373
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:d2d0095ff5966c3760a16a0eacc4bb9a7326898d099acf5bc1e6c6975f5d53c3",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-test": {
@@ -102,10 +123,17 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.111,
+					"max": 0.0372
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:93eb11889d74350a5e82dcdae426cece31030eb31efc734ea90276d6020d0b4e",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-customize": {
@@ -117,10 +145,17 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1118,
+					"max": 0.0379
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:ba0e3a9e0e9f984cd5c1c4919a1946d2cff3f3df4a21008662deafe54831f2dc",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-vet": {
@@ -132,10 +167,17 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1118,
+					"max": 0.038
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:18673757d9d2d5dbb6167771c7155e0d801cda52f4451236f168375e84dc063b",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-doctor-overrides": {
@@ -147,10 +189,17 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1119,
+					"max": 0.0378
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:5a6677e9a8f46f849eb4428a36291f6d2eb8124924b2ce84c527cae3bd87c2bd",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-issue-edits-description": {
@@ -162,10 +211,17 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1116,
+					"max": 0.0374
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:36012edfdae239ce015a87b782b87c9aaa7564c410945006f64fa3541974980c",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-issue-adds-reference": {
@@ -177,25 +233,39 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1111,
+					"max": 0.0377
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:cd896ff0209f62a887360f8831806e909f6ca04833d1c07729dc23ae9a09d44d",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-report": {
 			"scope": "trigger",
-			"status": "fail",
-			"passed": 0,
+			"status": "pass",
+			"passed": 3,
 			"ran": 3,
 			"prompt": "Publish the eval results of the release-notes skill on its docs page.",
 			"expect": "fire",
-			"fired": 0,
+			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1111,
+					"max": 0.0372
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:df6ee64b494ec4e0958eee813907585f0f4c5c01c6a6d5be99148951dce4803b",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"skip-skillify": {
@@ -207,10 +277,17 @@
 			"expect": "skip",
 			"fired": 0,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1094,
+					"max": 0.0367
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:d7d9cb4d40f6e05966f3c0b68aaca46f9b4bdb05488f832cdddd4ee71e9b4242",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"skip-load-reference": {
@@ -222,10 +299,17 @@
 			"expect": "skip",
 			"fired": 0,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1103,
+					"max": 0.0369
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:fc85c046e98fea5760eeb746d2637f94cec6fbee806afb97dac7361c4a48a515",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"skip-agents-md-rule": {
@@ -237,10 +321,17 @@
 			"expect": "skip",
 			"fired": 0,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1323,
+					"max": 0.0442
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:b6414b7b4941768ff99d25b75a2a1b261d7084055cd2fe63ef3ab807182f116d",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"skip-review-diff": {
@@ -252,10 +343,17 @@
 			"expect": "skip",
 			"fired": 0,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1389,
+					"max": 0.0481
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:e311b1bba4a8177de4e3b8dda8cfaf49663fcf47865acbc82b82c54675928f0c",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"skip-install-plugin": {
@@ -267,10 +365,17 @@
 			"expect": "skip",
 			"fired": 0,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 2,
+					"total": 0.0975,
+					"max": 0.0496
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:6fa909966ebadac03394335829e2612ec0121cb6a6d56f5787f0c850c6eb8672",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"skip-fix-parser-bug": {
@@ -282,10 +387,17 @@
 			"expect": "skip",
 			"fired": 0,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 2,
+					"total": 0.0894,
+					"max": 0.0447
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:86685a65d0006819a2b641073ab1adfba0a047193be05e09db741f89e7d4182f",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"skip-unit-test": {
@@ -297,10 +409,10 @@
 			"expect": "skip",
 			"fired": 0,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:af3da5c3eaff45f7893ce2dbbaea5bf4437ec8fccfe2c30bb350c6567e7d8c6e",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-create-in-npm-plugin": {
@@ -312,10 +424,17 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1114,
+					"max": 0.0379
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:5f002eac810e23ccbf17e6cc066ef1daf6a46aef30f2d34331c943115ba76e4e",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-add-to-plugin": {
@@ -327,10 +446,17 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1104,
+					"max": 0.037
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:fb678fadef401fd1da5291babe6bf1863b6cadefe1c8d0e20418b4e05a3c2526",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-teach-library": {
@@ -342,10 +468,17 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1103,
+					"max": 0.0372
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:5c7ecf9580b0512ca954276600d282a0e927980e9af9f9691b9a166587795158",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-add-skill": {
@@ -357,10 +490,17 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.1111,
+					"max": 0.0375
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:dd2457362dca10b95ab5b7fbeed238a05e969910e9dfc6fe5d58a0fd772af46e",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"skip-teach-me-library": {
@@ -372,10 +512,10 @@
 			"expect": "skip",
 			"fired": 0,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:3250675bcf81da7e85e7a9bfde55d55492cc7fbd9908d24c317aa2a3369d0c3f",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"skip-add-hooks-component": {
@@ -387,10 +527,10 @@
 			"expect": "skip",
 			"fired": 0,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:48372f72e86ab71295370c4fbaef26f97d113f2a854474589003fdbef469c4d0",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"fire-doctor-all-harnesses": {
@@ -402,21 +542,28 @@
 			"expect": "fire",
 			"fired": 3,
 			"model": "sonnet",
-			"at": "2026-11-22T20:01:32.944Z",
+			"cost": {
+				"skill": {
+					"runs": 3,
+					"total": 0.111,
+					"max": 0.0377
+				}
+			},
+			"at": "2026-11-23T01:20:23.360Z",
 			"hashes": {
 				"case": "sha256:e1eb0af2d52f95d41666c8ef02d8e0e69004defbb84c35599d51db594a4ac424",
-				"scope": "sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9"
+				"scope": "sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa"
 			}
 		},
 		"work-adds-skill": {
 			"scope": "root",
 			"status": "pass",
-			"passed": 2,
+			"passed": 3,
 			"ran": 3,
 			"criteria": {
 				"C12": {
 					"status": "pass",
-					"passed": 2,
+					"passed": 3,
 					"ran": 3,
 					"baseline": {
 						"passed": 0,
@@ -425,14 +572,10 @@
 				}
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:03:28.161Z",
 			"hashes": {
 				"case": "sha256:dd91028b68b76ac3259bd342a5163b265ce8756348ce322ab817fa41a430d642",
 				"scope": "sha256:5b480cfe02378225d3179712f1b98d487ce32f6708d9a5cf254eeeebb4354bcc"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:12:59.472Z"
 			}
 		},
 		"case-with-history": {
@@ -457,25 +600,21 @@
 				"ran": 3
 			},
 			"model": "sonnet",
-			"at": "2026-11-15T21:21:14.416Z",
+			"at": "2026-11-22T20:03:28.161Z",
 			"hashes": {
 				"case": "sha256:fbc6770639f3d428a1dece497f330d9b89d23be7459fb6f53904a4ca320a2011",
 				"scope": "sha256:5b480cfe02378225d3179712f1b98d487ce32f6708d9a5cf254eeeebb4354bcc"
-			},
-			"carried": {
-				"reason": "references/test.md now ends an error: sandbox: stop with a lettered question; no run of this case reaches that stop (#372)",
-				"at": "2026-11-22T16:12:59.472Z"
 			}
 		}
 	},
 	"inputs": {
-		"sha256:61a6de017ea3fb2e63cc1f477fcd87d1cf485f40b78d18ddd6c941550b0466c9": {
-			"description": "sha256:4f37fe8386707df1582249aef8339403374378a2c682c3efe94f3c07a77019be",
+		"sha256:ab5cdb35d3157f97d1f6eb104512a55768aa832aa597351af7de23be7989fdfa": {
+			"description": "sha256:9e674ede7b2931d38b5e920935151ba4b71bbce4efda8eb5b80121ed1f57afb5",
 			"description of asset": "sha256:10f8334e9b33528b24e12378edbcec4768483ba1c028d294c250488ab8fc6374",
 			"description of dependency": "sha256:aff6912a6546accf666e497aa540c84b2c17c7388e528af8576ff43dfe6fcd80",
 			"description of instruction": "sha256:fc877c92ef91713c2af2e46f055b84b141975e467b5a49e43e12276cfa3547d6",
 			"description of prose-update": "sha256:93d883259c1b333cce7f066f5909fe5a91941268f8fc0d5a85f09a2ce73f4682",
-			"description of reference": "sha256:f7ce520ca050b3612d52b62d1c13a5534ebc3c4c1c24a4c52060d2cc11050043",
+			"description of reference": "sha256:f2c967df4b151f7a5a120861283b08c4f18a5ca07cbf77224de7a27860c11faa",
 			"description of skillify": "sha256:93fa80f46bd34a259ca59f6712216974b4fe34ce8086215dd942f8466325652f",
 			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
 		},
