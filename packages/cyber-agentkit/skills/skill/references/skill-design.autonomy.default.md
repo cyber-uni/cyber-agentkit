@@ -21,4 +21,4 @@ ask
 
 ## test budget
 
-$10 or 60 runs
+$5 or 60 runs
