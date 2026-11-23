@@ -5,7 +5,7 @@ Suggest what would make a skill that passes `check` better, one suggestion at a 
 ## 1. Start
 
 1. Find the skill as [check](check.md) does. If the prompt names evidence that cannot be read, stop and name it.
-2. Settle the autonomy level as `SKILL.md`'s Autonomy says.
+2. Settle the autonomy level as [test](test.md) says.
 3. Run `check`. When it fails, run `fix` at the same level first, and stop when `check` still fails.
 4. When the prompt asks for a different job from the skill's Intent, change nothing and stop as `SKILL.md`'s Autonomy
    says: the options are to change the Intent, or to `create` a new skill for the new job.

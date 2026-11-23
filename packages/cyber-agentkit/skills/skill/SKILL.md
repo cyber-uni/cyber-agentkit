@@ -54,9 +54,9 @@ When a load reports a chosen implementation missing, tell the author which aspec
 
 Each aspect lists its checks as `- **<ID>** [<how>] <statement>`; a warning check adds `, warning` after `<how>`.
 `script`: a script decides it from the files alone; `read`: you decide it by reading the skill; `run`: only running
-the skill decides it ([test](references/test.md)). A check marked
+the skill decides it (the `test` command). A check marked
 `warning` may wait; every other check is `critical`, and a failure of it must be fixed before a commit.
-The Fix for a failed check of Shape or Trigger is in [fix](references/fix.md#core-aspect-fixes).
+The Fix for a failed check of Shape or Trigger is in the `fix` command's Core aspect fixes.
 
 ### Intent
 
@@ -191,17 +191,6 @@ Report each decision made for the author,
 such as a name or a place: what was chosen, why, and whether `check` and `test` showed it safe or it
 was applied on that reason alone.
 
-### Test budget
-
-`skill-design.autonomy` also sets the test budget, `$10 or 60 runs` by default. Before any `test` run, whichever command starts it, run
-
-```sh
-node <this skill's folder>/scripts/cyber-agentkit.mjs skill test <skill folder> --estimate --format json
-```
-
-It makes no run, reads that budget, and prints `within`, `last`, and `line`. Write `line` on a line of its own,
-exactly as printed, prefix included. When `within` is true, start `test` without asking. When it is false, stop.
-
 ### Stops
 
 A run stops only where its level says to ask, for a `test` over the budget, and for a decision only the author can
@@ -240,8 +229,8 @@ Before reporting done, check each against the result, and report any that fails.
 - **C9.** `customize` showed each aspect with the implementation in use, and changed no file the author had not picked.
 - **C10.** `vet` installed nothing, left no checkout behind, reported the install blocked on every critical failure and
   on every warning from a source no trusted entry covers, and showed no number but a skills.sh count as installs.
-- **C11.** `create` ran `check` on the skill it built, then estimated `test` against the test budget, stated the
-  `Test budget:` line, and, within the budget, started `test` without asking.
+- **C11.** `create` ran `check` on the skill it built, then estimated `test` as the `test` command says, stated the
+  estimate's `line`, and, within the budget, started `test` without asking.
 - **C12.** When other work added a skill, the skill was written in the same run without asking about each aspect,
   and `check` ran on it before the work was reported done.
 - **C13.** Each `create`, `fix`, `update`, and `enhance` reply opened with the line `Autonomy: <level> (<source>: <reason>)`, even
@@ -261,7 +250,7 @@ Before reporting done, check each against the result, and report any that fails.
 - **C21.** New cases came from `skill case`, history in setup scripts.
 - **C23.** On `error: sandbox:`, the folder-only sandbox was offered, not taken.
 - **C24.** A result's `sandbox` and each `wroteOutside` path were said before any pass rate.
-- **C25.** `update` and `fix` each ended with the final `check` result and the `test` result per criterion, or the `Test budget:` line
+- **C25.** `update` and `fix` each ended with the final `check` result and the `test` result per criterion, or the estimate's `line`
   and why `test` did not run.
 - **C26.** A pass was attested only on the author's request naming its target and link, and then with `skill attest`.
 - **C27.** A known failure was marked only on the author's request with its reason, and then with `skill fails`.

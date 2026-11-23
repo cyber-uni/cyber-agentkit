@@ -24,6 +24,8 @@ import type { EvalsFile } from './verification-checks.js'
  *   reaches (never the instructions files the rows link), and the files of `evals/` no case and no eval folder owns.
  * - The trigger scope: the description, and the descriptions of the other skills a run loads, those of the skill's own
  *   plugin and of the plugins it depends on (#411).
+ * - A named reference with `##` sections: the text before its first section, and each section the scope's own text
+ *   names by its heading (#416); every section when it names none. A reference with no sections counts whole.
  * - Every scope: the settings `evals/evals.yaml` gives every case, such as `runs` and `threshold`.
  *
  * Built scripts are no input; they are hashed apart, to be reported (R179).
@@ -156,6 +158,51 @@ function reachOf(skill: SkillFiles, texts: { text: string; from: string }[], dec
 	return { files: [...files].sort(), names: [...names].sort() }
 }
 
+/** A reference's text split at its `## ` headings: what comes before the first, and each section by its heading. */
+export function splitSections(content: string): { preamble: string; sections: { heading: string; text: string }[] } {
+	const lines = content.replace(/\r\n/g, '\n').split('\n')
+	const preamble: string[] = []
+	const sections: { heading: string; lines: string[] }[] = []
+	let fenced = false
+	for (const line of lines) {
+		if (/^\s*(```|~~~)/.test(line)) fenced = !fenced
+		const heading = fenced ? null : /^##\s+(\S.*?)\s*#*\s*$/.exec(line)
+		if (heading) sections.push({ heading: heading[1] as string, lines: [line] })
+		else (sections.at(-1)?.lines ?? preamble).push(line)
+	}
+	return {
+		preamble: preamble.join('\n'),
+		sections: sections.map(({ heading, lines }) => ({ heading, text: lines.join('\n') })),
+	}
+}
+
+/** Whether the text names a heading, as a whole phrase and whatever the case. A heading with no word in it counts as named. */
+function names(text: string, heading: string): boolean {
+	const phrase = normalized(heading).toLowerCase()
+	if (!/[\p{L}\p{N}]/u.test(phrase)) return true
+	const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+	return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').test(normalized(text))
+}
+
+/**
+ * The inputs of one named reference a scope loads (#416). A reference with `##` sections records its text before the
+ * first section, and each section the scope's own text names by its heading, so an edit to a section the scope never
+ * names does not stale it. When the scope names none of the sections, or the reference has none, it cannot tell what
+ * the scope uses, so it records every section: a change then stales it.
+ */
+function referenceInputs(name: string, content: string | undefined, read: string): Record<string, string> {
+	const key = `reference ${name}`
+	if (content === undefined) return { [key]: hashText(`(unresolved) ${name}`) }
+	const { preamble, sections } = splitSections(content)
+	if (!sections.length) return { [key]: hashText(content) }
+	const named = sections.filter((section) => names(read, section.heading))
+	const used = named.length ? named : sections
+	return {
+		[key]: hashText(preamble),
+		...Object.fromEntries(used.map((section) => [`${key} ## ${section.heading}`, hashText(section.text)])),
+	}
+}
+
 /** A case's own definition as hash parts (R180): its entry, the shared rubrics it tests, its files folder, its setup script. */
 function caseHash(item: SuiteCase, rubrics: NonNullable<EvalsFile['rubrics']>, criteria: string[]): string {
 	// A case's own cost cap bounds a run's spend and changes no result, so it is no part of the definition (#394).
@@ -242,10 +289,11 @@ function hashesOf(skill: SkillFiles, suite: EvalSuite, criteria: string[], optio
 		scopeOf[item.id] = item.scope
 	}
 	const declared = new Set(declaredLoads(skill.frontmatter)?.names ?? [])
-	const named = (reach: Reach) =>
-		Object.fromEntries(
-			reach.names.map((name) => [`reference ${name}`, hashText(options.resolve?.(name) ?? `(unresolved) ${name}`)]),
-		)
+	const named = (reach: Reach, texts: string[]) => {
+		const files = reach.files.filter((path) => /\.mdx?$/i.test(path))
+		const read = [...texts, ...files.map((path) => readFileSync(join(skill.folder, path), 'utf8'))].join('\n')
+		return Object.assign({}, ...reach.names.map((name) => referenceInputs(name, options.resolve?.(name), read)))
+	}
 	const fileInputs = (reach: Reach) =>
 		Object.fromEntries(reach.files.map((path) => [path, hashText(readFileSync(join(skill.folder, path), 'utf8'))]))
 	const settings = { 'evals/evals.yaml settings': hashText(sharedSettings(suite.root)) }
@@ -271,7 +319,7 @@ function hashesOf(skill: SkillFiles, suite: EvalSuite, criteria: string[], optio
 		...frontmatter,
 		'SKILL.md body': hashText(shared),
 		...fileInputs(rootReach),
-		...named(rootReach),
+		...named(rootReach, [shared]),
 		...folderInputs(evalsFolder, 'evals', ownedPaths(all, evalsFolder), (path) =>
 			scopeFolders.has(path.split('/')[0] as string),
 		),
@@ -294,7 +342,7 @@ function hashesOf(skill: SkillFiles, suite: EvalSuite, criteria: string[], optio
 			'SKILL.md shared sections': hashText(shared),
 			...(own.length ? { [`SKILL.md router row for ${instructions}`]: hashText(own.join('\n')) } : {}),
 			...fileInputs(reach),
-			...named(reach),
+			...named(reach, [shared, own.join('\n')]),
 			...folderInputs(folder.folder, `evals/${folder.name}`, ownedPaths(all, folder.folder), () => false),
 			...settings,
 		}

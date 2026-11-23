@@ -80,25 +80,39 @@
 			"at": "2026-11-23T03:34:43.200Z",
 			"hashes": {
 				"case": "sha256:d5506700e9c0ed13f4a8a7e4b66fdb27ac41e477f538785d0e740eaff16c8987",
-				"scope": "sha256:d29f7d7ac5adc082c0148ac13ea27842b1d3be1992ed655db399b4dc49e20f8e"
+				"scope": "sha256:87851b2a38ea3c423c6c61bcc152681ff23dcb6592e2081fb09d65d06d1aa26d"
+			},
+			"carried": {
+				"reason": "default value only; the create cases set their own budget, and the samples' estimates stay under $5",
+				"at": "2026-11-23T04:41:35.664Z"
 			}
 		}
 	},
 	"inputs": {
-		"sha256:d29f7d7ac5adc082c0148ac13ea27842b1d3be1992ed655db399b4dc49e20f8e": {
+		"sha256:87851b2a38ea3c423c6c61bcc152681ff23dcb6592e2081fb09d65d06d1aa26d": {
 			"SKILL.md front matter": "sha256:891934a69015918962c22f806bbe3fc1d896c901f0093fd988bc83204678f94e",
-			"SKILL.md shared sections": "sha256:755f7c7a1c52d0fb190cca1120e543c44b8755ea754685010710a2683d10e1a0",
+			"SKILL.md shared sections": "sha256:f6db93795a2963933aa8d3597ae76c2693c9943a6289711abfd7ea506597c89b",
 			"SKILL.md router row for references/customize.md": "sha256:9adbc80e5f4ad50b94cf7603c3429ebe1b0b42f7d3bd975c3c303272a4218372",
-			"references/attest.md": "sha256:c747ad8c4423fc305582aca0da12734d7768c60c1bfccc69e042a65cbe16a818",
-			"references/check.md": "sha256:eba7855416e1eb5eb6f5b24336f2271e6c2b92fe5885f1e99ddc5a7bdcca88b0",
 			"references/customize.md": "sha256:3b71a479ed2fa2ddc49c13121383599eb21cf09b628e4d45e62b57fe72d5ab6b",
-			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",
-			"references/fix.md": "sha256:a8622e62a5f030bfa30a8a4bc103fc18969df2b5ab63500ff6bebffd81578c5c",
-			"references/test.md": "sha256:3347f55e943b0b32b16c95fe3356d7fdb1e09a45190efa10fad30e2c57146472",
 			"references/trigger-draft.md": "sha256:b7bc2ffea458d00443388b7a3fcbd2d2a4b09ab9469f9fa88c831652169d5176",
-			"reference skill-design.aspects.criteria": "sha256:bcc12ff7e10da695b4d55190214bd8f90c530f73b30fa974dc8f0ad706ab3c96",
-			"reference skill-design.aspects.verification": "sha256:33178909fd8194169ac6c99f5331828d9fd0a21f254984ad3d6e35838c47d789",
-			"reference skill-design.autonomy": "sha256:147d24306d61ac2cdeead7092db2d43e4472348f7d53993a5fe2a6aa5cd52c4e",
+			"reference skill-design.aspects.criteria": "sha256:8af03c26608955d94b1fc5fc3a14faca0ac44b918b03927e9245820a1f2f12a1",
+			"reference skill-design.aspects.criteria ## Draft": "sha256:fe272b79ffc77bb4e746854da27e4a29b2d3ba984e99cd4d49fed25a710e76f9",
+			"reference skill-design.aspects.criteria ## Criteria": "sha256:aa0a7ebd4f91e1f20ee5b18df02a78e8c2c873a4f74c8055cb850cc57a401369",
+			"reference skill-design.aspects.criteria ## Fix": "sha256:5d04602c334acbc9de9efd64667f07db35f58076910e4727cd56a3b595eb0a6e",
+			"reference skill-design.aspects.criteria ## Enhance": "sha256:32e58b901d3b2b365cf0a7fe32d93e8deaec7d22b1365a24e61620818a2c2689",
+			"reference skill-design.aspects.verification": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			"reference skill-design.aspects.verification ## Draft": "sha256:691b7c62aca4a18dba8af478a5d67df32f3374d02ba242ec43d1edc310acb9a1",
+			"reference skill-design.aspects.verification ## Cases": "sha256:dcaff082314651fe44d91a6687b7d1f655172688363d1cbe98c054c4a04cca3d",
+			"reference skill-design.aspects.verification ## Run": "sha256:b85001eacfe72663292b0470daf2da3dcc1cfc2216639524fc277b147f4e54ab",
+			"reference skill-design.aspects.verification ## Criteria": "sha256:4635163dcf097d93b8af17cefc6ee1f2e9ae681472c14a3de02154282fee8900",
+			"reference skill-design.aspects.verification ## Fix": "sha256:9b45f056da1dac7f65cc4183414ef499f5893b784a615ea415239a4d811052d8",
+			"reference skill-design.aspects.verification ## Enhance": "sha256:29c3721adeb112f962a34683a87fb4d3e4b2f8675aa9751ca01e52d69a2b9dcb",
+			"reference skill-design.autonomy": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			"reference skill-design.autonomy ## create": "sha256:65efd871528a5ff16e704213591e62f1ee854bfec1c664b45100c23c08113fd4",
+			"reference skill-design.autonomy ## fix": "sha256:d278fee7a1834604bd4ee40bd0d3a60eb54a179f8ad912c1dc970f473b2d9848",
+			"reference skill-design.autonomy ## update": "sha256:5d7e311d4d13b33489cbd13afce90fc5ffd496752c1dcbe9990ae1f13601204b",
+			"reference skill-design.autonomy ## enhance": "sha256:f189d5dd833e0f4ad9d02ff6323f17e527505588407832fd6751dd12efd1096c",
+			"reference skill-design.autonomy ## test budget": "sha256:56633ed606fae526d73c11b3569eb6d90b90b53012f668104f60c2868f084788",
 			"evals/evals.yaml settings": "sha256:e9826190a024ec3638d6af0e137586e99401493ad1e7180bd9a9d107c2f2ee5d"
 		}
 	}

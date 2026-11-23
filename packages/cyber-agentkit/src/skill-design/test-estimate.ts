@@ -4,7 +4,7 @@ import { plannedRuns } from './test-progress.js'
 import type { TestResult } from './test-result.js'
 
 /** The test budget `skill-design.autonomy` ships with: a test estimated at or under it runs without asking (#214). */
-export const defaultTestBudget = { cost: 10, runs: 60 } as const
+export const defaultTestBudget = { cost: 5, runs: 60 } as const
 
 /** What a recent full run of a skill cost per run on Claude Code, in US dollars, for a skill with no saved result. */
 export const defaultCostPerRun: Partial<Record<string, number>> = { 'claude-code': 0.18 }

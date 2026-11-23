@@ -42,8 +42,15 @@ definition or scope inputs changed since their entry. Pass `--all` only when the
 "run the full test". When every case is current, nothing runs: the reply carries `"ran": 0` and `selected`, and you
 tell the author no case changed. The estimate counts only the selected runs.
 
-A full test makes many runs and can take several minutes. Before starting, estimate it against the test budget as
-`SKILL.md`'s Autonomy says: within it, start without asking; over it, stop. A request that names the runs to make, such
+A full test makes many runs and can take several minutes. Before starting, and before any `test` run, whichever command starts it, estimate it against the test budget. Load
+`skill-design.autonomy` with the `reference` skill of `cyber-agentkit`: its `test budget` section sets the budget. Run
+
+```sh
+node <this skill's folder>/scripts/cyber-agentkit.mjs skill test <skill folder> --estimate --format json
+```
+
+It makes no run, reads that budget, and prints `within`, `last`, and `line`. Write `line` on a line of its own, exactly
+as printed, prefix included. Within the budget, start without asking; over it, stop as `SKILL.md`'s Stops says. A request that names the runs to make, such
 as "run the full test" (`--all`), is the answer for that run. Say how many runs it makes and, from the plan line, about how long
 and how much it took last time. When the plan line says an unknown number of
 runs, the last result was saved before the run count was recorded and may have covered only some cases: say so. Start it in the background where the harness
