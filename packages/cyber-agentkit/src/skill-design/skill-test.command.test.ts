@@ -2186,16 +2186,13 @@ describe('skill test runs the stale cases only (R177)', () => {
 		stdout.mockClear()
 		const second: { config?: Record<string, unknown> } = {}
 		expect(await test(skill.folder, fakeRun(second), root)).toBe(0)
-		// The root scope reads SKILL.md's whole body, so it reaches every instructions file too (R178).
-		expect(ran(second)).toEqual(['overview', 'audit-one'])
-		expect(report().partial).toEqual({ cases: ['overview', 'audit-one'] })
+		// The root scope leaves out the router rows and the files they link, so only the audit scope is stale (#410).
+		expect(ran(second)).toEqual(['audit-one'])
+		expect(report().partial).toEqual({ cases: ['audit-one'] })
 		expect(report().selected).toEqual({
-			stale: ['overview', 'audit-one'],
-			scopes: [
-				{ scope: 'root', cases: ['overview'], inputsChanged: ['references/audit.md'] },
-				{ scope: 'audit', cases: ['audit-one'], inputsChanged: ['references/audit.md'] },
-			],
-			current: 4,
+			stale: ['audit-one'],
+			scopes: [{ scope: 'audit', cases: ['audit-one'], inputsChanged: ['references/audit.md'] }],
+			current: 5,
 		})
 	})
 
@@ -2256,14 +2253,14 @@ describe('skill test runs the stale cases only (R177)', () => {
 		writeFileSync(style, `${readFileSync(style, 'utf8')}Use the active voice.\n`)
 		stdout.mockClear()
 		await test(skill.folder, fakeRun({}), root, '--estimate')
-		// overview and write-two, each 3 runs in both arms
-		expect(JSON.parse(printed())).toMatchObject({ runs: 12, selected: { stale: ['overview', 'write-two'] } })
+		// write-two alone, 3 runs in both arms
+		expect(JSON.parse(printed())).toMatchObject({ runs: 6, selected: { stale: ['write-two'] } })
 		stdout.mockClear()
 		await test(skill.folder, fakeRun({}), root, '--estimate', '--all')
 		expect(JSON.parse(printed())).toMatchObject({ runs: 27 })
 	})
 
-	it("carries an instructions file's scope past a change, so the next test runs only the root case", async () => {
+	it("carries an instructions file's scope past a change, so the next test runs nothing", async () => {
 		const skill = scopedSkill()
 		const root = gitRepo()
 		await test(skill.folder, fakeRun({}), root)
@@ -2283,7 +2280,7 @@ describe('skill test runs the stale cases only (R177)', () => {
 		const seen: { config?: Record<string, unknown> } = {}
 		stdout.mockClear()
 		await test(skill.folder, fakeRun(seen), root)
-		expect(ran(seen)).toEqual(['overview'])
+		expect(ran(seen)).toEqual([])
 	})
 
 	it('refuses --all with --case', async () => {

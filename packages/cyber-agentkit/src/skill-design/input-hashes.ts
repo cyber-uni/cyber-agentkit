@@ -20,8 +20,8 @@ import type { EvalsFile } from './verification-checks.js'
  *   links or names and every named reference it loads, what each of those reaches in turn, its eval folder, and the
  *   shared part of `SKILL.md`: its front matter but the description, and its body but the router table's rows. A row
  *   belongs to the scope of the instructions file it links.
- * - The root scope: `SKILL.md`'s front matter but the description, its whole body, what the body reaches, and the files
- *   of `evals/` no case and no eval folder owns.
+ * - The root scope: `SKILL.md`'s front matter but the description, its body but the router table's rows, what that
+ *   reaches (never the instructions files the rows link), and the files of `evals/` no case and no eval folder owns.
  * - The trigger scope: the description, and the descriptions of the other skills a run loads, those of the skill's own
  *   plugin and of the plugins it depends on (#411).
  * - Every scope: the settings `evals/evals.yaml` gives every case, such as `runs` and `threshold`.
@@ -266,10 +266,10 @@ function hashesOf(skill: SkillFiles, suite: EvalSuite, criteria: string[], optio
 		...settings,
 	}
 	const scopeFolders = new Set(suite.folders.map((folder) => folder.name))
-	const rootReach = reachOf(skill, [{ text: skill.body, from: '.' }], declared)
+	const rootReach = reachOf(skill, [{ text: shared, from: '.' }], declared)
 	inputs[rootScope] = {
 		...frontmatter,
-		'SKILL.md body': hashText(skill.body),
+		'SKILL.md body': hashText(shared),
 		...fileInputs(rootReach),
 		...named(rootReach),
 		...folderInputs(evalsFolder, 'evals', ownedPaths(all, evalsFolder), (path) =>
