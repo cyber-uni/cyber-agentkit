@@ -40,7 +40,7 @@ function frontmatter(text) {
 /** The text under a `## heading`, up to the next `## `. */
 function section(body, heading) {
 	const lines = body.split('\n')
-	const start = lines.findIndex((line) => line === `## ${heading}`)
+	const start = lines.indexOf(`## ${heading}`)
 	if (start < 0) return undefined
 	const end = lines.findIndex((line, i) => i > start && line.startsWith('## '))
 	return lines

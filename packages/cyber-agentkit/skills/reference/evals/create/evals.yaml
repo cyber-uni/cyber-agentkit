@@ -6,11 +6,11 @@ outcome:
     files: ../files/repo
     criteria: [C1, C2, C3, C4]
   - id: create-capability-reference
-    prompt: "Create a repo capability reference for our self-hosted GitLab,
+    prompt: 'Create a repo capability reference for our self-hosted GitLab,
       gitlab.capabilities. We run the 17.x Free tier, detected when the origin
       remote host is gitlab.internal. Epics are only partly there: we have no
       group epics. I ran glab against it this week. I approve writing it; do not
-      ask again."
+      ask again.'
     files: ../files/repo
     criteria: [C1, C5]
     checks:
@@ -19,10 +19,10 @@ outcome:
             gitlab.capabilities && grep -q "^\*\*Partial\.\*\*"
             .agents/references/gitlab.capabilities.md
   - id: create-blueprint
-    prompt: "Create a repo blueprint, project-tracker.blueprints.gitlab.issues, for
+    prompt: 'Create a repo blueprint, project-tracker.blueprints.gitlab.issues, for
       our GitLab: Create opens an epic with glab epic create, and Link links
-      issues with glab issue link. I approve writing it; do not ask again."
-    files: files/create-blueprint   # a blueprint interface and gitlab.capabilities with an Epics feature
+      issues with glab issue link. I approve writing it; do not ask again.'
+    files: files/create-blueprint # a blueprint interface and gitlab.capabilities with an Epics feature
     criteria: [C1, C5]
     checks:
       C5:

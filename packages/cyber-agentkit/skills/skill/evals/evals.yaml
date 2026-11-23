@@ -1,34 +1,74 @@
 runs: 3
 threshold: 2
 trigger:
-  - { id: fire-check, prompt: "Is my release-notes skill any good? Check it.", expect: fire }
-  - { id: fire-create, prompt: "Write a skill that drafts release notes from merged pull requests.", expect: fire }
-  - { id: fire-fix-trigger, prompt: "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.", expect: fire }
-  - { id: fire-test, prompt: "Run the evals for the release-notes skill.", expect: fire }
-  - { id: fire-customize, prompt: "Which implementation does each skill-design aspect use? I may switch some.", expect: fire }
-  - { id: fire-vet, prompt: "Is the skill in github.com/acme/skills safe to install? Vet it first.", expect: fire }
-  - { id: fire-doctor-overrides, prompt: "Our issue skill breaks partway through in this repo. Do its references still work with our overrides?", expect: fire }
+  - { id: fire-check, prompt: 'Is my release-notes skill any good? Check it.', expect: fire }
+  - { id: fire-create, prompt: 'Write a skill that drafts release notes from merged pull requests.', expect: fire }
+  - {
+      id: fire-fix-trigger,
+      prompt: "My release-notes skill doesn't trigger when I ask for a changelog. Fix it.",
+      expect: fire,
+    }
+  - { id: fire-test, prompt: 'Run the evals for the release-notes skill.', expect: fire }
+  - {
+      id: fire-customize,
+      prompt: 'Which implementation does each skill-design aspect use? I may switch some.',
+      expect: fire,
+    }
+  - { id: fire-vet, prompt: 'Is the skill in github.com/acme/skills safe to install? Vet it first.', expect: fire }
+  - {
+      id: fire-doctor-overrides,
+      prompt: 'Our issue skill breaks partway through in this repo. Do its references still work with our overrides?',
+      expect: fire,
+    }
   # The work itself changes a skill, though the request does not ask about skills (#205).
-  - { id: fire-issue-edits-description, prompt: "Implement issue #42: the description in .agents/skills/release-notes/SKILL.md should also fire on 'changelog'. Open a PR when done.", expect: fire }
-  - { id: fire-issue-adds-reference, prompt: "Work on issue #57: add a references/labels.md to the release-notes skill folder that lists how to group notes by label, and link it from its steps.", expect: fire }
-  - { id: fire-report, prompt: "Publish the eval results of the release-notes skill on its docs page.", expect: fire }
-  - { id: skip-skillify, prompt: "Turn what we just did into a skill.", expect: skip }
-  - { id: skip-load-reference, prompt: "Load our style reference and tell me what it says about tone.", expect: skip }
-  - { id: skip-agents-md-rule, prompt: "Add a rule to AGENTS.md that this repo uses pnpm.", expect: skip }
-  - { id: skip-review-diff, prompt: "Review my diff before I push.", expect: skip }
-  - { id: skip-install-plugin, prompt: "Install the release-notes plugin from our marketplace.", expect: skip }
+  - {
+      id: fire-issue-edits-description,
+      prompt: "Implement issue #42: the description in .agents/skills/release-notes/SKILL.md should also fire on 'changelog'. Open a PR when done.",
+      expect: fire,
+    }
+  - {
+      id: fire-issue-adds-reference,
+      prompt: 'Work on issue #57: add a references/labels.md to the release-notes skill folder that lists how to group notes by label, and link it from its steps.',
+      expect: fire,
+    }
+  - { id: fire-report, prompt: 'Publish the eval results of the release-notes skill on its docs page.', expect: fire }
+  - { id: skip-skillify, prompt: 'Turn what we just did into a skill.', expect: skip }
+  - { id: skip-load-reference, prompt: 'Load our style reference and tell me what it says about tone.', expect: skip }
+  - { id: skip-agents-md-rule, prompt: 'Add a rule to AGENTS.md that this repo uses pnpm.', expect: skip }
+  - { id: skip-review-diff, prompt: 'Review my diff before I push.', expect: skip }
+  - { id: skip-install-plugin, prompt: 'Install the release-notes plugin from our marketplace.', expect: skip }
   # Near misses for #205: code that only reads skills, not a change to one.
-  - { id: skip-fix-parser-bug, prompt: "Fix the bug in src/skill/parse.ts where front matter with a CRLF line ending is not read from a SKILL.md.", expect: skip }
-  - { id: skip-unit-test, prompt: "Add a unit test for the function that lists the skills a plugin ships.", expect: skip }
+  - {
+      id: skip-fix-parser-bug,
+      prompt: 'Fix the bug in src/skill/parse.ts where front matter with a CRLF line ending is not read from a SKILL.md.',
+      expect: skip,
+    }
+  - {
+      id: skip-unit-test,
+      prompt: 'Add a unit test for the function that lists the skills a plugin ships.',
+      expect: skip,
+    }
   # A skill that ships inside a plugin or package, "add a skill", and a skill that teaches a library (#216).
-  - { id: fire-create-in-npm-plugin, prompt: "Add an /axi skill to the agent plugin in our cli-kit npm package that teaches agents writing a CLI to follow our version of AXI.", expect: fire }
-  - { id: fire-add-to-plugin, prompt: "Add a skill to this plugin.", expect: fire }
-  - { id: fire-teach-library, prompt: "Teach agents to use our date library: write a skill for it that ships with the npm package.", expect: fire }
-  - { id: fire-add-skill, prompt: "Add a release-notes skill.", expect: fire }
+  - {
+      id: fire-create-in-npm-plugin,
+      prompt: 'Add an /axi skill to the agent plugin in our cli-kit npm package that teaches agents writing a CLI to follow our version of AXI.',
+      expect: fire,
+    }
+  - { id: fire-add-to-plugin, prompt: 'Add a skill to this plugin.', expect: fire }
+  - {
+      id: fire-teach-library,
+      prompt: 'Teach agents to use our date library: write a skill for it that ships with the npm package.',
+      expect: fire,
+    }
+  - { id: fire-add-skill, prompt: 'Add a release-notes skill.', expect: fire }
   - { id: skip-teach-me-library, prompt: "Teach me how to use our date library's parse function.", expect: skip }
   - { id: skip-add-hooks-component, prompt: "Add a hooks component to this plugin's plugin.json.", expect: skip }
   # doctor across every harness on this machine, not only the running one.
-  - { id: fire-doctor-all-harnesses, prompt: "Do the references our triage skill loads work in Codex too, not only here? Check it for every harness installed on this machine.", expect: fire }
+  - {
+      id: fire-doctor-all-harnesses,
+      prompt: 'Do the references our triage skill loads work in Codex too, not only here? Check it for every harness installed on this machine.',
+      expect: fire,
+    }
 # files/samples holds two sample skills (R79): release-notes passes every check; release-notes-flawed passes every
 # critical script check but fails TRG-3 (its description says how it works), CRI-3 ("The notes are clear"), SHP-3 (its
 # grouping step is prose a script could do), and the VER-12 warning (its setup writes .git/hooks and repository git
@@ -66,19 +106,19 @@ outcome:
 #   C29 R187 | C30 R188, R189 | C31 R184
 rubrics:
   C1:
-    - regex: "deploy-notes"
+    - regex: 'deploy-notes'
     # The user skills folder in any form a reply writes it: `~/`, `$HOME/`, the run's absolute home folder, or in words.
     - regex: "~/\\.[a-z]+/skills|\\$HOME/\\.[a-z]+/skills|[Hh]ome[\\w./-]*/\\.[a-z]+/skills|[Hh]ome (folder|directory)|[Uu]ser'?s?[ -](own |level |-level )?skills"
-    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+    - script: 'test -z "$(git status --porcelain --untracked-files=all)"'
   C2:
-    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+    - script: 'test -z "$(git status --porcelain --untracked-files=all)"'
   C4:
-    - regex: "check"
-    - regex: "fix"
-    - regex: "enhance"
-    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+    - regex: 'check'
+    - regex: 'fix'
+    - regex: 'enhance'
+    - script: 'test -z "$(git status --porcelain --untracked-files=all)"'
   C5:
-    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+    - script: 'test -z "$(git status --porcelain --untracked-files=all)"'
   C6:
     - script: >-
         f=.agents/skills/release-notes-flawed/SKILL.md;
@@ -102,13 +142,13 @@ rubrics:
     - regex: "\\bcustomize\\b"
     - regex: "\\bvet\\b"
     - regex: "\\breport\\b"
-    - regex: "skillify"
-    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+    - regex: 'skillify'
+    - script: 'test -z "$(git status --porcelain --untracked-files=all)"'
   C9:
-    - regex: "[Cc]riteria"
-    - regex: "[Vv]erification"
-    - regex: "[Ss]ecurity"
-    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+    - regex: '[Cc]riteria'
+    - regex: '[Vv]erification'
+    - regex: '[Ss]ecurity'
+    - script: 'test -z "$(git status --porcelain --untracked-files=all)"'
   C13:
     - regex: "[Aa]utonomy:\\W{0,4}(ask|apply-safe|apply)\\b"
   C14:
@@ -124,11 +164,11 @@ rubrics:
     # or A); the scripts check it stopped.
     - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
   C15:
-    - regex: "[Ii]ntent|[Pp]urpose|what (the skill|it) is for"
+    - regex: '[Ii]ntent|[Pp]urpose|what (the skill|it) is for'
     - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
-    - script: "git diff --quiet HEAD -- .agents/skills/release-notes && test -z \"$(git status --porcelain --untracked-files=all -- .agents/skills/release-notes)\""
+    - script: 'git diff --quiet HEAD -- .agents/skills/release-notes && test -z "$(git status --porcelain --untracked-files=all -- .agents/skills/release-notes)"'
   C16:
-    - not-regex: "[Nn]o (author|one|human) (is )?(present|watching|available)|[Uu]nattended|[Nn]obody (is )?(present|watching|available)"
+    - not-regex: '[Nn]o (author|one|human) (is )?(present|watching|available)|[Uu]nattended|[Nn]obody (is )?(present|watching|available)'
   C10:
     - regex: "Verdict:\\W{0,4}(blocked|not blocked)"
     - not-regex: "[Ss]tars?[^\\n]{0,40}[Ii]nstalls|[Ii]nstalls[^\\n]{0,40}[Ss]tars?"
@@ -136,7 +176,7 @@ rubrics:
         test -z "$(git status --porcelain --untracked-files=all)"
         && test -z "$(ls -d "${TMPDIR:-/tmp}"/cyber-agentkit-vet-* 2>/dev/null)"
   C11:
-    - script: "ls .agents/skills/*/SKILL.md | grep -qv release-notes"
+    - script: 'ls .agents/skills/*/SKILL.md | grep -qv release-notes'
     - regex: "Check:\\W{0,4}(pass|fail)"
     - regex: "[Tt]est\\W{0,4}[Bb]udget\\W{0,6}within\\b"
     # Started without asking: the reply does not end as a stop does, with a question or lettered options.
@@ -144,11 +184,11 @@ rubrics:
   # create writes the skill's evals and README's Research section, and reports `check`'s result. Without the skill,
   # the work may copy release-notes' layout, but it reports only its own checks ("all four checks passed").
   C12:
-    - script: "test -f .agents/skills/oncall-handoff/SKILL.md && test -f .agents/skills/oncall-handoff/evals/evals.yaml"
+    - script: 'test -f .agents/skills/oncall-handoff/SKILL.md && test -f .agents/skills/oncall-handoff/evals/evals.yaml'
     - script: "grep -q '^## Research' .agents/skills/oncall-handoff/README.md"
     - regex: "`(skill )?check`|\\bskill(\\.mjs)? check\\b|\\b(static|automatic) checks?\\b"
   C17:
-    - regex: "[Rr]esearch"
+    - regex: '[Rr]esearch'
   C21:
     - script: >-
         d=.agents/skills/release-notes/evals; f=$d/evals.yaml;
@@ -165,16 +205,16 @@ rubrics:
     - regex: "(not|n't)( been| yet| yet been)? (saved|accepted)|\\bheld\\b|\\bon hold\\b"
     - regex: "skill(\\.mjs)? accept\\b"
     # No `fix`: none ran, and the reply offers none. Advice against it, such as "Don't run `fix`", is not an offer.
-    - script: "! grep -E '\"skill\":\"(cyber-agentkit:)?skill\"' .skill-test/skill-calls.jsonl 2>/dev/null | grep -qE '\"args\":\" *fix'"
+    - script: '! grep -E ''"skill":"(cyber-agentkit:)?skill"'' .skill-test/skill-calls.jsonl 2>/dev/null | grep -qE ''"args":" *fix'''
     - not-regex: "([Ww]ant me to|[Ss]hall I|[Ss]hould I|I can|I could|I'll|[Ll]et me|[Oo]ffer to)( now)?( run| use| try)? `?/?(skill )?fix\\b|(^|\\n)[ \\t]*(\\d+[.)]|[-*])?[ \\t]*(\\*\\*)?([Rr]un|[Uu]se|[Tt]ry) `?/?(skill )?fix\\b"
-    - script: "test ! -e .agents/skills/release-notes/evals/expected.json && test -z \"$(git status --porcelain --untracked-files=all)\""
+    - script: 'test ! -e .agents/skills/release-notes/evals/expected.json && test -z "$(git status --porcelain --untracked-files=all)"'
   C20:
     - script: >-
         f=.agents/skills/release-notes/README.md;
         grep -qF 'with the skill, 12 of 12 criterion checks pass; without it, 4 of 12.' $f
         && grep -qF '| Draft the changelog for 2.0 from the merged PRs. | fire | 3 of 3 | pass |' $f
         && grep -q '^## Research' $f
-    - script: "test -z \"$(git status --porcelain --untracked-files=all | grep -v ' .agents/skills/release-notes/README.md$')\""
+    - script: 'test -z "$(git status --porcelain --untracked-files=all | grep -v '' .agents/skills/release-notes/README.md$'')"'
   C23:
     # Says the sandbox could not start, in its words or the error's.
     - regex: "[Ss]andbox[^\\n]{0,80}\\b(start|run|unavailable|available|work)|(start|run|unavailable)[^\\n]{0,60}\\b[Ss]andbox"
@@ -183,7 +223,7 @@ rubrics:
     # Asks: a question, or lettered options.
     - regex: "\\?|(^|\\n)[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Aa](\\*\\*)?[.):][\\s\\S]*\\n[ \\t]*([-*][ \\t]+)?(\\*\\*)?\\(?[Bb](\\*\\*)?[.):]"
     # Takes none itself: no result saved and no override written.
-    - script: "test ! -e .agents/skill-design/results/release-notes/latest.json && test -z \"$(git status --porcelain --untracked-files=all)\""
+    - script: 'test ! -e .agents/skill-design/results/release-notes/latest.json && test -z "$(git status --porcelain --untracked-files=all)"'
   C24:
     # Says the runs had no sandbox, before any pass rate (a count such as "3 of 3", or a percentage).
     # Accepts the ways runs say it: "no sandbox", "neither ... sandbox", "**Sandbox:** `none`", "the sandbox was `none`",
@@ -192,12 +232,12 @@ rubrics:
     # Names each path written outside the run folder.
     - regex: "/home/dev/\\.config/release-notes/cache\\.json"
     - regex: "/tmp/release-notes-draft\\.md"
-    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+    - script: 'test -z "$(git status --porcelain --untracked-files=all)"'
   # `update` and `fix` end with both results: the check, and either the test or the budget line that says why it did not run.
   # A nested `skill test` cannot complete in the sandbox, so the budget line or a test result is what the reply shows.
   C25:
-    - regex: "[Cc]heck"
-    - regex: "Test budget:|[Tt]est (result|ran|passed|failed)|criteri(on|a)"
+    - regex: '[Cc]heck'
+    - regex: 'Test budget:|[Tt]est (result|ran|passed|failed)|criteri(on|a)'
   # update tests the stale cases only, never every case, and its report names the scope that ran (R189).
   C30:
     - not-regex: "--all\\b"
@@ -207,5 +247,5 @@ rubrics:
   C28:
     - regex: "triage\\.rules"
     - regex: "\\.agents/references/triage\\.rules\\.md"
-    - regex: "reference (customize|delete)|heading"
-    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+    - regex: 'reference (customize|delete)|heading'
+    - script: 'test -z "$(git status --porcelain --untracked-files=all)"'

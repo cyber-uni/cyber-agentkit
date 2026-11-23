@@ -22,7 +22,7 @@ outcome:
     criteria: [C27]
     checks:
       C27:
-        - script: "git diff --quiet HEAD -- .agents/skills/release-notes/evals"
+        - script: 'git diff --quiet HEAD -- .agents/skills/release-notes/evals'
         - regex: "\\b([Rr]eason|[Ww]hy)\\b"
   # A plain "make the test pass" is no request for a mark (#329): the skill may fix the skill, but marks nothing.
   - id: fails-make-it-pass

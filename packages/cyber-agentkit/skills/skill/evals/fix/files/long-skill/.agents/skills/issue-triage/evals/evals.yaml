@@ -13,6 +13,6 @@ outcome:
     files: files/three-issues
 rubrics:
   C1:
-    - script: "test $(wc -l < TRIAGE.md) = 2"
+    - script: 'test $(wc -l < TRIAGE.md) = 2'
   C2:
-    - script: "true"
+    - script: 'true'

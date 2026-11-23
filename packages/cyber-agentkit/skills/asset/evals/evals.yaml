@@ -2,17 +2,17 @@ runs: 3
 threshold: 2
 trigger:
   - { prompt: "Which files are in the release-notes skill's assets folder?", expect: fire }
-  - { prompt: "Add a JSON schema at assets/schema.json to the release-notes skill.", expect: fire }
+  - { prompt: 'Add a JSON schema at assets/schema.json to the release-notes skill.', expect: fire }
   - { prompt: "Delete the old template from the release-notes skill's assets.", expect: fire }
-  - { prompt: "Override the release-notes template asset for this project with our own copy.", expect: fire }
-  - { prompt: "Load our style reference and tell me what it says about tone.", expect: skip }
-  - { prompt: "Write a skill that drafts release notes from merged pull requests.", expect: skip }
-  - { prompt: "Move the steps in the release-notes skill into a references file.", expect: skip }
+  - { prompt: 'Override the release-notes template asset for this project with our own copy.', expect: fire }
+  - { prompt: 'Load our style reference and tell me what it says about tone.', expect: skip }
+  - { prompt: 'Write a skill that drafts release notes from merged pull requests.', expect: skip }
+  - { prompt: 'Move the steps in the release-notes skill into a references file.', expect: skip }
   - { prompt: "Add a logo image to the docs site's public folder.", expect: skip }
 outcome:
   - id: show-text
     prompt: Show me the release-notes skill's assets/template.md.
-    files: files/repo   # a repo skill with assets/template.md and a binary assets/logo.png
+    files: files/repo # a repo skill with assets/template.md and a binary assets/logo.png
     criteria: [C1, C4]
     checks:
       C4:
@@ -37,7 +37,7 @@ outcome:
       C2:
         - contains: checklist.md
       C3:
-        - file-contains: { path: .agents/skills/release-notes/assets/checklist.md, text: "- Tag the release." }
+        - file-contains: { path: .agents/skills/release-notes/assets/checklist.md, text: '- Tag the release.' }
   - id: create-existing
     prompt: >-
       Create assets/template.md in the release-notes skill, saying "## Notes". I approve writing it; don't ask again.
@@ -63,7 +63,7 @@ outcome:
     checks:
       C5:
         - contains: path-invalid
-        - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+        - script: 'test -z "$(git status --porcelain --untracked-files=all)"'
   - id: list
     prompt: Which files are in the release-notes skill's assets folder?
     files: files/repo
@@ -86,17 +86,17 @@ rubrics:
     - contains: template.md
     - contains: logo.png
   C8:
-    - script: "test ! -e .agents/skills/release-notes/assets/logo.png && test -f .agents/skills/release-notes/assets/template.md"
+    - script: 'test ! -e .agents/skills/release-notes/assets/logo.png && test -f .agents/skills/release-notes/assets/template.md'
   C1:
     - script: "test -z \"$(git status --porcelain --untracked-files=all | grep -vE ' \\.agents/(skills/release-notes/)?assets/')\""
   C2:
-    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+    - script: 'test -z "$(git status --porcelain --untracked-files=all)"'
   C3:
     - file-exists: .agents/skills/release-notes/assets/template.md
   C4:
     - contains: List each change as
   C5:
-    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+    - script: 'test -z "$(git status --porcelain --untracked-files=all)"'
   C6:
     - contains: load
-    - script: "test -z \"$(git status --porcelain --untracked-files=all)\""
+    - script: 'test -z "$(git status --porcelain --untracked-files=all)"'
