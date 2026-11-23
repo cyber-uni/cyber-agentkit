@@ -80,18 +80,18 @@
 			"at": "2026-11-23T03:34:43.200Z",
 			"hashes": {
 				"case": "sha256:d5506700e9c0ed13f4a8a7e4b66fdb27ac41e477f538785d0e740eaff16c8987",
-				"scope": "sha256:87851b2a38ea3c423c6c61bcc152681ff23dcb6592e2081fb09d65d06d1aa26d"
+				"scope": "sha256:140b0e97eb39c68f89b8c3c0c253fa44f0374f3349cc8f26241b156869282531"
 			},
 			"carried": {
-				"reason": "default value only; the create cases set their own budget, and the samples' estimates stay under $5",
-				"at": "2026-11-23T04:41:35.664Z"
+				"reason": "the shared Shape section only gains the SHP-22 rule line; no behavior change to these commands",
+				"at": "2026-11-23T05:06:43.703Z"
 			}
 		}
 	},
 	"inputs": {
-		"sha256:87851b2a38ea3c423c6c61bcc152681ff23dcb6592e2081fb09d65d06d1aa26d": {
+		"sha256:140b0e97eb39c68f89b8c3c0c253fa44f0374f3349cc8f26241b156869282531": {
 			"SKILL.md front matter": "sha256:891934a69015918962c22f806bbe3fc1d896c901f0093fd988bc83204678f94e",
-			"SKILL.md shared sections": "sha256:f6db93795a2963933aa8d3597ae76c2693c9943a6289711abfd7ea506597c89b",
+			"SKILL.md shared sections": "sha256:8eb6834dd83948cb2b863a4cad3dfab8deb954912a6d2682d57d499bfb1a0f47",
 			"SKILL.md router row for references/customize.md": "sha256:9adbc80e5f4ad50b94cf7603c3429ebe1b0b42f7d3bd975c3c303272a4218372",
 			"references/customize.md": "sha256:3b71a479ed2fa2ddc49c13121383599eb21cf09b628e4d45e62b57fe72d5ab6b",
 			"references/trigger-draft.md": "sha256:b7bc2ffea458d00443388b7a3fcbd2d2a4b09ab9469f9fa88c831652169d5176",

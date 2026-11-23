@@ -80,21 +80,21 @@
 			"at": "2026-11-23T03:45:05.878Z",
 			"hashes": {
 				"case": "sha256:467434a35389c0f0835f1097fb03d2994bc6039ba136032973f5ce604a0a1f66",
-				"scope": "sha256:7351521872415eb87779ff4cedf4a2ad59ed12b5da28a2910c46f0d1fc89c830"
+				"scope": "sha256:d2bca2e8bdc9ead4804a08aa50cf07c6fb69e3d776515c95b3df263b7dd5830b"
 			},
 			"carried": {
-				"reason": "hashing a sectioned reference per section and moving the test budget steps into test.md change no behavior",
-				"at": "2026-11-23T04:40:41.281Z"
+				"reason": "the shared Shape section only gains the SHP-22 rule line; no behavior change to these commands",
+				"at": "2026-11-23T05:06:43.703Z"
 			}
 		}
 	},
 	"inputs": {
-		"sha256:7351521872415eb87779ff4cedf4a2ad59ed12b5da28a2910c46f0d1fc89c830": {
+		"sha256:d2bca2e8bdc9ead4804a08aa50cf07c6fb69e3d776515c95b3df263b7dd5830b": {
 			"SKILL.md front matter": "sha256:891934a69015918962c22f806bbe3fc1d896c901f0093fd988bc83204678f94e",
-			"SKILL.md shared sections": "sha256:f6db93795a2963933aa8d3597ae76c2693c9943a6289711abfd7ea506597c89b",
+			"SKILL.md shared sections": "sha256:8eb6834dd83948cb2b863a4cad3dfab8deb954912a6d2682d57d499bfb1a0f47",
 			"SKILL.md router row for references/report.md": "sha256:5d56f9aedb36a341747b415ca32fc43a791c90ac0236662602f2ed14ebeab6b5",
 			"references/attest.md": "sha256:c747ad8c4423fc305582aca0da12734d7768c60c1bfccc69e042a65cbe16a818",
-			"references/check.md": "sha256:eba7855416e1eb5eb6f5b24336f2271e6c2b92fe5885f1e99ddc5a7bdcca88b0",
+			"references/check.md": "sha256:e95b3091657409102c5263ce108c6ea762ec71f49b2811418c76c5510aa8f387",
 			"references/fails.md": "sha256:a93fe261b0ae53deebfbe07dcb306fb5c523898b54eb65030442746aaf0378e9",
 			"references/report.md": "sha256:4b3e71c4a823389409f847949ae49cd52a217e7bc15e949cce7c3c47e7d5f7c6",
 			"references/trigger-draft.md": "sha256:b7bc2ffea458d00443388b7a3fcbd2d2a4b09ab9469f9fa88c831652169d5176",
