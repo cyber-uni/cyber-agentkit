@@ -25,7 +25,10 @@ that still fails, and never add one to make `test` pass.
    [Core aspect fixes](#core-aspect-fixes); for Intent, its Fix in `SKILL.md`; for any other aspect, the Fix in its
    reference. Change only the part the
    failure named.
-3. A repair that needs the author's decision, such as a new Intent, stops the run as Autonomy says.
+3. A repair that needs the author's decision, such as a new Intent, stops the run as Autonomy says. Rewriting a
+   `## Done when` criterion that a check names as vague or unverifiable (such as CRI-3 or CRI-4) so that it states the
+   same outcome in a form a script or a judge can decide is not such a decision: apply it, and never leave the criterion
+   as written or ask the author to choose its wording.
 4. At `apply-safe`, keep a repair only when the failed check now passes and no other check
    fails; ask about the rest.
 5. When a repair makes another check fail, undo it, and report both with the options: keep it, leave it undone, or
@@ -48,7 +51,8 @@ keep the default only as the fallback; `fix` and `enhance` never replace a refer
 SHP-20, declare the loads in the front matter as the `reference` skill's Wire a skill says: add each name the check
 reports to the list, and take out a declared name the text no longer loads.
 
-**Trigger.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result. For TRG-5 and
+**Trigger.** Rewrite the description as Draft says; for TRG-4, use the failed cases in the `test` result. For TRG-3, leave out
+what the body already says of how the skill works, such as the files it reads and writes. For TRG-5 and
 TRG-6, set the description to exactly `By name only` and move what it said to the body or `README.md`. For TRG-7, name
 the job and the words users type for it. For TRG-8, change whichever of the description and the body is out of date.
 For TRG-9, add an `argument-hint` that lists what the user types, such as `"<command> [skill]"`. For TRG-10, rewrite the
