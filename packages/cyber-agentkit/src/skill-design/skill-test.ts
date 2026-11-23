@@ -245,7 +245,6 @@ export async function runTest(
 		if ('problem' in ran) return { problem: `promptfoo did not run: ${ran.problem}` }
 		const setup = setupProblem(ran.output)
 		if (setup) return setup
-		const dropped = options.baselineFolder !== undefined && baselineFolder === undefined
 		let stage = 'reading the runs'
 		try {
 			const dropped = options.baselineFolder !== undefined && baselineFolder === undefined
