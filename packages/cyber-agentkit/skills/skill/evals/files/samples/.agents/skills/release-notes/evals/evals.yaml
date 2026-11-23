@@ -1,12 +1,12 @@
 runs: 3
 threshold: 2
 trigger:
-  - { prompt: Write the release notes for this release., expect: fire }
-  - { prompt: Draft the changelog for 2.0 from the merged PRs., expect: fire }
-  - { prompt: What shipped this release? Put it in the release notes., expect: fire }
-  - { prompt: Summarize pull request 14 for a reviewer., expect: skip }
-  - { prompt: Write a commit message for my staged changes., expect: skip }
-  - { prompt: Review my diff before I push., expect: skip }
+  - { id: fire-release-notes, prompt: Write the release notes for this release., expect: fire }
+  - { id: fire-changelog, prompt: Draft the changelog for 2.0 from the merged PRs., expect: fire }
+  - { id: fire-what-shipped, prompt: What shipped this release? Put it in the release notes., expect: fire }
+  - { id: skip-summarize-pr, prompt: Summarize pull request 14 for a reviewer., expect: skip }
+  - { id: skip-commit-message, prompt: Write a commit message for my staged changes., expect: skip }
+  - { id: skip-review-diff, prompt: Review my diff before I push., expect: skip }
 outcome:
   - id: two-prs
     prompt: Write the release notes.
