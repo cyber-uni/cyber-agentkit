@@ -125,5 +125,7 @@ export function sharedInputHint(selection: Selection, scopes: string[]): string 
 	const [first, ...rest] = selection.scopes
 	const every = (first?.inputsChanged ?? []).filter((name) => rest.every((item) => item.inputsChanged?.includes(name)))
 	if (!every.length) return undefined
-	return `hint: ${every.map((name) => `\`${name}\``).join(', ')} changed in every scope, so this one edit re-runs all ${selection.stale.length} stale cases; when only some parts use it, move it into the parts that use it (SHP-22 of \`skill check\` warns of it before an edit)`
+	const shown = every.slice(0, 3).map((name) => `\`${name}\``)
+	const more = every.length > shown.length ? ` and ${every.length - shown.length} more` : ''
+	return `${shown.join(', ')}${more} changed in every scope, so the change re-runs all ${selection.stale.length} stale cases; when only some parts use an input, move it into the parts that use it (SHP-22 of \`skill check\` warns of it before an edit)`
 }

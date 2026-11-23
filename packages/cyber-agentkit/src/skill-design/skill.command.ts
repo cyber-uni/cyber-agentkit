@@ -943,7 +943,7 @@ function testCommand({
 											.map((line) => `${line}\n`)
 											.join('')
 									: ''
-							}${hint ? `${hint}\n` : ''}${estimateText(estimate)}`,
+							}${hint ? `hint: ${hint}\n` : ''}${estimateText(estimate)}`,
 					},
 				})
 			}

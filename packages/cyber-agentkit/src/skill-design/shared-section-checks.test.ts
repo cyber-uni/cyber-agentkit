@@ -71,6 +71,7 @@ describe('the --estimate hint when one input stales every scope (#417)', () => {
 	it('names the input every scope changed', () => {
 		const hint = sharedInputHint(selection({ root: ['a.md', 'x'], write: ['a.md'] }), ['root', 'write'])
 		expect(hint).toContain('`a.md` changed in every scope')
+		expect(hint).not.toContain('hint:')
 	})
 
 	it('adds nothing when a scope is untouched or the inputs differ', () => {
