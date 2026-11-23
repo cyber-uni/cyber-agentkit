@@ -200,7 +200,8 @@ describe('scope inputs (R178, R179)', () => {
 		const loading = () =>
 			scopedSkill({
 				'references/audit.md': '# Audit\n\nLoad `release.levels` with the `reference` skill. Apply the strict level.\n',
-				'references/write.md': '# Write\n\nLoad `release.levels` with the `reference` skill. Apply the lenient level.\n',
+				'references/write.md':
+					'# Write\n\nLoad `release.levels` with the `reference` skill. Apply the lenient level.\n',
 			})
 		const resolver = (get: () => string) => ({
 			resolve: (name: string) => (name === 'release.levels' ? get() : undefined),
