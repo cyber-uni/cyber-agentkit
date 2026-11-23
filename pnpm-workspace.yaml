@@ -26,3 +26,11 @@ minimumReleaseAgeStrict: true
 minimumReleaseAgeExclude:
   # Renovate security update: astro@7.2.8 || 7.4.7
   - astro@7.2.8 || 7.4.7
+
+# The wasm runtimes under `@astrojs/check` and rolldown take `@emnapi/*` as a peer, and
+# pnpm resolved the 2.0.0-beta pre-release, whose runtime fails on import and makes
+# `astro check` report `@astrojs/check` as missing. Stay on the stable line main uses
+# until a stable 2.x ships; remove this override then.
+overrides:
+  "@emnapi/core": 1.11.3
+  "@emnapi/runtime": 1.11.3
