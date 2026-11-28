@@ -129,6 +129,23 @@ describe('projectReferenceFolders outside git', () => {
 		expect(folders(root)).toEqual(['app'])
 	})
 
+	it('does not walk into a nested repository or a .git folder', () => {
+		const root = tempDir()
+		write(root, 'app/.agents/references/name.md')
+		write(root, 'clone/.git/HEAD', 'ref: refs/heads/main\n')
+		write(root, 'clone/.agents/references/name.md')
+		write(root, 'clone/package.json', '{}\n')
+		write(root, 'clone/.pnpm-store/v10/pkg/.agents/references/name.md')
+		write(root, 'group/worktree/.git', 'gitdir: elsewhere\n')
+		write(root, 'group/worktree/.agents/references/name.md')
+		write(root, 'group/.agents/references/name.md')
+		write(root, '.git/hooks/.agents/references/name.md')
+
+		const found = projectFolders(root)
+		expect(found.folders.map(({ folder }) => folder)).toEqual(['app', 'group'])
+		expect(found.packages).toEqual([])
+	})
+
 	it('skips an empty .agents/references/ folder and does not walk into one', () => {
 		const root = tempDir()
 		mkdirSync(join(root, 'empty', '.agents', 'references'), { recursive: true })

@@ -95,22 +95,32 @@ function entries(dir: string): Dirent[] {
 	}
 }
 
+/** Whether a folder's entries hold `.git`, a folder or a file (a git worktree): the folder is a repository of its own. */
+function isRepository(listing: Dirent[]): boolean {
+	return listing.some((entry) => entry.name === '.git')
+}
+
 /**
  * Outside git, nothing is ignored: walk every folder below `root`, never following a symlink, and
  * keep each one whose `.agents/references/` holds something. A `.agents/references/` folder is not
  * walked into, since what it holds are documents. A folder holding a `package.json` is kept as a
  * package unless it sits inside a `node_modules/` folder, which holds installed packages.
+ *
+ * A folder below `root` holding `.git` is another repository, with its own root, so it is not walked
+ * into, as `git ls-files` does not list what a nested repository holds. A folder of many clones
+ * would otherwise be read whole, each clone's `.git`, `node_modules/`, and package store included.
  */
 function walk(root: string): { folders: string[]; packages: string[] } {
 	const found: string[] = []
 	const packages: string[] = []
 	const visit = (relative: string) => {
 		const listing = entries(join(root, relative))
+		if (relative && isRepository(listing)) return
 		if (relative && !relative.split('/').includes('node_modules')) {
 			if (listing.some((entry) => entry.isFile() && entry.name === 'package.json')) packages.push(relative)
 		}
 		for (const entry of listing) {
-			if (!entry.isDirectory()) continue
+			if (!entry.isDirectory() || entry.name === '.git') continue
 			const child = relative ? `${relative}/${entry.name}` : entry.name
 			if (entry.name !== referencesPath[0]) {
 				visit(child)
