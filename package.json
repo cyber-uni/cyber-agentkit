@@ -29,7 +29,7 @@
 		"@repobuddy/biome": "^2.3.1",
 		"husky": "^9.1.7",
 		"turbo": "^2.9.16",
-		"universal-plugin": "^0.23.1"
+		"universal-plugin": "^0.24.0"
 	},
 	"packageManager": "pnpm@12.23.0+sha512.02da94ffaf133f46074322afe552f90d40b5f71ae259aefbccdacc5085b1d617e98d65e0131f5748b9b67445978ee5055d7d59a473f1eef0d504854fefcd5975",
 	"engines": {
